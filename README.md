@@ -1,4 +1,4 @@
-# Weather Farmer
+# Weather Farmer 
 
 A 2D web farming game driven by **real-world weather, time, and location**. Players farm a plot of land, react to live weather and forecasts, and grow their assets over time — while facing real-life challenges like drought, storms, and frost.
 
