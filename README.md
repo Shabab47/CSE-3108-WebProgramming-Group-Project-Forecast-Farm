@@ -148,18 +148,6 @@ The gameplay provides balanced progression focusing on strategic financial choic
 
 ---
 
-## 🚀 Future Scope
-
-- Enhanced graphical fidelity and fluid pixel animations.
-- Expanded store catalogs with diverse inventory upgrades.
-- Additional crop variants, plant diseases, and dynamic field pests (e.g., crows).
-- Automation mechanics via a paid helper/worker system.
-- Variable water pump tiers and efficiency upgrade paths.
-- Complex high-efficiency machinery and farm item repair loops.
-- **Supply & Demand Market Simulator:** Dynamically fluctuating sales values adjusted for local geography, macro-seasons, weather trends, and global environmental disasters.
-
----
-
 ## 🛠️ Local Environment Deployment
 
 The engine relies entirely on native ES modules and requires a lightweight static server execution environment:
