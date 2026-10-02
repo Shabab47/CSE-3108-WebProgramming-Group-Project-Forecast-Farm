@@ -1,0 +1,82 @@
+Folder PATH listing for volume New Volume
+Volume serial number is 489A-30D3
+D:.
+|   almanac.html
+|   index.html
+|   LICENSE
+|   README.md
+|   structure.txt
+|   
++---assets
+|   +---icons
+|   |   +---crops
+|   |   |       corn.svg
+|   |   |       potato.svg
+|   |   |       rice.svg
+|   |   |       tomato.svg
+|   |   |       wheat.svg
+|   |   |       
+|   |   \---weather
+|   |           cloudy.svg
+|   |           drought.svg
+|   |           frost.svg
+|   |           hail.svg
+|   |           heavy-rain.svg
+|   |           high-humidity.svg
+|   |           light-rain.svg
+|   |           strong-wind.svg
+|   |           sunny.svg
+|   |           
+|   \---sounds
+|           notification.mp3
+|           rain.mp3
+|           storm.mp3
+|           
++---css
+|       components.css
+|       layout.css
+|       reset.css
+|       themes.css
+|       variables.css
+|       
++---data
+|       sample-forecast.json
+|       
++---docs
+|       crop-choice-guide.md
+|       crops.md
+|       notifications.md
+|       weather-events.md
+|       
+\---js
+    |   main.js
+    |   
+    +---config
+    |       crops.js
+    |       cropWeatherMatrix.js
+    |       seasons.js
+    |       weatherEvents.js
+    |       
+    +---domain
+    |       farm.js
+    |       notifications.js
+    |       simulator.js
+    |       weather.js
+    |       
+    +---services
+    |       map.js
+    |       timeApi.js
+    |       weatherApi.js
+    |       
+    +---ui
+    |       almanac.js
+    |       cropPicker.js
+    |       farmView.js
+    |       toastStack.js
+    |       weatherPanel.js
+    |       
+    \---utils
+            date.js
+            dom.js
+            season.js
+            
