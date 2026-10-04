@@ -1,12 +1,12 @@
-# Implementation Plan — Weather Farmer
+# Implementation Plan — Forecast Farm
 
 Isometric field and clean structure.
 
-This is the build plan, revised on 2026-10-04 after auditing it against the repository, the
+This is the build plan, revised after auditing it against the repository, the
 actual PNG assets, and live Open-Meteo responses. Corrections are folded in and listed under
 [Revisions](#revisions) at the bottom.
 
-Companion docs: `docs/architecture.md` (where things live), `docs/team/goals.md` (the 4-week
+Companion docs: `docs/architecture.md` (where things live), `docs/team/goals.md` (the 5-week
 window), `docs/team/issues.md` (25 logged problems), `docs/team/decisions.md` (why).
 
 ---
@@ -58,7 +58,7 @@ Do not re-litigate these; they are recorded with rationale in `docs/team/decisio
 | Pump | Pre-owned in the MVP. On = waters all owned plots, costs gold per second |
 | Empty plot | The ground tile itself. `rice_1..rice_5` are the five growth stages |
 | `base.png` | The slab under the field |
-| Persistence | `localStorage` key `weatherFarmer.save.v1` |
+| Persistence | `localStorage` key `forecastFarm.save.v1` |
 | Weather source | Real API only. The player's levers are actions, never the sky (DEC-013) |
 | Icons | Paths coded as specified; broken images accepted until art lands (DEC-014) |
 
@@ -205,10 +205,13 @@ export const FIELD = {
 export const ZONES = { A: 'top', B: 'right', C: 'left', D: 'bottom' };
 // zone of (col,row): A col<2,row<2 | B col>=2,row<2 | C col<2,row>=2 | D col>=2,row>=2
 // plot id = row*4 + col (0..15)
-export const PLOT_PRICES = [0, 100, 200, 400, 800, 1600, 2400, 3200,
-                            4000, 4800, 5600, 6400, 7200, 8000, 8800, 9600];
+export const PLOT_PRICES = [0, 100, 200, 400, 800, 1600, 3200, 6400,
+                            12800, 25600, 51200, 102400, 204800, 409600,
+                            819200, 1638400];
 // price of the Nth purchase = PLOT_PRICES[ownedCount]. First plot free.
-// Plots 7-16 are +800 each (placeholder balance).
+// Every plot costs exactly TWICE the previous one. There is no cap: all 16
+// plots cost 3,276,700 gold in total, which is a long-term goal, not a
+// week-one target. See "Land prices" in docs/crops.md.
 ```
 
 ### 6.2 Stage and geometry (`utils/iso.js`)
@@ -280,6 +283,10 @@ export const groundImg = (watered) =>
   `assets/images/ground/ground_${watered ? 'watered' : 'unwatered'}.png`;
 export const cropImg = (cropId, stage) =>
   `assets/images/crops/${cropId}/${cropId}_${stage}.png`;
+// Failure sprites. Seven sprites per crop in total: 5 stages + 2 failure states.
+export const CROP_FAILURES = ['rain_damaged', 'drought_killed'];
+export const cropFailureImg = (cropId, failure) =>
+  `assets/images/crops/${cropId}/${cropId}_${failure}.png`;
 export const BASE_IMG = 'assets/images/base.png';
 export const PUMP_IMG = 'assets/images/pump/pump.png';
 export const weatherIcon = (eventId) => `assets/icons/weather/${eventId}.svg`;
@@ -366,7 +373,7 @@ Per event: `{ id, label, icon, evaporation, rainWaterPerHour }`
 Unmatched codes fall through to `cloudy`.
 
 > **The current hour is not `hourly[0]`.** A live response fetched at 12:15 returned
-> `current.time = "2026-10-04T12:15"` and `hourly.time[0] = "2026-10-04T00:00"`, 48 entries for
+> `current.time = "12:15"` and `hourly.time[0] = "00:00"`, 48 entries for
 > `forecast_days=2`. `classify()` must compute a `startIndex` by matching `current.time` against
 > `hourly.time` and slice 24 entries from there. Everything downstream depends on it (ISS-009).
 
@@ -401,7 +408,8 @@ A matrix cell holds one rating and cannot see the plot, so the conditional lives
 (ISS-015).
 
 Extra: at `waterLevel == 0` any crop loses `dryDrainPerHour` on top. Health 0 marks the crop
-dead, shown with `filter: grayscale(1) brightness(.6)` until failure sprites exist. There is no
+dead. Until a failure sprite exists, it renders with `filter: grayscale(1) brightness(.6)`; the
+filter stays as a fallback once sprites land. There is no
 frost-cover mechanic in the MVP, so `severe` frost is a heavy drain rather than an instant kill.
 
 Dead crops are cleared with `farm.clearPlot()`. Without it a dead crop is neither harvestable nor
@@ -550,7 +558,7 @@ hourly  = temperature_2m,relative_humidity_2m,precipitation_probability,weather_
 forecast_days = 2, timezone = auto
 ```
 
-Verified against the live API on 2026-10-04. Response top-level keys: `latitude`, `longitude`,
+Verified against the live API. Response top-level keys: `latitude`, `longitude`,
 `generationtime_ms`, `utc_offset_seconds`, `timezone`, `timezone_abbreviation`, `elevation`,
 `current_units`, `current`, `hourly_units`, `hourly`.
 
@@ -583,7 +591,13 @@ Handle loading state, HTTP errors and empty results. Never `alert()`.
 
 ## 10. Game rules summary
 
+**End goal: unlock all sixteen plots.** That is the objective the whole economy is built around.
+Every other system feeds it — crops sell for gold, the pump costs gold, and each plot costs twice
+the last so the farm is never finished. A player holding all sixteen plots has won; there is
+nothing beyond that in version 1.
+
 - Start: 200 gold, 0 plots owned. First plot free (pick any), then `PLOT_PRICES[n]`.
+- **Land prices double with every purchase.** Full schedule in `docs/crops.md`.
 - Seeds must be bought, one seed per plot planted.
 - Pump on: owned plots gain water, gold drains per second, auto-off at 0 gold.
 - Rain adds water. Sun and drought evaporate it.
@@ -620,7 +634,7 @@ docs/
   game-design/implementation-plan.md   this file
   team/
     README.md              how to use these docs, and the rules
-    goals.md               the 4-week sprint, with done marks
+    goals.md               the 5-week plan, with done marks
     ownership.md           folder -> primary owner
     tasks.md               board
     issues.md              bug and problem log
@@ -652,7 +666,7 @@ Hisham on `state/`, `domain/{farm,plots,pump,wallet,inventory,simulator}.js`, `u
 
 ```
 ### ISS-001 short title
-- Reported: YYYY-MM-DD by <name>   Owner: <name>   Status: open|fixing|fixed|wontfix
+- Reported by <name>   Owner: <name>   Status: open|fixing|fixed|wontfix
 - Where: file/feature
 - Problem: what happens, steps to reproduce
 - Cause: (when known)
@@ -662,7 +676,7 @@ Hisham on `state/`, `domain/{farm,plots,pump,wallet,inventory,simulator}.js`, `u
 **`progress-log.md`** entry template, newest on top:
 
 ```
-## YYYY-MM-DD <name>
+## <name> - what you did
 - Did: ...
 - Files: ...
 - Problems: ... (link ISS-xxx)
@@ -683,9 +697,9 @@ from `file://`), and add a short folder map linking `docs/architecture.md`.
 
 ## 13. Phases and steps
 
-Each step lists **done when**. Mapped to the 4-week window in `docs/team/goals.md`.
+Each step lists **done when**. Mapped to the 5-week plan in `docs/team/goals.md`.
 
-### Phase 0 — foundation (no gameplay) · Week 1
+### Phase 0 — foundation · Week 2
 
 1. **Docs skeleton.** Create `docs/team/*`, `architecture.md`, `reference/`, copy this plan to
    `docs/game-design/implementation-plan.md`, fill the game-design docs from the README. Log the
@@ -699,7 +713,7 @@ Each step lists **done when**. Mapped to the 4-week window in `docs/team/goals.m
    Save a real response to `data/sample-forecast.json`. Delete `map.js` and the placeholder key.
    *Done when:* each service returns parsed data from a quick Node script, no DOM access.
 
-### Phase 1 — page and field · Week 1
+### Phase 1 — page and field · Week 2
 
 5. **Layout shell.** `index.html`, `css/*`, panel placeholders in all grid areas, `main.js`
    boot. *Done when:* the page matches the wireframe at 1280 px and stacks below 900 px.
@@ -709,7 +723,7 @@ Each step lists **done when**. Mapped to the 4-week window in `docs/team/goals.m
    *Done when:* the field matches the reference, hovering a plot highlights only that diamond,
    no overlap flicker.
 
-### Phase 2 — economy core · Week 2
+### Phase 2 — economy core · Weeks 3 and 4
 
 7. **Wallet, plots, buying.** Locked plots dimmed with a price tag, click to buy, `hud` shows
    gold. *Done when:* first plot free, then 100, 200, 400…; cannot buy without gold; tests pass.
@@ -722,7 +736,7 @@ Each step lists **done when**. Mapped to the 4-week window in `docs/team/goals.m
 10. **Market.** Sell tab, quality-based gold. *Done when:* the harvest-to-gold loop works end to
     end.
 
-### Phase 3 — weather · Week 3
+### Phase 3 — weather · Weeks 4 and 5
 
 11. **Weather panel.** `topBar` search, `weatherPanel` current + hourly strip, `envMetrics`,
     `seasonCard`, heat meter, sample fallback badge. *Done when:* searching "Rajshahi" updates
@@ -734,7 +748,7 @@ Each step lists **done when**. Mapped to the 4-week window in `docs/team/goals.m
     *Done when:* forcing a rain forecast with rice planted shows "Rain incoming, skip
     irrigation."
 
-### Phase 4 — finish · Week 4
+### Phase 4 — finish · Week 5
 
 14. **Other crops.** As art arrives, add 5 PNGs each and flip `available: true`. No code changes
     expected. If code is needed, that is an architecture bug — log it.
@@ -745,13 +759,19 @@ Each step lists **done when**. Mapped to the 4-week window in `docs/team/goals.m
 
 ## 14. Out of scope now
 
-Farmer sprite and seed-sowing animation, sounds, pump 3-frame animation, rain and drought failure
-sprites, frost cover action, hail and wind visuals, buying the pump, Leaflet map popup,
-farmhouse and roads from the mockup, multiplayer, accounts.
+Farmer sprite and seed-sowing animation, sounds, pump 3-frame animation, frost cover action, hail
+and wind visuals, buying the pump, Leaflet map popup, farmhouse and roads from the mockup,
+multiplayer, accounts.
+
+**Rain-damaged and drought-killed crop sprites have moved OUT of this list and INTO scope.** They
+were in the original art brief as "Special Failure States" but were deferred while the art
+direction was being set. Seven sprites per crop are now expected: five growth stages plus
+`<crop>_rain_damaged.png` and `<crop>_drought_killed.png`. Tracked in `docs/asset-checklist.md`.
+The CSS filter fallback stays in the code either way.
 
 ## 15. Assumptions to confirm with the team
 
-1. Plots 7–16 cost +800 each (2400 to 9600).
+1. Land prices double with every purchase, 100 to 1,638,400 gold (see `docs/crops.md`). Settled.
 2. The pump waters all owned plots; "selecting" a plot is for planting and harvesting.
 3. Rice is the only playable crop until other art exists.
 4. Balance numbers in 6.4 and 6.5 are placeholders.
@@ -762,7 +782,7 @@ farmhouse and roads from the mockup, multiplayer, accounts.
 
 ## Revisions
 
-Changes made on 2026-10-04 after auditing the plan against the repository and the live APIs.
+Changes made after auditing the plan against the repository and the live APIs.
 Each links to the issue that tracks it.
 
 | # | Change | Issue |

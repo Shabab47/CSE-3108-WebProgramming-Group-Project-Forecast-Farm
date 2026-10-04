@@ -3,12 +3,12 @@
 Short records of choices that were made, so nobody re-litigates them or accidentally reverses
 them. Newest first.
 
-Format: date, who decided, the choice, why, and what was rejected.
+Format: who decided, the choice, why, and what was rejected.
 
 ---
 
 ### DEC-016 One folder per crop under `assets/images/crops/`
-**Date:** 2026-10-04 · **Decided by:** team
+**Decided by:** team
 
 **Choice:** Crop art lives at `assets/images/crops/<cropId>/<cropId>_<stage>.png`. Rice is
 `assets/images/crops/rice/rice_1.png` through `rice_5.png`. Empty folders for wheat, potato, corn
@@ -33,7 +33,7 @@ ISS-001, since those files are all empty and will be replaced anyway.
 ---
 
 ### DEC-015 Measured geometry overrides guessed constants
-**Date:** 2026-10-04 · **Decided by:** Hisham
+**Decided by:** Hisham
 
 **Choice:** `tileAspect: 0.538`, clip-path `22.4% / 75.6%`, `tileScale` starting at `0.204` —
 all measured from the PNG alpha bounding boxes rather than taken from the plan's estimates.
@@ -51,7 +51,7 @@ combination — the bug survives review.
 ---
 
 ### DEC-014 Code icon paths as specified, accept broken images
-**Date:** 2026-10-04 · **Decided by:** team
+**Decided by:** team
 
 **Choice:** `config/assets.js` builds icon paths with no existence check and no fallback layer.
 All 14 SVGs are 0 bytes and will render broken until art arrives.
@@ -68,7 +68,7 @@ moment the art lands.
 ---
 
 ### DEC-013 Weather is real-data only
-**Date:** 2026-10-04 · **Decided by:** team
+**Decided by:** team
 
 **Choice:** Weather always comes from the live API. The player's only levers are their own
 actions — pump on/off, what to plant, what to buy. There is no player-facing weather control.
@@ -83,7 +83,7 @@ so it is documented as a deliberate MVP simplification.
 ---
 
 ### DEC-012 Remove `map.js` (Leaflet + Nominatim)
-**Date:** 2026-10-04 · **Decided by:** team
+**Decided by:** team
 
 **Choice:** Delete `js/services/map.js`. Location picking is a text search via Open-Meteo
 geocoding, with no map popup.
@@ -99,7 +99,7 @@ to a project that currently has none.
 ---
 
 ### DEC-011 Stage is computed, never stored
-**Date:** 2026-10-04 · **Decided by:** Hisham
+**Decided by:** Hisham
 
 **Choice:** `Plot` holds `plantedAt`, never `stage`. `stageOf(plot, now)` derives the stage on
 every render.
@@ -113,7 +113,7 @@ tab sleeps and needs reconciling on load.
 ---
 
 ### DEC-010 DOM `<img>` layers, not canvas
-**Date:** 2026-10-04 · **Decided by:** team
+**Decided by:** team
 
 **Choice:** The field is absolutely positioned `<img>` elements inside a square stage, sized in
 percentages. No `<canvas>`.
@@ -128,7 +128,7 @@ the 1 Hz water animation a repaint-everything problem.
 ---
 
 ### DEC-009 Plot price by purchase count, not plot id
-**Date:** 2026-10-04 · **Decided by:** team
+**Decided by:** team
 
 **Choice:** The price of the next plot is `PLOT_PRICES[ownedCount]`. The first plot is free
 whichever plot you click, and the 100-gold plot is whichever one you click second.
@@ -142,7 +142,7 @@ in awkward corners.
 ---
 
 ### DEC-008 Pump is pre-owned in the MVP
-**Date:** 2026-10-04 · **Decided by:** team
+**Decided by:** team
 
 **Choice:** The pump exists from the start, toggled with a click. Buying it is later.
 
@@ -155,7 +155,7 @@ without already surviving a drought.
 ---
 
 ### DEC-007 Empty plot is the ground tile
-**Date:** 2026-10-04 · **Decided by:** Hisham
+**Decided by:** Hisham
 
 **Choice:** An empty plot renders `ground_watered.png` or `ground_unwatered.png` and nothing
 else. `rice_1` through `rice_5` are the five growth stages of a planted crop.
@@ -167,7 +167,7 @@ also the most common misreading of the assets, which is why it is stated in `doc
 ---
 
 ### DEC-006 4×4 field, four 2×2 zones, dirt cross at the centre
-**Date:** 2026-10-04 · **Decided by:** team
+**Decided by:** team
 
 **Choice:** 16 plots in a 4×4 grid, grouped as four 2×2 zones, with the pump at the crossing.
 The cross paths are `base.png` showing through `crossGap` — there is no path art.
@@ -181,7 +181,7 @@ zone" decision legible.
 ---
 
 ### DEC-005 Open-Meteo geocoding replaces Nominatim + Leaflet
-**Date:** 2026-10-04 · **Decided by:** team
+**Decided by:** team
 
 **Choice:** `js/services/geocodeApi.js` calls the Open-Meteo geocoding API and returns up to 5
 places. No map library, no tile server, no runtime dependency.
@@ -195,7 +195,7 @@ ISS-012.
 ---
 
 ### DEC-004 Open-Meteo replaces the OpenWeatherMap placeholder
-**Date:** 2026-10-04 · **Decided by:** team
+**Decided by:** team
 
 **Choice:** `js/services/weatherApi.js` calls `api.open-meteo.com/v1/forecast`. No API key.
 
@@ -208,7 +208,7 @@ forecast strip costs no extra request.
 ---
 
 ### DEC-003 Keep `timeApi.js` as a fallback only
-**Date:** 2026-10-04 · **Decided by:** team
+**Decided by:** team
 
 **Choice:** The Open-Meteo response carries `timezone` and `utc_offset_seconds`, so the local
 clock comes from there. `timeApi.js` is used only if those are missing.
@@ -219,7 +219,7 @@ is real rather than theoretical.
 ---
 
 ### DEC-002 Vanilla ES modules, no framework or bundler
-**Date:** 2026-10-04 · **Decided by:** team
+**Decided by:** team
 
 **Choice:** Plain ES modules and plain CSS, served as-is. `package.json` holds scripts only.
 
@@ -233,7 +233,7 @@ which is what `npm run dev` is for.
 ---
 
 ### DEC-001 Layering is enforced by a script, not by convention
-**Date:** 2026-10-04 · **Decided by:** Hisham
+**Decided by:** Hisham
 
 **Choice:** `scripts/check-imports.mjs` fails the build on a forbidden import, on `fetch(` outside
 `js/services/`, and on `document.` outside `js/ui/`, `js/debug/` and `js/main.js`. It runs in

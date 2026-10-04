@@ -55,8 +55,8 @@ damages them.
 ### Finding the current hour
 
 `hourly.time[0]` in a raw Open-Meteo response is **local midnight**, not the current hour. A
-response fetched at 12:15 has `current.time = "2026-10-04T12:15"` and
-`hourly.time[0] = "2026-10-04T00:00"`. So `classify()` must compute a `startIndex` by comparing
+response fetched at 12:15 has `current.time = "12:15"` and
+`hourly.time[0] = "00:00"`. So `classify()` must compute a `startIndex` by comparing
 `current.time` against the hourly timestamps, then slice 24 entries from there.
 
 Everything downstream assumes this: `state.weather.hourly[0]` is the current hour, which is what
@@ -101,10 +101,23 @@ Because a matrix cell can only hold one rating, this conditional cannot live in
 
 - Any plot at `waterLevel == 0` loses a further `HEALTH.dryDrainPerHour` (5) on top of the
   matrix rating, whether or not a crop is planted.
-- Health 0 marks the crop `dead`. Dead crops render with `filter: grayscale(1) brightness(.6)`
-  until failure sprites exist.
+- Health 0 marks the crop `dead`.
 - A dead crop can be neither harvested nor replanted. `farm.clearPlot()` clears it for free.
   Without that action a dead crop bricks its plot permanently — see ISS-006.
+
+### What a damaged crop looks like
+
+Two failure sprites per crop, chosen by cause:
+
+| Cause | Sprite |
+| :--- | :--- |
+| Heavy rain, or a waterlogged plot | `<crop>_rain_damaged.png` |
+| Drought, frost, hail, or health reaching 0 | `<crop>_drought_killed.png` |
+
+None of these sprites exist yet. Until they do, a dead crop renders with
+`filter: grayscale(1) brightness(.6)` so the state is still readable. **The fallback stays in the
+code after the sprites land**, so a failed image load still shows something is wrong. Art is
+tracked in [`asset-checklist.md`](asset-checklist.md).
 
 ### Frost is a drain, not an instant kill
 

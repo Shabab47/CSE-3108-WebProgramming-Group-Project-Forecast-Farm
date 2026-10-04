@@ -7,20 +7,39 @@ Game developer and debugger.
 `js/config/{field,game,assets}.js`, `scripts/`
 **Goals:** G-01 lead, G-02 support, G-03, G-04, G-05 lead
 
+**Week 1 contribution:** designed the full project structure, how the parts will talk to each
+other, and the art direction every sprite follows.
+
 ---
 
-## Week of 5 Oct 2026
+## Week 1
 
-- [ ] `git pull` — local `main` is 1 behind `origin/main` (ISS-021)
+- [x] Full project structure designed — folders, modules, and what lives where
+- [x] Data flow designed — how services, state, rules and screens talk to each other
+- [x] Layering rules written, and the checker that enforces them — `scripts/check-imports.mjs`
+- [x] **Art direction** — style, perspective, palette and naming rules for all sprite and icon
+      work, so Kafi's art stays consistent as more crops land
+- [x] Set the asset naming and folder convention — `docs/asset-checklist.md`
+- [x] Documentation written and committed — 16 files under `docs/`
+- [x] Reference renders added — `docs/reference/`
+- [x] `git pull` — local `main` was 1 behind `origin/main` (ISS-021)
+- [x] Measured the PNG geometry so the field numbers are not guesses
 - [ ] T-02: `package.json`, `scripts/check-imports.mjs`, `utils/log.js`, first passing test
 - [ ] Whitelist `js/utils/dom.js` in the check script or it can never pass (ISS-010)
 - [ ] Add a minimal `.gitignore` (ISS-020)
 - [ ] T-03: all `js/config/*`, `state/types.js`, `initialState.js`, `store.js`
 - [ ] `state.notified` goes in the shape now, before notifications need it (ISS-013)
 
+## Week 2
+
+- [ ] T-05: `index.html` and `css/*` shell with Kafi
+- [ ] T-06: `utils/iso.js`, `farmView`, `plotTile`, `pumpView`, `css/field.css`, debug sliders
+- [ ] Calibrate the field geometry against `docs/reference/field-reference.jpeg`
+- [ ] Pump click target clipped to its art (ISS-007)
+
 ## Measured geometry — do not re-derive this
 
-Alpha bounding boxes, measured 2026-10-04. Every PNG is 1000×1000 with the art inside it.
+Alpha bounding boxes, measured during the pre-build audit. Every PNG is 1000×1000 with the art inside it.
 
 | Asset | Content | h/w | Centre |
 | :--- | :--- | ---: | :--- |
@@ -51,13 +70,16 @@ Alpha bounding boxes, measured 2026-10-04. Every PNG is 1000×1000 with the art 
 ids. Calibration against `docs/reference/field-reference.jpeg` is how the numbers above get
 finalised — write the results into `config/field.js`, not just into the sliders.
 
-## Week of 12 Oct 2026
+## Week 3
 
 - [ ] T-07: `wallet.js`, `plots.js`, `plots.test.js` — price by purchase count, cannot buy twice,
-      cannot afford
+      cannot afford. Prices double each purchase; see `docs/crops.md`
 - [ ] T-08: `inventory.js`, `farm.js` with `clearPlot()` (ISS-006), `farm.test.js`
 - [ ] Plot DOM created once, attributes diffed on update — otherwise the 1 Hz tick flickers 35
       images a second (ISS-018)
+
+## Week 4
+
 - [ ] T-09: pump, water, `meters`. **Needs the balance decision first** (ISS-008)
 - [ ] T-10: market tab
 - [ ] Settle the offline catch-up rule explicitly: `dt > 60_000` → growth only, skip water and

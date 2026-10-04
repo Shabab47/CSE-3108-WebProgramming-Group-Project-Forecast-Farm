@@ -78,6 +78,54 @@ misreading of the art, so it is worth stating twice.
 Ready to harvest requires `progress >= 1` **and** `not dead`. A dead crop never becomes ready,
 which is why `farm.clearPlot()` exists — see `docs/team/issues.md` ISS-006.
 
+## Land prices
+
+Source of truth is `PLOT_PRICES` in `js/config/field.js`. The price of the *n*-th plot the player
+buys is `PLOT_PRICES[ownedCount]` — the price depends on **how many plots they already own**, not
+on which plot it is. That keeps the opening affordable wherever the player clicks, and gives the
+land shop a single "next price" instead of sixteen.
+
+**Every plot costs exactly twice the previous one.** There is no ceiling on the curve.
+
+| Plot | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+| :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Cost (gold) | Free | 100 | 200 | 400 | 800 | 1,600 | 3,200 | 6,400 |
+
+| Plot | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 |
+| :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Cost (gold) | 12,800 | 25,600 | 51,200 | 102,400 | 204,800 | 409,600 | 819,200 | 1,638,400 |
+
+Cumulative totals, which are what actually matters for pacing:
+
+| Milestone | Total gold | Reachable by |
+| :--- | ---: | :--- |
+| Plots 1–4 | 700 | first session |
+| Plots 1–6 | 3,100 | early game |
+| Plots 1–8 | 12,700 | first weeks of play |
+| Plots 1–12 | 204,700 | long term |
+| **All 16** | **3,276,700** | **the end goal** |
+
+### The end goal
+
+**Unlocking all sixteen plots is the objective of the game.** Every other system exists to serve
+it: crops convert into gold, the pump spends gold to keep those crops alive, and land is what gold
+buys. A player holding all sixteen plots has finished version 1 — there is deliberately nothing
+past that yet.
+
+The doubling curve is what makes the goal feel like a goal rather than a checklist. A flat price
+list would be exhausted in an afternoon; a curve that multiplies by two every purchase turns the
+farm into something a player returns to over months. The first plot being free means a new player
+can plant within a minute of starting, and the freebie plus 200 starting gold is enough to buy the
+second plot and ten rice seeds outright.
+
+### A note on pacing
+
+Rice earns about 30 gold per planting after seed cost, and takes six hours to grow. Buying all
+sixteen plots is therefore a very long haul at that rate — deliberately so, but worth
+revisiting if playtesting shows the mid-game going quiet. The debug panel's *unlock all plots*
+button exists so a full farm can be demonstrated without grinding. Reachable-by estimates in the
+table above assume a full farm earning at that rate, so a small farm is slower, not faster.
+
 ## Harvest and quality
 
 ```
@@ -95,3 +143,26 @@ stack and then adding more does not distort the average.
 Crop sprites are drawn slightly taller than the ground tile (h/w 0.589 against 0.538). That is
 intentional: plants should stand proud of the soil. Do not "fix" it by scaling crop layers to
 match the ground, or the tops will be clipped.
+
+### Growth stages and failure states
+
+Seven sprites per crop: five growth stages, then two failure states.
+
+```
+assets/images/crops/<cropId>/<cropId>_<stage>.png          stages 1 to 5
+assets/images/crops/<cropId>/<cropId>_rain_damaged.png    heavy rain, waterlogging
+assets/images/crops/<cropId>/<cropId>_drought_killed.png  drought, frost, hail, or health 0
+```
+
+`rice_1.png` through `rice_5.png` exist. **Rice still needs both failure states**, as does every
+other crop. Track them in [`asset-checklist.md`](asset-checklist.md).
+
+Until a failure sprite exists the game falls back to a CSS filter, so the state is still readable:
+
+```css
+/* dead crop, until <cropId>_drought_killed.png exists */
+filter: grayscale(1) brightness(.6);
+```
+
+**The fallback stays even once sprites land.** If an image fails to load, or a crop's art is late,
+the player still sees that something is wrong. Prefer the sprite, fall back to the filter.

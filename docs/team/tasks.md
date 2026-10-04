@@ -6,25 +6,41 @@ Seeded from `docs/game-design/implementation-plan.md` section 13. Status is one 
 Move a task to `doing` when you pick it up and to `done` when its **Done when** is met. Update
 the `Updated` column on every status change so the board never lies about freshness.
 
+Weeks are in `goals.md`. Week 1 was planning; T-02 onward belong to weeks 2–5.
+
 ---
 
-## Phase 0 — Foundation
+## Week 1 — Planning (complete)
 
 | ID | Task | Owner | Status | Phase | Updated |
 | :--- | :--- | :--- | :--- | ---: | :--- |
-| T-01 | Docs skeleton: `docs/team/*`, `architecture.md`, `reference/`, plan copy, 4 game-design docs | Shabab | done | 0 | 2026-10-04 |
+| T-01 | Docs skeleton: `docs/team/*`, `architecture.md`, `reference/`, plan copy, 4 game-design docs | Shabab | done | prep | — |
+| T-17 | Project structure and data flow design | Hisham | done | prep | — |
+| T-18 | Documentation written and committed — 16 files | Hisham | done | prep | — |
+| T-19 | Rice artwork, 5 growth stages | Kafi | done | prep | — |
+| T-20 | Farm ground artwork, watered and unwatered | Kafi | done | prep | — |
+| T-21 | One folder per crop under `assets/images/crops/` | Kafi | done | prep | — |
+| T-22 | Base APIs: weather, time, place lookup | Afif | done | prep | — |
+| T-23 | Implementation plan, crop and season design, team workflow | Shabab | done | prep | — |
+| T-24 | Art direction: style, perspective, palette, naming rules for all sprites and icons | Hisham | done | prep | — |
+| T-25 | Asset checklist created — every asset needed, with status | Kafi | done | prep | — |
+
+## Phase 0 — Foundation · week 2
+
+| ID | Task | Owner | Status | Phase | Updated |
+| :--- | :--- | :--- | :--- | ---: | :--- |
 | T-02 | Tooling: `package.json`, `scripts/check-imports.mjs`, `utils/log.js`, first passing test | Hisham | todo | 0 | — |
 | T-03 | Config + state: all `config/*`, `state/types.js`, `initialState.js`, `store.js` | Hisham | todo | 0 | — |
-| T-04 | Services cleanup: rewrite `weatherApi`, `timeApi`; add `geocodeApi`; save sample; delete `map.js` | Afif | todo | 0 | — |
+| T-04 | Services cleanup: rewrite `weatherApi`, `timeApi`; add `geocodeApi`; **add reverse geocoding**; save sample; delete `map.js` | Afif | todo | 0 | — |
 
-## Phase 1 — Page and field
+## Phase 1 — Page and field · week 2
 
 | ID | Task | Owner | Status | Phase | Updated |
 | :--- | :--- | :--- | :--- | ---: | :--- |
 | T-05 | Layout shell: `index.html`, `css/*`, panel placeholders, `main.js` boot | Kafi | todo | 1 | — |
 | T-06 | Static field: `utils/iso.js`, `farmView`, `plotTile`, `pumpView`, `css/field.css`, debug sliders, calibrate geometry | Hisham | todo | 1 | — |
 
-## Phase 2 — Economy core
+## Phase 2 — Economy core · weeks 3 and 4
 
 | ID | Task | Owner | Status | Phase | Updated |
 | :--- | :--- | :--- | :--- | ---: | :--- |
@@ -33,7 +49,7 @@ the `Updated` column on every status change so the board never lies about freshn
 | T-09 | Pump and water: toggle, water rise, ground sprite swap, gold drain, auto-off at 0, `meters` | Hisham | todo | 2 | — |
 | T-10 | Market: sell tab, quality-based gold | Hisham | todo | 2 | — |
 
-## Phase 3 — Weather
+## Phase 3 — Weather · weeks 4 and 5
 
 | ID | Task | Owner | Status | Phase | Updated |
 | :--- | :--- | :--- | :--- | ---: | :--- |
@@ -41,11 +57,12 @@ the `Updated` column on every status change so the board never lies about freshn
 | T-12 | Classification + effects: `domain/weather.js`, matrix, simulator effects, forced-weather debug dropdown | Afif | todo | 3 | — |
 | T-13 | Notifications: `notifications.js`, `toastStack`, forecast projection per planted crop | Afif | todo | 3 | — |
 
-## Phase 4 — Finish
+## Phase 4 — Finish · week 5
 
 | ID | Task | Owner | Status | Phase | Updated |
 | :--- | :--- | :--- | :--- | ---: | :--- |
 | T-14 | Other crops: flip `available: true` as art arrives, no code changes expected | Shabab | todo | 4 | — |
+| T-26 | Missing art per `docs/asset-checklist.md` — 2 rice failure sprites, 28 for the other 4 crops, 14 icons, 2 pump frames | Kafi | todo | 4 | — |
 | T-15 | Polish: almanac content, empty/loading/error states, keyboard focus, image size review | Kafi | todo | 4 | — |
 | T-16 | Handover: `architecture.md`, `tasks.md`, final `progress-log` entry, tag `v0.1` | Shabab | todo | 4 | — |
 

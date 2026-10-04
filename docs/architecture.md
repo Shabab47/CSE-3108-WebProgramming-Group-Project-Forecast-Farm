@@ -1,6 +1,6 @@
 # Architecture
 
-How Weather Farmer is put together, and where to change things.
+How Forecast Farm is put together, and where to change things.
 
 Stack: vanilla JS ES modules, plain CSS, DOM `<img>` layers. No framework, no bundler,
 no runtime dependencies. `package.json` exists only for scripts.
@@ -81,6 +81,92 @@ services (fetch)  →  main.js  →  store.apply  →  domain (pure rules)  → 
 | the state shape | `js/state/types.js`, `js/state/initialState.js` |
 | debug sliders and cheat buttons | `js/debug/debug.js` |
 
+
+---
+
+## Project structure
+
+This is the repo **as it stands**, not the finished shape. It moves, so treat it as a snapshot.
+
+.
+├── index.html                  empty — app shell, 3 grid columns
+├── almanac.html                empty — placeholder page
+├── LICENSE                     MIT
+├── README.md
+│
+├── css/
+│   ├── reset.css               empty
+│   ├── layout.css              empty — the 3-area CSS grid
+│   ├── variables.css           empty — all colours, radii, spacing
+│   ├── themes.css              empty
+│   ├── components.css          empty
+│   └── field.css               planned — isometric stage and plot layers
+│
+├── data/
+│   └── sample-forecast.json    empty — one real Open-Meteo response, for offline dev
+│
+├── js/
+│   ├── main.js                 empty — boot order only
+│   ├── config/                 pure data, imports nothing
+│   │   ├── crops.js            empty
+│   │   ├── cropWeatherMatrix.js empty
+│   │   ├── seasons.js          empty
+│   │   └── weatherEvents.js    empty
+│   ├── domain/                 game rules — no DOM, no fetch
+│   │   ├── farm.js             empty
+│   │   ├── notifications.js    empty
+│   │   ├── simulator.js        empty
+│   │   └── weather.js          empty
+│   ├── services/               the only place that calls fetch
+│   │   ├── map.js              DELETE — Nominatim + Leaflet, references an
+│   │   │                       undefined `map` global and calls alert()
+│   │   ├── timeApi.js          rewrites — writes straight into the DOM
+│   │   └── weatherApi.js       rewrites — OpenWeatherMap placeholder key
+│   ├── ui/                     render only, reads the store
+│   │   ├── almanac.js          empty
+│   │   ├── cropPicker.js       empty
+│   │   ├── farmView.js         empty
+│   │   ├── toastStack.js       empty
+│   │   └── weatherPanel.js     empty
+│   ├── utils/
+│   │   ├── date.js             empty
+│   │   ├── dom.js              empty
+│   │   └── season.js           empty
+│   ├── state/                  planned — store, types, initial state
+│   └── debug/                  planned — the ?debug=1 panel
+│
+├── assets/
+│   ├── icons/
+│   │   ├── crops/              5 SVGs — all 0 bytes, art pending
+│   │   └── weather/            9 SVGs — all 0 bytes, art pending
+│   ├── images/
+│   │   ├── base.png            the slab under the field
+│   │   ├── pump.png            moves to pump/pump.png
+│   │   ├── crops/
+│   │   │   ├── rice/           rice_1.png … rice_5.png — the only playable crop
+│   │   │   ├── wheat/          empty — awaiting art
+│   │   │   ├── potato/         empty — awaiting art
+│   │   │   ├── corn/           empty — awaiting art
+│   │   │   └── tomato/         empty — awaiting art
+│   │   └── ground/
+│   │       ├── ground_watered.png
+│   │       └── ground_unwatered.png
+│   └── sounds/                 3 MP3s, all 0 bytes — out of scope
+│
+└── docs/
+    ├── architecture.md         layers, data flow, boot order, where things live
+    ├── crops.md                crop numbers, stages, harvest maths
+    ├── weather-events.md       the 9 events, classification, effects
+    ├── notifications.md        crop alerts and dedupe
+    ├── crop-choice-guide.md    season → crop, using the forecast
+    ├── game-design/
+    │   └── implementation-plan.md
+    ├── reference/              field render, layout wireframe, style mockup
+    └── team/                   goals, tasks, ownership, issues, decisions, members
+```
+
+Also planned but not created yet: `package.json`, `tests/`, `scripts/check-imports.mjs`.
+
 ---
 
 ## Conventions
@@ -92,7 +178,7 @@ services (fetch)  →  main.js  →  store.apply  →  domain (pure rules)  → 
 - Event handlers are attached in JS. No inline handlers in HTML.
 - Plot elements carry `data-plot-id`.
 - Only `store.js` touches `localStorage`, always inside try/catch.
-- Save key: `weatherFarmer.save.v1`.
+- Save key: `forecastFarm.save.v1`.
 
 ## Module contracts
 
