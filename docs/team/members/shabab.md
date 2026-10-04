@@ -7,7 +7,7 @@ Team leader and project manager.
 
 ---
 
-## Week of 5 Oct 2026
+## Week 1
 
 - [ ] Confirm the ownership split in `docs/team/ownership.md` (ISS-025)
 - [ ] Fill `js/config/crops.js` — numbers are placeholders, but they must be internally

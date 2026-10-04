@@ -9,7 +9,7 @@ Game developer and debugger.
 
 ---
 
-## Week of 5 Oct 2026
+## Week 1
 
 - [ ] `git pull` — local `main` is 1 behind `origin/main` (ISS-021)
 - [ ] T-02: `package.json`, `scripts/check-imports.mjs`, `utils/log.js`, first passing test
@@ -51,7 +51,7 @@ Alpha bounding boxes, measured 2026-10-04. Every PNG is 1000×1000 with the art 
 ids. Calibration against `docs/reference/field-reference.jpeg` is how the numbers above get
 finalised — write the results into `config/field.js`, not just into the sliders.
 
-## Week of 12 Oct 2026
+## Week 2
 
 - [ ] T-07: `wallet.js`, `plots.js`, `plots.test.js` — price by purchase count, cannot buy twice,
       cannot afford

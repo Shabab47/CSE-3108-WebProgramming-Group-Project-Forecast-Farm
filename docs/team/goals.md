@@ -1,7 +1,7 @@
 # Team Goals — 4 Week Sprint
 
-**Window: Mon 5 Oct 2026 → Sun 1 Nov 2026.** Four weeks, eight goals, one shippable thing at
-the end of each week.
+**Four weeks, eight goals, one shippable thing at the end of each week.** Weeks are numbered, not
+dated — the order matters more than the calendar.
 
 Marking progress: change `- [ ]` to `- [x]` in this file. Nothing else. The checkbox is the
 single source of truth for "is this done", so it must be updated in the same commit as the work.
@@ -10,8 +10,8 @@ A goal is only `[x]` when every box under **Done when** is ticked.
 Goals are shared. Anyone can pick one up, and who is doing what is tracked in `tasks.md` rather
 than here — this file stays about the work, not the people.
 
-Dates assume a Monday start. If the team starts later, shift the weeks and keep the order — the
-sequence matters more than the calendar.
+Weeks run in sequence: G-02 before G-03, and G-05 before G-07. If a week slips, slip the goal —
+do not reorder them.
 
 ---
 
@@ -30,7 +30,7 @@ sequence matters more than the calendar.
 
 ---
 
-## Week 1 — 5 Oct to 11 Oct
+## Week 1
 
 ### G-01 Foundation `- [ ]`
 
@@ -76,7 +76,7 @@ diamond, and there is no flicker when the pointer moves across overlapping plot 
 
 ---
 
-## Week 2 — 12 Oct to 18 Oct
+## Week 2
 
 The economy. Nothing here reads the weather API.
 
@@ -125,7 +125,7 @@ runs, and harvest → gold → seeds → plant loops end to end.
 
 ---
 
-## Week 3 — 19 Oct to 25 Oct
+## Week 3
 
 Real weather in, consequences out.
 
@@ -162,7 +162,7 @@ and forcing a rain forecast with rice planted raises *"Rain incoming — skip ir
 
 ---
 
-## Week 4 — 26 Oct to 1 Nov
+## Week 4
 
 ### G-08 Ship v0.1 `- [ ]`
 

@@ -8,7 +8,7 @@ UI/UX and frontend developer.
 
 ---
 
-## Week of 5 Oct 2026
+## Week 1
 
 - [ ] `index.html` with the three grid areas per `docs/reference/layout-wireframe.jpeg`
 - [ ] `css/reset.css`, `variables.css`, `layout.css`, `themes.css`, `components.css`
@@ -28,13 +28,13 @@ UI/UX and frontend developer.
 Team decision on icons: paths are coded as specified and broken images are accepted for now
 (DEC-014). Text labels carry the meaning. Do not build a fallback layer.
 
-## Week of 12 Oct 2026
+## Week 2
 
 - [ ] Locked plot price tags and the buy confirm popover styling
 - [ ] Shop panel: Seeds / Land / Market tabs
 - [ ] `inventoryPanel`, `hud` gold readout, `buttonBar`, `meters` water bar
 
-## Week of 26 Oct 2026
+## Week 3
 
 - [ ] `almanac.html` content and a `js/almanac-main.js` entry — it currently has none (ISS-019)
 - [ ] Empty, loading and error states on every panel

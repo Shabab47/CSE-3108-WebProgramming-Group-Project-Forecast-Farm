@@ -8,7 +8,7 @@ Game developer and game tester.
 
 ---
 
-## Week of 5 Oct 2026
+## Week 1
 
 - [ ] Rewrite `js/services/weatherApi.js` to fetch Open-Meteo and return the parsed JSON
 - [ ] Rewrite `js/services/timeApi.js` to return data instead of writing to the DOM
@@ -43,7 +43,7 @@ rows.
 `utctime.app/api/now/{tz}` is still live and returns `datetime`, `timezone`, `abbreviation`,
 `utc_offset_seconds`-equivalent fields. The fallback is real.
 
-## Week of 12 Oct 2026
+## Week 2
 
 - [ ] `domain/weather.js` `classify()` with the `startIndex` rule and its WMO tests
 - [ ] `ratingFor(plot, eventId)` with the drought `waterLevel < 30` conditional (ISS-015)
