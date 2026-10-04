@@ -13,7 +13,7 @@ A 2D web farming game driven by **real-world weather, time, and location**. Play
 | **Abdullah Hil Kafi** | 19 | UI/UX and frontend developer ✨ |
 | **Hisham Walid** | 31 | Game developer and debugger ☢️ |
 
-[⬇️ Team docs, goals and weekly notes...](docs/team/README.md)
+[⬇️ Go to check weekly updates](#bottom)
 
 ---
 
