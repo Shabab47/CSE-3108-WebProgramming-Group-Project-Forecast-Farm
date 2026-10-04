@@ -1,7 +1,7 @@
-# Team Goals — 4 Week Sprint
+# Team Goals — 5 Week Plan
 
-**Four weeks, eight goals, one shippable thing at the end of each week.** Weeks are numbered, not
-dated — the order matters more than the calendar.
+**Week 1 is done. Four weeks of building remain, eight goals, two per week.** Weeks are numbered,
+not dated — the order matters more than the calendar.
 
 Marking progress: change `- [ ]` to `- [x]` in this file. Nothing else. The checkbox is the
 single source of truth for "is this done", so it must be updated in the same commit as the work.
@@ -19,26 +19,47 @@ do not reorder them.
 
 | ID | Week | Goal | Status |
 | :--- | :--- | :--- | :--- |
-| G-01 | 1 | Foundation: docs, tooling, config, state, services | `- [ ]` |
-| G-02 | 1 | Field on screen: layout shell + isometric field | `- [ ]` |
-| G-03 | 2 | Land economy: buy plots, gold, prices | `- [ ]` |
-| G-04 | 2 | Plant to harvest: shop, inventory, growth, save | `- [ ]` |
-| G-05 | 2 | Pump, water and market: the full money loop | `- [ ]` |
-| G-06 | 3 | Live weather: search, forecast, metrics, fallback | `- [ ]` |
-| G-07 | 3 | Weather effects and crop alerts | `- [ ]` |
-| G-08 | 4 | Ship v0.1: more crops, polish, handover | `- [ ]` |
+| — | 1 | Planning, design and documentation | `- [x]` |
+| G-01 | 2 | Foundation: tooling, config, state, services | `- [ ]` |
+| G-02 | 2 | Field on screen: layout shell + isometric field | `- [ ]` |
+| G-03 | 3 | Land economy: buy plots, gold, prices | `- [ ]` |
+| G-04 | 3 | Plant to harvest: shop, inventory, growth, save | `- [ ]` |
+| G-05 | 4 | Pump, water and market: the full money loop | `- [ ]` |
+| G-06 | 4 | Live weather: search, forecast, metrics, fallback | `- [ ]` |
+| G-07 | 5 | Weather effects and crop alerts | `- [ ]` |
+| G-08 | 5 | Ship v0.1: more crops, polish, handover | `- [ ]` |
 
 ---
 
-## Week 1
+## Week 1 — Planning and documentation `- [x]`
+
+No game code was written this week. The plan, the artwork, the service connections and the
+documentation were finished so that the build does not have to stop and ask questions later.
+
+- [x] Project plan written and agreed — `docs/game-design/implementation-plan.md`
+- [x] Crop and season design — `docs/crops.md`, `docs/crop-choice-guide.md`
+- [x] Weather systems designed — `docs/weather-events.md`, `docs/notifications.md`
+- [x] Team workflow, goals and ownership set — `docs/team/`
+- [x] Artwork for rice (5 stages) and the farm ground — `assets/images/`
+- [x] Base services connected: weather, time, place lookup
+- [x] Project structure and data flow designed — `docs/architecture.md`
+- [x] 25 problems logged with owners — `docs/team/issues.md`
+- [x] Reverse geocoding for the player's own location — **not done**, carried to week 2
+
+**Done when:** every system is documented well enough to build from, and every known problem has
+an owner.
+
+---
+
+## Week 2
 
 ### G-01 Foundation `- [ ]`
 
 Everything that has to exist before any of it can be built on. No gameplay, no visible result.
 
-**Tasks:** T-01, T-02, T-03, T-04
+**Tasks:** T-02, T-03, T-04
 
-- [ ] `docs/` tree complete: architecture, crops, weather-events, notifications,
+- [x] `docs/` tree complete: architecture, crops, weather-events, notifications,
       crop-choice-guide, game-design plan, team docs
 - [ ] `package.json` with `dev`, `test`, `check` scripts
 - [ ] `scripts/check-imports.mjs` passing, including the `utils/dom.js` whitelist
@@ -46,8 +67,9 @@ Everything that has to exist before any of it can be built on. No gameplay, no v
 - [ ] All `js/config/*` files complete
 - [ ] `state/types.js`, `initialState.js`, `store.js` — `initialState()` returns 16 plots
       with correct zones
-- [ ] `weatherApi`, `geocodeApi`, `timeApi` return parsed data; real response saved to
-      `data/sample-forecast.json`
+- [x] `weatherApi`, `timeApi` and place lookup return parsed data
+- [ ] Reverse geocoding added, so the player's own location resolves to a place name
+- [ ] Real response saved to `data/sample-forecast.json`
 - [ ] `js/services/map.js` deleted, decision logged
 - [ ] `npm run check` and `npm test` both pass
 
@@ -76,7 +98,7 @@ diamond, and there is no flicker when the pointer moves across overlapping plot 
 
 ---
 
-## Week 2
+## Week 3
 
 The economy. Nothing here reads the weather API.
 
@@ -125,7 +147,7 @@ runs, and harvest → gold → seeds → plant loops end to end.
 
 ---
 
-## Week 3
+## Week 4
 
 Real weather in, consequences out.
 
@@ -162,7 +184,7 @@ and forcing a rain forecast with rice planted raises *"Rain incoming — skip ir
 
 ---
 
-## Week 4
+## Week 5
 
 ### G-08 Ship v0.1 `- [ ]`
 

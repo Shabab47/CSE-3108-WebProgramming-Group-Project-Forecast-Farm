@@ -6,20 +6,15 @@ UI/UX and frontend developer.
 `inventoryPanel.js`, `hud.js`, `buttonBar.js`, `meters.js`, `assets/`
 **Goals:** G-02 lead, G-06 support, G-08 support
 
+**Week 1 contribution:** produced all the crop artwork for rice and the farm ground.
+
 ---
 
 ## Week 1
 
-- [ ] `index.html` with the three grid areas per `docs/reference/layout-wireframe.jpeg`
-- [ ] `css/reset.css`, `variables.css`, `layout.css`, `themes.css`, `components.css`
-- [ ] Panel placeholders in every grid area, then `js/main.js` boot
-- [ ] Single column below 900 px, order: topBar, forecast, farm, right column, sidebar as a
-      bottom bar
-- [ ] Style tokens from `docs/reference/style-mockup.jpeg`: white glass cards, radius 16–20 px,
-      soft shadow, thin border, one accent, system font stack. All of it in `variables.css`.
-
-## Art to chase
-
+- [x] Rice artwork, all five growth stages — `assets/images/crops/rice/rice_1..5.png`
+- [x] Farm ground artwork, watered and unwatered — `assets/images/ground/`
+- [x] One folder per crop so future art drops straight in without touching code (DEC-016)
 - [ ] 9 weather icons in `assets/icons/weather/` — **all currently 0 bytes** (ISS-001)
 - [ ] 5 crop icons in `assets/icons/crops/` — **all currently 0 bytes** (ISS-001)
 - [ ] `LICENSE` is 0 bytes too (ISS-002, Shabab owns the decision)
@@ -30,11 +25,21 @@ Team decision on icons: paths are coded as specified and broken images are accep
 
 ## Week 2
 
+- [ ] `index.html` with the three grid areas per `docs/reference/layout-wireframe.jpeg`
+- [ ] `css/reset.css`, `variables.css`, `layout.css`, `themes.css`, `components.css`
+- [ ] Panel placeholders in every grid area, then `js/main.js` boot
+- [ ] Single column below 900 px, order: topBar, forecast, farm, right column, sidebar as a
+      bottom bar
+- [ ] Style tokens from `docs/reference/style-mockup.jpeg`: white glass cards, radius 16–20 px,
+      soft shadow, thin border, one accent, system font stack. All of it in `variables.css`.
+
+## Week 3
+
 - [ ] Locked plot price tags and the buy confirm popover styling
 - [ ] Shop panel: Seeds / Land / Market tabs
 - [ ] `inventoryPanel`, `hud` gold readout, `buttonBar`, `meters` water bar
 
-## Week 3
+## Week 5
 
 - [ ] `almanac.html` content and a `js/almanac-main.js` entry — it currently has none (ISS-019)
 - [ ] Empty, loading and error states on every panel

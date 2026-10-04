@@ -6,7 +6,7 @@ This is the build plan, revised after auditing it against the repository, the
 actual PNG assets, and live Open-Meteo responses. Corrections are folded in and listed under
 [Revisions](#revisions) at the bottom.
 
-Companion docs: `docs/architecture.md` (where things live), `docs/team/goals.md` (the 4-week
+Companion docs: `docs/architecture.md` (where things live), `docs/team/goals.md` (the 5-week
 window), `docs/team/issues.md` (25 logged problems), `docs/team/decisions.md` (why).
 
 ---
@@ -629,7 +629,7 @@ docs/
   game-design/implementation-plan.md   this file
   team/
     README.md              how to use these docs, and the rules
-    goals.md               the 4-week sprint, with done marks
+    goals.md               the 5-week plan, with done marks
     ownership.md           folder -> primary owner
     tasks.md               board
     issues.md              bug and problem log
@@ -692,9 +692,9 @@ from `file://`), and add a short folder map linking `docs/architecture.md`.
 
 ## 13. Phases and steps
 
-Each step lists **done when**. Mapped to the 4-week window in `docs/team/goals.md`.
+Each step lists **done when**. Mapped to the 5-week plan in `docs/team/goals.md`.
 
-### Phase 0 — foundation (no gameplay) · Week 1
+### Phase 0 — foundation · Week 2
 
 1. **Docs skeleton.** Create `docs/team/*`, `architecture.md`, `reference/`, copy this plan to
    `docs/game-design/implementation-plan.md`, fill the game-design docs from the README. Log the
@@ -708,7 +708,7 @@ Each step lists **done when**. Mapped to the 4-week window in `docs/team/goals.m
    Save a real response to `data/sample-forecast.json`. Delete `map.js` and the placeholder key.
    *Done when:* each service returns parsed data from a quick Node script, no DOM access.
 
-### Phase 1 — page and field · Week 1
+### Phase 1 — page and field · Week 2
 
 5. **Layout shell.** `index.html`, `css/*`, panel placeholders in all grid areas, `main.js`
    boot. *Done when:* the page matches the wireframe at 1280 px and stacks below 900 px.
@@ -718,7 +718,7 @@ Each step lists **done when**. Mapped to the 4-week window in `docs/team/goals.m
    *Done when:* the field matches the reference, hovering a plot highlights only that diamond,
    no overlap flicker.
 
-### Phase 2 — economy core · Week 2
+### Phase 2 — economy core · Weeks 3 and 4
 
 7. **Wallet, plots, buying.** Locked plots dimmed with a price tag, click to buy, `hud` shows
    gold. *Done when:* first plot free, then 100, 200, 400…; cannot buy without gold; tests pass.
@@ -731,7 +731,7 @@ Each step lists **done when**. Mapped to the 4-week window in `docs/team/goals.m
 10. **Market.** Sell tab, quality-based gold. *Done when:* the harvest-to-gold loop works end to
     end.
 
-### Phase 3 — weather · Week 3
+### Phase 3 — weather · Weeks 4 and 5
 
 11. **Weather panel.** `topBar` search, `weatherPanel` current + hourly strip, `envMetrics`,
     `seasonCard`, heat meter, sample fallback badge. *Done when:* searching "Rajshahi" updates
@@ -743,7 +743,7 @@ Each step lists **done when**. Mapped to the 4-week window in `docs/team/goals.m
     *Done when:* forcing a rain forecast with rice planted shows "Rain incoming, skip
     irrigation."
 
-### Phase 4 — finish · Week 4
+### Phase 4 — finish · Week 5
 
 14. **Other crops.** As art arrives, add 5 PNGs each and flip `available: true`. No code changes
     expected. If code is needed, that is an architecture bug — log it.

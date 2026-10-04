@@ -7,6 +7,47 @@ The per-person weekly notes that used to live in the README table are now in `me
 
 ---
 
+## Week 1 — team contributions
+
+No game code was written this week. Everything below was design, artwork, services and
+documentation, so that the build does not have to stop and ask questions later.
+
+- **Shabab** — started the initial project and wrote the implementation plan, designed the crops
+  and the seasons, and set up the team workflow.
+- **Kafi** — produced all the crop artwork for rice (five growth stages) and the farm ground
+  (watered and unwatered), and gave each crop its own folder so future art drops in cleanly.
+- **Afif** — added the base APIs: weather, time and place lookup. Reverse geocoding is the one
+  still outstanding, carried to week 2.
+- **Hisham** — designed the full project structure and how the parts will pass data between each
+  other, then wrote and committed the 16 documentation files, including the layering rules and
+  the 25-problem log.
+
+Every known problem now has an owner. Three that would have broken the game were caught in that
+review before any game code existed.
+
+---
+
+## Hisham — README cleanup, five-week shift, corruption repair
+
+- **Did:** Recorded everyone's week 1 contributions and marked the planning week complete.
+  Rewrote the README from 296 lines down to 101 — it was duplicating the crop table, the weather
+  matrix, the notification strings and the season guide, all of which already live in `docs/`. It
+  is now a short non-technical front page that links out. Moved the 78-line annotated file tree
+  into `docs/architecture.md`, leaving a five-line summary behind. Shifted the plan to five weeks
+  so week 1 is planning and weeks 2–5 carry the eight goals, two per week.
+- **Files:** `README.md`, `docs/architecture.md`, `docs/team/goals.md`, `docs/team/README.md`,
+  `docs/team/members/*.md`, `docs/team/tasks.md`, `docs/game-design/implementation-plan.md`
+- **Problems:** Two documentation files were silently corrupted by a batch edit and had to be
+  restored from git — `docs/team/README.md` and `members/shabab.md`, where the letter `t` had been
+  replaced by `h` across 82 lines, turning "Team Docs" into "heam Docs". Caught by reading the
+  actual `git diff` instead of trusting the edit to have landed. Both restored and verified.
+  Bulk string replacement across markdown files is not safe here; edits go through the editor.
+  Also removed a stale claim that a "Map API" exists — that file was deleted in DEC-012.
+- **Next:** week 2 opens with T-02 tooling and T-03 config and state. Nothing in the game is built
+  yet, so those two tasks unblock everything after them.
+
+---
+
 ## Hisham — pull and README structure
 
 - **Did:** Pulled `origin/main` (fast-forward `7e65a24..0cec268`), which brought in the MIT

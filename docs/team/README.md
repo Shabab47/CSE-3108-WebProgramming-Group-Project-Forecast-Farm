@@ -6,7 +6,7 @@ Everything the team needs to work on this without asking in chat. Read this page
 
 | File | What it is | Update it when |
 | :--- | :--- | :--- |
-| `goals.md` | The 4-week sprint. Eight goals with checkboxes. | Mark `- [x]` when a goal's **Done when** is fully met |
+| `goals.md` | The 5-week plan. Eight goals with checkboxes. | Mark `- [x]` when a goal's **Done when** is fully met |
 | `tasks.md` | Task board, seeded from the implementation plan | When you start or finish a task |
 | `ownership.md` | Folder → primary owner | When someone wants to swap a folder |
 | `issues.md` | Every bug and problem, found before it is fixed | The moment you find one |
