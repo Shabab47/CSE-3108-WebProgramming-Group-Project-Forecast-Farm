@@ -1,4 +1,4 @@
-# 🌾 Weather Farmer
+# 🌾 Forecast Farm
 
 A 2D web farming game driven by **real weather, at the player's own location**. The game asks where you are and runs your farm on that place's live forecast.
 
@@ -6,7 +6,7 @@ A 2D web farming game driven by **real weather, at the player's own location**. 
 
 ## 📍 Where We Are Now
 
-Weather Farmer is a browser farming game driven by real weather at the player's own location. Week one was a planning week, and it is complete — each of the four of us owns a distinct piece of it. **Shabab** started the project and wrote the implementation plan, the crop and season design, and the team workflow. **Kafi** produced the artwork for rice and the farm ground. **Afif** connected the base weather, time and place-lookup services. **Hisham** designed the project structure, the data flow between its parts, and the art direction every sprite follows, then wrote the documentation now in this repository. Twenty-five known problems have been logged with owners, and three that would have broken the game were caught in that review before a line of game code was written. Art is tracked separately in [`asset-checklist.md`](docs/asset-checklist.md), where **46 assets are still outstanding** — including two failure sprites that rice itself still needs. Four weeks of building remain: the farm screen, then the economy, then live weather, then the finished release.
+Forecast Farm is a browser farming game driven by real weather at the player's own location. Week one was a planning week, and it is complete — each of the four of us owns a distinct piece of it. **Shabab** started the project and wrote the implementation plan, the crop and season design, and the team workflow. **Kafi** produced the artwork for rice and the farm ground. **Afif** connected the base weather, time and place-lookup services. **Hisham** designed the project structure, the data flow between its parts, and the art direction every sprite follows, then wrote the documentation now in this repository. Twenty-five known problems have been logged with owners, and three that would have broken the game were caught in that review before a line of game code was written. Art is tracked separately in [`asset-checklist.md`](docs/asset-checklist.md), where **46 assets are still outstanding** — including two failure sprites that rice itself still needs. Four weeks of building remain: the farm screen, then the economy, then live weather, then the finished release.
 
 ---
 

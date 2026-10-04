@@ -1,6 +1,6 @@
 # Architecture
 
-How Weather Farmer is put together, and where to change things.
+How Forecast Farm is put together, and where to change things.
 
 Stack: vanilla JS ES modules, plain CSS, DOM `<img>` layers. No framework, no bundler,
 no runtime dependencies. `package.json` exists only for scripts.
@@ -178,7 +178,7 @@ Also planned but not created yet: `package.json`, `tests/`, `scripts/check-impor
 - Event handlers are attached in JS. No inline handlers in HTML.
 - Plot elements carry `data-plot-id`.
 - Only `store.js` touches `localStorage`, always inside try/catch.
-- Save key: `weatherFarmer.save.v1`.
+- Save key: `forecastFarm.save.v1`.
 
 ## Module contracts
 

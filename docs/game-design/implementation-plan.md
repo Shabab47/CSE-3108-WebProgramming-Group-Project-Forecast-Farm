@@ -1,4 +1,4 @@
-# Implementation Plan — Weather Farmer
+# Implementation Plan — Forecast Farm
 
 Isometric field and clean structure.
 
@@ -58,7 +58,7 @@ Do not re-litigate these; they are recorded with rationale in `docs/team/decisio
 | Pump | Pre-owned in the MVP. On = waters all owned plots, costs gold per second |
 | Empty plot | The ground tile itself. `rice_1..rice_5` are the five growth stages |
 | `base.png` | The slab under the field |
-| Persistence | `localStorage` key `weatherFarmer.save.v1` |
+| Persistence | `localStorage` key `forecastFarm.save.v1` |
 | Weather source | Real API only. The player's levers are actions, never the sky (DEC-013) |
 | Icons | Paths coded as specified; broken images accepted until art lands (DEC-014) |
 
