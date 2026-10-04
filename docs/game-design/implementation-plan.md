@@ -283,6 +283,10 @@ export const groundImg = (watered) =>
   `assets/images/ground/ground_${watered ? 'watered' : 'unwatered'}.png`;
 export const cropImg = (cropId, stage) =>
   `assets/images/crops/${cropId}/${cropId}_${stage}.png`;
+// Failure sprites. Seven sprites per crop in total: 5 stages + 2 failure states.
+export const CROP_FAILURES = ['rain_damaged', 'drought_killed'];
+export const cropFailureImg = (cropId, failure) =>
+  `assets/images/crops/${cropId}/${cropId}_${failure}.png`;
 export const BASE_IMG = 'assets/images/base.png';
 export const PUMP_IMG = 'assets/images/pump/pump.png';
 export const weatherIcon = (eventId) => `assets/icons/weather/${eventId}.svg`;
@@ -404,7 +408,8 @@ A matrix cell holds one rating and cannot see the plot, so the conditional lives
 (ISS-015).
 
 Extra: at `waterLevel == 0` any crop loses `dryDrainPerHour` on top. Health 0 marks the crop
-dead, shown with `filter: grayscale(1) brightness(.6)` until failure sprites exist. There is no
+dead. Until a failure sprite exists, it renders with `filter: grayscale(1) brightness(.6)`; the
+filter stays as a fallback once sprites land. There is no
 frost-cover mechanic in the MVP, so `severe` frost is a heavy drain rather than an instant kill.
 
 Dead crops are cleared with `farm.clearPlot()`. Without it a dead crop is neither harvestable nor
@@ -754,9 +759,15 @@ Each step lists **done when**. Mapped to the 5-week plan in `docs/team/goals.md`
 
 ## 14. Out of scope now
 
-Farmer sprite and seed-sowing animation, sounds, pump 3-frame animation, rain and drought failure
-sprites, frost cover action, hail and wind visuals, buying the pump, Leaflet map popup,
-farmhouse and roads from the mockup, multiplayer, accounts.
+Farmer sprite and seed-sowing animation, sounds, pump 3-frame animation, frost cover action, hail
+and wind visuals, buying the pump, Leaflet map popup, farmhouse and roads from the mockup,
+multiplayer, accounts.
+
+**Rain-damaged and drought-killed crop sprites have moved OUT of this list and INTO scope.** They
+were in the original art brief as "Special Failure States" but were deferred while the art
+direction was being set. Seven sprites per crop are now expected: five growth stages plus
+`<crop>_rain_damaged.png` and `<crop>_drought_killed.png`. Tracked in `docs/asset-checklist.md`.
+The CSS filter fallback stays in the code either way.
 
 ## 15. Assumptions to confirm with the team
 

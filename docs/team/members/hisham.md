@@ -8,7 +8,7 @@ Game developer and debugger.
 **Goals:** G-01 lead, G-02 support, G-03, G-04, G-05 lead
 
 **Week 1 contribution:** designed the full project structure, how the parts will talk to each
-other, and the documentation now in this repository.
+other, and the art direction every sprite follows.
 
 ---
 
@@ -17,10 +17,12 @@ other, and the documentation now in this repository.
 - [x] Full project structure designed — folders, modules, and what lives where
 - [x] Data flow designed — how services, state, rules and screens talk to each other
 - [x] Layering rules written, and the checker that enforces them — `scripts/check-imports.mjs`
+- [x] **Art direction** — style, perspective, palette and naming rules for all sprite and icon
+      work, so Kafi's art stays consistent as more crops land
+- [x] Set the asset naming and folder convention — `docs/asset-checklist.md`
 - [x] Documentation written and committed — 16 files under `docs/`
 - [x] Reference renders added — `docs/reference/`
 - [x] `git pull` — local `main` was 1 behind `origin/main` (ISS-021)
-- [x] Audited the plan against the repo and the live APIs; 25 problems logged with owners
 - [x] Measured the PNG geometry so the field numbers are not guesses
 - [ ] T-02: `package.json`, `scripts/check-imports.mjs`, `utils/log.js`, first passing test
 - [ ] Whitelist `js/utils/dom.js` in the check script or it can never pass (ISS-010)

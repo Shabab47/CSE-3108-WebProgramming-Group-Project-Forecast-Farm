@@ -22,7 +22,8 @@ Weeks are in `goals.md`. Week 1 was planning; T-02 onward belong to weeks 2–5.
 | T-21 | One folder per crop under `assets/images/crops/` | Kafi | done | prep | — |
 | T-22 | Base APIs: weather, time, place lookup | Afif | done | prep | — |
 | T-23 | Implementation plan, crop and season design, team workflow | Shabab | done | prep | — |
-| T-24 | Audit: 25 problems logged with owners | Hisham | done | prep | — |
+| T-24 | Art direction: style, perspective, palette, naming rules for all sprites and icons | Hisham | done | prep | — |
+| T-25 | Asset checklist created — every asset needed, with status | Kafi | done | prep | — |
 
 ## Phase 0 — Foundation · week 2
 
@@ -61,6 +62,7 @@ Weeks are in `goals.md`. Week 1 was planning; T-02 onward belong to weeks 2–5.
 | ID | Task | Owner | Status | Phase | Updated |
 | :--- | :--- | :--- | :--- | ---: | :--- |
 | T-14 | Other crops: flip `available: true` as art arrives, no code changes expected | Shabab | todo | 4 | — |
+| T-26 | Missing art per `docs/asset-checklist.md` — 2 rice failure sprites, 28 for the other 4 crops, 14 icons, 2 pump frames | Kafi | todo | 4 | — |
 | T-15 | Polish: almanac content, empty/loading/error states, keyboard focus, image size review | Kafi | todo | 4 | — |
 | T-16 | Handover: `architecture.md`, `tasks.md`, final `progress-log` entry, tag `v0.1` | Shabab | todo | 4 | — |
 

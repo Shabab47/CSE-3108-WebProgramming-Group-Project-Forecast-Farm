@@ -143,3 +143,26 @@ stack and then adding more does not distort the average.
 Crop sprites are drawn slightly taller than the ground tile (h/w 0.589 against 0.538). That is
 intentional: plants should stand proud of the soil. Do not "fix" it by scaling crop layers to
 match the ground, or the tops will be clipped.
+
+### Growth stages and failure states
+
+Seven sprites per crop: five growth stages, then two failure states.
+
+```
+assets/images/crops/<cropId>/<cropId>_<stage>.png          stages 1 to 5
+assets/images/crops/<cropId>/<cropId>_rain_damaged.png    heavy rain, waterlogging
+assets/images/crops/<cropId>/<cropId>_drought_killed.png  drought, frost, hail, or health 0
+```
+
+`rice_1.png` through `rice_5.png` exist. **Rice still needs both failure states**, as does every
+other crop. Track them in [`asset-checklist.md`](asset-checklist.md).
+
+Until a failure sprite exists the game falls back to a CSS filter, so the state is still readable:
+
+```css
+/* dead crop, until <cropId>_drought_killed.png exists */
+filter: grayscale(1) brightness(.6);
+```
+
+**The fallback stays even once sprites land.** If an image fails to load, or a crop's art is late,
+the player still sees that something is wrong. Prefer the sprite, fall back to the filter.

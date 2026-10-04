@@ -8,6 +8,8 @@ UI/UX and frontend developer.
 
 **Week 1 contribution:** produced all the crop artwork for rice and the farm ground.
 
+**Track your remaining work in [`docs/asset-checklist.md`](../../asset-checklist.md).**
+
 ---
 
 ## Week 1
@@ -15,8 +17,12 @@ UI/UX and frontend developer.
 - [x] Rice artwork, all five growth stages — `assets/images/crops/rice/rice_1..5.png`
 - [x] Farm ground artwork, watered and unwatered — `assets/images/ground/`
 - [x] One folder per crop so future art drops straight in without touching code (DEC-016)
+- [ ] **Rice is not finished** — it still needs its two failure states:
+      `rice_rain_damaged.png` and `rice_drought_killed.png`
 - [ ] 9 weather icons in `assets/icons/weather/` — **all currently 0 bytes** (ISS-001)
 - [ ] 5 crop icons in `assets/icons/crops/` — **all currently 0 bytes** (ISS-001)
+- [ ] 4 more crops × 7 sprites each = 28 sprites
+- [ ] 2 pump animation frames
 - [ ] `LICENSE` is 0 bytes too (ISS-002, Shabab owns the decision)
 - [ ] 3 sounds in `assets/sounds/` are 0 bytes — out of scope, leave them alone (ISS-023)
 

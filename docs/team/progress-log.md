@@ -19,11 +19,15 @@ documentation, so that the build does not have to stop and ask questions later.
 - **Afif** — added the base APIs: weather, time and place lookup. Reverse geocoding is the one
   still outstanding, carried to week 2.
 - **Hisham** — designed the full project structure and how the parts will pass data between each
-  other, then wrote and committed the 16 documentation files, including the layering rules and
-  the 25-problem log.
+  other, set the art direction every sprite follows, then wrote and committed the 16
+  documentation files, including the layering rules and the 25-problem log.
 
 Every known problem now has an owner. Three that would have broken the game were caught in that
 review before any game code existed.
+
+Art status is tracked separately in [`docs/asset-checklist.md`](../asset-checklist.md). Rice has
+its five growth stages but **still needs both failure sprites**, and those are per-crop — so 46
+assets are outstanding in total.
 
 ---
 

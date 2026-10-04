@@ -6,7 +6,7 @@ A 2D web farming game driven by **real weather, at the player's own location**. 
 
 ## 📍 Where We Are Now
 
-Weather Farmer is a browser farming game driven by real weather at the player's own location. Week one was a planning week, and it is complete. **Shabab** set up the project and wrote the plan, the crop and season design, and the team workflow. **Kafi** produced the artwork for rice and the farm ground, **Afif** connected the base weather, time and place-lookup services, and **Hisham** designed the project structure, the data flow between its parts, and the documentation now in this repository. Twenty-five known problems have been logged with owners, and three that would have broken the game were caught in that review before a line of game code was written. Four weeks of building remain: the farm screen, then the economy, then live weather, then the finished release.
+Weather Farmer is a browser farming game driven by real weather at the player's own location. Week one was a planning week, and it is complete. **Shabab** set up the project and wrote the plan, the crop and season design, and the team workflow. **Kafi** produced the artwork for rice and the farm ground, **Afif** connected the base weather, time and place-lookup services, and **Hisham** designed the project structure, the data flow between its parts, and the art direction every sprite follows. Twenty-five known problems have been logged with owners, and three that would have broken the game were caught in that review before a line of game code was written. Four weeks of building remain: the farm screen, then the economy, then live weather, then the finished release.
 
 ---
 
@@ -42,7 +42,7 @@ Week one was spent on planning rather than code, so the build runs four weeks fr
 | **Tawfik Rahman Shabab** | 25 | Team lead | Project setup, game plan, crop and season design, team workflow |
 | **Mutasim Afif** | 13 | Services and testing | Weather, time and place-lookup services; testing against live data |
 | **Abdullah Hil Kafi** | 19 | Design and interface | Artwork for crops and farm tiles, screen layout, panels and controls |
-| **Hisham Walid** | 31 | Game systems | Project structure, data flow, documentation, land, planting, growth, saving |
+| **Hisham Walid** | 31 | Game systems | Project structure, data flow, art direction, land, planting, growth, saving |
 
 Per-person weekly notes are in [`docs/team/members/`](docs/team/members/).
 
@@ -55,6 +55,7 @@ The README is deliberately short. Everything below is the detail.
 | Doc | What it covers |
 | :--- | :--- |
 | [`crops.md`](docs/crops.md) | Crop numbers, growth stages, **land prices**, harvest and quality |
+| [`asset-checklist.md`](docs/asset-checklist.md) | **Every asset the game needs and what is still missing** |
 | [`weather-events.md`](docs/weather-events.md) | The nine weather events, how real weather maps to them, what each does to crops |
 | [`notifications.md`](docs/notifications.md) | The crop warning messages and when they fire |
 | [`crop-choice-guide.md`](docs/crop-choice-guide.md) | Which crop to plant in each season, and using the forecast |
