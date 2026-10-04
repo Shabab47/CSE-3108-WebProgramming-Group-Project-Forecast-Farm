@@ -150,19 +150,6 @@ The gameplay provides balanced progression focusing on strategic financial choic
 
 ---
 
-## 🛠️ Weekly Progress
-
-Progress now lives in [`docs/team/`](docs/team/README.md), not in this file:
-
-| Doc | What it holds |
-| :--- | :--- |
-| [`goals.md`](docs/team/goals.md) | The 4-week sprint, with done marks |
-| [`tasks.md`](docs/team/tasks.md) | Task board |
-| [`progress-log.md`](docs/team/progress-log.md) | One entry per work session |
-| [`members/`](docs/team/members/) | Per-person weekly notes |
-
----
-
 ## ▶️ Run Locally
 
 ES modules do not work from `file://` — the page must be served over HTTP.
@@ -292,5 +279,25 @@ Build order, owners and the 4-week window are in
 ## 📄 License
 
 [MIT](LICENSE) — © 2026 Tawfik Rahman Shabab.
+
+---
+
+## 🛠️ Weekly Progress
+
+Detailed progress and plans are with [`docs/team/`](docs/team/README.md):
+
+| Doc | What it holds |
+| :--- | :--- |
+| [`goals.md`](docs/team/goals.md) | The 4-week sprint, with done marks |
+| [`tasks.md`](docs/team/tasks.md) | Task board |
+| [`progress-log.md`](docs/team/progress-log.md) | One entry per work session |
+| [`members/`](docs/team/members/) | Per-person weekly notes |
+
+| Week 1 | Task |
+|---|---|
+| **Afif(id13):** | API integration |
+| **Jim(id19):** | Images and visuals creation |
+| **Shabab(id25):** | Project task distribution and game concept |
+| **Hisham(id31):** | Game architecture and visuals direction |
 
 <a name="bottom"></a>
