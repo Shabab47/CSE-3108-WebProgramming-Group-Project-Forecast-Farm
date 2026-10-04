@@ -13,7 +13,7 @@ A 2D web farming game driven by **real-world weather, time, and location**. Play
 | **Abdullah Hil Kafi** | 19 | UI/UX and frontend developer ✨ |
 | **Hisham Walid** | 31 | Game developer and debugger ☢️ |
 
-[⬇️ Go to see each member's weekly progress...](#bottom)
+[⬇️ Team docs, goals and weekly notes...](docs/team/README.md)
 
 ---
 
@@ -152,11 +152,145 @@ The gameplay provides balanced progression focusing on strategic financial choic
 
 ## 🛠️ Weekly Progress
 
-| Week 1 | Task |
-|---|---|
-| **Afif(id13):** | API integration |
-| **Jim(id19):** | Images and visuals creation |
-| **Shabab(id25):** | Project task distribution and game concept |
-| **Hisham(id31):** | Game architecture and visuals direction |
+Progress now lives in [`docs/team/`](docs/team/README.md), not in this file:
+
+| Doc | What it holds |
+| :--- | :--- |
+| [`goals.md`](docs/team/goals.md) | The 4-week sprint, with done marks |
+| [`tasks.md`](docs/team/tasks.md) | Task board |
+| [`progress-log.md`](docs/team/progress-log.md) | One entry per work session |
+| [`members/`](docs/team/members/) | Per-person weekly notes |
+
+---
+
+## ▶️ Run Locally
+
+ES modules do not work from `file://` — the page must be served over HTTP.
+
+```bash
+npm run dev      # serve this folder, open the URL it prints
+npm test         # node --test tests/
+npm run check    # layering rules: imports, fetch, DOM access
+```
+
+Append `?debug=1` to the URL for the debug panel: geometry sliders, gold and time cheats,
+forced weather, plot ids.
+
+---
+
+## 🗂️ Project Structure
+
+Vanilla ES modules, plain CSS, DOM `<img>` layers. No framework, no bundler, no runtime
+dependencies. See [`docs/architecture.md`](docs/architecture.md) for the layering rules and a
+"where do I find X?" table.
+
+This is the repo **as it stands today**, not the finished shape.
+
+```
+.
+├── index.html                  empty — app shell, 3 grid columns
+├── almanac.html                empty — placeholder page
+├── LICENSE                     MIT
+├── README.md
+│
+├── css/
+│   ├── reset.css               empty
+│   ├── layout.css              empty — the 3-area CSS grid
+│   ├── variables.css           empty — all colours, radii, spacing
+│   ├── themes.css              empty
+│   ├── components.css          empty
+│   └── field.css               planned — isometric stage and plot layers
+│
+├── data/
+│   └── sample-forecast.json    empty — one real Open-Meteo response, for offline dev
+│
+├── js/
+│   ├── main.js                 empty — boot order only
+│   ├── config/                 pure data, imports nothing
+│   │   ├── crops.js            empty
+│   │   ├── cropWeatherMatrix.js empty
+│   │   ├── seasons.js          empty
+│   │   └── weatherEvents.js    empty
+│   ├── domain/                 game rules — no DOM, no fetch
+│   │   ├── farm.js             empty
+│   │   ├── notifications.js    empty
+│   │   ├── simulator.js        empty
+│   │   └── weather.js          empty
+│   ├── services/               the only place that calls fetch
+│   │   ├── map.js              DELETE — Nominatim + Leaflet, references an
+│   │   │                       undefined `map` global and calls alert()
+│   │   ├── timeApi.js          rewrites — writes straight into the DOM
+│   │   └── weatherApi.js       rewrites — OpenWeatherMap placeholder key
+│   ├── ui/                     render only, reads the store
+│   │   ├── almanac.js          empty
+│   │   ├── cropPicker.js       empty
+│   │   ├── farmView.js         empty
+│   │   ├── toastStack.js       empty
+│   │   └── weatherPanel.js     empty
+│   ├── utils/
+│   │   ├── date.js             empty
+│   │   ├── dom.js              empty
+│   │   └── season.js           empty
+│   ├── state/                  planned — store, types, initial state
+│   └── debug/                  planned — the ?debug=1 panel
+│
+├── assets/
+│   ├── icons/
+│   │   ├── crops/              5 SVGs — all 0 bytes, art pending
+│   │   └── weather/            9 SVGs — all 0 bytes, art pending
+│   ├── images/
+│   │   ├── base.png            the slab under the field
+│   │   ├── pump.png            moves to pump/pump.png
+│   │   ├── crops/
+│   │   │   ├── rice/           rice_1.png … rice_5.png — the only playable crop
+│   │   │   ├── wheat/          empty — awaiting art
+│   │   │   ├── potato/         empty — awaiting art
+│   │   │   ├── corn/           empty — awaiting art
+│   │   │   └── tomato/         empty — awaiting art
+│   │   └── ground/
+│   │       ├── ground_watered.png
+│   │       └── ground_unwatered.png
+│   └── sounds/                 3 MP3s, all 0 bytes — out of scope
+│
+└── docs/
+    ├── architecture.md         layers, data flow, boot order, where things live
+    ├── crops.md                crop numbers, stages, harvest maths
+    ├── weather-events.md       the 9 events, classification, effects
+    ├── notifications.md        crop alerts and dedupe
+    ├── crop-choice-guide.md    season → crop, using the forecast
+    ├── game-design/
+    │   └── implementation-plan.md
+    ├── reference/              field render, layout wireframe, style mockup
+    └── team/                   goals, tasks, ownership, issues, decisions, members
+```
+
+Also planned but not created yet: `package.json`, `tests/`, `scripts/check-imports.mjs`.
+
+**Status legend**
+
+| Marker | Meaning |
+| :--- | :--- |
+| *empty* | File exists but has no content yet |
+| *planned* | Folder or file the architecture calls for, not created |
+| *rewrites* | Has content, but it is being replaced |
+
+Build order, owners and the 4-week window are in
+[`docs/team/goals.md`](docs/team/goals.md).
+
+## 📚 Documentation
+
+| Doc | What it covers |
+| :--- | :--- |
+| [`architecture.md`](docs/architecture.md) | Layers, data flow, boot order, where things live |
+| [`crops.md`](docs/crops.md) | Crop numbers, growth stages, harvest maths |
+| [`weather-events.md`](docs/weather-events.md) | The nine events, classification, effects on crops |
+| [`notifications.md`](docs/notifications.md) | Crop alert strings and dedupe |
+| [`crop-choice-guide.md`](docs/crop-choice-guide.md) | Season to crop, and using the forecast |
+| [`game-design/implementation-plan.md`](docs/game-design/implementation-plan.md) | The full build plan |
+| [`team/`](docs/team/README.md) | Goals, tasks, ownership, issues, decisions |
+
+## 📄 License
+
+[MIT](LICENSE) — © 2026 Tawfik Rahman Shabab.
 
 <a name="bottom"></a>
