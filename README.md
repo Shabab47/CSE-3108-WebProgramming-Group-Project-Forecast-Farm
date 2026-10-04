@@ -13,6 +13,10 @@ A 2D web farming game driven by **real-world weather, time, and location**. Play
 | **Abdullah Hil Kafi** | 19 | UI/UX and frontend developer ✨ |
 | **Hisham Walid** | 31 | Game developer and debugger ☢️ |
 
+The weekly team member tasks and progress are listed below...
+
+[⬇️ Go to Bottom](#bottom)
+
 ---
 
 ## 🌍 Base Version APIs
@@ -148,14 +152,13 @@ The gameplay provides balanced progression focusing on strategic financial choic
 
 ---
 
-## 🛠️ Local Environment Deployment
+## 🛠️ Weekly Progress
 
-The engine relies entirely on native ES modules and requires a lightweight static server execution environment:
+| Week 1 | Task |
+|---|---|
+| **Afif(id13):** | API integration |
+| **Jim(id19):** | Images and visuals creation |
+| **Shabab(id25):** | Project task distribution and game concept |
+| **Hisham(id31):** | Game architecture and visuals direction |
 
-```bash
-# Option 1: Native Python HTTP Engine
-python3 -m http.server 8000
-
-# Option 2: Node Package Runner
-npx serve .
-```
+<a name="bottom"></a>
