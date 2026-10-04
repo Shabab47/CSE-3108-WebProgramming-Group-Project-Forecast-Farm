@@ -6,21 +6,30 @@ A 2D web farming game driven by **real weather, at the player's own location**. 
 
 ## 📍 Where We Are Now
 
-Weather Farmer is a browser farming game driven by real weather at the player's own location. Week one was a planning week, and it is complete. **Shabab** set up the project and wrote the plan, the crop and season design, and the team workflow. **Kafi** produced the artwork for rice and the farm ground, **Afif** connected the base weather, time and place-lookup services, and **Hisham** designed the project structure, the data flow between its parts, and the art direction every sprite follows. Twenty-five known problems have been logged with owners, and three that would have broken the game were caught in that review before a line of game code was written. Four weeks of building remain: the farm screen, then the economy, then live weather, then the finished release.
+Weather Farmer is a browser farming game driven by real weather at the player's own location. Week one was a planning week, and it is complete — each of the four of us owns a distinct piece of it. **Shabab** started the project and wrote the implementation plan, the crop and season design, and the team workflow. **Kafi** produced the artwork for rice and the farm ground. **Afif** connected the base weather, time and place-lookup services. **Hisham** designed the project structure, the data flow between its parts, and the art direction every sprite follows, then wrote the documentation now in this repository. Twenty-five known problems have been logged with owners, and three that would have broken the game were caught in that review before a line of game code was written. Art is tracked separately in [`asset-checklist.md`](docs/asset-checklist.md), where **46 assets are still outstanding** — including two failure sprites that rice itself still needs. Four weeks of building remain: the farm screen, then the economy, then live weather, then the finished release.
 
 ---
 
 ## 🛠️ Weekly Progress
 
+Week 1 is broken out per person, because "all four" tells you nothing about who to ask.
+
 | Week | Focus | Status | Done | By |
 | :---: | :--- | :--- | :--- | :--- |
-| 1 | Planning, design and documentation | ✅ Complete | Project plan · crop and season design · team workflow · rice and ground artwork · base weather, time and place-lookup services · project structure and data flow · 16 documentation files · 25 logged problems | Shabab · Kafi · Afif · Hisham |
-| 2 | Project foundation and working farm screen | 🔄 Next | — | — |
-| 3 | Land economy, then planting and growth | ⬜ Planned | — | — |
-| 4 | Pump, water and market, then live weather | ⬜ Planned | — | — |
-| 5 | Weather effects, crop alerts, then ship v0.1 | ⬜ Planned | — | — |
+| 1 | Project plan, crop and season design, team workflow | ✅ Complete | Implementation plan · crops · seasons · goals · ownership · issue log · decision log | **Shabab** |
+| 1 | Crop and environment artwork | ✅ Complete | Rice 5 growth stages · watered and unwatered ground · folder-per-crop structure | **Kafi** |
+| 1 | Base service connections | ✅ Complete | Weather API · time API · place lookup | **Afif** |
+| 1 | Structure, data flow and art direction | ✅ Complete | Folder and module design · layering rules · art direction · 16 doc files | **Hisham** |
+| 2 | Project foundation and working farm screen | 🔄 Next | — | **Hisham** tooling, config, state, field · **Kafi** page shell, CSS · **Afif** services, reverse geocoding |
+| 3 | Land economy, then planting and growth | ⬜ Planned | — | **Hisham** |
+| 4 | Pump, water and market, then live weather | ⬜ Planned | — | **Hisham** pump, market · **Afif** live weather |
+| 5 | Weather effects, crop alerts, then ship v0.1 | ⬜ Planned | — | **Afif** weather effects · **Kafi** polish, almanac · **Shabab** handover |
 
-Week one was spent on planning rather than code, so the build runs four weeks from now. Each week ends with something demonstrable. Full goal breakdown in [`docs/team/goals.md`](docs/team/goals.md).
+Week one was spent on planning rather than code, so the build runs four weeks from now. Each week
+ends with something demonstrable. Full goal breakdown in
+[`docs/team/goals.md`](docs/team/goals.md), per-person notes in
+[`docs/team/members/`](docs/team/members/), and the outstanding work in
+[`docs/asset-checklist.md`](docs/asset-checklist.md).
 
 ---
 
