@@ -1,59 +1,48 @@
 # 🌾 Forecast Farm
 
-A 2D web farming game driven by **real weather, at the player's own location**. The game asks where you are and runs your farm on that place's live forecast.
+A 2D web farming game driven by **real weather, at the player's own location**. The game asks
+where you are and runs your farm on that place's live forecast.
 
 ---
 
-## 📍 Where We Are Now
+## 📖 What This Project Is
 
-Forecast Farm is a browser farming game driven by real weather at the player's own location. Week one was a planning week, and it is complete — each of the four of us owns a distinct piece of it. **Shabab** started the project and wrote the implementation plan, the crop and season design, and the team workflow. **Kafi** produced the artwork for rice and the farm ground. **Afif** connected the base weather, time and place-lookup services. **Hisham** designed the project structure, the data flow between its parts, and the art direction every sprite follows, then wrote the documentation now in this repository. Twenty-five known problems have been logged with owners, and three that would have broken the game were caught in that review before a line of game code was written. Art is tracked separately in [`asset-checklist.md`](docs/asset-checklist.md), where **46 assets are still outstanding** — including two failure sprites that rice itself still needs. Four weeks of building remain: the farm screen, then the economy, then live weather, then the finished release.
+Forecast Farm is a browser game where the weather is real. The player allows the game to know
+their location, and from then on the farm belongs to that place — the weather on screen is the
+weather outside their window. Rain genuinely waters the crops, heat genuinely dries them out, and
+frost can kill them, because all of it comes from a live forecast rather than being invented.
 
----
+Play is one loop: **plant → water → wait → harvest.** Crops grow in real time, so a six-hour crop
+takes six hours whether or not the game is open. Spending is the tension — a water pump keeps a
+drying crop alive but charges gold every second it runs, and rain on the way means it might be
+better not to. The player is always reacting to genuine conditions, so decisions carry weight
+rather than luck.
 
-## 🛠️ Weekly Progress
+The goal is to unlock all sixteen plots. The first is free and each one after costs exactly twice
+the last, which turns the farm into something a player returns to over months rather than finishes
+in an afternoon.
 
-Week 1 is broken out per person, because "all four" tells you nothing about who to ask.
-
-| Week | Focus | Status | Done | By |
-| :---: | :--- | :--- | :--- | :--- |
-| 1 | Project plan, crop and season design, team workflow | ✅ Complete | Implementation plan · crops · seasons · goals · ownership · issue log · decision log | **Shabab** |
-| 1 | Crop and environment artwork | ✅ Complete | Rice 5 growth stages · watered and unwatered ground · folder-per-crop structure | **Kafi** |
-| 1 | Base service connections | ✅ Complete | Weather API · time API · place lookup | **Afif** |
-| 1 | Structure, data flow and art direction | ✅ Complete | Folder and module design · layering rules · art direction · 16 doc files | **Hisham** |
-| 2 | Project foundation and working farm screen | 🔄 Next | — | **Hisham** tooling, config, state, field · **Kafi** page shell, CSS · **Afif** services, reverse geocoding |
-| 3 | Land economy, then planting and growth | ⬜ Planned | — | **Hisham** |
-| 4 | Pump, water and market, then live weather | ⬜ Planned | — | **Hisham** pump, market · **Afif** live weather |
-| 5 | Weather effects, crop alerts, then ship v0.1 | ⬜ Planned | — | **Afif** weather effects · **Kafi** polish, almanac · **Shabab** handover |
-
-Week one was spent on planning rather than code, so the build runs four weeks from now. Each week
-ends with something demonstrable. Full goal breakdown in
-[`docs/team/goals.md`](docs/team/goals.md), per-person notes in
-[`docs/team/members/`](docs/team/members/), and the outstanding work in
-[`docs/asset-checklist.md`](docs/asset-checklist.md).
+**Nothing in the game is built yet.** What exists today is the design, the artwork for rice and
+the farm ground, the service connections, and the documentation. Four weeks of building remain.
 
 ---
 
 ## 🎮 The Game in a Minute
 
-- A browser farming game where the weather is real and comes from the player's **own location** — the farm is not somewhere fictional. → [crop-choice-guide.md](docs/crop-choice-guide.md)
-- Play is one loop: **plant → water → wait → harvest**. Crops grow in real time, so a six-hour crop takes six hours whether or not the game is open. → [crops.md](docs/crops.md)
-- The weather acts on the field. Rain waters the soil, sun and heat dry it out, and wind, hail and frost can damage or destroy a crop. → [weather-events.md](docs/weather-events.md)
-- A water pump saves a drying crop but **costs gold every second it runs**, so watering well is a real decision. → [weather-events.md](docs/weather-events.md)
-- The forecast warns you in advance — *"Rain incoming — skip irrigation"* — so checking tomorrow's weather is worth doing. → [notifications.md](docs/notifications.md)
-- **The goal is to unlock all sixteen plots.** Each costs exactly twice the last, so the farm is never finished. → [crops.md](docs/crops.md)
+- A browser farming game where the weather is real and comes from the player's **own location** —
+  the farm is not somewhere fictional. → [crop-choice-guide.md](docs/crop-choice-guide.md)
+- Play is one loop: **plant → water → wait → harvest**. Crops grow in real time, so a six-hour
+  crop takes six hours whether or not the game is open. → [crops.md](docs/crops.md)
+- The weather acts on the field. Rain waters the soil, sun and heat dry it out, and wind, hail and
+  frost can damage or destroy a crop. → [weather-events.md](docs/weather-events.md)
+- A water pump saves a drying crop but **costs gold every second it runs**, so watering well is a
+  real decision. → [weather-events.md](docs/weather-events.md)
+- The forecast warns you in advance — *"Rain incoming — skip irrigation"* — so checking tomorrow's
+  weather is worth doing. → [notifications.md](docs/notifications.md)
+- **The goal is to unlock all sixteen plots.** Each costs exactly twice the last, so the farm is
+  never finished. → [crops.md](docs/crops.md)
 
----
-
-## 👥 Team
-
-| Member | ID | Role | Responsibility |
-| :--- | :---: | :--- | :--- |
-| **Tawfik Rahman Shabab** | 25 | Team lead | Project setup, game plan, crop and season design, team workflow |
-| **Mutasim Afif** | 13 | Services and testing | Weather, time and place-lookup services; testing against live data |
-| **Abdullah Hil Kafi** | 19 | Design and interface | Artwork for crops and farm tiles, screen layout, panels and controls |
-| **Hisham Walid** | 31 | Game systems | Project structure, data flow, art direction, land, planting, growth, saving |
-
-Per-person weekly notes are in [`docs/team/members/`](docs/team/members/).
+**→ New here? Read [Where We Stand](#stand), then [Weekly Progress](#progress).**
 
 ---
 
@@ -76,6 +65,36 @@ The README is deliberately short. Everything below is the detail.
 
 ---
 
+## 🗂️ Project Structure
+
+Vanilla ES modules, plain CSS, no framework and no runtime dependencies.
+
+```
+index.html      the game page
+css/            styling — layout, colours, components, field
+js/             the game code, split by responsibility
+assets/         artwork and icons
+docs/           all project documentation
+```
+
+The full annotated tree, showing what is built and what is still empty, is in
+[`docs/architecture.md`](docs/architecture.md#project-structure).
+
+---
+
+## 👥 Team
+
+| Member | ID | Role | Responsibility |
+| :--- | :---: | :--- | :--- |
+| **Tawfik Rahman Shabab** | 25 | Team lead | Project setup, game plan, crop and season design, team workflow |
+| **Mutasim Afif** | 13 | Services and testing | Weather, time and place-lookup services; testing against live data |
+| **Abdullah Hil Kafi** | 19 | Design and interface | Artwork for crops and farm tiles, screen layout, panels and controls |
+| **Hisham Walid** | 31 | Game systems | Project structure, data flow, art direction, land, planting, growth, saving |
+
+Per-person weekly notes are in [`docs/team/members/`](docs/team/members/).
+
+---
+
 ## ▶️ Run Locally
 
 ES modules do not work from `file://` — the page must be served over HTTP.
@@ -91,20 +110,47 @@ forced weather, plot ids.
 
 ---
 
-## 🗂️ Project Structure
+<a id="stand"></a>
 
-Vanilla ES modules, plain CSS, no framework and no runtime dependencies.
+## 📍 Where We Stand
 
-```
-index.html      the game page
-css/            styling — layout, colours, components, field
-js/             the game code, split by responsibility
-assets/         artwork and icons
-docs/           all project documentation
-```
+Forecast Farm is a browser farming game driven by real weather at the player's own location. Week
+one was a planning week, and it is complete — each of the four of us owns a distinct piece of it.
+**Shabab** started the project and wrote the implementation plan, the crop and season design, and
+the team workflow. **Kafi** produced the artwork for rice and the farm ground. **Afif** connected
+the base weather, time and place-lookup services. **Hisham** designed the project structure, the
+data flow between its parts, and the art direction every sprite follows, then wrote the
+documentation now in this repository. Twenty-five known problems have been logged with owners, and
+three that would have broken the game were caught in that review before a line of game code was
+written. Art is tracked separately in [`asset-checklist.md`](docs/asset-checklist.md), where **46
+assets are still outstanding** — including two failure sprites that rice itself still needs. Four
+weeks of building remain: the farm screen, then the economy, then live weather, then the
+finished release.
 
-The full annotated tree, showing what is built and what is still empty, is in
-[`docs/architecture.md`](docs/architecture.md#project-structure).
+<a id="progress"></a>
+
+## 🛠️ Weekly Progress
+
+Week 1 is broken out per person, because "all four" tells you nothing about who to ask about what.
+
+| Week | Focus | Status | Done | By |
+| :---: | :--- | :--- | :--- | :--- |
+| 1 | Project plan, crop and season design, team workflow | ✅ Complete | Implementation plan · crops · seasons · goals · ownership · issue log · decision log | **Shabab** |
+| 1 | Crop and environment artwork | ✅ Complete | Rice 5 growth stages · watered and unwatered ground · folder-per-crop structure | **Kafi** |
+| 1 | Base service connections | ✅ Complete | Weather API · time API · place lookup | **Afif** |
+| 1 | Structure, data flow and art direction | ✅ Complete | Folder and module design · layering rules · art direction · 16 doc files | **Hisham** |
+| 2 | Project foundation and working farm screen | 🔄 Next | — | **Hisham** tooling, config, state, field · **Kafi** page shell, CSS · **Afif** services, reverse geocoding |
+| 3 | Land economy, then planting and growth | ⬜ Planned | — | **Hisham** |
+| 4 | Pump, water and market, then live weather | ⬜ Planned | — | **Hisham** pump, market · **Afif** live weather |
+| 5 | Weather effects, crop alerts, then ship v0.1 | ⬜ Planned | — | **Afif** weather effects · **Kafi** polish, almanac · **Shabab** handover |
+
+Week one was spent on planning rather than code, so the build runs four weeks from now. Each week
+ends with something demonstrable. Full goal breakdown in
+[`docs/team/goals.md`](docs/team/goals.md), per-person notes in
+[`docs/team/members/`](docs/team/members/), and the outstanding work in
+[`docs/asset-checklist.md`](docs/asset-checklist.md).
+
+---
 
 ## 📄 License
 
