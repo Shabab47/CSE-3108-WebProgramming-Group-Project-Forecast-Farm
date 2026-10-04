@@ -7,7 +7,7 @@ The per-person weekly notes that used to live in the README table are now in `me
 
 ---
 
-## 2026-10-04 Hisham — pull and README structure
+## Hisham — pull and README structure
 
 - **Did:** Pulled `origin/main` (fast-forward `7e65a24..0cec268`), which brought in the MIT
   LICENSE from Shabab — closes ISS-002 and ISS-021. Rewrote the README project structure as a
@@ -23,7 +23,7 @@ The per-person weekly notes that used to live in the README table are now in `me
 
 ---
 
-## 2026-10-04 Hisham — goals board, no names
+## Hisham — goals board, no names
 
 - **Did:** Removed owner names from `goals.md` — goals are shared work, and who is on what is
   tracked in `tasks.md` instead.
@@ -31,7 +31,7 @@ The per-person weekly notes that used to live in the README table are now in `me
 - **Problems:** none
 - **Next:** pull `origin/main`, then T-02
 
-## 2026-10-04 Hisham — initial audit and docs tree
+## Hisham — initial audit and docs tree
 
 - **Did:** Audited the implementation plan against the actual repository before writing any code.
   Measured the alpha bounding boxes of all 9 PNGs, verified both Open-Meteo endpoints with live

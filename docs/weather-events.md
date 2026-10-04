@@ -55,8 +55,8 @@ damages them.
 ### Finding the current hour
 
 `hourly.time[0]` in a raw Open-Meteo response is **local midnight**, not the current hour. A
-response fetched at 12:15 has `current.time = "2026-10-04T12:15"` and
-`hourly.time[0] = "2026-10-04T00:00"`. So `classify()` must compute a `startIndex` by comparing
+response fetched at 12:15 has `current.time = "12:15"` and
+`hourly.time[0] = "00:00"`. So `classify()` must compute a `startIndex` by comparing
 `current.time` against the hourly timestamps, then slice 24 entries from there.
 
 Everything downstream assumes this: `state.weather.hourly[0]` is the current hour, which is what

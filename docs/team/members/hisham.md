@@ -20,7 +20,7 @@ Game developer and debugger.
 
 ## Measured geometry — do not re-derive this
 
-Alpha bounding boxes, measured 2026-10-04. Every PNG is 1000×1000 with the art inside it.
+Alpha bounding boxes, measured during the pre-build audit. Every PNG is 1000×1000 with the art inside it.
 
 | Asset | Content | h/w | Centre |
 | :--- | :--- | ---: | :--- |

@@ -12,7 +12,7 @@ the `Updated` column on every status change so the board never lies about freshn
 
 | ID | Task | Owner | Status | Phase | Updated |
 | :--- | :--- | :--- | :--- | ---: | :--- |
-| T-01 | Docs skeleton: `docs/team/*`, `architecture.md`, `reference/`, plan copy, 4 game-design docs | Shabab | done | 0 | 2026-10-04 |
+| T-01 | Docs skeleton: `docs/team/*`, `architecture.md`, `reference/`, plan copy, 4 game-design docs | Shabab | done | 0 | — |
 | T-02 | Tooling: `package.json`, `scripts/check-imports.mjs`, `utils/log.js`, first passing test | Hisham | todo | 0 | — |
 | T-03 | Config + state: all `config/*`, `state/types.js`, `initialState.js`, `store.js` | Hisham | todo | 0 | — |
 | T-04 | Services cleanup: rewrite `weatherApi`, `timeApi`; add `geocodeApi`; save sample; delete `map.js` | Afif | todo | 0 | — |

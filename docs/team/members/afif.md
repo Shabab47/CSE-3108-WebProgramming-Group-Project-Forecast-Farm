@@ -18,7 +18,7 @@ Game developer and game tester.
 
 ## Verified API behaviour — use this, do not re-derive it
 
-Checked live on 2026-10-04 against `api.open-meteo.com` and `geocoding-api.open-meteo.com`.
+Checked live against `api.open-meteo.com` and `geocoding-api.open-meteo.com`.
 
 **Weather** response keys: `latitude`, `longitude`, `generationtime_ms`, `utc_offset_seconds`,
 `timezone`, `timezone_abbreviation`, `elevation`, `current_units`, `current`, `hourly_units`,
@@ -27,7 +27,7 @@ Checked live on 2026-10-04 against `api.open-meteo.com` and `geocoding-api.open-
 come from the matching hourly entry.
 
 **`hourly.time[0]` is local midnight, not now.** A response fetched at 12:15 had
-`current.time = "2026-10-04T12:15"` and `hourly.time[0] = "2026-10-04T00:00"`, 48 entries for
+`current.time = "12:15"` and `hourly.time[0] = "00:00"`, 48 entries for
 `forecast_days=2`. `classify()` must compute a `startIndex` and slice 24 from there. This is
 ISS-009 and it is the easiest mistake in the whole project to make.
 
