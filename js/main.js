@@ -16,9 +16,20 @@
 import { qsOrNull, el } from './utils/dom.js';
 import { createLog } from './utils/log.js';
 import { currentSession, signInAsGuest, signOut as endAuth } from './services/localAuth.js';
-import { init, reset, saveNow, subscribe, getState } from './state/store.js';
+import {
+  adoptState,
+  emit,
+  exportPayload,
+  getState,
+  init,
+  readImport,
+  reset,
+  saveNow,
+  subscribe,
+} from './state/store.js';
 import { mountToastStack } from './ui/toastStack.js';
 import { mountTopBar } from './ui/topBar.js';
+import { mountSavePanel } from './ui/savePanel.js';
 import { AUTOSAVE_MS } from './config/game.js';
 
 const log = createLog('main');
@@ -88,6 +99,31 @@ function mountShell(session) {
     placeholder('Meters', 'Water and heat — T-09'),
     placeholder('Environment', 'Humidity and wind — T-11'),
   );
+
+  mountSavePanel(qsOrNull('#save-panel'), saveActions());
+}
+
+/**
+ * The save panel's callbacks.
+ *
+ * `main.js` is the only module that may import both a UI panel and the store, so
+ * this is the one place the two are joined. The panel itself never sees `store`.
+ *
+ * `canExport` is false for a guest: there is no account for a file to name, so an
+ * exported guest farm would carry an empty owner and could never be verified
+ * later. The panel says so rather than producing a hollow file.
+ */
+function saveActions() {
+  return {
+    canExport: () => getState()?.session?.status === 'authed',
+    now: () => Date.now(),
+    exportPayload,
+    readImport,
+    adoptState,
+    toast(message, tone) {
+      emit('toast', { message, tone });
+    },
+  };
 }
 
 /** Keep the gold readout honest, so the shell already behaves like the game. */

@@ -32,8 +32,10 @@ Weeks are in `goals.md`. Week 1 was planning; T-02 onward belong to weeks 2–5.
 | T-02 | Tooling: `package.json`, `scripts/check-imports.mjs`, `utils/log.js`, first passing test | Hisham | done | 0 | — |
 | T-03 | Config + state: all `config/*`, `state/types.js`, `initialState.js`, `store.js` | Hisham | doing | 0 | — |
 | T-04 | Services cleanup: rewrite `weatherApi`, `timeApi`; add `geocodeApi`; **add reverse geocoding**; save sample; delete `map.js` | Afif | todo | 0 | — |
-| T-27 | **Login, out of plan order (DEC-017):** `loginPanel`, `loginFields`, `authErrors`, `authRules`, boot step 0, `state.session`, guest play | Hisham | done | 0 | — |
-| T-28 | **`services/authApi.js` — Supabase over REST, the real provider.** Blocks the local provider's removal | Shabab | todo | 0 | — |
+| T-27 | **Login, out of plan order (DEC-017):** `loginPanel`, `loginFields`, `authErrors`, `authRules`, boot step 0, `state.session`, guest play | Hisham | done | 0 | week 2 |
+| T-28 | **`services/authApi.js` — Supabase over REST, the real provider.** Written and tested; needs the project URL and anon key | Shabab | doing | 0 | week 2 |
+| T-29 | **Create the Supabase project** and set the redirect URL, then flip `USE_LOCAL_PROVIDER`. Blocks real accounts, password reset and signed export | Shabab | todo | 0 | — |
+| T-30 | **Export and import a farm:** `state/transfer.js` (format, checksum, rebase), `utils/checksum.js`, `ui/savePanel.js`, `store.adoptState` | Hisham | done | 0 | week 2 |
 
 ## Phase 1 — Page and field · week 2
 
@@ -77,8 +79,10 @@ nobody discovers them mid-build.
 
 | Issue | Blocks | Fix in |
 | :--- | :--- | ---: |
-| ISS-028 no `services/authApi.js`, login runs on the local provider | T-28, and any real sign-up | 0 |
-| ISS-027 `localAuth.js` is a second storage writer | T-28 | 0 |
+| ISS-032 no Supabase project, so login runs local, reset cannot finish, export is unsigned | T-28, T-29, T-30 | 0 |
+| ISS-031 no allowed redirect URL, so a password-reset email never arrives | T-29 | 0 |
+| ISS-028 `authApi.js` has no credentials, so it refuses every call | T-28, T-29 | 0 |
+| ISS-027 `localAuth.js` is a second storage writer | T-29 | 0 |
 | ISS-010 `check-imports` fails on `utils/dom.js` | T-02 | 0 |
 | ISS-009 current-hour index not specified | T-04, T-12 | 0 |
 | ISS-011 stale sample timestamps | T-04, T-11 | 0 |

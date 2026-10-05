@@ -7,6 +7,42 @@ The per-person weekly notes that used to live in the README table are now in `me
 
 ---
 
+## Supabase provider, password reset, and exporting a farm
+
+- **Did:** Picked up Shabab's login page and finished the parts that needed a real backend, then
+  added saving. `js/services/authApi.js` now calls the Supabase REST API with plain `fetch()` —
+  no SDK, per DEC-018 — split three ways so each has one job: `authApi.js` shapes sessions and
+  decides which failures may differ, `gotrue.js` is the transport and the GoTrue error mapping,
+  and `tokenStore.js` is the only writer of a token. Added `ui/passwordReset.js` for
+  forgot-password, `state/transfer.js` for the export format, `utils/checksum.js`, and
+  `ui/savePanel.js` for the buttons. `store.js` gained `adoptState`, `exportPayload` and
+  `readImport`. Tests are at **121 passing, up from 56**.
+- **Files:** `js/services/authApi.js`, `gotrue.js`, `tokenStore.js`, `js/config/supabase.js`,
+  `js/ui/passwordReset.js`, `savePanel.js`, `js/ui/authErrors.js`, `js/ui/loginPanel.js`,
+  `js/auth-main.js`, `js/main.js`, `js/state/store.js`, `transfer.js`, `js/utils/checksum.js`,
+  `index.html`, `package.json`, `docs/architecture.md`, `docs/team/decisions.md`, `issues.md`,
+  `ownership.md`, `tasks.md`, `README.md`, `tests/*`
+- **Problems:** Four found, all fixed. **ISS-029** — `npm test` could not run at all: the script
+  was `node --test tests/`, which Node 24 rejects, so all 56 tests were unreachable through the
+  documented command. **ISS-030** — `decisions.md` was not valid UTF-8; three em-dashes had been
+  saved as raw Windows-1252 bytes, which is the same failure that once turned `t` into `h` across
+  82 lines. Two more caught while testing: `localAuth.js` did not implement `requestPasswordReset`,
+  so the panel called `undefined` and told the player to check their connection; and the reset panel
+  fell through to "a link is on its way" for any error that was not a rate limit, so on the local
+  provider it claimed an email had been sent. Then a rebase bug of my own: it returned a shifted
+  number instead of the plot object, which would have replaced all 16 plots with bare numbers on
+  import. Three tests now exist so each cannot come back.
+- **Also:** the export file is `.farm`, unsigned. It catches corruption and refuses a hand-edited
+  file, but anyone who reads `utils/checksum.js` can recompute the checksum — there is a test that
+  does exactly that and asserts it succeeds. Closing it needs a server-held key (DEC-021, ISS-032).
+  Recorded rather than papered over.
+- **Next:** Shabab creates the Supabase project and sends the URL and anon key (T-29, ISS-032);
+  until then one flag in `auth-main.js` decides which provider runs. The reset flow also needs the
+  origin in the project's allowed redirect URLs (ISS-031) or no email ever arrives. UI is still
+  untested — no DOM in `node --test` and no browser here, so the panels need a manual pass.
+
+---
+
 ## Login rebuilt to the panel contract
 
 - **Did:** Reworked the login page to the agreed contract after review. `ui/loginPanel.js` now

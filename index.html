@@ -29,7 +29,12 @@
       </main>
 
       <!-- right column: gold, buttons, meters, environment metrics -->
-      <aside class="app__rail" id="right-rail"></aside>
+      <aside class="app__rail" id="right-rail">
+        <!-- Export and import a save file. Mounted here rather than behind a
+             settings drawer, because there is no settings UI yet; it moves when
+             someone builds one. -->
+        <div id="save-panel"></div>
+      </aside>
     </div>
 
     <div class="toast-stack" id="toast-stack" aria-live="polite"></div>

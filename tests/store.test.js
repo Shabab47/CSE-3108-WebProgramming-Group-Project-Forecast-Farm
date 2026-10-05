@@ -10,6 +10,7 @@
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 
+import * as store from '../js/state/store.js';
 import { clearSave, getState, init, load, reset, saveNow, subscribe } from '../js/state/store.js';
 import { AUTH_KEYS } from '../js/config/auth.js';
 import { STATE_VERSION } from '../js/config/game.js';
@@ -185,4 +186,81 @@ test('storage that throws does not crash the save', () => {
     saveNow();
   });
   assert.equal(getState().gold, 200, 'the farm still runs in memory');
+});
+
+/* --- import ---------------------------------------------------------------- */
+
+test('adoptState replaces the farm and writes it straight to disk', () => {
+  init(SESSION);
+  const replacement = { ...getState(), gold: 4242 };
+
+  const result = store.adoptState(replacement);
+
+  assert.equal(result.ok, true);
+  assert.equal(getState().gold, 4242);
+  // Written immediately rather than debounced: the old save must not outlive the
+  // moment the player chose to replace it.
+  assert.equal(JSON.parse(localStorage.getItem(KEY)).state.gold, 4242);
+});
+
+test('adoptState keeps the live session, not one carried in the file', () => {
+  init(SESSION);
+
+  store.adoptState({
+    ...getState(),
+    session: { status: 'authed', userId: 'someone-else', email: 'x@y.z', farmerName: 'Imposter' },
+  });
+
+  assert.equal(getState().session.userId, SESSION.userId, 'a file cannot reassign who is playing');
+  assert.equal(getState().session.farmerName, SESSION.farmerName);
+});
+
+test('adoptState refuses rubbish without disturbing the current farm', () => {
+  init(SESSION);
+  const gold = getState().gold;
+
+  for (const bad of [null, undefined, 'text', 42, {}, { plots: 'not an array' }]) {
+    assert.equal(store.adoptState(bad).ok, false, `accepted ${JSON.stringify(bad)}`);
+  }
+
+  assert.equal(getState().gold, gold, 'the farm in memory is untouched');
+});
+
+test('adoptState before init is refused', () => {
+  reset();
+  assert.equal(store.adoptState({ plots: [] }).reason, 'store not initialised');
+});
+
+test('an imported farm notifies subscribers', () => {
+  init(SESSION);
+  const seen = [];
+  const stop = subscribe((s) => seen.push(s?.gold));
+
+  store.adoptState({ ...getState(), gold: 777 });
+  stop();
+
+  assert.ok(seen.includes(777), 'a panel would never redraw otherwise');
+});
+
+/* --- export ---------------------------------------------------------------- */
+
+test('exportPayload produces a file that reads back as the same farm', () => {
+  init(SESSION);
+  store.apply((s) => ({ ok: true, state: { ...s, gold: 3131 } }));
+
+  const payload = store.exportPayload(Date.now());
+  assert.equal(payload.ok, true);
+  assert.match(payload.filename, /^forecast-farm-\d{4}-\d{2}-\d{2}\.farm$/);
+
+  const read = store.readImport(payload.text, Date.now());
+  assert.equal(read.ok, true);
+  assert.equal(read.state.gold, 3131);
+});
+
+test('exportPayload and readImport before init refuse rather than throw', () => {
+  reset();
+
+  assert.equal(store.exportPayload(Date.now()).reason, 'store not initialised');
+  assert.doesNotThrow(() => store.readImport('{}', Date.now()));
+  assert.equal(store.readImport('{}', Date.now()).ok, false);
 });
