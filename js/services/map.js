@@ -1,6 +1,6 @@
 async function searchCity(city) {
     const url =
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(city)}`;
+        `https://maplibre.org/search?format=json&q=${encodeURIComponent(city)}`;
     const response = await fetch(url);
     const data = await response.json();
     if (data.length === 0) {
