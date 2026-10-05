@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en" data-page="game">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Forecast Farm</title>
+    <meta name="description" content="A 2D farming game driven by real weather at your own location." />
+
+    <link rel="icon" href="assets/icons/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="css/reset.css" />
+    <link rel="stylesheet" href="css/variables.css" />
+    <link rel="stylesheet" href="css/themes.css" />
+    <link rel="stylesheet" href="css/layout.css" />
+    <link rel="stylesheet" href="css/components.css" />
+  </head>
+
+  <body>
+    <div class="app">
+      <!-- topBar: logo, location search, action buttons -->
+      <header class="app__top" id="top-bar"></header>
+
+      <!-- sidebar: season card, shop, inventory -->
+      <aside class="app__sidebar" id="sidebar"></aside>
+
+      <!-- centre column: forecast card, then the isometric farm -->
+      <main class="app__centre">
+        <section class="card" id="forecast-card"></section>
+        <section class="card" id="farm-view"></section>
+      </main>
+
+      <!-- right column: gold, buttons, meters, environment metrics -->
+      <aside class="app__rail" id="right-rail"></aside>
+    </div>
+
+    <div class="toast-stack" id="toast-stack" aria-live="polite"></div>
+
+    <script type="module" src="js/main.js"></script>
+  </body>
+</html>

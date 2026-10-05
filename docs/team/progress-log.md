@@ -7,6 +7,74 @@ The per-person weekly notes that used to live in the README table are now in `me
 
 ---
 
+## Login rebuilt to the panel contract
+
+- **Did:** Reworked the login page to the agreed contract after review. `ui/loginPanel.js` now
+  exposes `mountLoginPanel(root, actions)` and imports no service, so it has no idea a provider
+  exists. Split the file because a single version hit 277 lines against the ~200 budget:
+  `ui/loginFields.js` holds the labelled inputs, `ui/uiPanel` keeps render and state. Added
+  `ui/authErrors.js` — one pure `authErrorToMessage(reason, context)` that is the only place
+  provider codes become sentences, and the only place that decides which sentence. On the sign-in
+  path every account-existence reason collapses to one neutral message (DEC-019); sign-up may be
+  specific. Session moved out of storage and into `state.session` as
+  `{status, userId, email, farmerName}`, persisted by `store.js`. Added boot step 0 to
+  `main.js`: resolve the session first, and if there is none redirect to login **without mounting
+  the game**, so there is no flash of farm UI. Added the missing states — `aria-busy` plus a busy
+  guard that absorbs a triple submit, an `aria-live="polite"` region, and guest play via
+  `?guest=1` so a guest's farm cannot be resumed by anyone else on the machine. 56 tests.
+- **Files:** `js/ui/{loginPanel,loginFields,authErrors}.js` (replacing `authView.js`),
+  `js/domain/authRules.js`, `js/services/localAuth.js`, `js/state/{store,initialState}.js`,
+  `js/{main,auth-main}.js`, `js/ui/topBar.js`, `css/auth.css`, `css/layout.css`,
+  `tests/{authErrors,authRules,localAuth,store,initialState}.test.js`, `docs/architecture.md`,
+  `docs/team/{decisions,issues,ownership,tasks}.md`
+- **Problems:** My first rewrite cloned the sign-in fields to build the sign-up form, which
+  duplicated every `id` — the labels and `aria-describedby` pairs would have silently pointed at
+  the wrong element, and a duplicate id is exactly the accessibility bug the project cares about.
+  Caught by asserting on the live DOM before trusting the screenshot. Now each form builds its own
+  scoped fields, and there is a test-visible guarantee of zero duplicate ids.
+- **Problems logged:** ISS-027, `localAuth.js` is a second writer to localStorage, which breaks the
+  one-writer rule — it has an expiry and dies with the real provider. ISS-028, `authApi.js` does
+  not exist yet, so login runs on the local stand-in. ISS-026, unchanged: client-side accounts are
+  not security.
+- **Open, needs Shabab:** the five blocking questions — identity (`auth.uid()` or email),
+  `farmerName` uniqueness and where it lives, whether email confirmation is required, whether
+  guest play is allowed in a release, and whether localStorage stays the save of record. The last
+  one changes `store.js`, so I left the save local and did not invent a migration. See DEC-017
+  and DEC-018.
+- **Next:** `services/authApi.js` (T-28), then the isometric field (T-06).
+
+---
+
+## Login and registration, before the field
+
+- **Did:** Built the sign-in / sign-up page the team lead asked to come first, and the shell it
+  hands off to. `login.html` with two tabs, all validation in pure `domain/authRules.js`, the
+  form itself in `ui/authView.js` with every account operation injected, and
+  `state/accounts.js` doing salted PBKDF2-SHA256 at 210,000 iterations. `index.html` now
+  guards on a session, resumes `forecastFarm.save.v1:<accountId>` or builds a fresh 200-gold
+  farm, and matches the wireframe with placeholder panels. Also `package.json`,
+  `scripts/dev-server.mjs` (dependency-free static server), `scripts/check-imports.mjs`,
+  `.gitignore`, the full CSS layer, and 44 tests.
+- **Files:** `login.html`, `index.html`, `package.json`, `.gitignore`, `scripts/*`, `css/*`,
+  `js/config/{auth,api,field,game}.js`, `js/domain/authRules.js`, `js/state/{accounts,store,
+  initialState}.js`, `js/ui/{authView,topBar,toastStack}.js`, `js/utils/{log,dom,normalize}.js`,
+  `js/main.js`, `js/auth-main.js`, `tests/*`, `assets/icons/favicon.svg`, `docs/architecture.md`,
+  `docs/team/{decisions,issues,tasks}.md`
+- **Problems:** Two bugs only the browser could find. `store.init` read `account.id` while
+  `currentSession()` returns `accountId`, so every save was written under the key `undefined`
+  and no farm was ever resumed — the state was fine in memory, which is exactly why no unit
+  test caught it; both are covered now. And `validateLogin` returned no `values`, so a failed
+  login threw a `TypeError` and every credential error showed as "Something went wrong".
+  `check-imports` also passes only because of a `KNOWN` list holding the six violations in the
+  three legacy service files; it prints them and fails only on new ones.
+- **Problems logged:** ISS-026. Accounts in localStorage are not security, whatever the hashing
+  — no server, no recovery, and the save can be edited by hand. DEC-017 records that this
+  reverses the plan's "accounts are out of scope", and why a mock was rejected instead.
+- **Next:** the isometric field (T-06), which needs `utils/iso.js`, `farmView`, `plotTile`,
+  `pumpView` and `css/field.css`. The panels are all placeholders and say so.
+
+---
+
 ## Week 1 — team contributions
 
 No game code was written this week. Everything below was design, artwork, services and

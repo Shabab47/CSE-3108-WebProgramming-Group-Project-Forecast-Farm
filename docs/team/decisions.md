@@ -7,6 +7,79 @@ Format: who decided, the choice, why, and what was rejected.
 
 ---
 
+### DEC-018 Supabase over REST, no supabase-js
+**Decided by:** team lead
+
+**Choice:** The auth provider is the **Supabase REST API called with plain `fetch()`**,
+in `js/services/authApi.js`. Not the supabase-js SDK. Anon key in
+`js/config/api.js`; no secret in the client, ever — the export signing secret stays
+server-side.
+
+**Why:** DEC-002 and AGENTS.md both say no runtime dependencies, and a university
+course project is the worst possible place to hand a judge a dependency tree. The
+auth surface we need is four calls: sign in, sign up, refresh, sign out. REST
+covers that without a package, and `fetch()` is already allowed inside
+`js/services/` by the layering rules.
+
+**Consequence:** we write the request and error mapping ourselves, so
+`js/ui/authErrors.js` has to exist and has to be the single place provider codes
+become sentences. See DEC-019.
+
+---
+
+### DEC-019 One neutral message for every account-existence leak
+**Decided by:** Hisham
+
+**Choice:** On the sign-in path, every reason that reveals whether an email has an
+account — wrong password, no such account, email not confirmed — returns the same
+sentence: *"Check your email and password and try again."* On the sign-up path the
+same reasons may be specific, because the player just typed that address.
+
+The set of sensitive reasons is `ENUMERATION_SENSITIVE` in `js/ui/authErrors.js`,
+and a test asserts every entry is neutralised.
+
+**Why:** A login form that says "no account with that email" is an account
+enumeration oracle. On a public form it lets anyone confirm whether a given address
+is registered, which is the first step of targeted harassment and of credential
+stuffing. This is not theoretical for a game anyone might link to.
+
+**Rejected:** per-reason specificity on sign-in, because it is a better developer
+experience. It is a worse player experience for the people it puts at risk, and the
+developer already has the logs.
+
+**Also:** the provider layer returns one reason for both branches too, not only the
+message layer. Two layers is defence in depth, and the provider test asserts the
+two reasons are equal so the layers cannot drift apart.
+
+---
+
+### DEC-017 Login ships before the field; local provider until authApi.js lands
+**Decided by:** the team lead, on the lead's instruction
+
+**Choice:** Sign-in and registration ship first, ahead of the isometric field.
+`js/services/localAuth.js` is a **temporary** local provider implementing the same
+contract as `authApi.js`, so the panel can be built and tested before the real
+provider exists. It is deleted, and one import in `js/auth-main.js` changed, when
+`authApi.js` lands.
+
+**Why:** Login had to come first, but `authApi.js` needs a Supabase project and is
+Shabab's file. A mock provider that hard-codes a session would teach nobody
+anything; a local provider implementing the real contract lets the panel, the
+wiring, the boot gate and the tests all be finished now, and leaves the provider
+swap as a one-line change.
+
+**Rejected:** writing `authApi.js` here too. It is Shabab's file and needs a project
+URL and anon key I do not have. Two people writing it would be worse than a
+documented gap.
+
+**Consequence:** `localAuth.js` writes its own localStorage keys, which breaks the
+"only `state/store.js` writes storage" rule. Logged as ISS-027 with an expiry: it
+goes away with the real provider and must not survive into a release.
+
+**Reverses:** section 14 of the implementation plan, which listed accounts as out of
+scope. The plan is the older document; this record is the current intent.
+---
+
 ### DEC-016 One folder per crop under `assets/images/crops/`
 **Decided by:** team
 
