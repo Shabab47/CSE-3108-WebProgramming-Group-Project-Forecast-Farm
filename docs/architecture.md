@@ -88,6 +88,7 @@ services (fetch)  →  main.js  →  store.apply  →  domain (pure rules)  → 
 
 This is the repo **as it stands**, not the finished shape. It moves, so treat it as a snapshot.
 
+```
 .
 ├── index.html                  empty — app shell, 3 grid columns
 ├── almanac.html                empty — placeholder page
