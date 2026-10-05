@@ -1,0 +1,124 @@
+/* Auth page: the sign-in / sign-up card.
+ *
+ * Separate from components.css because it is the one page with its own layout.
+ * No game code runs on this page -- see js/auth-main.js.
+ */
+
+.auth {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: var(--space-5);
+  background:
+    radial-gradient(120% 90% at 15% 0%, var(--accent-soft) 0%, transparent 55%),
+    var(--bg);
+}
+
+.auth__card {
+  width: min(100%, 440px);
+  background: var(--surface-glass);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-pop);
+  backdrop-filter: blur(10px);
+  padding: var(--space-6);
+}
+
+.auth__brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  text-align: center;
+  margin-bottom: var(--space-5);
+}
+
+.auth__mark {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 24px;
+  line-height: 1;
+}
+
+.auth__title {
+  font-size: var(--text-xl);
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.auth__subtitle {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.auth__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin-top: var(--space-5);
+}
+
+.auth__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+.auth__submit {
+  margin-top: var(--space-1);
+}
+
+.auth__note {
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+  text-align: center;
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+/* --- announcements --------------------------------------------------------
+ * One polite live region for everything the auth flow says. Errors that must
+ * interrupt are `role="alert"`; routine messages wait for a pause in speech. */
+
+.form-message {
+  padding: var(--space-3);
+  border-radius: var(--radius-input);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  background: var(--surface-sunken);
+}
+
+.form-message--error {
+  color: var(--danger);
+  background: var(--danger-soft);
+  border: 1px solid var(--danger);
+}
+
+/* --- guest ---------------------------------------------------------------- */
+
+.auth__divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+}
+
+.auth__divider::before,
+.auth__divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+@media (max-width: 480px) {
+  .auth__card {
+    padding: var(--space-5);
+  }
+}

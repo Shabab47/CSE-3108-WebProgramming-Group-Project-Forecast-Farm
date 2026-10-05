@@ -46,13 +46,110 @@ services (fetch)  →  main.js  →  store.apply  →  domain (pure rules)  → 
 
 `js/main.js`, in this order:
 
-1. `load()` the save, or build `initialState()`.
+0. **Resolve the session.** `resolveSession()` asks the provider for a stored
+   session, then falls back to a guest session when the URL carries `?guest=1`.
+   No session at all → `location.replace('login.html')` and **return**. The game
+   is never mounted for a signed-out visitor, so there is no flash of farm UI.
+1. `store.init(session)` — loads `forecastFarm.save.v1:<userId>`, or builds
+   `initialState(session)`. Either way the live session goes into state.
 2. Preload images (rice stages + both ground tiles + base + pump).
 3. Mount UI: topBar, sidebar, seasonCard, weatherPanel, farmView, hud, buttonBar,
    meters, envMetrics, toastStack.
 4. Fetch weather for `state.location`, or the sample fallback. Repeat every `REFRESH_MS`.
 5. Start the simulator interval (`TICK_MS`) and the autosave interval (`AUTOSAVE_MS`).
 6. If `?debug=1`, mount the debug panel.
+
+Step 0 is new, added with login. It is why `login.html` is a separate page rather
+than an overlay: the shell must not render before auth. `js/auth-main.js` is the
+mirror image — it redirects *to* the game when a session already exists, so
+neither page can bounce the visitor back and forth.
+
+---
+
+## Accounts
+
+Two pages, and login comes first.
+
+```
+login.html ──► js/auth-main.js ──► js/ui/loginPanel.js ──┐
+                   │  injects signIn/signUp/signOut    │
+                   │  as actions                       ▼
+                   └────────────────────────► js/services/authApi.js   (Supabase REST, fetch)
+
+index.html ──► js/main.js ──► boot 0: resolveSession()
+                              │ no session → login.html, game never mounts
+                              ▼
+                        js/state/store.js ──► forecastFarm.save.v1:<userId>
+```
+
+### The panel contract
+
+`js/ui/loginPanel.js` never imports a service and never names a provider. Every
+outside call arrives through `actions`:
+
+| Action | Returns | The panel handles |
+| :--- | :--- | :--- |
+| `currentSession()` | `session \| null` | whether to render the form at all |
+| `signIn({email, password})` | `Promise<{ok:true, session} \| {ok:false, reason}>` | spinner, then route on |
+| `signUp({email, password, farmerName})` | same | same |
+| `signOut()` | `Promise<{ok:true}>` | — |
+| `onAuthenticated(session)` | — | routing |
+| `onGuest()` | — | guest play |
+
+Swapping the provider changes `auth-main.js` and one import. No file in `js/ui/`
+moves. That is the whole reason for the split.
+
+### Two panels that never talk
+
+`js/ui/authErrors.js` is a pure function, `authErrorToMessage(reason, context)`.
+It is the only place provider error codes become sentences, and it is the only
+place that decides **which** sentence. Keeping it out of the panel means:
+
+- it is unit-testable with no DOM (`tests/authErrors.test.js`), which is most of
+  what makes `npm test` useful here;
+- provider codes never reach render code;
+- **account enumeration is prevented in one place.** Every reason that would
+  reveal whether an email is registered — wrong password, no such account, not
+  confirmed — collapses to one neutral sentence on the sign-in path. The same
+  reason on the sign-up path may be specific, because the player just typed that
+  address. `ENUMERATION_SENSITIVE` lists them, and a test asserts every entry is
+  neutralised, so adding a new provider code cannot quietly widen the oracle.
+
+### Session shape and the state field
+
+```js
+session = { status: 'authed' | 'guest', userId, email, farmerName } | null
+```
+
+`state.session` is part of the game state, so `store.js` persists it with
+everything else. Two decisions worth knowing:
+
+- **A resumed save takes the live session, not the one it was saved with.** A save
+  can be days old; its session may be a guest session, or a user who has since
+  signed out. The live session is authoritative, or signing out and back in
+  resurrects the old identity.
+- **`normaliseSession()`** drops anything unrecognisable to `null`. The boot gate
+  reads this field, so a hand-edited or pre-auth save must not be able to put junk
+  in front of it.
+
+A guest session is deliberately **not** written to storage. It arrives as
+`?guest=1` and the guest's save is keyed `…:guest`, so a guest farm cannot be
+resumed by anyone else on the machine, and reload without the query returns to
+login.
+
+### Storage keys
+
+| Key | Written by | Holds |
+| :--- | :--- | :--- |
+| `forecastFarm.save.v1:<userId>` | `state/store.js` | that user's game save, session included |
+| `forecastFarm.debug` | read only | `1` turns on verbose logging |
+| *(provider-owned)* | `services/authApi.js` | Supabase session and refresh token |
+
+`js/services/localAuth.js` is a **stopgap**, not the real provider. It exists so
+the panel has something to run against before `authApi.js` lands, implements the
+identical contract, and writes its own `forecastFarm.accounts.v1` /
+`.session.v1` keys. Delete it and change one import when the real one is ready.
+Its second-writer violation of the storage rule is logged as ISS-027.
 
 ---
 
@@ -63,6 +160,7 @@ services (fetch)  →  main.js  →  store.apply  →  domain (pure rules)  → 
 | plot prices, grid size, spacing | `js/config/field.js` |
 | crop times, prices, water need | `js/config/crops.js` |
 | an image path | `js/config/assets.js` |
+| password rules, hashing cost, storage keys | `js/config/auth.js` |
 | how weather maps to game events | `js/config/weatherEvents.js`, `js/domain/weather.js` |
 | what weather does to crops | `js/config/cropWeatherMatrix.js`, `js/domain/simulator.js` |
 | pump cost / water speed | `js/config/game.js` |
@@ -71,8 +169,17 @@ services (fetch)  →  main.js  →  store.apply  →  domain (pure rules)  → 
 | seeds, harvest, selling | `js/domain/inventory.js` |
 | gold maths | `js/domain/wallet.js` |
 | forecast → alert strings | `js/domain/notifications.js` |
+| what counts as a valid email or password | `js/domain/authRules.js` |
+| provider error code → player-facing sentence | `js/ui/authErrors.js` |
+| which sign-in failures must look identical | `js/ui/authErrors.js` (`ENUMERATION_SENSITIVE`) |
+| the sign-in / sign-up form and its states | `js/ui/loginPanel.js` |
+| the labelled inputs the form is built from | `js/ui/loginFields.js` |
+| the auth provider call (Supabase) | `js/services/authApi.js` |
+| the temporary local provider | `js/services/localAuth.js` |
+| boot step 0, the session gate | `js/main.js` (`resolveSession`) |
 | field drawing / click bugs | `js/ui/farmView.js`, `js/ui/plotTile.js`, `js/utils/iso.js`, `css/field.css` |
 | page layout | `css/layout.css`, `index.html` |
+| login page layout | `css/auth.css`, `login.html` |
 | colours, radii, spacing | `css/variables.css` |
 | card and button styling | `css/components.css` |
 | top bar buttons | `js/config/ui.js` |
@@ -90,54 +197,75 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 
 ```
 .
-├── index.html                  empty — app shell, 3 grid columns
+├── index.html                  the game page — app shell, 3 grid columns
+├── login.html                  the sign-in / sign-up page
 ├── almanac.html                empty — placeholder page
 ├── LICENSE                     MIT
 ├── README.md
+├── package.json                scripts only, no dependencies
 │
 ├── css/
-│   ├── reset.css               empty
-│   ├── layout.css              empty — the 3-area CSS grid
-│   ├── variables.css           empty — all colours, radii, spacing
-│   ├── themes.css              empty
-│   ├── components.css          empty
+│   ├── reset.css               baseline
+│   ├── layout.css              the 3-area CSS grid, plus the top bar
+│   ├── variables.css           all colours, radii, spacing
+│   ├── themes.css              dark and high-contrast token overrides
+│   ├── components.css          cards, buttons, inputs, meters, toasts
+│   ├── auth.css                the login card
 │   └── field.css               planned — isometric stage and plot layers
 │
 ├── data/
 │   └── sample-forecast.json    empty — one real Open-Meteo response, for offline dev
 │
 ├── js/
-│   ├── main.js                 empty — boot order only
+│   ├── main.js                 boot order, boot 0 is the session gate
+│   ├── auth-main.js            the login page entry, wires panel to provider
 │   ├── config/                 pure data, imports nothing
+│   │   ├── auth.js             storage keys, password policy, PBKDF2 cost
+│   │   ├── api.js              URLs, default location, refresh interval
+│   │   ├── field.js            FIELD geometry, ZONES, PLOT_PRICES
+│   │   ├── game.js             START_GOLD, PUMP, WATER, HEALTH, timings
 │   │   ├── crops.js            empty
 │   │   ├── cropWeatherMatrix.js empty
 │   │   ├── seasons.js          empty
 │   │   └── weatherEvents.js    empty
 │   ├── domain/                 game rules — no DOM, no fetch
+│   │   ├── authRules.js        what counts as a valid email or password
 │   │   ├── farm.js             empty
 │   │   ├── notifications.js    empty
 │   │   ├── simulator.js        empty
 │   │   └── weather.js          empty
 │   ├── services/               the only place that calls fetch
+│   │   ├── authApi.js          planned — Supabase REST, the real provider
+│   │   ├── localAuth.js        TEMPORARY local provider, same contract
 │   │   ├── map.js              DELETE — Nominatim + Leaflet, references an
 │   │   │                       undefined `map` global and calls alert()
 │   │   ├── timeApi.js          rewrites — writes straight into the DOM
 │   │   └── weatherApi.js       rewrites — OpenWeatherMap placeholder key
 │   ├── ui/                     render only, reads the store
 │   │   ├── almanac.js          empty
+│   │   ├── authErrors.js       provider code → sentence, enumeration guard
 │   │   ├── cropPicker.js       empty
 │   │   ├── farmView.js         empty
-│   │   ├── toastStack.js       empty
+│   │   ├── loginFields.js      labelled input builders
+│   │   ├── loginPanel.js       the sign-in / sign-up form and its states
+│   │   ├── toastStack.js       transient messages
+│   │   ├── topBar.js           logo, farmer name, sign-out
 │   │   └── weatherPanel.js     empty
 │   ├── utils/
+│   │   ├── dom.js              the only whitelisted DOM access
+│   │   ├── log.js              scoped logger, `[scope] message`
+│   │   ├── normalize.js        email and display-name normalisation
 │   │   ├── date.js             empty
-│   │   ├── dom.js              empty
 │   │   └── season.js           empty
-│   ├── state/                  planned — store, types, initial state
+│   ├── state/
+│   │   ├── initialState.js     builds a fresh farm: 200 gold, 16 plots
+│   │   ├── store.js            getState, apply, subscribe, bus, save/load
+│   │   └── types.js            planned — JSDoc @typedef for State
 │   └── debug/                  planned — the ?debug=1 panel
 │
 ├── assets/
 │   ├── icons/
+│   │   ├── favicon.svg
 │   │   ├── crops/              5 SVGs — all 0 bytes, art pending
 │   │   └── weather/            9 SVGs — all 0 bytes, art pending
 │   ├── images/
@@ -154,8 +282,19 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │       └── ground_unwatered.png
 │   └── sounds/                 3 MP3s, all 0 bytes — out of scope
 │
+├── scripts/
+│   ├── dev-server.mjs          static server for npm run dev
+│   └── check-imports.mjs       layering rules for npm run check
+│
+├── tests/                      node:test, pure code only
+│   ├── authErrors.test.js      error mapping, account enumeration
+│   ├── authRules.test.js       validation rules
+│   ├── initialState.test.js    fresh farm, zones, session coercion
+│   ├── localAuth.test.js       the stopgap provider's contract
+│   └── store.test.js           persistence, save migration, corruption
+│
 └── docs/
-    ├── architecture.md         layers, data flow, boot order, where things live
+    ├── architecture.md         layers, data flow, boot order, accounts
     ├── crops.md                crop numbers, stages, harvest maths
     ├── weather-events.md       the 9 events, classification, effects
     ├── notifications.md        crop alerts and dedupe
@@ -165,8 +304,6 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
     ├── reference/              field render, layout wireframe, style mockup
     └── team/                   goals, tasks, ownership, issues, decisions, members
 ```
-
-Also planned but not created yet: `package.json`, `tests/`, `scripts/check-imports.mjs`.
 
 ---
 
@@ -178,8 +315,10 @@ Also planned but not created yet: `package.json`, `tests/`, `scripts/check-impor
 - Existing source files use CRLF. Do not mass-convert. New files may use LF.
 - Event handlers are attached in JS. No inline handlers in HTML.
 - Plot elements carry `data-plot-id`.
-- Only `store.js` touches `localStorage`, always inside try/catch.
-- Save key: `forecastFarm.save.v1`.
+- Only `store.js` writes game saves, always inside try/catch.
+- Save key: `forecastFarm.save.v1:<userId>` — per user, not one global key.
+- Session lives in `state.session`; `store.js` persists it with the save.
+- Auth provider calls live in `js/services/authApi.js`. Never in `js/ui/`.
 
 ## Module contracts
 

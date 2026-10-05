@@ -1,0 +1,137 @@
+/* Page layout.
+ *
+ * The game shell is a three-column CSS grid, from
+ * docs/reference/layout-wireframe.jpeg:
+ *
+ *   grid-template-areas:
+ *     "top   top   top"
+ *     "left  centre right"
+ *
+ * Moving a panel is one line here. Nothing else in the project sets a grid.
+ */
+
+.app {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr) var(--rail-width);
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas:
+    "top    top    top"
+    "left   centre right";
+  gap: var(--space-4);
+  min-height: 100vh;
+  padding: var(--space-4);
+}
+
+/* --- areas ------------------------------------------------------------- */
+
+.app__top {
+  grid-area: top;
+}
+
+.app__sidebar {
+  grid-area: left;
+}
+
+.app__centre {
+  grid-area: centre;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.app__rail {
+  grid-area: right;
+}
+
+/* --- stacked groups ---------------------------------------------------- */
+
+.app__sidebar,
+.app__rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+/* --- top bar ----------------------------------------------------------- */
+
+.topbar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.topbar__logo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: inherit;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+}
+
+.topbar__mark {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.topbar__account {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.topbar__account .badge {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- the isometric stage ---------------------------------------------- */
+
+/* Every layer inside is positioned in % of the stage, so the field scales with
+   its container and needs no resize handling. See docs/architecture.md. */
+.field-stage {
+  position: relative;
+  aspect-ratio: 1;
+  width: min(100%, var(--field-max));
+  margin-inline: auto;
+}
+
+/* --- mobile ------------------------------------------------------------ */
+
+/* Single column below 900px: topBar, forecast, farm, right column, sidebar as
+   a bottom bar. Basic only, per the plan. */
+@media (max-width: 900px) {
+  .app {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto auto;
+    grid-template-areas:
+      "top"
+      "centre"
+      "right"
+      "left";
+  }
+
+  .app__sidebar {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .app__sidebar > * {
+    flex: 1 1 140px;
+  }
+
+  .topbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  /* The search slot drops out below 900px rather than squeezing the logo. */
+  .topbar__search {
+    display: none;
+  }
+}

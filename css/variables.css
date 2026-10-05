@@ -1,0 +1,77 @@
+/* Design tokens.
+ *
+ * Every colour, radius and spacing value in the project lives here. No other
+ * stylesheet may invent a hex value -- if you need a new one, add it to the
+ * right custom property first and use that.
+ */
+
+:root {
+  /* Accent: one colour, used for actions, focus and active states. */
+  --accent: #2f7d4f;
+  --accent-strong: #256540;
+  --accent-soft: #e6f2ea;
+  --accent-ring: rgba(47, 125, 79, 0.35);
+  /* Text sitting on a filled accent surface. Inverted per theme, so a primary
+     button always clears 4.5:1. */
+  --on-accent: #ffffff;
+
+  /* Neutrals, warm-tinted to sit with the crop art. */
+  --bg: #f4f6f3;
+  --surface: #ffffff;
+  --surface-glass: rgba(255, 255, 255, 0.82);
+  --surface-sunken: #eef1ec;
+  /* Inputs sit inside a glass card, so they need their own tone to read as
+     fields rather than as more card. */
+  --input-bg: #fbfcfa;
+
+  --text: #1f2721;
+  --text-muted: #5d6a61;
+  --text-faint: #8a958d;
+
+  --border: #dfe5df;
+  --border-strong: #c6d0c8;
+
+  /* Status. */
+  --danger: #b3392f;
+  --danger-soft: #fbeceb;
+  --warning: #96690d;
+  --warning-soft: #fdf4e0;
+  --success: #2f7d4f;
+  --success-soft: #e6f2ea;
+
+  /* Radii. Cards 16-20px per the style mockup. */
+  --radius-card: 18px;
+  --radius-input: 10px;
+  --radius-chip: 999px;
+
+  /* Spacing scale. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  /* Elevation. */
+  --shadow-card: 0 1px 2px rgba(31, 39, 33, 0.04), 0 8px 24px rgba(31, 39, 33, 0.06);
+  --shadow-pop: 0 2px 4px rgba(31, 39, 33, 0.06), 0 16px 40px rgba(31, 39, 33, 0.12);
+
+  /* Type. */
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.75rem;
+
+  --speed: 160ms;
+  --ease: cubic-bezier(0.2, 0, 0.2, 1);
+
+  /* Layout constants. The 900px breakpoint stacks to one column. */
+  --breakpoint-mobile: 900px;
+  --sidebar-width: 200px;
+  --rail-width: 280px;
+  --field-max: 720px;
+}

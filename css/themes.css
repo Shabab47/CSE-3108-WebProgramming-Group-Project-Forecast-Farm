@@ -1,0 +1,72 @@
+/* Theme surface.
+ *
+ * The game ships light. Dark and high-contrast are defined here as token
+ * overrides only, so no component stylesheet has to know a theme exists.
+ */
+
+[data-theme="dark"] {
+  --bg: #14180f;
+  --surface: #1e241a;
+  --surface-glass: rgba(30, 36, 26, 0.86);
+  --surface-sunken: #262d21;
+  --input-bg: #151a11;
+
+  --text: #e9eee3;
+  --text-muted: #a8b3a4;
+  /* 4.5:1 on --surface; the original #7c8878 was 4.36 and failed. */
+  --text-faint: #949f92;
+
+  --border: #333c2d;
+  --border-strong: #46523f;
+
+  --accent: #6cbf85;
+  --accent-strong: #8fd9a5;
+  --accent-soft: #24331f;
+  --accent-ring: rgba(108, 191, 133, 0.4);
+  --on-accent: #0f1a10;
+
+  --danger: #f08a7f;
+  --danger-soft: #3a201d;
+  --warning: #e0b662;
+  --warning-soft: #372c15;
+  --success: #6cbf85;
+  --success-soft: #23331f;
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
+  --shadow-pop: 0 2px 4px rgba(0, 0, 0, 0.45), 0 16px 40px rgba(0, 0, 0, 0.5);
+}
+
+/* Keep the OS preference rather than hard-coding it, so the in-game toggle in
+   the top bar stays authoritative. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14180f;
+    --surface: #1e241a;
+    --surface-glass: rgba(30, 36, 26, 0.86);
+    --surface-sunken: #262d21;
+    --input-bg: #151a11;
+
+    --text: #e9eee3;
+    --text-muted: #a8b3a4;
+    --text-faint: #949f92;
+
+    --border: #333c2d;
+    --border-strong: #46523f;
+
+    --accent: #6cbf85;
+    --accent-strong: #8fd9a5;
+    --accent-soft: #24331f;
+    --accent-ring: rgba(108, 191, 133, 0.4);
+    --on-accent: #0f1a10;
+
+    --danger: #f08a7f;
+    --danger-soft: #3a201d;
+    --warning: #e0b662;
+    --warning-soft: #372c15;
+    --success: #6cbf85;
+    --success-soft: #23331f;
+
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
+    --shadow-pop: 0 2px 4px rgba(0, 0, 0, 0.45), 0 16px 40px rgba(0, 0, 0, 0.5);
+  }
+}

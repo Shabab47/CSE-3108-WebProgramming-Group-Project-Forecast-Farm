@@ -1,0 +1,15 @@
+# Dependencies — the project has none by design (DEC-002), so this is belt and braces.
+node_modules/
+
+# OS and editor cruft
+.DS_Store
+Thumbs.db
+desktop.ini
+
+.vscode/
+.idea/
+
+# Local environment
+.env
+.env.local
+*.log

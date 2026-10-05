@@ -1,0 +1,13 @@
+{
+  "name": "forecast-farm",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A 2D web farming game driven by real weather at the player's own location.",
+  "license": "MIT",
+  "scripts": {
+    "dev": "node scripts/dev-server.mjs",
+    "test": "node --test tests/",
+    "check": "node scripts/check-imports.mjs"
+  }
+}

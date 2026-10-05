@@ -29,9 +29,11 @@ Weeks are in `goals.md`. Week 1 was planning; T-02 onward belong to weeks 2–5.
 
 | ID | Task | Owner | Status | Phase | Updated |
 | :--- | :--- | :--- | :--- | ---: | :--- |
-| T-02 | Tooling: `package.json`, `scripts/check-imports.mjs`, `utils/log.js`, first passing test | Hisham | todo | 0 | — |
-| T-03 | Config + state: all `config/*`, `state/types.js`, `initialState.js`, `store.js` | Hisham | todo | 0 | — |
+| T-02 | Tooling: `package.json`, `scripts/check-imports.mjs`, `utils/log.js`, first passing test | Hisham | done | 0 | — |
+| T-03 | Config + state: all `config/*`, `state/types.js`, `initialState.js`, `store.js` | Hisham | doing | 0 | — |
 | T-04 | Services cleanup: rewrite `weatherApi`, `timeApi`; add `geocodeApi`; **add reverse geocoding**; save sample; delete `map.js` | Afif | todo | 0 | — |
+| T-27 | **Login, out of plan order (DEC-017):** `loginPanel`, `loginFields`, `authErrors`, `authRules`, boot step 0, `state.session`, guest play | Hisham | done | 0 | — |
+| T-28 | **`services/authApi.js` — Supabase over REST, the real provider.** Blocks the local provider's removal | Shabab | todo | 0 | — |
 
 ## Phase 1 — Page and field · week 2
 
@@ -75,6 +77,8 @@ nobody discovers them mid-build.
 
 | Issue | Blocks | Fix in |
 | :--- | :--- | ---: |
+| ISS-028 no `services/authApi.js`, login runs on the local provider | T-28, and any real sign-up | 0 |
+| ISS-027 `localAuth.js` is a second storage writer | T-28 | 0 |
 | ISS-010 `check-imports` fails on `utils/dom.js` | T-02 | 0 |
 | ISS-009 current-hour index not specified | T-04, T-12 | 0 |
 | ISS-011 stale sample timestamps | T-04, T-11 | 0 |

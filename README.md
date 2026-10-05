@@ -105,8 +105,18 @@ npm test         # node --test tests/
 npm run check    # layering rules: imports, fetch, DOM access
 ```
 
+| Page | What it is |
+| :--- | :--- |
+| `/login.html` | Sign in or create an account. `index.html` redirects here if there is no session. |
+| `/index.html` | The farm. Loads your save, or starts a new one. |
+
 Append `?debug=1` to the URL for the debug panel: geometry sliders, gold and time cheats,
 forced weather, plot ids.
+
+> **Accounts are not live yet.** The agreed provider is Supabase over plain `fetch()`
+> ([DEC-018](docs/team/decisions.md)), but `js/services/authApi.js` is still to be written, so
+> sign-in currently runs against a local stand-in that keeps accounts in this browser. See
+> [ISS-028](docs/team/issues.md). Clearing site data deletes a farm for good.
 
 ---
 

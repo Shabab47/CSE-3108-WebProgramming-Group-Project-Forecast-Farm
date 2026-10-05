@@ -15,6 +15,9 @@ so these are all cheap to fix now and expensive to find later.
 
 | ID | Title | Severity | Owner | Status | Fix in |
 | :--- | :--- | :--- | :--- | :--- | ---: |
+| ISS-027 | `localAuth.js` is a second writer to localStorage | **High** | Hisham | open | T-04 |
+| ISS-028 | `authApi.js` missing, so login runs on the local provider | **High** | Shabab | open | T-04 |
+| ISS-026 | Client-side accounts are not real security | **High** | Hisham | open | — |
 | ISS-006 | Dead crops permanently brick a plot | **High** | Hisham | open | T-08 |
 | ISS-007 | Pump's transparent canvas eats plot clicks | **High** | Hisham | open | T-06 |
 | ISS-008 | Pump is ~36× stronger than rain | **High** | Hisham | open | T-09 |
@@ -42,6 +45,53 @@ so these are all cheap to fix now and expensive to find later.
 | ISS-025 | Ownership split is unconfirmed | Low | Shabab | open | T-01 |
 
 ---
+
+### ISS-027 `localAuth.js` is a second writer to localStorage
+- Reported by Hisham · Owner: Hisham · Status: open
+- Where: `js/services/localAuth.js`
+- Problem: The layering rule is that only `js/state/store.js` writes storage, so there is one
+  place to look when a save goes wrong. `localAuth.js` is a second writer: it keeps its own
+  `forecastFarm.accounts.v1` and `forecastFarm.session.v1` keys outside the store. Two modules
+  now own persistence, and nothing enforces which one wins.
+- Cause: Login was built before `js/services/authApi.js` existed, and the panel needed a
+  provider to run against. See DEC-017 for why a mock was rejected and a contract-compatible
+  local provider was used instead.
+- Risk: a stale session key that the store does not know about can send a player back to login
+  while their farm is still on disk — or worse, silently give two accounts the same save.
+- Fix: _pending._ Delete `localAuth.js` and change one import in `js/auth-main.js` when
+  `authApi.js` lands (ISS-028). Until then it is a dev-only provider: do not ship it, and do not
+  add features that depend on its keys.
+
+### ISS-028 `authApi.js` missing, so login runs on the local provider
+- Reported by Hisham · Owner: Shabab · Status: open
+- Where: `js/services/authApi.js`
+- Problem: The agreed provider is Supabase over plain `fetch()` (DEC-018), but the file does not
+  exist. Login currently authenticates against `localAuth.js`, which keeps accounts in
+  localStorage with no email confirmation and no real rate limiting. The panel, the boot gate
+  and the states are all built against the correct contract, so this is the only missing piece.
+- Fix: _pending._ `js/services/authApi.js` implementing `signIn`, `signUp`, `signOut`,
+  `currentSession`, returning `{ok:true, session}` or `{ok:false, reason}`. Provider error codes
+  go through `js/ui/authErrors.js`, not into render code. Needs the Supabase project URL and anon
+  key — the anon key only, no signing secret.
+
+### ISS-026 Client-side accounts are not real security
+- Reported by Hisham · Owner: Hisham · Status: open
+- Where: `js/state/accounts.js`, `js/config/auth.js`
+- Problem: Accounts and sessions live in `localStorage`. Passwords are PBKDF2-SHA256 hashes
+  with a per-account salt, so the raw password is never written — but the hash, the salt and
+  the account table are readable by anyone with devtools on that browser profile, and they can
+  be edited. A fake session can be written by hand, and a farm can be restored by rewriting
+  the save. There is also no recovery: clearing site data destroys the account and the farm
+  permanently, and there is nowhere to send a password-reset email.
+- Cause: Accounts were pulled ahead of the field (DEC-017) on a project with no backend and
+  no runtime dependencies. There was no server to put them on.
+- Impact: Fine for a course demo, where each person plays their own farm on their own machine.
+  Not fine for a public release, and it must not be described as secure anywhere in the UI or
+  the docs.
+- Fix: _pending, needs a decision._ Moving to a real backend means hashing and storage leave
+  `state/accounts.js` and move behind a service; the UI and `store.init(session)` do not change,
+  because neither ever touches storage. Ask the team whether v0.1 ships with accounts at all, or
+  with accounts marked explicitly as a local demo mode.
 
 ### ISS-006 Dead crops permanently brick a plot
 - Reported by Hisham · Owner: Hisham · Status: open
