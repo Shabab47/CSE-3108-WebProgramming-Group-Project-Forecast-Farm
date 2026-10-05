@@ -178,3 +178,23 @@ export function signInAsGuest() {
   persist(GUEST);
   return { ok: true, session: GUEST };
 }
+
+/* --- the two calls this provider cannot make ---------------------------------
+ * Part of the contract, so `js/auth-main.js` can pass them without checking, and
+ * so the panel gets an honest answer instead of a TypeError.
+ *
+ * There is nowhere to send a reset link from: accounts live in this browser's
+ * localStorage and no server exists (ISS-032). Reporting `reset_unavailable` is
+ * the point — returning a fake success would tell a player an email is on its way
+ * that will never arrive, and letting the call throw would blame their network.
+ */
+
+export async function requestPasswordReset() {
+  log.warn('password reset is not available on the local provider');
+  return { ok: false, reason: 'reset_unavailable' };
+}
+
+export async function updatePassword() {
+  log.warn('password update is not available on the local provider');
+  return { ok: false, reason: 'reset_unavailable' };
+}

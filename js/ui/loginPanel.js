@@ -16,8 +16,10 @@
  *   signIn({email, password})             → Promise<{ok:true, session}|{ok:false, reason}>
  *   signUp({email, password, farmerName}) → same
  *   signOut()                             → Promise<{ok:true}>
- *   onAuthenticated(session)              → route onward
+ *   onAuthenticated(session|null)         → route onward; null means awaiting confirmation
  *   onGuest()                             → continue without an account
+ *   onForgotPassword()                    → open the reset flow
+ *   notice                                → optional sentence to show on arrival
  */
 
 import { clear, el, setText } from '../utils/dom.js';
@@ -38,17 +40,18 @@ export function mountLoginPanel(root, actions) {
     hidden: true,
   });
 
+  /** `tone` is one of error | success | info, so a notice is not styled as a fault. */
+  function announce(text, tone = 'error') {
+    setText(message, text ?? '');
+    message.className = `form-message form-message--${tone}`;
+    message.hidden = !text;
+  }
+
   const { forms, strength } = buildForms();
   let mode = 'signIn';
   let busy = false;
 
   const active = () => forms[mode];
-
-  /** The one place a message reaches the player. Polite, so it waits its turn. */
-  function announce(text) {
-    setText(message, text ?? '');
-    message.hidden = !text;
-  }
 
   function paintErrors(errors) {
     for (const part of Object.values(active().fields)) {
@@ -80,6 +83,7 @@ export function mountLoginPanel(root, actions) {
     }
     for (const node of root.querySelectorAll('input, button')) node.disabled = isBusy;
     guest.hidden = isBusy;
+    forgot.hidden = isBusy;
   }
 
   async function handleSubmit(view, validate, action) {
@@ -97,6 +101,12 @@ export function mountLoginPanel(root, actions) {
 
     announce(null);
     setBusy(true);
+
+    // Sign-up can succeed without a session: GoTrue emails a confirmation link
+    // and issues no token, which is a success state rather than a failure. The
+    // panel clears the password field before handing over, so a half-finished
+    // attempt does not leave a credential sitting in the DOM.
+    const isSignUp = action === actions.signUp;
 
     let result;
     try {
@@ -118,7 +128,14 @@ export function mountLoginPanel(root, actions) {
       return;
     }
 
-    actions.onAuthenticated(result.session);
+    if (isSignUp) {
+      // Do not keep the new password in the DOM once it has been accepted.
+      for (const part of Object.values(view.fields)) {
+        if (part.input.type === 'password') part.input.value = '';
+      }
+    }
+
+    actions.onAuthenticated(result.session ?? null);
   }
 
   forms.signIn.node.addEventListener('submit', (event) => {
@@ -167,6 +184,20 @@ export function mountLoginPanel(root, actions) {
     text: 'Play as guest',
     on: { click: () => actions.onGuest() },
   });
+
+  // Inside the sign-in form, not beside the tabs: it only makes sense to someone
+  // who cannot get past that form.
+  const forgot = el('button', {
+    class: 'btn btn--ghost btn--block',
+    type: 'button',
+    text: 'Forgot your password?',
+    on: { click: () => actions.onForgotPassword() },
+  });
+  forms.signIn.node.append(forgot);
+
+  // A notice is shown as information, not as an error — the most common one being
+  // "check your inbox to confirm", which is a success the player did not expect.
+  if (actions.notice) announce(actions.notice, 'info');
 
   root.append(
     el('div', { class: 'auth__card' }, [

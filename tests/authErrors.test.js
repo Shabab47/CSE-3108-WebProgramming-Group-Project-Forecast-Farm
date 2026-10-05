@@ -90,3 +90,36 @@ test('unconfirmed reasons are recognisable', () => {
   assert.equal(isUnconfirmedReason('email_not_confirmed'), true);
   assert.equal(isUnconfirmedReason('invalid_credentials'), false);
 });
+
+test('an unconfigured provider points at guest play, not at the player connection', () => {
+  // This is a project condition, not something the player can fix. Telling them to
+  // "check your connection" would be wrong and would send them debugging their own
+  // network for a missing key in a config file.
+  const message = authErrorToMessage('auth_not_configured', 'signIn');
+
+  assert.match(message, /guest/i, 'offers the way out that does exist');
+  assert.doesNotMatch(message, /check your connection/i);
+  assert.ok(!message.includes('http'), 'no URL or key detail leaked into the UI');
+});
+
+test('an unmapped GoTrue reason is a plain sentence, not a raw code', () => {
+  assert.equal(authErrorToMessage('auth_unknown', 'signIn'), 'That did not work. Try again in a moment.');
+});
+
+test('an expired reset link says so instead of asking for credentials again', () => {
+  const message = authErrorToMessage('no_recovery_session', 'session');
+
+  assert.match(message, /no longer valid/i);
+  assert.doesNotMatch(message, /password/i, 'must not sound like a wrong password');
+});
+
+test('an unavailable reset blames the missing server, not the player connection', () => {
+  // The local provider has nowhere to send a link from. Telling the player to
+  // check their connection sends them debugging their own network for a project
+  // condition they cannot fix.
+  const message = authErrorToMessage('reset_unavailable', 'session');
+
+  assert.match(message, /guest/i, 'offers the way out that exists');
+  assert.doesNotMatch(message, /check your connection/i);
+  assert.doesNotMatch(message, /try again/i, 'retrying cannot help');
+});

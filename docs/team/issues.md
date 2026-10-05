@@ -15,8 +15,10 @@ so these are all cheap to fix now and expensive to find later.
 
 | ID | Title | Severity | Owner | Status | Fix in |
 | :--- | :--- | :--- | :--- | :--- | ---: |
+| ISS-029 | `npm test` cannot run — `node --test tests/` is invalid on Node 24 | **High** | Hisham | **fixed** | T-02 |
 | ISS-027 | `localAuth.js` is a second writer to localStorage | **High** | Hisham | open | T-04 |
-| ISS-028 | `authApi.js` missing, so login runs on the local provider | **High** | Shabab | open | T-04 |
+| ISS-028 | `authApi.js` needs credentials to reach Supabase | **High** | Shabab | open | T-04 |
+| ISS-031 | Password reset needs a redirect URL configured in Supabase | Medium | Shabab | open | T-04 |
 | ISS-026 | Client-side accounts are not real security | **High** | Hisham | open | — |
 | ISS-006 | Dead crops permanently brick a plot | **High** | Hisham | open | T-08 |
 | ISS-007 | Pump's transparent canvas eats plot clicks | **High** | Hisham | open | T-06 |
@@ -35,6 +37,7 @@ so these are all cheap to fix now and expensive to find later.
 | ISS-014 | Offline catch-up rule is ambiguous | Medium | Hisham | open | T-03 |
 | ISS-016 | `ui → services` layering rule contradicts itself | Medium | Hisham | open | T-02 |
 | ISS-018 | 1 Hz re-render churn will flicker images | Medium | Hisham | open | T-06 |
+| ISS-030 | `decisions.md` is not valid UTF-8 | Medium | Hisham | **fixed** | — |
 | ISS-019 | `almanac.html` has no entry script | Medium | Kafi | open | T-15 |
 | ISS-022 | Image preload sits in pure-data config | Low | Hisham | open | T-02 |
 | ISS-017 | `config/ui.js` actions cannot be functions | Low | Kafi | open | T-05 |
@@ -43,8 +46,67 @@ so these are all cheap to fix now and expensive to find later.
 | ISS-024 | Active weather event lags by up to ~1 h 15 m | Low | Afif | open | T-12 |
 | ISS-023 | Three sound files are 0 bytes | Low | Kafi | open | — |
 | ISS-025 | Ownership split is unconfirmed | Low | Shabab | open | T-01 |
+| ISS-032 | No Supabase project yet, so no real accounts or server-side signing | **High** | Shabab | open | T-04 |
 
 ---
+
+### ISS-029 `npm test` cannot run — `node --test tests/` is invalid on Node 24
+- Reported by Hisham · Owner: Hisham · Status: open
+- Where: `package.json`, `scripts/`
+- Problem: `npm test` runs `node --test tests/`, which exits non-zero on Node 24 with
+  `Error: Cannot find module '<repo>/tests'`. It tries to resolve the directory as a module
+  entrypoint instead of collecting test files from it. This is the whole test suite: 56 tests
+  across 5 files, all of which pass, are unreachable by the documented command.
+- Cause: Node tightened how `--test` treats bare positional paths. A directory argument is no
+  longer walked as a test root; it is treated as a module specifier.
+- Risk: **this breaks the rule that gates every commit.** AGENTS.md §3 requires `npm run check`
+  and `npm test` to pass before committing, so either commits are being made against a red gate
+  or people have stopped running it. A test suite nobody can invoke is not a safety net.
+- Fix: **done.** Changed the script to `node --test "tests/**/*.test.js"`. Quoting matters — the
+  quotes stop the shell expanding the glob before Node sees it. Verified: `npm test` now collects
+  and passes all 56 tests, and `npm run check` is unchanged.
+
+### ISS-030 `decisions.md` is not valid UTF-8
+- Reported by Hisham · Owner: Hisham · Status: open
+- Where: `docs/team/decisions.md`
+- Problem: The file fails a strict UTF-8 decode. Three em-dashes were written as the single byte
+  `0x97`, which is the Windows-1252 em-dash, instead of the UTF-8 sequence `E2 80 94`. All three
+  are in the new auth records: DEC-018 ("no secret in the client, ever _ the export signing
+  secret"), DEC-019 ("whether an email has an account _ wrong password") and ("email not
+  confirmed _ returns the same sentence"). The 40 other non-ASCII bytes in the file are correct,
+  including every pre-existing em-dash and the `×` in ISS-008.
+- Cause: a Windows editor saved the three characters in the local code page instead of UTF-8.
+- Risk: GitHub renders the three characters as `�`. More seriously, the next person to open the
+  file in an editor that decides the encoding is wrong may re-save the whole document and rewrite
+  every other character. That is how `docs/team/README.md` and `members/shabab.md` were
+  corrupted before — 82 lines where `t` became `h`, recorded in the week 1 progress-log entry.
+- Fix: **done.** Replaced the three lone `0x97` bytes with `E2 80 94`, at the byte level so no
+  other character in the file was rewritten. Verified by strict decode rather than by eye:
+  `decisions.md` and every other `.md` / `.js` / `.mjs` / `.css` / `.html` / `.json` file in the
+  repo now decode as valid UTF-8, no lone `0x97` remains, and the 7 `×` signs in the older
+  entries were left untouched.
+
+### ISS-032 No Supabase project yet, so no real accounts and no server-side signing
+- Reported by Hisham · Owner: Shabab · Status: open
+- Where: Supabase project, `js/config/supabase.js`
+- Problem: DEC-018 commits the team to Supabase over REST, but no project has been created. Three
+  things are blocked on it, and each is a feature that looks buildable until you try:
+  1. **Real accounts.** Everything runs on `localAuth.js` (ISS-027, ISS-028).
+  2. **Password reset.** There is nowhere to send a reset email from. `ui/passwordReset.js` and
+     `authApi.requestPasswordReset` are written, but the flow cannot complete against localStorage
+     accounts — see also ISS-031 for the redirect URL the project needs.
+  3. **Signed save export.** DEC-018's whole point is that the export signing secret stays
+     server-side. There is no server, so no secret can be held anywhere the client cannot read.
+     A client-side "signature" would be extractable from the JS bundle and would be security
+     theatre, so export/import must ship as integrity-checked but **unsigned** until this lands.
+- Cost: the free plan is $0 and needs no card, which is why it was chosen over Firebase
+  (Cloud Functions require a billing account there, and signing is the requirement). Two free
+  projects are included, and there is a 500,000 Edge Function invocation allowance per month.
+  The one real gotcha: **free projects pause after a week of inactivity** and must be resumed,
+  which matters for a demo.
+- Fix: _pending._ Shabab creates the project, enables email confirmation, sets the redirect URL,
+  and pastes the URL and anon key into `js/config/supabase.js`. Until then the honest position in
+  any UI or doc is "local demo mode", never "secure" — see ISS-026.
 
 ### ISS-027 `localAuth.js` is a second writer to localStorage
 - Reported by Hisham · Owner: Hisham · Status: open
@@ -62,17 +124,36 @@ so these are all cheap to fix now and expensive to find later.
   `authApi.js` lands (ISS-028). Until then it is a dev-only provider: do not ship it, and do not
   add features that depend on its keys.
 
-### ISS-028 `authApi.js` missing, so login runs on the local provider
+### ISS-028 `authApi.js` needs credentials to reach Supabase
 - Reported by Hisham · Owner: Shabab · Status: open
-- Where: `js/services/authApi.js`
-- Problem: The agreed provider is Supabase over plain `fetch()` (DEC-018), but the file does not
-  exist. Login currently authenticates against `localAuth.js`, which keeps accounts in
-  localStorage with no email confirmation and no real rate limiting. The panel, the boot gate
-  and the states are all built against the correct contract, so this is the only missing piece.
-- Fix: _pending._ `js/services/authApi.js` implementing `signIn`, `signUp`, `signOut`,
-  `currentSession`, returning `{ok:true, session}` or `{ok:false, reason}`. Provider error codes
-  go through `js/ui/authErrors.js`, not into render code. Needs the Supabase project URL and anon
-  key — the anon key only, no signing secret.
+- Where: `js/services/authApi.js`, `js/config/supabase.js`
+- Problem: The provider is written and tested, but **no Supabase project exists yet**, so
+  `js/config/supabase.js` has an empty `SUPABASE_URL` and `SUPABASE_ANON_KEY`. Until those are
+  filled in, `authApi.js` refuses every call with `auth_not_configured` and
+  `js/auth-main.js` runs on `localAuth.js` (ISS-027). That is deliberate: a half-configured
+  provider fails loudly instead of posting credentials at a URL that does not exist.
+- Progress: `authApi.js` implements `signIn`, `signUp`, `signOut`, `currentSession`,
+  `requestPasswordReset`, `updatePassword` and `restoreSession` over plain `fetch()` per DEC-018.
+  GoTrue error strings are translated to neutral reason codes in one table, and
+  `tests/authApi.test.js` covers the mapping with `fetch` stubbed — 20 tests, no network.
+- Fix: _pending, needs Shabab._ Create the Supabase project (free plan, no card needed), then
+  paste the project URL and the `anon` key from Project Settings → API into
+  `js/config/supabase.js` and set `USE_LOCAL_PROVIDER = false` in `js/auth-main.js`.
+  **The anon key only.** A `service_role` key or the export signing secret must never enter this
+  repo — both bypass Row Level Security entirely. See ISS-026 and DEC-018.
+
+### ISS-031 Password reset needs a redirect URL configured in Supabase
+- Reported by Hisham · Owner: Shabab · Status: open
+- Where: Supabase dashboard → Authentication → URL Configuration
+- Problem: The reset flow emails a link that returns to `login.html#access_token=…`. Supabase only
+  sends a recovery email if the requesting origin is in the project's allowed redirect URLs, and by
+  default only the site URL is. Until that is set, a player asks for a reset and no email ever
+  arrives, with nothing on our side to explain why.
+- Fix: _pending._ Add the local origin (`http://localhost:5173`, or whatever `npm run dev` prints)
+  and the deployed origin to **Redirect URLs**, and set the same origin under **Site URL**.
+  Note this in the README as a setup step, since a fresh clone cannot complete a reset without it.
+  Also worth enabling "Confirm email" on the project, which is what makes the `CONFIRM_EMAIL`
+  state in `js/ui/authErrors.js` reachable.
 
 ### ISS-026 Client-side accounts are not real security
 - Reported by Hisham · Owner: Hisham · Status: open
