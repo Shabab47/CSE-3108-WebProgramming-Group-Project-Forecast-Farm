@@ -1,7 +1,7 @@
 async function getTime() {
     try {
         const response = await fetch(
-            "https://utctime.app/api/now/Asia/Dhaka"
+            "https://timeapi.io/api/now/Asia/Dhaka"
         );
         const data = await response.json();
         document.getElementById("time").innerHTML = `
