@@ -31,6 +31,24 @@ assets are outstanding in total.
 
 ---
 
+## Hisham — fix the project structure tree rendering
+
+- **Did:** The annotated file tree in `architecture.md` was rendering as one collapsed paragraph.
+  The section had no opening code fence, so the intended closing fence opened a block instead and
+  every fence after it shifted by one — the tree *and* the field-geometry formulas below it both
+  lost their code formatting. Added the missing fence: one line, CRLF, no content change.
+- **Files:** `docs/architecture.md`, `docs/team/progress-log.md`. `architecture.md` is Shabab's
+  folder per `ownership.md`, so this is a small fix that left the surrounding style alone and is
+  flagged in the PR.
+- **Problems:** None beyond the formatting. It went unnoticed because `architecture.md` holds the
+  repo's only file tree — `README.md` links out to it rather than duplicating it — so one missing
+  fence hit every reader at once. Checked all 21 markdown files; this was the only unbalanced one.
+  Lines 84–90 were the file's only bare-LF lines in an otherwise all-CRLF file, which is what
+  identified the bad paste.
+- **Next:** Unchanged — week 2 still opens with T-02 tooling and T-03 config and state.
+
+---
+
 ## Hisham — README cleanup, five-week shift, corruption repair
 
 - **Did:** Recorded everyone's week 1 contributions and marked the planning week complete.
