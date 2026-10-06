@@ -123,12 +123,18 @@ forced weather, plot IDs.
 
 > **Accounts are live.** Sign-in runs against Supabase over plain `fetch()`, with the project URL and
 > the `anon` key in `js/config/supabase.js` ([DEC-018](docs/team/decisions.md),
-> [DEC-020](docs/team/decisions.md)). Two dashboard settings are needed for a fresh clone, because
-> neither can be committed:
+> [DEC-020](docs/team/decisions.md)). A farm is also saved server-side, in a `farm_saves` table with
+> Row Level Security, so one account cannot read another's.
 >
+> **Setup for a fresh clone.** Neither of these can be committed, so a clone needs them before
+> accounts work fully:
+>
+> - **Run `supabase/migrations/001_farm_saves.sql`** in the dashboard: SQL Editor → New query → paste
+>   → Run. Safe to re-run. Without it, saves stay in this browser only.
 > - **Authentication → URL Configuration.** Add `http://localhost:5173` and the deployed origin to
->   **Redirect URLs**, and set the same origin as **Site URL**. Without this, "forgot password"
->   silently never delivers an email ([ISS-031](docs/team/issues.md)).
+>   **Redirect URLs**, and set the same origin as **Site URL**. Both are set on the live project now.
+>   Without them, "forgot password" silently never delivers an email
+>   ([ISS-031](docs/team/issues.md)).
 > - **Confirm email** is currently **off**, so a new account signs in immediately. Turn it on before
 >   a demo to exercise the confirmation step — but the free tier's SMTP allowance is a few emails an
 >   hour shared by everyone, so a reviewer who signs up after the first may receive nothing.

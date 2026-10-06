@@ -112,10 +112,19 @@ The per-person weekly notes that used to live in the README table are now in `me
 - **Files:** `supabase/migrations/001_farm_saves.sql`, `js/services/saveApi.js`,
   `js/remoteSave.js`, `js/state/store.js`, `js/state/saveFile.js`, `js/services/authApi.js`,
   `js/main.js`, `tests/saveApi.test.js`, `tests/store.test.js`, `docs/architecture.md`
-- **Not verified:** anything requiring the real table. The RLS policy is reasoned about, not
-  executed, so it has to be tested against the live project once the migration is run.
-- **Next:** run the SQL, then check a farm saves, survives a reload, and reappears in another
-  browser. After that, ISS-027 with Shabab.
+- **Not verified:** the round trip. The table did not exist when this was written, so nothing
+  that needs it was exercised.
+- **Update 2026-10-06 (Shabab):** the migration has since been run against the live project, and the
+  table is verified to exist — `GET /rest/v1/farm_saves` went from `404 PGRST205` to `200`, and
+  `pg_policies` shows `own row only` / `ALL`. An anon-key read returns `*/0`, so RLS filters per-row
+  rather than denying everything.
+- **Still not verified:** whether the game actually writes through. Three checks are outstanding — a
+  signed-in autosave lands a row, the same farm appears in a second browser with no localStorage
+  copy, and a cross-account read returns `[]` rather than `403`. Until those pass this feature is
+  unverified rather than done. "Changes survive a reload" cannot be tested yet either: nothing is
+  implemented that can be changed, and localStorage being the fallback means a reappearing farm
+  proves nothing on its own.
+- **Next:** run those three checks. After that, ISS-027 with Shabab.
 
 ---
 

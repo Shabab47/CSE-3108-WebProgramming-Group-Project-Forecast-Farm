@@ -21,7 +21,7 @@ so these are all cheap to fix now and expensive to find later.
 | ISS-035 | Invalid-email text from GoTrue fell through to an unmapped reason | Medium | Hisham | **fixed** | T-04 |
 | ISS-027 | `localAuth.js` is a second writer to localStorage | **High** | Hisham | open | T-04 |
 | ISS-028 | `authApi.js` needs credentials to reach Supabase | **High** | Shabab | **fixed** | T-29 |
-| ISS-031 | Password reset needs a redirect URL configured in Supabase | Medium | Shabab | partly fixed | T-29 |
+| ISS-031 | Password reset needs a redirect URL configured in Supabase | Medium | Shabab | **fixed** | T-29 |
 | ISS-026 | Client-side accounts are not real security | **High** | Hisham | open | — |
 | ISS-006 | Dead crops permanently brick a plot | **High** | Hisham | open | T-08 |
 | ISS-007 | Pump's transparent canvas eats plot clicks | **High** | Hisham | open | T-06 |
@@ -125,6 +125,20 @@ so these are all cheap to fix now and expensive to find later.
 - Fixed 2026-10-06 (T-29): project `ygfrvwyydxrocvywzysk` created, URL and `anon` key committed to
   `js/config/supabase.js`, `USE_LOCAL_PROVIDER = false`. Real accounts and password reset now work,
   the latter subject to ISS-031.
+- **Migration run 2026-10-06, verified against the live project.** `supabase/migrations/001_farm_saves.sql`
+  executed in the SQL Editor. `GET /rest/v1/farm_saves` returns **200** where it previously returned
+  **404 `PGRST205`** ("Could not find the table"), so the table exists. `pg_policies` shows the policy
+  as `own row only` / `ALL`, matching the file. An unauthenticated read with the anon key returns
+  `content-range: */0` — RLS is filtering per-row rather than blanket-denying, which is the correct
+  behaviour: a missing policy would have denied the owner too.
+- **Not yet verified: the round trip.** Creating the table is not the same as the game using it. These
+  are outstanding and must not be recorded as passed until they are:
+  1. A signed-in player's autosave lands a row (`farm_saves` returns one row with their `user_id`).
+  2. The same farm appears in a second browser, which has no localStorage copy to fall back on.
+  3. A cross-account read returns `[]`, **not** `403`. RLS filtering the row is correct; a blanket 403
+     would also block the owner's legitimate access.
+  "Changes survive a reload" additionally cannot be tested yet — nothing is implemented that can be
+  changed, so a farm reappearing proves nothing while localStorage is the fallback.
 - **Still open: signed export.** `js/state/transfer.js` has no server to call, so there is nowhere to
   hold a secret the client cannot read. Export/import therefore ships **integrity-checked but
   unsigned**, and `verifySignature()` is the seam where an Edge Function goes. Nothing in the UI or
@@ -218,8 +232,8 @@ so these are all cheap to fix now and expensive to find later.
 - Fix: _half done._ The code half is now fixed: `auth-main.js` derives `redirect_to` from
   `location.href` and sends it with the recover request, so the link lands on `login.html` no
   matter what **Site URL** is set to. That removed the silent-failure mode entirely, and a test
-  asserts the field is sent. The dashboard half still needs Shabab: add the dev and deployed
-  origins to **Redirect URLs**, or Supabase will not deliver the mail at all. A live probe of
+  asserts the field is sent. **Done 2026-10-06:** Shabab added the dev and deployed
+  origins to **Redirect URLs** and set **Site URL** in the dashboard. A live probe of
   `/auth/v1/recover` returned 200 for every origin including one that was deliberately not
   allowed, so the endpoint's response **cannot** be used to check this — it has to be verified by
   receiving an actual email. The README carries it as a setup step.
