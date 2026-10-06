@@ -46,6 +46,9 @@ const log = createLog('authApi');
  */
 let session = null;
 
+/** The live access token, alongside the session. See `accessToken()`. */
+let token = null;
+
 /** Reasons that must all look like "those details did not work" on sign-in. */
 const CREDENTIAL_REASONS = ['invalid_credentials', 'email_not_confirmed', 'not_confirmed'];
 
@@ -83,6 +86,7 @@ function adopt(data) {
   if (!built) return { ok: false, reason: 'auth_unknown' };
 
   session = built;
+  token = data?.access_token ?? null;
   writeRefreshToken(data?.refresh_token ?? null);
   return { ok: true, session };
 }
@@ -92,6 +96,21 @@ function adopt(data) {
 /** @returns {object|null} */
 export function currentSession() {
   return session;
+}
+
+/**
+ * The current access token, for another service that has to authenticate as this
+ * player — currently `services/saveApi.js`.
+ *
+ * Exposed rather than kept private because `services/` may not import another
+ * service, so the token cannot simply be fetched where it is needed. It is
+ * deliberately **not** given to any UI module: a panel must never see a token,
+ * or a template could render it into the page. Only an entry point may read this.
+ *
+ * @returns {string|null} null when signed out, or before the first sign-in
+ */
+export function accessToken() {
+  return session ? token : null;
 }
 
 /** Sign in with email and password. Every refusal is `invalid_credentials`. */
@@ -153,6 +172,7 @@ export async function signUp({ email, password, farmerName }) {
 export async function signOut() {
   const refreshToken = readRefreshToken();
   session = null;
+  token = null;
   writeRefreshToken(null);
 
   if (refreshToken && isSupabaseConfigured()) {
@@ -165,13 +185,24 @@ export async function signOut() {
 /**
  * Send a password-reset email.
  *
+ * `redirectTo` is passed in rather than computed here, so this module keeps no
+ * knowledge of where it is running — `js/auth-main.js` derives it from `location`
+ * and hands it over. It matters: GoTrue sends the recovery link to the project's
+ * **Site URL** unless told otherwise, and this project reads the token out of the
+ * fragment on `login.html` only. If Site URL were anything else the link would land
+ * on a page that ignores the fragment and the reset would silently fail. Sending it
+ * explicitly removes the dependency on a dashboard setting nobody will remember.
+ *
  * **Always reports success for an account-existence reason**, because a reset
  * form that says "no such account" is the same enumeration oracle as sign-in
  * (DEC-019). The panel shows one confirmation either way. Rate limiting *is*
  * surfaced: it says nothing about whether the address is registered.
  */
-export async function requestPasswordReset({ email }) {
-  const result = await post('recover', { email: normaliseEmail(email) });
+export async function requestPasswordReset({ email, redirectTo }) {
+  const body = { email: normaliseEmail(email) };
+  if (redirectTo) body.redirect_to = redirectTo;
+
+  const result = await post('recover', body);
 
   if (!result.ok && !RESET_SWALLOWED.includes(result.reason)) {
     return { ok: false, reason: result.reason };

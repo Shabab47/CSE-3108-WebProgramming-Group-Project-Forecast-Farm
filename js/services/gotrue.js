@@ -34,7 +34,11 @@ const REASONS = [
   [/user already registered/i, 'email_taken'],
   [/user already exists/i, 'email_taken'],
   [/password should be at least/i, 'password_weak'],
-  [/unable to validate email|invalid email/i, 'email_invalid'],
+  // GoTrue's actual wording for a refused address is
+  // `Email address "someone@example.com" is invalid` — not "invalid email", which is what this
+  // pattern originally expected and why ISS-035 happened. The wording was confirmed against the
+  // live project, not taken from the docs.
+  [/unable to validate email|invalid email|is invalid/i, 'email_invalid'],
   [/email rate limit|too many|rate limit|over_request/i, 'too_many_requests'],
   [/fetch|network|failed to fetch|load failed/i, 'network_request_failed'],
 ];

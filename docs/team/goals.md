@@ -70,7 +70,7 @@ Everything that has to exist before any of it can be built on. No gameplay, no v
 - [x] `weatherApi`, `timeApi` and place lookup return parsed data
 - [ ] Reverse geocoding added, so the player's own location resolves to a place name
 - [ ] Real response saved to `data/sample-forecast.json`
-- [ ] `js/services/map.js` deleted, decision logged
+- [x] `js/services/map.js` deleted, decision logged
 - [ ] `npm run check` and `npm test` both pass
 
 **Done when:** a fresh clone passes `npm run check` and `npm test`, and `node -e` can import
