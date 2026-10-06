@@ -17,9 +17,12 @@ small.
 | `js/ui/weatherPanel.js`, `js/ui/envMetrics.js` | Afif | Kafi |
 | `css/` | Kafi | Shabab |
 | `css/auth.css` | Kafi | Hisham |
+| `js/ui/savePanel.js` | Hisham | Kafi |
+| `js/state/transfer.js`, `utils/checksum.js` | Hisham | Shabab |
 | `js/ui/topBar.js`, `sidebar.js`, `seasonCard.js`, `shopPanel.js`, `inventoryPanel.js`, `hud.js`, `buttonBar.js`, `meters.js` | Kafi | Shabab |
-| `js/ui/loginPanel.js`, `loginFields.js` | Hisham | Kafi |
+| `js/ui/loginPanel.js`, `loginFields.js`, `passwordReset.js` | Hisham | Kafi |
 | `js/services/authApi.js`, `localAuth.js` | Shabab | Hisham |
+| `js/config/supabase.js`, the Supabase project itself | Shabab | Hisham |
 | `assets/` | Kafi | — |
 | `js/state/` | Hisham | Afif |
 | `js/domain/authRules.js` | Hisham | Shabab |

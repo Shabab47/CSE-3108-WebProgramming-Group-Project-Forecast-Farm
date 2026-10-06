@@ -22,8 +22,9 @@ The goal is to unlock all sixteen plots. The first is free and each one after co
 the last, which turns the farm into something a player returns to over months rather than finishes
 in an afternoon.
 
-**Nothing in the game is built yet.** What exists today is the design, the artwork for rice and
-the farm ground, the service connections, and the documentation. Four weeks of building remain.
+**The field itself is not on screen yet.** What exists today is the design, the artwork for rice
+and the farm ground, the service connections, the documentation, and a working sign-in and save
+system. Four weeks of building remain.
 
 ---
 
@@ -41,6 +42,8 @@ the farm ground, the service connections, and the documentation. Four weeks of b
   weather is worth doing. → [notifications.md](docs/notifications.md)
 - **The goal is to unlock all sixteen plots.** Each costs exactly twice the last, so the farm is
   never finished. → [crops.md](docs/crops.md)
+- You sign in, or play without an account, and **your farm is saved for you** — and you can write it
+  to a file to keep, or move to another computer. → [architecture.md](docs/architecture.md)
 
 **→ New here? Read [Where We Stand](#stand), then [Weekly Progress](#progress).**
 
@@ -57,7 +60,8 @@ The README is deliberately short. Everything below is the detail.
 | [`weather-events.md`](docs/weather-events.md) | The nine weather events, how real weather maps to them, what each does to crops |
 | [`notifications.md`](docs/notifications.md) | The crop warning messages and when they fire |
 | [`crop-choice-guide.md`](docs/crop-choice-guide.md) | Which crop to plant in each season, and using the forecast |
-| [`architecture.md`](docs/architecture.md) | Project structure, layering rules, data flow, and **the full annotated file tree** |
+| [`architecture.md`](docs/architecture.md) | Project structure, layering rules, accounts and saving, data flow, and **the full annotated file tree** |
+| [`team/decisions.md`](docs/team/decisions.md) | Choices already made, so nobody relitigates them — **read this before changing how accounts or saves work** |
 | [`game-design/implementation-plan.md`](docs/game-design/implementation-plan.md) | The complete build plan |
 | [`team/`](docs/team/README.md) | Goals, tasks, ownership, logged issues, decisions, weekly notes |
 | [`team/goals.md`](docs/team/goals.md) | The five-week plan with done marks |
@@ -71,10 +75,12 @@ Vanilla ES modules, plain CSS, no framework and no runtime dependencies.
 
 ```
 index.html      the game page
-css/            styling — layout, colours, components, field
+login.html      sign in or create an account
+css/            styling — layout, colours, components, field, login card
 js/             the game code, split by responsibility
 assets/         artwork and icons
 docs/           all project documentation
+tests/          the test suite, run with npm test
 ```
 
 The full annotated tree, showing what is built and what is still empty, is in
@@ -113,10 +119,21 @@ npm run check    # layering rules: imports, fetch, DOM access
 Append `?debug=1` to the URL for the debug panel: geometry sliders, gold and time cheats,
 forced weather, plot ids.
 
-> **Accounts are not live yet.** The agreed provider is Supabase over plain `fetch()`
-> ([DEC-018](docs/team/decisions.md)), but `js/services/authApi.js` is still to be written, so
-> sign-in currently runs against a local stand-in that keeps accounts in this browser. See
-> [ISS-028](docs/team/issues.md). Clearing site data deletes a farm for good.
+> **Accounts are live.** Sign-in runs against Supabase over plain `fetch()`, with the project URL and
+> the `anon` key in `js/config/supabase.js` ([DEC-018](docs/team/decisions.md),
+> [DEC-020](docs/team/decisions.md)). Two dashboard settings are needed for a fresh clone, because
+> neither can be committed:
+>
+> - **Authentication → URL Configuration.** Add `http://localhost:5173` and the deployed origin to
+>   **Redirect URLs**, and set the same origin as **Site URL**. Without this, "forgot password"
+>   silently never delivers an email ([ISS-031](docs/team/issues.md)).
+> - **Confirm email** is currently **off**, so a new account signs in immediately. Turn it on before
+>   a demo to exercise the confirmation step — but the free tier's SMTP allowance is a few emails an
+>   hour shared by everyone, so a reviewer who signs up after the first may receive nothing.
+>
+> **Play as guest** stays local by design and writes nothing to the server; a guest farm cannot be
+> exported. Clearing site data deletes a guest farm for good. Exported farm files are
+> integrity-checked but **not signed** — see [ISS-032](docs/team/issues.md).
 
 ---
 
@@ -133,8 +150,11 @@ data flow between its parts, and the art direction every sprite follows, then wr
 documentation now in this repository. Twenty-five known problems have been logged with owners, and
 three that would have broken the game were caught in that review before a line of game code was
 written. Art is tracked separately in [`asset-checklist.md`](docs/asset-checklist.md), where **46
-assets are still outstanding** — including two failure sprites that rice itself still needs. Four
-weeks of building remain: the farm screen, then the economy, then live weather, then the
+assets are still outstanding** — including two failure sprites that rice itself still needs.
+
+Week two has since added the sign-in and save system. **Shabab** built the login page and the
+account flow; **Hisham** added the state store, the Supabase provider, and exporting and importing a
+farm. Four weeks of building remain: the farm screen, then the economy, then live weather, then the
 finished release.
 
 <a id="progress"></a>
@@ -149,14 +169,39 @@ Week 1 is broken out per person, because "all four" tells you nothing about who 
 | 1 | Crop and environment artwork | ✅ Complete | Rice 5 growth stages · watered and unwatered ground · folder-per-crop structure | **Kafi** |
 | 1 | Base service connections | ✅ Complete | Weather API · time API · place lookup | **Afif** |
 | 1 | Structure, data flow and art direction | ✅ Complete | Folder and module design · layering rules · art direction · 16 doc files | **Hisham** |
-| 2 | Project foundation and working farm screen | 🔄 Next | — | **Hisham** tooling, config, state, field · **Kafi** page shell, CSS · **Afif** services, reverse geocoding |
+| 2 | Sign-in and save system | ✅ Complete | Login page · session-gated boot · password reset · export and import a farm | **Shabab**, **Hisham** |
+| 2 | Project foundation | 🔄 In progress | Tooling · config · state store · layering check · 121 passing tests | **Hisham** |
+| 2 | Working farm screen | ⬜ Next | — | **Kafi** page shell, CSS · **Afif** reverse geocoding |
 | 3 | Land economy, then planting and growth | ⬜ Planned | — | **Hisham** |
 | 4 | Pump, water and market, then live weather | ⬜ Planned | — | **Hisham** pump, market · **Afif** live weather |
 | 5 | Weather effects, crop alerts, then ship v0.1 | ⬜ Planned | — | **Afif** weather effects · **Kafi** polish, almanac · **Shabab** handover |
 
-Week one was spent on planning rather than code, so the build runs four weeks from now. Each week
-ends with something demonstrable. Full goal breakdown in
-[`docs/team/goals.md`](docs/team/goals.md), per-person notes in
+### Accounts and saving — what works today
+
+Sign-in and account creation run. **The player is never shown a farm they have not signed into**, and a
+guest can still play without an account.
+
+| Works now | Detail |
+| :--- | :--- |
+| Sign in, register, guest play | Email and password, or play without an account |
+| The farm is kept per account | Two people on one machine do not share a farm |
+| Save and restore | Progress survives a reload and a closed tab |
+| **Export your farm** | Writes a `.farm` file you can keep or move to another computer |
+| **Import a farm** | Reads one back, with a confirmation before it replaces anything |
+| Password reset | Live — needs the redirect URL set in the Supabase dashboard, see above |
+
+**Two limits worth knowing:**
+
+- **A guest farm is local only.** "Play as guest" writes nothing to the server, so clearing site data
+  deletes that farm permanently and it cannot be exported. A real account's farm can be moved with a
+  `.farm` file. See [ISS-027](docs/team/issues.md).
+- **An exported file cannot be trusted against a determined editor.** It is checked for corruption, and a
+  hand-edited file is refused — but anyone who knows how can change the numbers and update the check.
+  Making that impossible needs a server-held key. See
+  [DEC-021](docs/team/decisions.md).
+
+Week one was spent on planning rather than code. Each week ends with something demonstrable. Full goal
+breakdown in [`docs/team/goals.md`](docs/team/goals.md), per-person notes in
 [`docs/team/members/`](docs/team/members/), and the outstanding work in
 [`docs/asset-checklist.md`](docs/asset-checklist.md).
 

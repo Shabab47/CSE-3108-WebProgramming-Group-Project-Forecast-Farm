@@ -52,6 +52,20 @@ const MESSAGES = {
   network_request_failed: 'Could not reach the server. Check your connection.',
   timeout: 'The server took too long to answer. Try again.',
 
+  // --- provider not set up. A project condition, not the player's fault, so
+  // it says who can fix it rather than telling them to check their connection. ---
+  auth_not_configured:
+    'Sign-in is not switched on yet. Play as a guest, or check back once the account server is ready.',
+  auth_unknown: 'That did not work. Try again in a moment.',
+
+  // --- password reset ---
+  no_recovery_session: 'That reset link is no longer valid. Ask for a new one.',
+  // The local provider keeps accounts in localStorage, so there is nowhere to send
+  // a link from. Saying "check your connection" would blame the player's network
+  // for a missing server.
+  reset_unavailable:
+    'Password reset needs the account server, which is not set up yet. Play as a guest for now.',
+
   // --- throttling. The backend does the rate limiting; we only report it. ---
   too_many_requests: 'Too many attempts. Wait a minute, then try again.',
   rate_limited: 'Too many attempts. Wait a minute, then try again.',

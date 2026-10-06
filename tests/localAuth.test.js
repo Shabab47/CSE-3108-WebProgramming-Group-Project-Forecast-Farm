@@ -12,7 +12,16 @@
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { currentSession, signIn, signInAsGuest, signOut, signUp } from '../js/services/localAuth.js';
+import * as localAuth from '../js/services/localAuth.js';
+import {
+  currentSession,
+  requestPasswordReset,
+  signIn,
+  signInAsGuest,
+  signOut,
+  signUp,
+  updatePassword,
+} from '../js/services/localAuth.js';
 import { AUTH_KEYS } from '../js/config/auth.js';
 
 const VALID = { email: 'farmer@rice.bd', password: 'rice2026', farmerName: 'Abdul Karim' };
@@ -124,6 +133,32 @@ test('a guest farm is still saved, under the guest key', async () => {
   const key = `${AUTH_KEYS.savePrefix}guest`;
   assert.ok(localStorage.getItem(key), 'a guest gets a local save');
   assert.ok(!localStorage.getItem(key).includes('"session":{"status":"authed"'));
+});
+
+test('the local provider refuses password reset instead of faking success', async () => {
+  // `js/auth-main.js` hands these two to the panel without checking they exist,
+  // so they have to be part of the contract. A fake success would tell a player
+  // an email is on its way that never arrives.
+  assert.deepEqual(await requestPasswordReset({ email: VALID.email }), {
+    ok: false,
+    reason: 'reset_unavailable',
+  });
+  assert.deepEqual(await updatePassword({ accessToken: 'x', password: 'rice2027' }), {
+    ok: false,
+    reason: 'reset_unavailable',
+  });
+});
+
+test('every function the panel contract needs exists on this provider', async () => {
+  // A missing export reaches the panel as `undefined` and only fails when a
+  // player clicks, as a confusing "could not reach the server". Assert the whole
+  // contract so that gap is caught here instead.
+  for (const name of [
+    'currentSession', 'signIn', 'signUp', 'signOut',
+    'requestPasswordReset', 'updatePassword', 'signInAsGuest',
+  ]) {
+    assert.equal(typeof localAuth[name], 'function', `missing contract member: ${name}`);
+  }
 });
 
 test('a corrupt session blob is treated as signed out', async () => {

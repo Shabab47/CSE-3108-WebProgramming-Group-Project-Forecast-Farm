@@ -9,8 +9,10 @@
 
 import { createLog } from '../utils/log.js';
 import { SAVE_DEBOUNCE_MS } from '../config/game.js';
+import { importFromText } from './transfer.js';
 import { buildInitialState, normaliseSession } from './initialState.js';
 import { deleteSave, readSave, writeSave } from './saveFile.js';
+import { exportFilename, exportToText } from './transfer.js';
 
 const log = createLog('store');
 
@@ -176,4 +178,61 @@ export function load() {
 /** Delete this user's save. */
 export function clearSave() {
   deleteSave(userId);
+}
+
+/* --- import -----------------------------------------------------------------
+ * Replacing the whole state is not `apply()`, because `apply()` takes a pure
+ * domain function and a file is not one: there is no `ok:false` business rule to
+ * fail, and the incoming state was not derived from the current one. So it gets
+ * its own path, deliberately kept small and deliberately kept out of `apply()`.
+ */
+
+/**
+ * Adopt a state built elsewhere, e.g. by importing a save file.
+ *
+ * Refuses unless `init()` has run, and refuses a different shape. The session is
+ * re-stamped with the *live* one for the same reason `init()` does it: a file
+ * carries the session that existed when it was exported, and adopting that
+ * verbatim would let an imported file put a stale or forged identity in state.
+ *
+ * @returns {{ok:true}|{ok:false, reason:string}}
+ */
+export function adoptState(next) {
+  if (!state) return { ok: false, reason: 'store not initialised' };
+  if (!next || typeof next !== 'object') return { ok: false, reason: 'nothing to import' };
+  if (!Array.isArray(next.plots)) return { ok: false, reason: 'not a farm' };
+
+  state = { ...next, session: normaliseSession(state.session) };
+  log.info('adopted an imported farm for', userId);
+  notify();
+  // Written immediately, not debounced: the old save is still on disk and must
+  // not outlive the decision to replace it.
+  saveNow();
+  return { ok: true };
+}
+
+/** The text for a download, and the filename to offer it under. */
+export function exportPayload(now) {
+  if (!state) return { ok: false, reason: 'store not initialised' };
+  return {
+    ok: true,
+    text: exportToText(state, state.session, now),
+    filename: exportFilename(now),
+  };
+}
+
+/**
+ * Read an exported file and hand back a state ready to adopt, rebased to now.
+ *
+ * Separate from `adoptState` on purpose: this only *parses and checks*, so the UI
+ * can show the player whose farm it is and how old it is and get a yes or no
+ * before anything on disk is replaced. An import that overwrote a farm before
+ * asking would be the worst possible failure mode for the feature players reach
+ * for when something has already gone wrong.
+ *
+ * @param {string} text
+ * @param {number} now epoch ms
+ */
+export function readImport(text, now) {
+  return importFromText(text, now);
 }

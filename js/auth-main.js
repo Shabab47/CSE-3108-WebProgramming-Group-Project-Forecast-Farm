@@ -5,19 +5,58 @@
  * auth provider, which is exactly the arrangement `docs/architecture.md`
  * describes: callbacks go in through `mountX(root, actions)`.
  *
- * **Provider swap point.** `localAuth` below is a local stand-in. When
- * `js/services/authApi.js` lands (Shabab, Supabase over REST), change this one
- * import and delete `localAuth.js`. Nothing in `js/ui/` moves.
+ * ## Provider swap
+ *
+ * `USE_LOCAL_PROVIDER` below is the only line that names a provider. It is
+ * imported dynamically from a string so the module graph stays swappable without
+ * an edit here — set it to `false` and the real Supabase provider loads instead.
+ * Both implement the identical contract (DEC-017), so no panel changes.
+ *
+ *   USE_LOCAL_PROVIDER = true   localAuth.js  — accounts in localStorage, no backend
+ *   USE_LOCAL_PROVIDER = false  authApi.js    — Supabase over REST, real accounts
+ *
+ * It is now `false`: `js/config/supabase.js` has a project URL and anon key.
+ *
+ * `loadProvider` is exported because `js/main.js` boots against the **same**
+ * provider (ISS-033). It used to import `localAuth.js` directly, so with the flag
+ * flipped here and not there, the login page issued a real Supabase session and
+ * the game page then read localStorage, found nothing, and redirected back to
+ * this form — a loop. Both entry points must ask the same question.
  */
 
 import { qsOrNull } from './utils/dom.js';
 import { createLog } from './utils/log.js';
 import { mountLoginPanel } from './ui/loginPanel.js';
-import { currentSession, signIn, signInAsGuest, signOut, signUp } from './services/localAuth.js';
+import { mountPasswordReset } from './ui/passwordReset.js';
+import * as localAuth from './services/localAuth.js';
 
 const log = createLog('auth-main');
 
 const GAME_URL = 'index.html';
+
+/**
+ * `false` since 2026-10-06: Supabase is configured (T-29). Kept as a named
+ * constant so the switch is one line and greppable, not a commented-out import.
+ */
+const USE_LOCAL_PROVIDER = false;
+
+/** Loaded lazily so a missing or broken provider module cannot break the page. */
+export async function loadProvider() {
+  if (USE_LOCAL_PROVIDER) {
+    log.info('using the local provider (accounts live in this browser only)');
+    return localAuth;
+  }
+
+  try {
+    const provider = await import('./services/authApi.js');
+    log.info('using the Supabase provider');
+    return provider;
+  } catch (error) {
+    // Better a working local login than a dead page, and the reason is logged.
+    log.error('authApi.js failed to load, falling back to local -', error.message);
+    return localAuth;
+  }
+}
 
 /** Carry the intent across the redirect, so the game can say why it is showing. */
 function goToGame(query = '') {
@@ -26,39 +65,107 @@ function goToGame(query = '') {
   location.replace(target.href);
 }
 
-function start() {
+/**
+ * Supabase sends the recovery link back with the access token in the URL
+ * fragment. Fragments never reach a server, so this is the one place the value is
+ * read, and it is passed into the panel rather than used to call the provider
+ * directly. Read once at boot: the fragment stays out of `location` afterwards so
+ * a token cannot be copied out of the address bar or a screenshot.
+ */
+function readRecoveryToken() {
+  const raw = location.hash.startsWith('#') ? location.hash.slice(1) : '';
+  if (!raw) return null;
+
+  const token = new URLSearchParams(raw).get('access_token');
+  if (!token) return null;
+
+  history.replaceState(null, '', location.pathname + location.search);
+  return token;
+}
+
+async function start() {
   const root = qsOrNull('#auth-root');
   if (!root) return;
 
-  // Already signed in: the form has nothing to offer. Guests are not signed in,
-  // so a guest who comes back here sees the form again rather than a dead end.
-  if (currentSession()) {
+  const provider = await loadProvider();
+  const recoveryToken = readRecoveryToken();
+
+  // The Supabase access token lives in memory only, so on any fresh page load
+  // `currentSession()` is null even for a player who is genuinely signed in.
+  // `restoreSession()` mints a new one from the stored refresh token, which is
+  // what makes this check see a real session. Absent on the local provider, hence
+  // the optional call — there the session is in storage already.
+  const session = provider.currentSession() ?? (await provider.restoreSession?.());
+
+  // Already signed in, and not arriving to change a password: the form has
+  // nothing to offer. Guests are not signed in, so a guest who comes back here
+  // sees the form again rather than a dead end.
+  if (session && !recoveryToken) {
     log.trace('session already active, going to the farm');
     goToGame();
     return;
   }
 
-  mountLoginPanel(root, {
-    currentSession,
-    signIn,
-    signUp,
-    // Part of the panel contract. The login page has no session to end, so this
-    // is passed and never called here; the game page is where it is used.
-    signOut,
+  let panel = null;
 
-    onAuthenticated(session) {
-      // The address and farmer name would be safe to log, but the panel hands us
-      // nothing secret and this is not the place to start.
-      log.info('authenticated, entering the farm');
-      goToGame(session?.status === 'guest' ? '?guest=1' : '');
-    },
+  /** Swap the login panel and the reset flow inside the same root. */
+  function showLogin(notice) {
+    panel?.unmount();
+    panel = mountLoginPanel(root, {
+      currentSession: provider.currentSession,
+      signIn: provider.signIn,
+      signUp: provider.signUp,
+      // Part of the panel contract. The login page has no session to end, so
+      // this is passed and never called here; the game page is where it is used.
+      signOut: provider.signOut,
+      notice,
 
-    onGuest() {
-      const result = signInAsGuest();
-      log.info(result.ok ? 'continuing as guest' : 'guest play failed');
-      goToGame('?guest=1');
-    },
-  });
+      onAuthenticated(session) {
+        // The address and farmer name would be safe to log, but the panel hands
+        // us nothing secret and this is not the place to start.
+        if (!session) {
+          // Sign-up succeeded but issued no session: GoTrue has emailed a
+          // confirmation link. authErrors.js owns that sentence.
+          log.info('registered, awaiting confirmation');
+          showLogin('Almost there — check your inbox for the confirmation link, then sign in.');
+          return;
+        }
+        log.info('authenticated, entering the farm');
+        goToGame(session?.status === 'guest' ? '?guest=1' : '');
+      },
+
+      onGuest() {
+        const result = localAuth.signInAsGuest();
+        log.info(result.ok ? 'continuing as guest' : 'guest play failed');
+        goToGame('?guest=1');
+      },
+
+      onForgotPassword() {
+        panel?.unmount();
+        panel = mountPasswordReset(root, {
+          requestPasswordReset: provider.requestPasswordReset,
+          updatePassword: provider.updatePassword,
+          recoveryToken: () => recoveryToken,
+          onBack(notice) {
+            showLogin(notice);
+          },
+        });
+      },
+    });
+  }
+
+  showLogin();
 }
 
-start();
+/**
+ * Only on the real page.
+ *
+ * `js/main.js` imports `loadProvider` from here (ISS-033), so this module is no
+ * longer only ever loaded by login.html. Without the guard, importing it from the
+ * game page would boot the login form and redirect the player away from their
+ * farm. `#auth-root` is on login.html and nowhere else, so it is the marker for
+ * "this is the page, not an import".
+ */
+if (qsOrNull('#auth-root')) {
+  start();
+}

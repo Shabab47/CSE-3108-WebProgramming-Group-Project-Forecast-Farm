@@ -7,6 +7,71 @@ The per-person weekly notes that used to live in the README table are now in `me
 
 ---
 
+## Supabase project created, and the switch that would have broken login
+
+- **Did:** Picked up T-29. Project `ygfrvwyydxrocvywzysk` created, URL and the `anon` key committed
+  to `js/config/supabase.js`, `USE_LOCAL_PROVIDER = false`. That part is mechanical.
+- **Problems:** Two, and the second is the reason this entry exists. **ISS-033** — the flag lived in
+  `js/auth-main.js`, which only `login.html` loads, but `js/main.js` imported `currentSession` and
+  `signOut` straight from `localAuth.js`. Filling in the config and flipping the flag as documented
+  would have signed a player in on the login page and then bounced them straight back to it from the
+  game page, forever. Related: `authApi.restoreSession()` had **zero callers**, so the memory-only
+  access token made every page load look like a sign-out. `loadProvider` is now exported from
+  `auth-main.js` and both entries call it. **ISS-034** — `isSupabaseConfigured()` read the
+  test-override variables instead of the exported constants, so the guard and the request it protects
+  were answered from different sources; both go through `connection()` now.
+- **Files:** `js/config/supabase.js`, `js/auth-main.js`, `js/main.js`, `tests/mainBoot.test.js` (new),
+  `tests/authApi.test.js`, `docs/*`, `README.md`
+- **Also:** the anon key is committed, per DEC-018. `tests/mainBoot.test.js` decodes its JWT payload
+  and asserts `role: "anon"` and the matching project ref, so a pasted `service_role` key fails the
+  suite rather than shipping. ISS-027's fix was wrong — it said delete `localAuth.js`, but guest play
+  has no account, so `signInAsGuest` lives only there.
+- **Tests:** **131 passing, up from 121.** 10 new, all in `mainBoot.test.js`: boot step 0 in six
+  shapes including the local provider having no `restoreSession`, plus the key-shape assertions.
+- **Next:** ISS-031 — Shabab adds `http://localhost:5173` and the deployed origin to **Redirect URLs**
+  and sets **Site URL** in the Supabase dashboard. Cannot be committed, so it is now a README setup
+  step. Confirm email is off while iterating; free-tier SMTP is a few emails an hour shared by
+  everyone. ISS-032 stays partly open: export is still **unsigned**, no server to hold the signing
+  secret (DEC-021), and nothing may call it signed.
+
+---
+
+## Supabase provider, password reset, and exporting a farm
+
+- **Did:** Picked up Shabab's login page and finished the parts that needed a real backend, then
+  added saving. `js/services/authApi.js` now calls the Supabase REST API with plain `fetch()` —
+  no SDK, per DEC-018 — split three ways so each has one job: `authApi.js` shapes sessions and
+  decides which failures may differ, `gotrue.js` is the transport and the GoTrue error mapping,
+  and `tokenStore.js` is the only writer of a token. Added `ui/passwordReset.js` for
+  forgot-password, `state/transfer.js` for the export format, `utils/checksum.js`, and
+  `ui/savePanel.js` for the buttons. `store.js` gained `adoptState`, `exportPayload` and
+  `readImport`. Tests are at **121 passing, up from 56**.
+- **Files:** `js/services/authApi.js`, `gotrue.js`, `tokenStore.js`, `js/config/supabase.js`,
+  `js/ui/passwordReset.js`, `savePanel.js`, `js/ui/authErrors.js`, `js/ui/loginPanel.js`,
+  `js/auth-main.js`, `js/main.js`, `js/state/store.js`, `transfer.js`, `js/utils/checksum.js`,
+  `index.html`, `package.json`, `docs/architecture.md`, `docs/team/decisions.md`, `issues.md`,
+  `ownership.md`, `tasks.md`, `README.md`, `tests/*`
+- **Problems:** Four found, all fixed. **ISS-029** — `npm test` could not run at all: the script
+  was `node --test tests/`, which Node 24 rejects, so all 56 tests were unreachable through the
+  documented command. **ISS-030** — `decisions.md` was not valid UTF-8; three em-dashes had been
+  saved as raw Windows-1252 bytes, which is the same failure that once turned `t` into `h` across
+  82 lines. Two more caught while testing: `localAuth.js` did not implement `requestPasswordReset`,
+  so the panel called `undefined` and told the player to check their connection; and the reset panel
+  fell through to "a link is on its way" for any error that was not a rate limit, so on the local
+  provider it claimed an email had been sent. Then a rebase bug of my own: it returned a shifted
+  number instead of the plot object, which would have replaced all 16 plots with bare numbers on
+  import. Three tests now exist so each cannot come back.
+- **Also:** the export file is `.farm`, unsigned. It catches corruption and refuses a hand-edited
+  file, but anyone who reads `utils/checksum.js` can recompute the checksum — there is a test that
+  does exactly that and asserts it succeeds. Closing it needs a server-held key (DEC-021, ISS-032).
+  Recorded rather than papered over.
+- **Next:** Shabab creates the Supabase project and sends the URL and anon key (T-29, ISS-032);
+  until then one flag in `auth-main.js` decides which provider runs. The reset flow also needs the
+  origin in the project's allowed redirect URLs (ISS-031) or no email ever arrives. UI is still
+  untested — no DOM in `node --test` and no browser here, so the panels need a manual pass.
+
+---
+
 ## Login rebuilt to the panel contract
 
 - **Did:** Reworked the login page to the agreed contract after review. `ui/loginPanel.js` now

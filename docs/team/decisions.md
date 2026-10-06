@@ -7,19 +7,122 @@ Format: who decided, the choice, why, and what was rejected.
 
 ---
 
+### DEC-020 The provider is chosen by one flag in `auth-main.js`
+**Decided by:** Hisham
+
+**Choice:** `js/auth-main.js` holds `const USE_LOCAL_PROVIDER`. When it is false,
+the Supabase provider is loaded with a dynamic `import()`; when true, `localAuth.js`
+is used. It is currently `false`, since `js/config/supabase.js` has a project URL and
+anon key (ISS-028, T-29).
+
+**Why:** DEC-017 and DEC-028 both describe the swap as "one import". A dynamic
+import keyed off a named constant makes that literally true, keeps both providers
+loadable for comparison, and means the switch is greppable rather than a
+commented-out line someone re-enables by accident.
+
+**Also:** the Supabase provider is loaded inside a try/catch. If the module is
+missing or throws on import, the page falls back to the local provider and logs
+the reason, because a working login beats a blank page.
+
+**Also (T-29):** `loadProvider` is exported so `js/main.js` boots against the same
+provider. It used to import `localAuth.js` directly, so with the flag flipped only on
+the login page the two disagreed and the player was caught in a redirect loop — ISS-033.
+Both entry scripts now call `loadProvider()` and both `await restoreSession?.()`, since
+the Supabase access token is memory-only.
+
+**Also (T-29):** guest play stays on `localAuth.js`, because a guest has no account
+to sign into. So `localAuth.js` survives as the guest provider rather than being
+deleted, which revises ISS-027's original fix.
+
+**Note:** `js/config/supabase.js` exposes `__setForTest()`. An ES module namespace
+is frozen, so a test cannot assign to an exported binding; without that hook the
+provider suite could only ever exercise the "not configured" branch, leaving the
+GoTrue error mapping — the part most likely to be wrong — untested. Now that the
+committed URL and key are real, it is also what stops `tests/authApi.test.js` from
+calling the live project.
+
+---
+
+### DEC-021 Save export ships unsigned until the backend exists
+**Decided by:** Hisham
+
+**Choice:** Export and import are built with a versioned envelope, a magic header,
+a custom `.farm` extension, and a checksum for corruption detection — but **no
+signature**, and no encryption. The payload stays readable.
+
+**Why:** The signing secret has to live somewhere the browser cannot read, or it
+is not a secret — anyone can open devtools and pull it out of the module graph.
+Right now there is no server at all (ISS-032), so any client-side signature would
+be decorative. Labelling it "encrypted" or "signed" in the UI would be a false
+claim; a checksum that honestly detects a truncated or corrupted file is useful
+today and costs nothing.
+
+**The extension and header are labels, not protection, and are recorded as such.**
+The OS does not enforce extensions — any file can be renamed, and any file can be
+opened in an editor whatever it is called. What they buy is real but small: the file
+identifies itself when it turns up somewhere unexpected, and an unrelated file fed
+to the importer is refused before parsing. Anyone determined reads past the header in
+five seconds.
+
+**Double-clicking a `.farm` does nothing, deliberately.** The OS has no handler for
+the extension and this project ships no desktop app, so double-clicking opens
+whatever the OS guesses. Import is a click in the game that opens the file picker.
+Registering an OS association would need an installed application, which is out of
+scope.
+
+**`.farm` was chosen over `.ffsave`, and it is a known collision risk.** It is a
+common extension for unrelated farming games and mod files, so a player's Downloads
+folder may hold other `.farm` files. That is tolerable *because* the magic header
+(`FFARM/1`) is what actually identifies our files — the importer never trusts the
+extension, and an unrelated `.farm` is refused with a clear message rather than
+half-loaded. The header is named after the product rather than the extension so the
+two cannot drift apart if either is renamed later.
+
+**No client-side cipher was added, on purpose.** Encryption cannot work here: the
+key must reach the browser to decrypt, and a key the player can read is not a
+secret. XOR or base64 would turn a ten-second attack into a five-minute one and
+change nothing about whether it succeeds, while costing the team a hand-rolled
+cipher to maintain and audit.
+
+**The tamper analysis lives in the code**, at the bottom of `js/state/transfer.js`,
+next to a test that performs the whole attack and asserts it succeeds. It is not
+only in this record on purpose: a security claim nobody runs is a security claim
+nobody checks.
+
+**Filename carries no player name** — just `forecast-farm-<date>.farm`. Filenames
+leak into cloud-sync listings, backup catalogues, directory indexes and
+screenshots; the display name is already inside the file, where it belongs.
+
+**Consequence:** the export format carries a `verify` step that is a documented
+no-op until the backend lands, so adding the signature later is a change inside
+one function rather than a format change. The email or account id goes *inside*
+the envelope as an identity claim; it is never used as key material, because
+emails are public or guessable and a signature keyed on one is forgeable by
+anyone who knows the address.
+
+**Rejected:** client-side encryption of the save file, for the same reason DEC-018
+rejected `supabase-js` — it would look like security while providing none, and it
+would cost the team a dependency and a hand-rolled cipher.
+
+**Related:** ISS-026 (client-side accounts are not real security), ISS-032 (no
+project yet).
+
+---
+
 ### DEC-018 Supabase over REST, no supabase-js
 **Decided by:** team lead
 
 **Choice:** The auth provider is the **Supabase REST API called with plain `fetch()`**,
 in `js/services/authApi.js`. Not the supabase-js SDK. Anon key in
-`js/config/api.js`; no secret in the client, ever � the export signing secret stays
-server-side.
+`js/config/supabase.js`; no secret in the client, ever — the export signing
+secret stays server-side.
 
 **Why:** DEC-002 and AGENTS.md both say no runtime dependencies, and a university
 course project is the worst possible place to hand a judge a dependency tree. The
-auth surface we need is four calls: sign in, sign up, refresh, sign out. REST
-covers that without a package, and `fetch()` is already allowed inside
-`js/services/` by the layering rules.
+auth surface we need is seven calls: sign in, sign up, sign out, refresh,
+password reset, password update and session restore. REST covers all of them
+without a package, and `fetch()` is already allowed inside `js/services/` by the
+layering rules.
 
 **Consequence:** we write the request and error mapping ourselves, so
 `js/ui/authErrors.js` has to exist and has to be the single place provider codes
@@ -31,7 +134,7 @@ become sentences. See DEC-019.
 **Decided by:** Hisham
 
 **Choice:** On the sign-in path, every reason that reveals whether an email has an
-account � wrong password, no such account, email not confirmed � returns the same
+account — wrong password, no such account, email not confirmed — returns the same
 sentence: *"Check your email and password and try again."* On the sign-up path the
 same reasons may be specific, because the player just typed that address.
 
