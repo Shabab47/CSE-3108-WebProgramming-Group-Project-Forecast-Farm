@@ -72,6 +72,40 @@ The per-person weekly notes that used to live in the README table are now in `me
 
 ---
 
+## Hisham — live provider check after the Supabase project landed
+
+- **Did:** Shabab created the Supabase project and flipped `USE_LOCAL_PROVIDER`, and fixed two
+  things my flag flip would have broken: **ISS-033**, where the login page held a Supabase session
+  while the game page still read `localAuth` and redirected back in an inescapable loop, and
+  **ISS-034**, where the "is it configured" guard answered about different values than were sent.
+  Both good catches. With credentials in the repo I could finally do the thing none of the tests
+  could: **probe the live GoTrue API.**
+- **The point of the probe:** all 20 provider tests stubbed `fetch`, so the error table had never
+  been compared against what the server actually says. It had been written from the docs.
+- **Found:** **ISS-035** — GoTrue does not say `invalid email` for a refused address, it says
+  `Email address "someone@example.com" is invalid`. My pattern missed it, so the reason became
+  `auth_unknown` and a player who typed a bad address was told to try again rather than what was
+  wrong with it. Fixed, with a test holding the real string. Two things the probe confirmed rather
+  than broke: wrong password and unknown account return **byte-identical** text, so the enumeration
+  guard holds at the provider as well as in the message layer; and rate limiting is live on the
+  free tier, returning 429, which was already mapped correctly.
+- **Also fixed:** the reset flow never sent `redirect_to`, so the recovery link depended on the
+  dashboard's **Site URL** happening to point at `login.html` — the one page that reads the token
+  out of the fragment. `auth-main.js` now derives it from `location.href`. That removed a silent
+  failure where a reset could never complete. ISS-031 is now half mine and half Shabab's: the
+  dashboard still needs the redirect URLs, and a live probe proved the endpoint returns 200 even
+  for a disallowed origin, so that **cannot** be verified without receiving a real email.
+- **Files:** `js/services/gotrue.js`, `js/services/authApi.js`, `js/auth-main.js`,
+  `js/config/auth.js`, `tests/authApi.test.js`, `docs/team/issues.md`, `docs/team/ownership.md`
+- **Also:** `js/config/auth.js` still claimed "this project has no backend". Now that it has one,
+  that sentence was actively misleading, so it describes the legacy keys as legacy.
+- **Next:** ISS-027 is now actionable and still open — with the real provider live, the account
+  table and PBKDF2 hashing in `localAuth.js` are dead code kept alive only by a fallback path
+  that never runs. **ISS-026** should be revisited too: accounts are genuinely server-backed now,
+  so it is no longer accurate as written.
+
+---
+
 ## Login rebuilt to the panel contract
 
 - **Did:** Reworked the login page to the agreed contract after review. `ui/loginPanel.js` now

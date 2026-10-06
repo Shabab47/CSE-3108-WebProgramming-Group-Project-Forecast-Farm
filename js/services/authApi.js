@@ -165,13 +165,24 @@ export async function signOut() {
 /**
  * Send a password-reset email.
  *
+ * `redirectTo` is passed in rather than computed here, so this module keeps no
+ * knowledge of where it is running — `js/auth-main.js` derives it from `location`
+ * and hands it over. It matters: GoTrue sends the recovery link to the project's
+ * **Site URL** unless told otherwise, and this project reads the token out of the
+ * fragment on `login.html` only. If Site URL were anything else the link would land
+ * on a page that ignores the fragment and the reset would silently fail. Sending it
+ * explicitly removes the dependency on a dashboard setting nobody will remember.
+ *
  * **Always reports success for an account-existence reason**, because a reset
  * form that says "no such account" is the same enumeration oracle as sign-in
  * (DEC-019). The panel shows one confirmation either way. Rate limiting *is*
  * surfaced: it says nothing about whether the address is registered.
  */
-export async function requestPasswordReset({ email }) {
-  const result = await post('recover', { email: normaliseEmail(email) });
+export async function requestPasswordReset({ email, redirectTo }) {
+  const body = { email: normaliseEmail(email) };
+  if (redirectTo) body.redirect_to = redirectTo;
+
+  const result = await post('recover', body);
 
   if (!result.ok && !RESET_SWALLOWED.includes(result.reason)) {
     return { ok: false, reason: result.reason };

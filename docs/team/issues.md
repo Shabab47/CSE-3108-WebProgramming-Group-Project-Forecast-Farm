@@ -18,9 +18,10 @@ so these are all cheap to fix now and expensive to find later.
 | ISS-029 | `npm test` cannot run — `node --test tests/` is invalid on Node 24 | **High** | Hisham | **fixed** | T-02 |
 | ISS-033 | Only the login page honoured the provider switch | **High** | Shabab | **fixed** | T-29 |
 | ISS-034 | `isSupabaseConfigured()` answered about other values than were sent | Medium | Shabab | **fixed** | T-29 |
+| ISS-035 | Invalid-email text from GoTrue fell through to an unmapped reason | Medium | Hisham | **fixed** | T-04 |
 | ISS-027 | `localAuth.js` is a second writer to localStorage | **High** | Hisham | open | T-04 |
 | ISS-028 | `authApi.js` needs credentials to reach Supabase | **High** | Shabab | **fixed** | T-29 |
-| ISS-031 | Password reset needs a redirect URL configured in Supabase | Medium | Shabab | open | T-29 |
+| ISS-031 | Password reset needs a redirect URL configured in Supabase | Medium | Shabab | partly fixed | T-29 |
 | ISS-026 | Client-side accounts are not real security | **High** | Hisham | open | — |
 | ISS-006 | Dead crops permanently brick a plot | **High** | Hisham | open | T-08 |
 | ISS-007 | Pump's transparent canvas eats plot clicks | **High** | Hisham | open | T-06 |
@@ -87,6 +88,28 @@ so these are all cheap to fix now and expensive to find later.
   `decisions.md` and every other `.md` / `.js` / `.mjs` / `.css` / `.html` / `.json` file in the
   repo now decode as valid UTF-8, no lone `0x97` remains, and the 7 `×` signs in the older
   entries were left untouched.
+
+### ISS-035 Invalid-email text from GoTrue fell through to an unmapped reason
+- Reported by Hisham · Owner: Hisham · Status: fixed
+- Where: `js/services/gotrue.js`
+- Problem: The GoTrue error table matched `/unable to validate email|invalid email/i` for an
+  address GoTrue refuses. It does not say either of those. It says
+  `Email address "someone@example.com" is invalid`, so the pattern missed, the code became
+  `auth_unknown`, and a player who typed a bad address was told *"That did not work. Try again in a
+  moment."* instead of *"That does not look like an email address."* The domain rules in
+  `js/domain/authRules.js` catch most of these before the request is made, so it only bites on the
+  addresses the client-side pattern accepts and Supabase does not.
+- Cause: The table was written from Supabase's documentation rather than from a live response.
+  All 20 provider tests stubbed `fetch`, so nothing compared it against what the server actually
+  says.
+- Found by: probing the live project with a reserved `example.com` address. GoTrue rejects
+  `example.com` outright, which is what surfaced the real wording. The same probe confirmed the two
+  things that actually mattered: wrong password and unknown account return **byte-identical** text,
+  so the enumeration guard holds at the provider as well as in the message layer; and rate limiting
+  is live, returning 429, which the table already mapped correctly.
+- Fix: **done.** The pattern now matches `is invalid` as well, and a test asserts the exact string
+  GoTrue returns. The lesson is recorded rather than just the fix: with credentials now in the repo,
+  a live probe belongs in the review checklist for any change to the error table.
 
 ### ISS-032 No Supabase project yet, so no real accounts and no server-side signing
 - Reported by Hisham · Owner: Shabab · Status: **partly fixed**
@@ -192,10 +215,14 @@ so these are all cheap to fix now and expensive to find later.
   sends a recovery email if the requesting origin is in the project's allowed redirect URLs, and by
   default only the site URL is. Until that is set, a player asks for a reset and no email ever
   arrives, with nothing on our side to explain why.
-- Fix: _pending, needs Shabab._ Add the local origin (`http://localhost:5173`, or whatever `npm run dev` prints)
-  and the deployed origin to **Redirect URLs**, and set the same origin under **Site URL**. This is
-  now in the README as a setup step, since a fresh clone cannot complete a reset without it; the
-  dashboard side is the part that cannot be committed.
+- Fix: _half done._ The code half is now fixed: `auth-main.js` derives `redirect_to` from
+  `location.href` and sends it with the recover request, so the link lands on `login.html` no
+  matter what **Site URL** is set to. That removed the silent-failure mode entirely, and a test
+  asserts the field is sent. The dashboard half still needs Shabab: add the dev and deployed
+  origins to **Redirect URLs**, or Supabase will not deliver the mail at all. A live probe of
+  `/auth/v1/recover` returned 200 for every origin including one that was deliberately not
+  allowed, so the endpoint's response **cannot** be used to check this — it has to be verified by
+  receiving an actual email. The README carries it as a setup step.
 - **Confirm email** is deliberately left **off** while the game is iterated on: the free tier's SMTP
   allowance is a few emails an hour shared by everyone, so a reviewer who signs up second gets
   nothing and no explanation. Turn it on before a demo, which is what makes the `CONFIRM_EMAIL` state
