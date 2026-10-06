@@ -178,20 +178,29 @@ login.
 | `forecastFarm.debug` | read only | `1` turns on verbose logging |
 | *(provider-owned)* | `services/authApi.js` | Supabase session and refresh token |
 
-`js/services/localAuth.js` is a **stopgap**, not the real provider. It exists so
-the panel has something to run against before `authApi.js` lands, implements the
-identical contract, and writes its own `forecastFarm.accounts.v1` /
-`.session.v1` keys. Delete it and change one import when the real one is ready.
-Its second-writer violation of the storage rule is logged as ISS-027.
+`js/services/localAuth.js` was a **stopgap** while `authApi.js` did not exist. It
+still ships, but no longer for signed-in play — it is the **guest** provider, the
+only implementation of `signInAsGuest`. It keeps writing its own
+`forecastFarm.accounts.v1` / `.session.v1` keys, which violates the one-writer
+storage rule; ISS-027's fix is now "narrow it to guests", not "delete it".
 
 ### Which provider runs
 
-`js/auth-main.js` holds `const USE_LOCAL_PROVIDER = true`. Set it to `false` and
-the Supabase provider loads by dynamic `import()`; leave it and the local one runs
-(DEC-020). It is currently `true` because `js/config/supabase.js` has an empty URL
-and anon key, and `authApi.js` refuses to call out rather than posting credentials
-at a URL that does not exist. So switching providers is **one line each** in two
-files, once Shabab has created the project (ISS-028, ISS-032).
+`js/auth-main.js` holds `const USE_LOCAL_PROVIDER = false`. Set it to `true` and
+the local provider loads; leave it and the Supabase one loads by dynamic `import()`
+(DEC-020). It is `false` because `js/config/supabase.js` has a project URL and anon
+key (ISS-028, T-29). Switching providers is therefore one line.
+
+`loadProvider` is exported from `auth-main.js` because **`js/main.js` boots against
+the same provider**. It used to import `localAuth.js` directly, so with the flag
+flipped only on the login page, the login page issued a real Supabase session and the
+game page then read localStorage, found nothing, and redirected back to login — a
+loop. Both entry scripts now call `loadProvider()` (ISS-033). Both also
+`await provider.restoreSession?.()`, because the Supabase access token is
+memory-only and without it every page navigation would look like a sign-out.
+
+Guest play is the deliberate exception: `signInAsGuest` stays on `localAuth.js`,
+since a guest has no account to sign into.
 
 The Supabase provider is split so each part has one job:
 
@@ -275,7 +284,7 @@ verbatim would let a file put a stale identity into state.
 | an image path | `js/config/assets.js` |
 | password rules, hashing cost, storage keys | `js/config/auth.js` |
 | Supabase project URL and anon key | `js/config/supabase.js` — **anon key only, never `service_role`** |
-| which provider the login page runs | `USE_LOCAL_PROVIDER` in `js/auth-main.js` |
+| which provider runs | `USE_LOCAL_PROVIDER` in `js/auth-main.js` (used by both entry points) |
 | how weather maps to game events | `js/config/weatherEvents.js`, `js/domain/weather.js` |
 | what weather does to crops | `js/config/cropWeatherMatrix.js`, `js/domain/simulator.js` |
 | pump cost / water speed | `js/config/game.js` |
@@ -303,7 +312,7 @@ verbatim would let a file put a stale identity into state.
 | save / load | `js/state/store.js`, `js/state/saveFile.js` |
 | the export file format, checksum, rebase | `js/state/transfer.js` |
 | the export / import buttons | `js/ui/savePanel.js` |
-| which provider the login page runs | `USE_LOCAL_PROVIDER` in `js/auth-main.js` |
+| which provider runs | `USE_LOCAL_PROVIDER` in `js/auth-main.js` (used by both entry points) |
 | the state shape | `js/state/types.js`, `js/state/initialState.js` |
 | debug sliders and cheat buttons | `js/debug/debug.js` |
 
@@ -340,7 +349,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   ├── auth-main.js            the login page entry, wires panel to provider
 │   ├── config/                 pure data, imports nothing
 │   │   ├── auth.js             storage keys, password policy, PBKDF2 cost
-│   │   ├── supabase.js         project URL + anon key (EMPTY until ISS-032)
+│   │   ├── supabase.js         project URL + anon key (set, T-29)
 │   │   ├── api.js              URLs, default location, refresh interval
 │   │   ├── field.js            FIELD geometry, ZONES, PLOT_PRICES
 │   │   ├── game.js             START_GOLD, PUMP, WATER, HEALTH, timings
@@ -355,11 +364,10 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── simulator.js        empty
 │   │   └── weather.js          empty
 │   ├── services/               the only place that calls fetch
-│   │   ├── authApi.js          Supabase REST provider — written, but refuses to
-│   │   │                       call out until the project URL and key exist
+│   │   ├── authApi.js          Supabase REST provider — live
 │   │   ├── gotrue.js           the GoTrue transport and error mapping
 │   │   ├── tokenStore.js       the only place a token is written to storage
-│   │   ├── localAuth.js        TEMPORARY local provider, same contract
+│   │   ├── localAuth.js        the GUEST provider, same contract
 │   │   ├── map.js              DELETE — Nominatim + Leaflet, references an
 │   │   │                       undefined `map` global and calls alert()
 │   │   ├── timeApi.js          rewrites — writes straight into the DOM
@@ -411,11 +419,12 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   └── check-imports.mjs       layering rules for npm run check
 │
 ├── tests/                      node:test, pure code only
-│   ├── authApi.test.js         Supabase provider, fetch stubbed, no credentials
+│   ├── authApi.test.js         Supabase provider, fetch stubbed
+│   ├── mainBoot.test.js        boot step 0, the provider switch
 │   ├── authErrors.test.js      error mapping, account enumeration
 │   ├── authRules.test.js       validation rules
 │   ├── initialState.test.js    fresh farm, zones, session coercion
-│   ├── localAuth.test.js       the stopgap provider's contract
+│   ├── localAuth.test.js       the guest provider's contract
 │   └── store.test.js           persistence, save migration, corruption
 │
 └── docs/
@@ -539,12 +548,12 @@ replace them with divs.
 - `field-reference.jpeg` shows a farmhouse, pipework and more than 16 plots. Those are mockup
   extras, out of scope. The cross paths in that render are simply `base.png` showing through
   the `crossGap` between the four 2×2 zones, which is why no path art is needed.
-- **Accounts are local for now.** `localAuth.js` keeps them in `localStorage`, so there is no
-  real authentication, no password-reset email, and no recovery: clearing site data destroys
-  the account and the farm. It is fine for a course demo where each person plays their own
-  farm, and it **must not be described as secure** anywhere in the UI or the docs. The real
-  provider is written and tested but cannot run until a Supabase project exists — ISS-026,
-  ISS-032.
+- **Guest farms are local.** "Play as guest" writes nothing to the server: clearing site data
+  destroys that farm permanently and it cannot be exported. Signed-in play is real, via Supabase.
+  ISS-026 stays open because the anon key in the client is only safe while Row Level Security is
+  on, and no schema exists yet.
+- **Password reset needs a dashboard setting.** It only works if the requesting origin is in
+  Supabase's **Redirect URLs**, which cannot be committed — ISS-031. The README says so.
 - **An exported `.farm` file is integrity-checked, not authenticated.** A corrupted or
   hand-edited file is refused, but anyone who reads `utils/checksum.js` can recompute the
   checksum and change the numbers. There is a test that does exactly that and asserts it

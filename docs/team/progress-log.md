@@ -7,6 +7,35 @@ The per-person weekly notes that used to live in the README table are now in `me
 
 ---
 
+## Supabase project created, and the switch that would have broken login
+
+- **Did:** Picked up T-29. Project `ygfrvwyydxrocvywzysk` created, URL and the `anon` key committed
+  to `js/config/supabase.js`, `USE_LOCAL_PROVIDER = false`. That part is mechanical.
+- **Problems:** Two, and the second is the reason this entry exists. **ISS-033** — the flag lived in
+  `js/auth-main.js`, which only `login.html` loads, but `js/main.js` imported `currentSession` and
+  `signOut` straight from `localAuth.js`. Filling in the config and flipping the flag as documented
+  would have signed a player in on the login page and then bounced them straight back to it from the
+  game page, forever. Related: `authApi.restoreSession()` had **zero callers**, so the memory-only
+  access token made every page load look like a sign-out. `loadProvider` is now exported from
+  `auth-main.js` and both entries call it. **ISS-034** — `isSupabaseConfigured()` read the
+  test-override variables instead of the exported constants, so the guard and the request it protects
+  were answered from different sources; both go through `connection()` now.
+- **Files:** `js/config/supabase.js`, `js/auth-main.js`, `js/main.js`, `tests/mainBoot.test.js` (new),
+  `tests/authApi.test.js`, `docs/*`, `README.md`
+- **Also:** the anon key is committed, per DEC-018. `tests/mainBoot.test.js` decodes its JWT payload
+  and asserts `role: "anon"` and the matching project ref, so a pasted `service_role` key fails the
+  suite rather than shipping. ISS-027's fix was wrong — it said delete `localAuth.js`, but guest play
+  has no account, so `signInAsGuest` lives only there.
+- **Tests:** **131 passing, up from 121.** 10 new, all in `mainBoot.test.js`: boot step 0 in six
+  shapes including the local provider having no `restoreSession`, plus the key-shape assertions.
+- **Next:** ISS-031 — Shabab adds `http://localhost:5173` and the deployed origin to **Redirect URLs**
+  and sets **Site URL** in the Supabase dashboard. Cannot be committed, so it is now a README setup
+  step. Confirm email is off while iterating; free-tier SMTP is a few emails an hour shared by
+  everyone. ISS-032 stays partly open: export is still **unsigned**, no server to hold the signing
+  secret (DEC-021), and nothing may call it signed.
+
+---
+
 ## Supabase provider, password reset, and exporting a farm
 
 - **Did:** Picked up Shabab's login page and finished the parts that needed a real backend, then

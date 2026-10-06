@@ -16,9 +16,11 @@ so these are all cheap to fix now and expensive to find later.
 | ID | Title | Severity | Owner | Status | Fix in |
 | :--- | :--- | :--- | :--- | :--- | ---: |
 | ISS-029 | `npm test` cannot run — `node --test tests/` is invalid on Node 24 | **High** | Hisham | **fixed** | T-02 |
+| ISS-033 | Only the login page honoured the provider switch | **High** | Shabab | **fixed** | T-29 |
+| ISS-034 | `isSupabaseConfigured()` answered about other values than were sent | Medium | Shabab | **fixed** | T-29 |
 | ISS-027 | `localAuth.js` is a second writer to localStorage | **High** | Hisham | open | T-04 |
-| ISS-028 | `authApi.js` needs credentials to reach Supabase | **High** | Shabab | open | T-04 |
-| ISS-031 | Password reset needs a redirect URL configured in Supabase | Medium | Shabab | open | T-04 |
+| ISS-028 | `authApi.js` needs credentials to reach Supabase | **High** | Shabab | **fixed** | T-29 |
+| ISS-031 | Password reset needs a redirect URL configured in Supabase | Medium | Shabab | open | T-29 |
 | ISS-026 | Client-side accounts are not real security | **High** | Hisham | open | — |
 | ISS-006 | Dead crops permanently brick a plot | **High** | Hisham | open | T-08 |
 | ISS-007 | Pump's transparent canvas eats plot clicks | **High** | Hisham | open | T-06 |
@@ -46,7 +48,7 @@ so these are all cheap to fix now and expensive to find later.
 | ISS-024 | Active weather event lags by up to ~1 h 15 m | Low | Afif | open | T-12 |
 | ISS-023 | Three sound files are 0 bytes | Low | Kafi | open | — |
 | ISS-025 | Ownership split is unconfirmed | Low | Shabab | open | T-01 |
-| ISS-032 | No Supabase project yet, so no real accounts or server-side signing | **High** | Shabab | open | T-04 |
+| ISS-032 | No Supabase project yet, so no real accounts or server-side signing | **High** | Shabab | partly fixed | T-29 |
 
 ---
 
@@ -87,26 +89,29 @@ so these are all cheap to fix now and expensive to find later.
   entries were left untouched.
 
 ### ISS-032 No Supabase project yet, so no real accounts and no server-side signing
-- Reported by Hisham · Owner: Shabab · Status: open
+- Reported by Hisham · Owner: Shabab · Status: **partly fixed**
 - Where: Supabase project, `js/config/supabase.js`
-- Problem: DEC-018 commits the team to Supabase over REST, but no project has been created. Three
-  things are blocked on it, and each is a feature that looks buildable until you try:
-  1. **Real accounts.** Everything runs on `localAuth.js` (ISS-027, ISS-028).
-  2. **Password reset.** There is nowhere to send a reset email from. `ui/passwordReset.js` and
-     `authApi.requestPasswordReset` are written, but the flow cannot complete against localStorage
-     accounts — see also ISS-031 for the redirect URL the project needs.
+- Problem: DEC-018 commits the team to Supabase over REST, but no project had been created. Three
+  things were blocked on it, and each is a feature that looks buildable until you try:
+  1. **Real accounts.** Everything ran on `localAuth.js` (ISS-027, ISS-028).
+  2. **Password reset.** There was nowhere to send a reset email from.
   3. **Signed save export.** DEC-018's whole point is that the export signing secret stays
      server-side. There is no server, so no secret can be held anywhere the client cannot read.
      A client-side "signature" would be extractable from the JS bundle and would be security
      theatre, so export/import must ship as integrity-checked but **unsigned** until this lands.
+- Fixed 2026-10-06 (T-29): project `ygfrvwyydxrocvywzysk` created, URL and `anon` key committed to
+  `js/config/supabase.js`, `USE_LOCAL_PROVIDER = false`. Real accounts and password reset now work,
+  the latter subject to ISS-031.
+- **Still open: signed export.** `js/state/transfer.js` has no server to call, so there is nowhere to
+  hold a secret the client cannot read. Export/import therefore ships **integrity-checked but
+  unsigned**, and `verifySignature()` is the seam where an Edge Function goes. Nothing in the UI or
+  docs may call the export signed. See DEC-021.
 - Cost: the free plan is $0 and needs no card, which is why it was chosen over Firebase
   (Cloud Functions require a billing account there, and signing is the requirement). Two free
   projects are included, and there is a 500,000 Edge Function invocation allowance per month.
   The one real gotcha: **free projects pause after a week of inactivity** and must be resumed,
   which matters for a demo.
-- Fix: _pending._ Shabab creates the project, enables email confirmation, sets the redirect URL,
-  and pastes the URL and anon key into `js/config/supabase.js`. Until then the honest position in
-  any UI or doc is "local demo mode", never "secure" — see ISS-026.
+- Fix: _done for items 1 and 2._ See "Fixed 2026-10-06" above. Item 3 needs a server and stays open.
 
 ### ISS-027 `localAuth.js` is a second writer to localStorage
 - Reported by Hisham · Owner: Hisham · Status: open
@@ -120,25 +125,63 @@ so these are all cheap to fix now and expensive to find later.
   local provider was used instead.
 - Risk: a stale session key that the store does not know about can send a player back to login
   while their farm is still on disk — or worse, silently give two accounts the same save.
-- Fix: _pending._ Delete `localAuth.js` and change one import in `js/auth-main.js` when
-  `authApi.js` lands (ISS-028). Until then it is a dev-only provider: do not ship it, and do not
-  add features that depend on its keys.
+- **Update 2026-10-06 (T-29): the original fix was wrong.** It said "delete `localAuth.js`", but
+  guest play has no server-side account, so `signInAsGuest` exists only there. Deleting the file
+  would break guest play.
+- Fix: _pending._ Narrow the file to guest play rather than deleting it: drop `signIn`, `signUp`,
+  `requestPasswordReset` and `updatePassword`, keeping only `signInAsGuest` and what it needs. That
+  removes the account table, which is the bulk of the second-writer surface, and makes the
+  remaining writes unreachable from signed-in play. Until then do not add features that depend on
+  its account keys.
+
+### ISS-033 Only the login page honoured the provider switch
+- Reported by Shabab · Owner: Shabab · Status: **fixed**
+- Where: `js/main.js`, `js/auth-main.js`
+- Problem: `USE_LOCAL_PROVIDER` lived in `js/auth-main.js`, which only `login.html` loads. But
+  `js/main.js` — the game page — imported `currentSession` and `signOut` **directly from
+  `localAuth.js`**. So flipping the flag, as the handoff note described, would have: let the login
+  page issue a real Supabase session, navigate to `index.html`, have the game page read
+  `localStorage`, find nothing, and redirect back to login — leaving the player in a redirect loop.
+  A related gap: `authApi.restoreSession()` had **zero callers**. The Supabase access token is
+  memory-only, so after any page navigation every signed-in player looks signed out — the same loop
+  by another route, and it also made the "already signed in" branch in `auth-main.js` unreachable.
+- Cause: the provider contract was specified for the login panel, and the game page was wired to the
+  stopgap before the real provider existed. Nothing forced the two entry points to agree, because
+  nothing tested them together.
+- Fix: **done 2026-10-06 (T-29).** `loadProvider()` is exported from `auth-main.js` and both entry
+  points call it; `resolveSession()` is async and awaits `restoreSession()?.()`, as does the session
+  check in `auth-main.js`. `tests/mainBoot.test.js` covers boot step 0 in six shapes. Keeping the
+  flag in `auth-main.js` means `main.js` imports from the login page's entry script — legal under
+  `check-imports` (both are wildcards) and safe because each script guards `start()` behind an
+  element only its own page has, but it is an odd dependency worth knowing about.
+
+### ISS-034 `isSupabaseConfigured()` answered about different values than were sent
+- Reported by Shabab · Owner: Shabab · Status: **fixed**
+- Where: `js/config/supabase.js`
+- Problem: `isSupabaseConfigured()` read the module-level `let url` / `anonKey` declared *below* it
+  (the test-override variables), not the exported `SUPABASE_URL` / `SUPABASE_ANON_KEY`. The two were
+  initialised from each other so it happened to agree, but "is the provider configured" and "what
+  gets sent" were answered from two sources — the shape of bug where a half-configured deploy passes
+  the guard and then posts to an empty URL.
+- Fix: **done 2026-10-06 (T-29).** It reads through `connection()`, the same accessor `gotrue.js`
+  uses to build requests, so the guard and the request cannot disagree. `tests/mainBoot.test.js`
+  asserts they agree.
 
 ### ISS-028 `authApi.js` needs credentials to reach Supabase
-- Reported by Hisham · Owner: Shabab · Status: open
+- Reported by Hisham · Owner: Shabab · Status: **fixed**
 - Where: `js/services/authApi.js`, `js/config/supabase.js`
-- Problem: The provider is written and tested, but **no Supabase project exists yet**, so
-  `js/config/supabase.js` has an empty `SUPABASE_URL` and `SUPABASE_ANON_KEY`. Until those are
-  filled in, `authApi.js` refuses every call with `auth_not_configured` and
-  `js/auth-main.js` runs on `localAuth.js` (ISS-027). That is deliberate: a half-configured
-  provider fails loudly instead of posting credentials at a URL that does not exist.
+- Problem: The provider was written and tested, but with no Supabase project
+  `js/config/supabase.js` had an empty `SUPABASE_URL` and `SUPABASE_ANON_KEY`, so `authApi.js`
+  refused every call with `auth_not_configured` and login ran on `localAuth.js` (ISS-027). That
+  refusal was deliberate: a half-configured provider fails loudly instead of posting credentials at
+  a URL that does not exist.
 - Progress: `authApi.js` implements `signIn`, `signUp`, `signOut`, `currentSession`,
   `requestPasswordReset`, `updatePassword` and `restoreSession` over plain `fetch()` per DEC-018.
   GoTrue error strings are translated to neutral reason codes in one table, and
-  `tests/authApi.test.js` covers the mapping with `fetch` stubbed — 20 tests, no network.
-- Fix: _pending, needs Shabab._ Create the Supabase project (free plan, no card needed), then
-  paste the project URL and the `anon` key from Project Settings → API into
-  `js/config/supabase.js` and set `USE_LOCAL_PROVIDER = false` in `js/auth-main.js`.
+  `tests/authApi.test.js` covers the mapping with `fetch` stubbed — no network.
+- Fix: **done 2026-10-06 (T-29).** Project URL and the `anon` key are in `js/config/supabase.js`;
+  `USE_LOCAL_PROVIDER = false`. The key's JWT payload carries `role: "anon"` and the matching
+  project ref, and `tests/mainBoot.test.js` asserts both rather than trusting the commit.
   **The anon key only.** A `service_role` key or the export signing secret must never enter this
   repo — both bypass Row Level Security entirely. See ISS-026 and DEC-018.
 
@@ -149,11 +192,14 @@ so these are all cheap to fix now and expensive to find later.
   sends a recovery email if the requesting origin is in the project's allowed redirect URLs, and by
   default only the site URL is. Until that is set, a player asks for a reset and no email ever
   arrives, with nothing on our side to explain why.
-- Fix: _pending._ Add the local origin (`http://localhost:5173`, or whatever `npm run dev` prints)
-  and the deployed origin to **Redirect URLs**, and set the same origin under **Site URL**.
-  Note this in the README as a setup step, since a fresh clone cannot complete a reset without it.
-  Also worth enabling "Confirm email" on the project, which is what makes the `CONFIRM_EMAIL`
-  state in `js/ui/authErrors.js` reachable.
+- Fix: _pending, needs Shabab._ Add the local origin (`http://localhost:5173`, or whatever `npm run dev` prints)
+  and the deployed origin to **Redirect URLs**, and set the same origin under **Site URL**. This is
+  now in the README as a setup step, since a fresh clone cannot complete a reset without it; the
+  dashboard side is the part that cannot be committed.
+- **Confirm email** is deliberately left **off** while the game is iterated on: the free tier's SMTP
+  allowance is a few emails an hour shared by everyone, so a reviewer who signs up second gets
+  nothing and no explanation. Turn it on before a demo, which is what makes the `CONFIRM_EMAIL` state
+  in `js/ui/authErrors.js` reachable. Both states are documented in the README.
 
 ### ISS-026 Client-side accounts are not real security
 - Reported by Hisham · Owner: Hisham · Status: open

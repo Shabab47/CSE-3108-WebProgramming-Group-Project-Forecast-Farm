@@ -10,10 +10,10 @@ Format: who decided, the choice, why, and what was rejected.
 ### DEC-020 The provider is chosen by one flag in `auth-main.js`
 **Decided by:** Hisham
 
-**Choice:** `js/auth-main.js` holds `const USE_LOCAL_PROVIDER = true`. When it is
-false, the Supabase provider is loaded with a dynamic `import()`; when true,
-`localAuth.js` is used. The default stays local until a project exists and
-`js/config/supabase.js` has a URL and key in it (ISS-028, ISS-032).
+**Choice:** `js/auth-main.js` holds `const USE_LOCAL_PROVIDER`. When it is false,
+the Supabase provider is loaded with a dynamic `import()`; when true, `localAuth.js`
+is used. It is currently `false`, since `js/config/supabase.js` has a project URL and
+anon key (ISS-028, T-29).
 
 **Why:** DEC-017 and DEC-028 both describe the swap as "one import". A dynamic
 import keyed off a named constant makes that literally true, keeps both providers
@@ -22,13 +22,24 @@ commented-out line someone re-enables by accident.
 
 **Also:** the Supabase provider is loaded inside a try/catch. If the module is
 missing or throws on import, the page falls back to the local provider and logs
-the reason, because a working demo login beats a blank page — and a demo is
-what this project has until the backend exists.
+the reason, because a working login beats a blank page.
+
+**Also (T-29):** `loadProvider` is exported so `js/main.js` boots against the same
+provider. It used to import `localAuth.js` directly, so with the flag flipped only on
+the login page the two disagreed and the player was caught in a redirect loop — ISS-033.
+Both entry scripts now call `loadProvider()` and both `await restoreSession?.()`, since
+the Supabase access token is memory-only.
+
+**Also (T-29):** guest play stays on `localAuth.js`, because a guest has no account
+to sign into. So `localAuth.js` survives as the guest provider rather than being
+deleted, which revises ISS-027's original fix.
 
 **Note:** `js/config/supabase.js` exposes `__setForTest()`. An ES module namespace
 is frozen, so a test cannot assign to an exported binding; without that hook the
 provider suite could only ever exercise the "not configured" branch, leaving the
-GoTrue error mapping — the part most likely to be wrong — untested.
+GoTrue error mapping — the part most likely to be wrong — untested. Now that the
+committed URL and key are real, it is also what stops `tests/authApi.test.js` from
+calling the live project.
 
 ---
 
