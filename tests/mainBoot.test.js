@@ -45,7 +45,7 @@ globalThis.document = { querySelector: () => null, createElement: () => ({}) };
 globalThis.location = { search: '', href: 'http://localhost:5173/index.html', replace() {} };
 
 /** Imported after the stubs, since both entry scripts touch the DOM as they load. */
-const { resolveSession } = await import('../js/main.js');
+const { farmHref, resolveSession, shopHref } = await import('../js/main.js');
 const { loadProvider } = await import('../js/auth-main.js');
 const localAuth = await import('../js/services/localAuth.js');
 
@@ -156,4 +156,34 @@ test('a signed-in player arriving with ?guest=1 keeps their session', async () =
   const session = { status: 'authed', userId: 'uuid-3', email: 'a@b.co', farmerName: 'A' };
 
   assert.equal(await resolveSession(fakeProvider({ currentSession: () => session })), session);
+});
+
+/* --- the two links between the farm and the shop -------------------------------- */
+
+test('the shop button and the way back point at different pages', () => {
+  // The bug this asserts against: "Back to the farm" was built with `shopHref`, so
+  // it linked to shop.html — the page the player was already on, so the button did
+  // nothing. Both helpers live in one file precisely so the two cannot be swapped.
+  const session = { status: 'authed', userId: 'uuid-4', email: 'a@b.co', farmerName: 'A' };
+
+  assert.equal(shopHref(session), 'shop.html');
+  assert.equal(farmHref(session), 'index.html');
+  assert.notEqual(shopHref(session), farmHref(session));
+});
+
+test('a guest carries ?guest=1 across the navigation, in both directions', () => {
+  // Without the flag the other page finds no session and redirects to the login
+  // form, so "sign in once" becomes "sign in on every page".
+  const guest = { status: 'guest', userId: 'guest', email: '', farmerName: '' };
+
+  assert.equal(shopHref(guest), 'shop.html?guest=1');
+  assert.equal(farmHref(guest), 'index.html?guest=1');
+});
+
+test('a missing session still produces a usable href', () => {
+  // `mountShell` runs before anything can be null in practice, but an undefined
+  // session must not produce "undefined" as a URL.
+  for (const href of [shopHref(null), shopHref(undefined), farmHref(null)]) {
+    assert.match(href, /^(shop|index)\.html$/);
+  }
 });

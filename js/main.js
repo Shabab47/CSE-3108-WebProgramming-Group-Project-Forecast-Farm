@@ -29,18 +29,27 @@ const log = createLog('main');
 
 const LOGIN_URL = 'login.html';
 const SHOP_URL = 'shop.html';
+const FARM_URL = 'index.html';
 
 /**
- * Where the shop button points.
+ * The two hrefs that cross between the farm and the shop.
  *
- * A guest session is deliberately never written to storage — see the comment on
- * `resolveSession` — so the shop page cannot rediscover it and would bounce the
+ * Both pages are reached by navigation, so both need the same guest handling. A
+ * guest session is deliberately never written to storage — see the comment on
+ * `resolveSession` — so the other page cannot rediscover it and would bounce the
  * player back to the login form, losing the "sign in once" promise in the middle
- * of a game. Carrying `?guest=1` across the navigation is what keeps that
- * promise; `shop-main.js` reads the same flag.
+ * of a game. Carrying `?guest=1` across is what keeps that promise;
+ * `shop-main.js` reads the same flag.
+ *
+ * These are the only two places a URL is built for the other page, so a fix to
+ * the guest flag is a fix in one file.
  */
 export function shopHref(session) {
   return session?.status === 'guest' ? `${SHOP_URL}?guest=1` : SHOP_URL;
+}
+
+export function farmHref(session) {
+  return session?.status === 'guest' ? `${FARM_URL}?guest=1` : FARM_URL;
 }
 
 /**
