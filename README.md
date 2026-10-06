@@ -1,6 +1,6 @@
 # 🌾 Forecast Farm
 
-A 2D web farming game driven by **real weather, at the player's own location**. The game asks
+A 2D web farming game driven by **real weather at the player's own location**. The game asks
 where you are and runs your farm on that place's live forecast.
 
 ---
@@ -12,13 +12,15 @@ their location, and from then on the farm belongs to that place — the weather 
 weather outside their window. Rain genuinely waters the crops, heat genuinely dries them out, and
 frost can kill them, because all of it comes from a live forecast rather than being invented.
 
+If you sow from one location and travel to another location before the harvest time comes, the game will still be locked with the previous location's real-time weather until it's been harvested.
+
 Play is one loop: **plant → water → wait → harvest.** Crops grow in real time, so a six-hour crop
 takes six hours whether or not the game is open. Spending is the tension — a water pump keeps a
 drying crop alive but charges gold every second it runs, and rain on the way means it might be
 better not to. The player is always reacting to genuine conditions, so decisions carry weight
 rather than luck.
 
-The goal is to unlock all sixteen plots. The first is free and each one after costs exactly twice
+The goal is to unlock all sixteen plots. The first is free, and each one after costs exactly twice
 the last, which turns the farm into something a player returns to over months rather than finishes
 in an afternoon.
 
@@ -33,10 +35,10 @@ system. Four weeks of building remain.
 - A browser farming game where the weather is real and comes from the player's **own location** —
   the farm is not somewhere fictional. → [crop-choice-guide.md](docs/crop-choice-guide.md)
 - Play is one loop: **plant → water → wait → harvest**. Crops grow in real time, so a six-hour
-  crop takes six hours whether or not the game is open. → [crops.md](docs/crops.md)
+  crop takes six hours whether the game is open or not. → [crops.md](docs/crops.md)
 - The weather acts on the field. Rain waters the soil, sun and heat dry it out, and wind, hail and
   frost can damage or destroy a crop. → [weather-events.md](docs/weather-events.md)
-- A water pump saves a drying crop but **costs gold every second it runs**, so watering well is a
+- A water pump saves a drying crop, but **costs gold every second it runs**, so watering well is a
   real decision. → [weather-events.md](docs/weather-events.md)
 - The forecast warns you in advance — *"Rain incoming — skip irrigation"* — so checking tomorrow's
   weather is worth doing. → [notifications.md](docs/notifications.md)
@@ -76,7 +78,7 @@ Vanilla ES modules, plain CSS, no framework and no runtime dependencies.
 ```
 index.html      the game page
 login.html      sign in or create an account
-css/            styling — layout, colours, components, field, login card
+css/            styling — layout, colours, components, fields, login card
 js/             the game code, split by responsibility
 assets/         artwork and icons
 docs/           all project documentation
@@ -117,7 +119,7 @@ npm run check    # layering rules: imports, fetch, DOM access
 | `/index.html` | The farm. Loads your save, or starts a new one. |
 
 Append `?debug=1` to the URL for the debug panel: geometry sliders, gold and time cheats,
-forced weather, plot ids.
+forced weather, plot IDs.
 
 > **Accounts are live.** Sign-in runs against Supabase over plain `fetch()`, with the project URL and
 > the `anon` key in `js/config/supabase.js` ([DEC-018](docs/team/decisions.md),
@@ -145,7 +147,7 @@ Forecast Farm is a browser farming game driven by real weather at the player's o
 one was a planning week, and it is complete — each of the four of us owns a distinct piece of it.
 **Shabab** started the project and wrote the implementation plan, the crop and season design, and
 the team workflow. **Kafi** produced the artwork for rice and the farm ground. **Afif** connected
-the base weather, time and place-lookup services. **Hisham** designed the project structure, the
+the base weather, time, and place-lookup services. **Hisham** designed the project structure, the
 data flow between its parts, and the art direction every sprite follows, then wrote the
 documentation now in this repository. Twenty-five known problems have been logged with owners, and
 three that would have broken the game were caught in that review before a line of game code was
@@ -193,14 +195,14 @@ guest can still play without an account.
 **Two limits worth knowing:**
 
 - **A guest farm is local only.** "Play as guest" writes nothing to the server, so clearing site data
-  deletes that farm permanently and it cannot be exported. A real account's farm can be moved with a
+  deletes that farm permanently, and it cannot be exported. A real account's farm can be moved with a
   `.farm` file. See [ISS-027](docs/team/issues.md).
 - **An exported file cannot be trusted against a determined editor.** It is checked for corruption, and a
   hand-edited file is refused — but anyone who knows how can change the numbers and update the check.
   Making that impossible needs a server-held key. See
   [DEC-021](docs/team/decisions.md).
 
-Week one was spent on planning rather than code. Each week ends with something demonstrable. Full goal
+Week one was spent behind planning rather than coding. Each week ends with something demonstrable. Full goal
 breakdown in [`docs/team/goals.md`](docs/team/goals.md), per-person notes in
 [`docs/team/members/`](docs/team/members/), and the outstanding work in
 [`docs/asset-checklist.md`](docs/asset-checklist.md).
