@@ -5,7 +5,9 @@
  * before any UI exists — resolve the session, load the save — and then hands the
  * player a link back. The player signs in once: a Supabase session is restored
  * from the refresh token, and a guest arrives with `?guest=1`, which is the flag
- * `shopHref` in `js/main.js` puts on the button that got them here.
+ * the `shopHref` and `farmHref` helpers in `js/main.js` put on both links that
+ * cross between the two pages — the shop button on the farm, and "Back to the
+ * farm" here.
  *
  * **Why this is a second entry point rather than a dialog on index.html.** The
  * team asked for a separate page to keep the files easy to read. The cost is
@@ -21,7 +23,7 @@
 import { qsOrNull } from './utils/dom.js';
 import { createLog } from './utils/log.js';
 import { loadProvider } from './auth-main.js';
-import { resolveSession, shopHref } from './main.js';
+import { farmHref, resolveSession } from './main.js';
 import { buildServerSave } from './remoteSave.js';
 import { apply, emit, init, saveNow, subscribe } from './state/store.js';
 import { buySeeds } from './domain/shop.js';
@@ -78,7 +80,7 @@ async function start() {
 
   // Boot 2
   mountToastStack();
-  mountShop(qsOrNull('#shop-root'), { ...shopActions(), backHref: shopHref(session) });
+  mountShop(qsOrNull('#shop-root'), { ...shopActions(), backHref: farmHref(session) });
 
   // Boot 4: autosave, identical to the farm page. The purchase above saves on its
   // own; this is the safety net for anything else that changes the state here.
