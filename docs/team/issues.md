@@ -507,3 +507,33 @@ so these are all cheap to fix now and expensive to find later.
   Two people editing the same file is the main cause of merge conflicts, so it is worth an
   explicit yes.
 - Fix: _pending._ Confirm or amend at the first team meeting, then delete this entry.
+
+### ISS-036 The shop is a page, not the modal the plan describes
+- Reported by: Shabab | Owner: Shabab | Status: **fixed**
+- Where: `shop.html`, `js/shop-main.js`, `js/ui/shopView.js`, `js/ui/shopLauncher.js`
+- Problem: `docs/architecture.md` and `docs/team/ownership.md` describe a `shopPanel`
+  modal inside `index.html`, with `js/ui/topBar.js` and friends owned by one person. The team
+  asked for a separate page instead, to keep the files easy to read.
+- Cause: A deliberate design change after the plan was written, not a mistake.
+- Fix: Done in T-08. `shop.html` is its own page with its own entry script, so it repeats
+  the session gate the farm page has; `resolveSession` and `shopHref` are imported from
+  `js/main.js` rather than copied, and `shop-main.js` is now a wildcard entry in
+  `scripts/check-imports.mjs`. `shopPanel.js` is now `shopView.js`. The cost is stated
+  rather than hidden: two pages must answer the session question the same way, and a guest
+  needs `?guest=1` carried across the navigation in both directions or they would be sent
+  back to the login form they had already passed. The planned Land and Market tabs are not
+  built yet and `index.html` still shows placeholders for them.
+
+### ISS-037 Seed prices made the game unwinnable
+- Reported by: Shabab | Owner: Shabab | Status: **fixed**
+- Where: `js/config/crops.js`, `docs/crops.md`
+- Problem: The placeholder balance had rice seeds at 10 gold selling at 40 a planting. The
+  team set seed prices at 100 / 200 / 300 / 400 / 500, which against the old sell values
+  made every rice planting a 60 gold loss: a player who planted lost money, so the
+  sixteen-plot goal could never be reached.
+- Cause: `js/config/crops.js` was empty, so the crop numbers existed only in `docs/crops.md`
+  as prose nobody was reading against each other.
+- Fix: Done in T-08. `sellPrice` is now derived so that `yield * sellPrice` is exactly twice
+  `seedPrice` for every crop, giving the economy one rule instead of ten unrelated numbers,
+  and `tests/shop.test.js` asserts the invariant. Quality (plot health) is what erodes the
+  margin, so ignoring the forecast is what stops a farm compounding.

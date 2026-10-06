@@ -331,6 +331,10 @@ verbatim would let a file put a stale identity into state.
 | the auth provider call (Supabase) | `js/services/authApi.js` |
 | the temporary local provider | `js/services/localAuth.js` |
 | boot step 0, the session gate | `js/main.js` (`resolveSession`) |
+| the shop, prices and availability | `js/config/crops.js` |
+| the purchase rule | `js/domain/shop.js` (`buySeeds`) |
+| the shop button and the seed list | `js/ui/shopLauncher.js`, `js/ui/shopView.js` |
+| shop page layout | `css/shop.css`, `shop.html` |
 | field drawing / click bugs | `js/ui/farmView.js`, `js/ui/plotTile.js`, `js/utils/iso.js`, `css/field.css` |
 | page layout | `css/layout.css`, `index.html` |
 | login page layout | `css/auth.css`, `login.html` |
@@ -356,6 +360,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 .
 ├── index.html                  the game page — app shell, 3 grid columns
 ├── login.html                  the sign-in / sign-up page
+├── shop.html                   the seed shop — its own page, its own entry script
 ├── almanac.html                empty — placeholder page
 ├── LICENSE                     MIT
 ├── README.md
@@ -368,6 +373,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   ├── themes.css              dark and high-contrast token overrides
 │   ├── components.css          cards, buttons, inputs, meters, toasts
 │   ├── auth.css                the login card
+│   ├── shop.css                the shop sign and the seed list
 │   └── field.css               planned — isometric stage and plot layers
 │
 ├── data/
@@ -376,18 +382,21 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 ├── js/
 │   ├── main.js                 boot order, boot 0 is the session gate
 │   ├── auth-main.js            the login page entry, wires panel to provider
+│   ├── shop-main.js            the shop page entry, same gate as main.js
 │   ├── config/                 pure data, imports nothing
 │   │   ├── auth.js             storage keys, password policy, PBKDF2 cost
 │   │   ├── supabase.js         project URL + anon key (set, T-29)
 │   │   ├── api.js              URLs, default location, refresh interval
+│   │   ├── assets.js           every image path, in one place
 │   │   ├── field.js            FIELD geometry, ZONES, PLOT_PRICES
 │   │   ├── game.js             START_GOLD, PUMP, WATER, HEALTH, timings
-│   │   ├── crops.js            empty
+│   │   ├── crops.js            the crop table — prices, grow times, availability
 │   │   ├── cropWeatherMatrix.js empty
 │   │   ├── seasons.js          empty
 │   │   └── weatherEvents.js    empty
 │   ├── domain/                 game rules — no DOM, no fetch
 │   │   ├── authRules.js        what counts as a valid email or password
+│   │   ├── shop.js             buySeeds, canAfford, the refusal reasons
 │   │   ├── farm.js             empty
 │   │   ├── notifications.js    empty
 │   │   ├── simulator.js        empty
@@ -407,6 +416,9 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── loginFields.js      labelled input builders
 │   │   ├── loginPanel.js       the sign-in / sign-up form and its states
 │   │   ├── passwordReset.js    forgot-password: request, sent, set
+│   │   ├── savePanel.js        export / import a farm file
+│   │   ├── shopLauncher.js     the shop sign in the farm sidebar
+│   │   ├── shopView.js         the seed list on shop.html
 │   │   ├── toastStack.js       transient messages
 │   │   ├── topBar.js           logo, farmer name, sign-out
 │   │   └── weatherPanel.js     empty
@@ -430,12 +442,14 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   ├── images/
 │   │   ├── base.png            the slab under the field
 │   │   ├── pump.png            moves to pump/pump.png
+│   │   ├── Shop/
+│   │   │   └── shop.png        the shop sign, used as the shop button
 │   │   ├── crops/
-│   │   │   ├── rice/           rice_1.png … rice_5.png — the only playable crop
-│   │   │   ├── wheat/          empty — awaiting art
-│   │   │   ├── potato/         empty — awaiting art
-│   │   │   ├── corn/           empty — awaiting art
-│   │   │   └── tomato/         empty — awaiting art
+│   │   │   ├── rice/           rice_1.png … rice_5.png + "rice seed.png"
+│   │   │   ├── wheat/          "wheat seed.png" — stages awaiting art
+│   │   │   ├── potato/         "potato seed.png" — stages awaiting art
+│   │   │   ├── corn/           "corn seed.png" — stages awaiting art
+│   │   │   └── tomato/         "tomato seed.png" — stages awaiting art
 │   │   └── ground/
 │   │       ├── ground_watered.png
 │   │       └── ground_unwatered.png
@@ -451,6 +465,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   ├── authErrors.test.js      error mapping, account enumeration
 │   ├── authRules.test.js       validation rules
 │   ├── initialState.test.js    fresh farm, zones, session coercion
+│   ├── shop.test.js            the purchase rule and the crop economy
 │   ├── localAuth.test.js       the guest provider's contract
 │   └── store.test.js           persistence, save migration, corruption
 │
