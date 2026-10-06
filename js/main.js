@@ -22,11 +22,26 @@ import { adoptState, emit, exportPayload, getState, init, readImport, reset, sav
 import { mountToastStack } from './ui/toastStack.js';
 import { mountTopBar } from './ui/topBar.js';
 import { mountSavePanel } from './ui/savePanel.js';
+import { mountShopLauncher } from './ui/shopLauncher.js';
 import { AUTOSAVE_MS } from './config/game.js';
 
 const log = createLog('main');
 
 const LOGIN_URL = 'login.html';
+const SHOP_URL = 'shop.html';
+
+/**
+ * Where the shop button points.
+ *
+ * A guest session is deliberately never written to storage — see the comment on
+ * `resolveSession` — so the shop page cannot rediscover it and would bounce the
+ * player back to the login form, losing the "sign in once" promise in the middle
+ * of a game. Carrying `?guest=1` across the navigation is what keeps that
+ * promise; `shop-main.js` reads the same flag.
+ */
+export function shopHref(session) {
+  return session?.status === 'guest' ? `${SHOP_URL}?guest=1` : SHOP_URL;
+}
 
 /**
  * Boot step 0: who is playing?
@@ -74,10 +89,10 @@ function placeholder(label, detail) {
 
 function mountShell(session, onSignOut) {
   mountTopBar(qsOrNull('#top-bar'), { session, onSignOut });
+  mountShopLauncher(qsOrNull('#shop-launch'), { href: shopHref(session) });
 
   qsOrNull('#sidebar').append(
     placeholder('Season', 'Season card — T-11'),
-    placeholder('Shop', 'Seeds, land and market — T-08, T-10'),
     placeholder('Inventory', 'Seeds and harvest — T-08'),
   );
 
