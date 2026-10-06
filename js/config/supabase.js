@@ -12,19 +12,31 @@
  * any other file in the repo.** Those bypass RLS entirely and must live only in a
  * server environment. See DEC-018.
  *
- * Left as empty strings on purpose until the project exists: `authApi.js` refuses
- * to call anything until both are filled in, so a half-configured deploy fails
- * loudly instead of sending requests to a URL that does not exist.
+ * Set 2026-10-06, closing ISS-028 and the accounts half of ISS-032 (T-29).
+ *
+ * **Only the `anon` key is here.** Its JWT payload carries `role: "anon"` and
+ * the project ref, matching the URL above; a `service_role` key would carry
+ * `role: "service_role"` and must never be pasted into this file. Row Level
+ * Security is what makes the anon key safe, so it stays on — see DEC-018.
  */
 
-export const SUPABASE_URL = '';
+export const SUPABASE_URL = 'https://ygfrvwyydxrocvywzysk.supabase.co';
 
 /** The `anon` / publishable key from Project Settings → API. */
-export const SUPABASE_ANON_KEY = '';
+export const SUPABASE_ANON_KEY =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlnZnJ2d3l5ZHhyb2N2eXd6eXNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEyNTI2MzUsImV4cCI6MjEwNjgyODYzNX0.y8XKvC6hqfIxxrf0T7NPa-4xgxyZHjH6uVUB8ABkRzA';
 
-/** True when both values are present and the provider can be used. */
+/**
+ * True when both values are present and the provider can be used.
+ *
+ * Reads through `connection()`, the same accessor `gotrue.js` uses to build
+ * requests, rather than the test-override variables below. ISS-034: it used to
+ * read those, so "is the provider configured" and "what actually gets sent"
+ * were answered from two different sources.
+ */
 export function isSupabaseConfigured() {
-  return url.startsWith('https://') && anonKey.length > 0;
+  const live = connection();
+  return live.url.startsWith('https://') && live.anonKey.length > 0;
 }
 
 /** Why the provider is unavailable, for the UI to show instead of a network error. */

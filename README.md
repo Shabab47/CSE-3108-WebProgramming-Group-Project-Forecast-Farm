@@ -119,12 +119,21 @@ npm run check    # layering rules: imports, fetch, DOM access
 Append `?debug=1` to the URL for the debug panel: geometry sliders, gold and time cheats,
 forced weather, plot ids.
 
-> **Accounts are not live yet.** Sign-in works, but it runs against a local stand-in
-> (`js/services/localAuth.js`) that keeps accounts in this browser only. The real provider,
-> Supabase over plain `fetch()`, is written and tested but has no project to talk to — the URL and
-> anon key in `js/config/supabase.js` are still empty, so one flag in `js/auth-main.js` switches
-> between them ([DEC-018](docs/team/decisions.md), [DEC-020](docs/team/decisions.md)). Clearing site
-> data deletes a farm for good. See [ISS-032](docs/team/issues.md).
+> **Accounts are live.** Sign-in runs against Supabase over plain `fetch()`, with the project URL and
+> the `anon` key in `js/config/supabase.js` ([DEC-018](docs/team/decisions.md),
+> [DEC-020](docs/team/decisions.md)). Two dashboard settings are needed for a fresh clone, because
+> neither can be committed:
+>
+> - **Authentication → URL Configuration.** Add `http://localhost:5173` and the deployed origin to
+>   **Redirect URLs**, and set the same origin as **Site URL**. Without this, "forgot password"
+>   silently never delivers an email ([ISS-031](docs/team/issues.md)).
+> - **Confirm email** is currently **off**, so a new account signs in immediately. Turn it on before
+>   a demo to exercise the confirmation step — but the free tier's SMTP allowance is a few emails an
+>   hour shared by everyone, so a reviewer who signs up after the first may receive nothing.
+>
+> **Play as guest** stays local by design and writes nothing to the server; a guest farm cannot be
+> exported. Clearing site data deletes a guest farm for good. Exported farm files are
+> integrity-checked but **not signed** — see [ISS-032](docs/team/issues.md).
 
 ---
 
@@ -179,13 +188,13 @@ guest can still play without an account.
 | Save and restore | Progress survives a reload and a closed tab |
 | **Export your farm** | Writes a `.farm` file you can keep or move to another computer |
 | **Import a farm** | Reads one back, with a confirmation before it replaces anything |
-| Password reset | Written and tested; needs the account server switched on to finish |
+| Password reset | Live — needs the redirect URL set in the Supabase dashboard, see above |
 
 **Two limits worth knowing:**
 
-- **Accounts are local for now.** They live in this browser, so clearing site data deletes the account
-  and the farm, and there is no password reset email yet. The real provider is written but switched off
-  until a server exists. See [ISS-032](docs/team/issues.md).
+- **A guest farm is local only.** "Play as guest" writes nothing to the server, so clearing site data
+  deletes that farm permanently and it cannot be exported. A real account's farm can be moved with a
+  `.farm` file. See [ISS-027](docs/team/issues.md).
 - **An exported file cannot be trusted against a determined editor.** It is checked for corruption, and a
   hand-edited file is refused — but anyone who knows how can change the numbers and update the check.
   Making that impossible needs a server-held key. See

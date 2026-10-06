@@ -15,7 +15,8 @@
 
 import { qsOrNull, el } from './utils/dom.js';
 import { createLog } from './utils/log.js';
-import { currentSession, signInAsGuest, signOut as endAuth } from './services/localAuth.js';
+import { loadProvider } from './auth-main.js';
+import { signInAsGuest, signOut as endAuth } from './services/localAuth.js';
 import {
   adoptState,
   emit,
@@ -39,14 +40,26 @@ const LOGIN_URL = 'login.html';
 /**
  * Boot step 0: who is playing?
  *
+ * Asked of the provider `js/auth-main.js` selected, which is the point of ISS-033.
+ * This used to read the session out of localStorage via `localAuth.js`, which was
+ * fine while that *was* the provider and stops being fine the moment it is not: the
+ * login page would hold a Supabase session, this page would find nothing, and the
+ * player would be redirected back to login forever.
+ *
+ * `restoreSession()` is awaited because the Supabase access token is memory-only
+ * and a page navigation is a fresh module — without it every visit looks signed
+ * out. It is absent on the local provider, where the session is already in storage,
+ * hence the optional call.
+ *
  * `?guest=1` is how the login page hands a guest session over without putting it
  * in storage, so a guest's farm cannot be resumed by anyone else on the machine.
  *
- * @returns {object|null} a session, or null when the visitor must sign in
+ * @param {object} provider from `loadProvider()`
+ * @returns {Promise<object|null>} a session, or null when the visitor must sign in
  */
-export function resolveSession() {
-  const stored = currentSession();
-  if (stored) return stored;
+export async function resolveSession(provider) {
+  const live = provider.currentSession() ?? (await provider.restoreSession?.());
+  if (live) return live;
 
   const guest = new URLSearchParams(location.search).get('guest') === '1';
   if (guest) return signInAsGuest().session;
@@ -68,8 +81,8 @@ function placeholder(label, detail) {
   ]);
 }
 
-function mountShell(session) {
-  mountTopBar(qsOrNull('#top-bar'), { session, onSignOut: signOut });
+function mountShell(session, onSignOut) {
+  mountTopBar(qsOrNull('#top-bar'), { session, onSignOut });
 
   qsOrNull('#sidebar').append(
     placeholder('Season', 'Season card — T-11'),
@@ -136,18 +149,30 @@ function wireHud() {
   });
 }
 
-/** Sign out: flush the save, clear the session and the state, go back to login. */
-function signOut() {
+/**
+ * Sign out: flush the save, clear the session and the state, go back to login.
+ *
+ * The save is flushed *first*, so a slow network call cannot cost the player their
+ * crops. On the Supabase provider `signOut` is async.
+ */
+async function signOut(provider) {
   saveNow();
-  endAuth();
+  try {
+    await provider.signOut();
+  } catch (error) {
+    // The provider clears its local session regardless; log and continue rather
+    // than stranding the player on a page they asked to leave.
+    log.warn('sign out failed -', error.message);
+  }
   reset();
   log.info('signed out');
   location.replace(LOGIN_URL);
 }
 
-function start() {
+async function start() {
   // Boot 0: no session means the game is never mounted at all.
-  const session = resolveSession();
+  const provider = await loadProvider();
+  const session = await resolveSession(provider);
   if (!session) {
     log.info('no session, handing off to login');
     location.replace(LOGIN_URL);
@@ -160,7 +185,7 @@ function start() {
 
   // Boot 2
   mountToastStack();
-  mountShell(session);
+  mountShell(session, () => signOut(provider));
   wireHud();
 
   // Boot 4, partial: the simulator arrives in T-09. Autosave is safe now.
@@ -173,4 +198,14 @@ function start() {
   log.trace('boot complete for', getState()?.session?.userId);
 }
 
-start();
+/**
+ * Only on the real page.
+ *
+ * `tests/mainBoot.test.js` imports `resolveSession` to exercise the boot paths,
+ * and a bare `start()` would redirect that test process to the login page.
+ * `#top-bar` is on index.html and nowhere else, so it marks "the page, not an
+ * import".
+ */
+if (qsOrNull('#top-bar')) {
+  start();
+}

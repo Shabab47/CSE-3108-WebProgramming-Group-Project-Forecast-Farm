@@ -33,8 +33,8 @@ Weeks are in `goals.md`. Week 1 was planning; T-02 onward belong to weeks 2–5.
 | T-03 | Config + state: all `config/*`, `state/types.js`, `initialState.js`, `store.js` | Hisham | doing | 0 | — |
 | T-04 | Services cleanup: rewrite `weatherApi`, `timeApi`; add `geocodeApi`; **add reverse geocoding**; save sample; delete `map.js` | Afif | todo | 0 | — |
 | T-27 | **Login, out of plan order (DEC-017):** `loginPanel`, `loginFields`, `authErrors`, `authRules`, boot step 0, `state.session`, guest play | Hisham | done | 0 | week 2 |
-| T-28 | **`services/authApi.js` — Supabase over REST, the real provider.** Written and tested; needs the project URL and anon key | Shabab | doing | 0 | week 2 |
-| T-29 | **Create the Supabase project** and set the redirect URL, then flip `USE_LOCAL_PROVIDER`. Blocks real accounts, password reset and signed export | Shabab | todo | 0 | — |
+| T-28 | **`services/authApi.js` — Supabase over REST, the real provider.** Written and tested; needs the project URL and anon key | Shabab | done | 0 | week 2 |
+| T-29 | **Create the Supabase project** and set the redirect URL, then flip `USE_LOCAL_PROVIDER`. Code side done; the dashboard's Redirect URLs are still Shabab's to set — ISS-031 | Shabab | doing | 0 | week 2 |
 | T-30 | **Export and import a farm:** `state/transfer.js` (format, checksum, rebase), `utils/checksum.js`, `ui/savePanel.js`, `store.adoptState` | Hisham | done | 0 | week 2 |
 
 ## Phase 1 — Page and field · week 2
@@ -79,9 +79,8 @@ nobody discovers them mid-build.
 
 | Issue | Blocks | Fix in |
 | :--- | :--- | ---: |
-| ISS-032 no Supabase project, so login runs local, reset cannot finish, export is unsigned | T-28, T-29, T-30 | 0 |
+| ISS-032 no server for signed export; accounts and reset now unblocked | T-30 | 0 |
 | ISS-031 no allowed redirect URL, so a password-reset email never arrives | T-29 | 0 |
-| ISS-028 `authApi.js` has no credentials, so it refuses every call | T-28, T-29 | 0 |
 | ISS-027 `localAuth.js` is a second storage writer | T-29 | 0 |
 | ISS-010 `check-imports` fails on `utils/dom.js` | T-02 | 0 |
 | ISS-009 current-hour index not specified | T-04, T-12 | 0 |

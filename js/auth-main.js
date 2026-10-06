@@ -5,31 +5,23 @@
  * auth provider, which is exactly the arrangement `docs/architecture.md`
  * describes: callbacks go in through `mountX(root, actions)`.
  *
- * **Provider swap point.** `localAuth` below is a local stand-in. When
- * `js/services/authApi.js` lands (Shabab, Supabase over REST), change this one
- * import and delete `localAuth.js`. Nothing in `js/ui/` moves.
- */
-
-/**
- * Entry point for login.html.
- *
- * Wiring only. This is the one module allowed to import both a UI panel and the
- * auth provider, which is exactly the arrangement `docs/architecture.md`
- * describes: callbacks go in through `mountX(root, actions)`.
- *
  * ## Provider swap
  *
- * `PROVIDER` below is the only line that names a provider. It is imported
- * dynamically from a string so the module graph stays swappable without an edit
- * here — set `USE_LOCAL_PROVIDER = false` and the real Supabase provider loads
- * instead. Both implement the identical contract (DEC-017), so no panel changes.
+ * `USE_LOCAL_PROVIDER` below is the only line that names a provider. It is
+ * imported dynamically from a string so the module graph stays swappable without
+ * an edit here — set it to `false` and the real Supabase provider loads instead.
+ * Both implement the identical contract (DEC-017), so no panel changes.
  *
  *   USE_LOCAL_PROVIDER = true   localAuth.js  — accounts in localStorage, no backend
  *   USE_LOCAL_PROVIDER = false  authApi.js    — Supabase over REST, real accounts
  *
- * Local stays the default until a Supabase project exists and
- * `js/config/supabase.js` has a URL and anon key in it. Without the key,
- * `authApi.js` refuses every call rather than sending requests to nowhere.
+ * It is now `false`: `js/config/supabase.js` has a project URL and anon key.
+ *
+ * `loadProvider` is exported because `js/main.js` boots against the **same**
+ * provider (ISS-033). It used to import `localAuth.js` directly, so with the flag
+ * flipped here and not there, the login page issued a real Supabase session and
+ * the game page then read localStorage, found nothing, and redirected back to
+ * this form — a loop. Both entry points must ask the same question.
  */
 
 import { qsOrNull } from './utils/dom.js';
@@ -43,13 +35,13 @@ const log = createLog('auth-main');
 const GAME_URL = 'index.html';
 
 /**
- * Flip to false once Supabase is configured. Kept as a named constant so the
- * switch is one line and greppable, not a commented-out import.
+ * `false` since 2026-10-06: Supabase is configured (T-29). Kept as a named
+ * constant so the switch is one line and greppable, not a commented-out import.
  */
-const USE_LOCAL_PROVIDER = true;
+const USE_LOCAL_PROVIDER = false;
 
 /** Loaded lazily so a missing or broken provider module cannot break the page. */
-async function loadProvider() {
+export async function loadProvider() {
   if (USE_LOCAL_PROVIDER) {
     log.info('using the local provider (accounts live in this browser only)');
     return localAuth;
@@ -98,10 +90,17 @@ async function start() {
   const provider = await loadProvider();
   const recoveryToken = readRecoveryToken();
 
+  // The Supabase access token lives in memory only, so on any fresh page load
+  // `currentSession()` is null even for a player who is genuinely signed in.
+  // `restoreSession()` mints a new one from the stored refresh token, which is
+  // what makes this check see a real session. Absent on the local provider, hence
+  // the optional call — there the session is in storage already.
+  const session = provider.currentSession() ?? (await provider.restoreSession?.());
+
   // Already signed in, and not arriving to change a password: the form has
   // nothing to offer. Guests are not signed in, so a guest who comes back here
   // sees the form again rather than a dead end.
-  if (provider.currentSession() && !recoveryToken) {
+  if (session && !recoveryToken) {
     log.trace('session already active, going to the farm');
     goToGame();
     return;
@@ -158,4 +157,15 @@ async function start() {
   showLogin();
 }
 
-start();
+/**
+ * Only on the real page.
+ *
+ * `js/main.js` imports `loadProvider` from here (ISS-033), so this module is no
+ * longer only ever loaded by login.html. Without the guard, importing it from the
+ * game page would boot the login form and redirect the player away from their
+ * farm. `#auth-root` is on login.html and nowhere else, so it is the marker for
+ * "this is the page, not an import".
+ */
+if (qsOrNull('#auth-root')) {
+  start();
+}

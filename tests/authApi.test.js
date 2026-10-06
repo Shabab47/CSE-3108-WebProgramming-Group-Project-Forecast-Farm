@@ -1,8 +1,11 @@
 /**
  * Tests for the Supabase auth provider.
  *
- * `fetch` is stubbed, so these run with no network and no project. That is the
- * point: the URL and anon key are still empty, and the suite has to pass anyway.
+ * `fetch` is stubbed, so these run with no network and never touch the real
+ * project — every test installs its own URL and key via `__setForTest`, which is
+ * why the credentials now committed to `js/config/supabase.js` cannot make this
+ * suite call out by accident.
+ *
  * What is verified here is the mapping and the contract — that provider codes
  * become our neutral reason names, that no raw GoTrue string escapes, and that
  * every credential failure looks identical from the outside.
