@@ -45,12 +45,11 @@ const UNLAYERED = new Set(['utils/dom.js', 'utils/iso.js', 'utils/log.js']);
  * entry that no longer applies means the fix landed, so delete it in the same
  * commit.
  *
- *   map.js        deleted in T-04 (DEC-012)
+ *   map.js        gone. DEC-012 deleted it; it had been sitting on disk.
  *   weatherApi    rewritten in T-04 (DEC-004)
  *   timeApi       rewritten in T-04 (DEC-003)
  */
 const KNOWN = new Set([
-  'services/map.js:7  alert() is banned; show a toast instead',
   'services/timeApi.js:7  document. outside js/ui/ (utils/dom.js is whitelisted)',
   'services/timeApi.js:13  document. outside js/ui/ (utils/dom.js is whitelisted)',
   'services/weatherApi.js:2  document. outside js/ui/ (utils/dom.js is whitelisted)',

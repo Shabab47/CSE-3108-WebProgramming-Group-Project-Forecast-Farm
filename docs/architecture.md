@@ -368,8 +368,6 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── gotrue.js           the GoTrue transport and error mapping
 │   │   ├── tokenStore.js       the only place a token is written to storage
 │   │   ├── localAuth.js        the GUEST provider, same contract
-│   │   ├── map.js              DELETE — Nominatim + Leaflet, references an
-│   │   │                       undefined `map` global and calls alert()
 │   │   ├── timeApi.js          rewrites — writes straight into the DOM
 │   │   └── weatherApi.js       rewrites — OpenWeatherMap placeholder key
 │   ├── ui/                     render only, reads the store

@@ -72,6 +72,41 @@ The per-person weekly notes that used to live in the README table are now in `me
 
 ---
 
+## Hisham — dead code sweep after the Supabase project landed
+
+- **Did:** Went looking for code nothing can reach, rather than trusting the word "dead" in a
+  comment. Checked every file under `js/` for an import of it anywhere in `js/`, `scripts/`,
+  `tests/` and the HTML, then checked every export of `config/auth.js` the same way.
+- **Deleted `js/services/map.js`.** DEC-012 deleted this file weeks ago and the decision was
+  logged, but it was still sitting on disk — broken Leaflet code calling an undefined `map`
+  global and `alert()`. It was one of the six known layering violations, which is how a file that
+  was supposed to be gone kept showing up in `npm run check`. Known violations are now **5, not 6**.
+- **Deleted two dead config exports.** `SESSION_LIFETIME_MS` and `STRENGTH_LEVELS` were read by
+  nothing anywhere. The password-strength buckets were never wired to the meter on the sign-up form,
+  which shows live per-rule guidance instead, so the buckets described a UI that does not exist.
+- **Fixed a duplication rather than deleting it.** `saveFile.js` spelled out
+  `forecastFarm.save.v1:` while `config/auth.js` exported `AUTH_KEYS.savePrefix` for the same
+  thing. Two sources for one storage key is how a change to one silently orphans every existing
+  save. `saveFile.js` now reads the config. No behaviour change: the tests assert the exact keys.
+- **What I did NOT delete, and why.** `localAuth.js` is 6.8 kB of account table, PBKDF2 hashing
+  and session storage, and ISS-027 does prescribe deleting it now that `authApi.js` is live. I left
+  it. It is not dead: `auth-main.js` still uses it as the fallback when `authApi.js` fails to
+  import, `main.js` calls its `signInAsGuest()`, and **three test files use it as a fixture**,
+  including `tests/mainBoot.test.js`. Deleting it is a refactor across Shabab's tests, not a
+  dead-code sweep, and it belongs in its own commit with him rather than folded in here. It goes
+  when `HASH` and the `accounts`/`session` keys go with it.
+- **Also left alone:** `weatherApi.js` and `timeApi.js`. Both are junk today — a fake
+  `YOUR_API_KEY` and code that writes straight into the DOM — but both are scheduled for T-04 and
+  DEC-003 keeps `timeApi.js` as a deliberate fallback. Deleting them would delete planned work in
+  Afif's folder, not dead code. They are the remaining five known violations and should disappear
+  when T-04 rewrites them.
+- **Files:** `js/services/map.js` (deleted), `js/config/auth.js`, `js/state/saveFile.js`,
+  `scripts/check-imports.mjs`, `docs/architecture.md`, `docs/team/goals.md`, `docs/team/tasks.md`
+- **Next:** ISS-027 with Shabab, once he is happy with the fallback behaviour. T-04 for the two
+  placeholder services.
+
+---
+
 ## Hisham — live provider check after the Supabase project landed
 
 - **Did:** Shabab created the Supabase project and flipped `USE_LOCAL_PROVIDER`, and fixed two

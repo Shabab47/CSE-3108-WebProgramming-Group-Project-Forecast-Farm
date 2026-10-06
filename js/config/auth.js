@@ -41,7 +41,12 @@ export const PASSWORD_RULES = [
 export const NAME_MIN_LENGTH = 2;
 export const NAME_MAX_LENGTH = 24;
 
-/** PBKDF2 parameters. Iterations are deliberately slow. */
+/**
+ * PBKDF2 parameters, used only by the legacy local provider.
+ *
+ * Dead on the Supabase path — the real provider never hashes a password in the
+ * browser — so this goes away with `localAuth.js` (ISS-027).
+ */
 export const HASH = {
   algorithm: 'PBKDF2',
   hash: 'SHA-256',
@@ -49,14 +54,3 @@ export const HASH = {
   saltBytes: 16,
   keyBits: 256,
 };
-
-/** How long a signed-in session stays valid. */
-export const SESSION_LIFETIME_MS = 30 * 24 * 60 * 60 * 1000;
-
-/** Password strength buckets, weakest first. Used by the meter on the form. */
-export const STRENGTH_LEVELS = [
-  { id: 'weak', label: 'Weak' },
-  { id: 'fair', label: 'Fair' },
-  { id: 'good', label: 'Good' },
-  { id: 'strong', label: 'Strong' },
-];
