@@ -20,6 +20,23 @@ let state = null;
 let userId = null;
 let saveTimer = null;
 
+/**
+ * The server-side save, when there is one.
+ *
+ * Injected rather than imported, because `check-imports.mjs` stops `state/`
+ * importing `services/` — the token lives in the auth provider and cannot cross
+ * that line. `js/main.js` builds it and hands it in at `init()`.
+ *
+ * Shape: `{ read(): Promise<{ok, state}|{ok:false, reason}>, write(state) }`.
+ * `userId` is already known here, so it is not a parameter.
+ *
+ * localStorage stays as the offline cache underneath it. The server is the
+ * authority when it answers; when it does not — offline, table missing, timeout
+ * — play continues from the cache rather than failing. See
+ * `supabase/migrations/001_farm_saves.sql`.
+ */
+let remote = null;
+
 const subscribers = new Set();
 const busListeners = new Map();
 
@@ -111,23 +128,48 @@ export function apply(fn, ...args) {
  * Build the initial state: load this user's save if there is one, otherwise start
  * a brand new farm. Either way the session goes into state.
  *
+ * `remote` is the server-side save, if the game has one. When given, it is
+ * consulted first and localStorage is the fallback; when omitted — a guest, a
+ * test, or the local provider — behaviour is exactly as before.
+ *
+ * The two-step matters: the server is the authority, but a player whose network
+ * dropped mid-session keeps playing from their last local copy rather than losing
+ * the farm. It is written back on the next successful save.
+ *
  * @param {{status:string, userId:string, email:string, farmerName:string}|null} session
  * @param {(session: object|null) => object} [build] injectable for tests
- * @returns {{state: object, loaded: boolean}}
+ * @param {{read:Function, write:Function}|null} [server] injected by main.js
+ * @returns {{state: object, loaded: boolean, fromServer: boolean}}
  */
-export function init(session, build = buildInitialState) {
+export async function init(session, build = buildInitialState, server = null) {
   userId = session?.userId ?? 'anon';
+  remote = server;
 
-  const saved = load();
+  let saved = null;
+  let fromServer = false;
+
+  if (remote) {
+    const result = await remote.read();
+    if (result.ok && result.state) {
+      saved = result.state;
+      fromServer = true;
+    } else if (!result.ok) {
+      // Not an error the player needs to see. The local copy below covers it.
+      log.warn('server save unavailable, using the local copy -', result.reason);
+    }
+  }
+
+  if (!saved) saved = load();
+
   state = saved ? adoptSession(saved, session) : build(session);
 
-  log.info(saved ? 'resumed farm' : 'new farm', 'for', userId);
+  log.info(fromServer ? 'resumed farm from server' : saved ? 'resumed farm' : 'new farm', 'for', userId);
   notify();
 
   // Written now, not debounced: a farm first persisted by the autosave would be
   // lost if the tab closed in the next 800 ms.
-  saveNow();
-  return { state, loaded: Boolean(saved) };
+  await saveNow();
+  return { state, loaded: Boolean(saved), fromServer };
 }
 
 /**
@@ -143,6 +185,7 @@ function adoptSession(saved, session) {
 export function reset() {
   state = null;
   userId = null;
+  remote = null;
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = null;
   subscribers.clear();
@@ -161,13 +204,31 @@ export function save() {
   return true;
 }
 
-/** Write now, bypassing the debounce. Used on pagehide. */
-export function saveNow() {
+/**
+ * Write now, bypassing the debounce. Used on pagehide.
+ *
+ * localStorage first, always: it is synchronous, so the save is durable the
+ * moment this returns even if the tab is closing and the network request will
+ * not finish. The server write follows and is best-effort — if it fails, the
+ * cache is still correct and the next save retries.
+ */
+export async function saveNow() {
   if (saveTimer) {
     clearTimeout(saveTimer);
     saveTimer = null;
   }
-  return writeSave(userId, state);
+  if (!state || !userId) return false;
+
+  const written = writeSave(userId, state);
+  if (remote) {
+    try {
+      await remote.write(state);
+    } catch (error) {
+      // Never thrown out of a save. A dropped connection must not stop the game.
+      log.warn('server save failed, local copy kept -', error.message);
+    }
+  }
+  return written;
 }
 
 /** This user's save, or null when there is none worth using. */
@@ -175,9 +236,21 @@ export function load() {
   return readSave(userId);
 }
 
-/** Delete this user's save. */
-export function clearSave() {
+/**
+ * Delete this user's save.
+ *
+ * Both copies: the server row as well as the local cache, or signing out and back
+ * in on the same machine would resurrect a farm the player just deleted.
+ */
+export async function clearSave() {
   deleteSave(userId);
+  if (remote) {
+    try {
+      await remote.delete?.();
+    } catch (error) {
+      log.warn('could not clear the server save -', error.message);
+    }
+  }
 }
 
 /* --- import -----------------------------------------------------------------

@@ -220,13 +220,42 @@ readable by any script on the origin.
 
 ## Saving a farm, and moving it
 
-Three separate things, easy to confuse:
+Four separate things, easy to confuse:
 
 | | Where it lives | What it is for |
 | :--- | :--- | :--- |
 | **Autosave** | `localStorage`, every 10 s | the game remembering itself between visits |
+| **Server save** | a `farm_saves` row in Supabase | the farm following the player across devices |
 | **Export** | a `.farm` file the player keeps | backup, and moving to another computer |
 | **Import** | reads that file back | restoring, or starting over from someone else's farm |
+
+### The server save
+
+One row per account in `public.farm_saves`, created by
+`supabase/migrations/001_farm_saves.sql`. **That migration is run by hand in the
+Supabase dashboard** — it is the one thing in this section a browser cannot do.
+Until it has been run, every read returns "table not found" and the game plays
+exactly as before, from localStorage.
+
+**The server is the authority; localStorage is the offline cache underneath it.**
+`store.init()` asks the server first and falls back to the local copy. Every save
+writes the local copy first — synchronously, so it is durable even if the tab is
+closing — and then tries the server. A player whose connection drops mid-session
+keeps playing instead of losing the farm. A **404 is deliberately not treated as
+"no farm"**, only a 406 is: a missing table must not start a new farm that then
+overwrites the real one.
+
+`store.js` may not import a service, so the adapter is assembled in
+`js/remoteSave.js`, beside the entry points. It captures the access token **once**,
+so an autosave firing after sign-out cannot post a farm under a session that no
+longer exists. Guests get no server save at all: without a token `auth.uid()` is
+null, the RLS policy matches no row, and every request would 401.
+
+**`init`, `saveNow` and `clearSave` are async.** A breaking change to the store's
+contract, and deliberate — a synchronous `init` would write a fresh farm over the
+server's copy before reading it.
+
+### The export file
 
 `state/transfer.js` owns the file format and is **pure** — no storage, no DOM, and
 `Date.now()` is passed in. `ui/savePanel.js` owns the browser half (`Blob`,
@@ -368,8 +397,6 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── gotrue.js           the GoTrue transport and error mapping
 │   │   ├── tokenStore.js       the only place a token is written to storage
 │   │   ├── localAuth.js        the GUEST provider, same contract
-│   │   ├── map.js              DELETE — Nominatim + Leaflet, references an
-│   │   │                       undefined `map` global and calls alert()
 │   │   ├── timeApi.js          rewrites — writes straight into the DOM
 │   │   └── weatherApi.js       rewrites — OpenWeatherMap placeholder key
 │   ├── ui/                     render only, reads the store
@@ -458,8 +485,10 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 
 | Module | Exports | Notes |
 | :--- | :--- | :--- |
-| `state/store.js` | `getState`, `apply`, `subscribe`, `on`, `emit`, `save`, `saveNow`, `load`, `init`, `reset`, `clearSave`, `adoptState`, `exportPayload`, `readImport` | `subscribe` returns an unsubscribe fn |
-| `state/saveFile.js` | `saveKey`, `writeSave`, `readSave`, `deleteSave` | the only writer of game saves |
+| `state/store.js` | `getState`, `apply`, `subscribe`, `on`, `emit`, `save`, `saveNow`, `load`, `init`, `reset`, `clearSave`, `adoptState`, `exportPayload`, `readImport` | `subscribe` returns an unsubscribe fn. **`init`, `saveNow` and `clearSave` are async** |
+| `state/saveFile.js` | `saveKey`, `writeSave`, `readSave`, `deleteSave` | the local cache writer |
+| `services/saveApi.js` | `readRemoteSave`, `writeRemoteSave`, `deleteRemoteSave`, `countRemoteSaves` | the server save; takes the token per call |
+| `remoteSave.js` | `buildServerSave` | the join, at the top of `js/` beside the entry points |
 | `state/transfer.js` | `exportToText`, `exportFilename`, `readExport`, `rebaseState`, `importFromText`, `verifySignature`, `SAVE_EXTENSION` | pure; the caller passes `now` |
 | `utils/checksum.js` | `checksum`, `checksumsMatch` | FNV-1a. Detects damage, **not** tampering |
 | `services/authApi.js` | `signIn`, `signUp`, `signOut`, `currentSession`, `requestPasswordReset`, `updatePassword`, `restoreSession` | same contract as `localAuth.js` |

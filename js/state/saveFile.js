@@ -12,12 +12,16 @@
 
 import { createLog } from '../utils/log.js';
 import { STATE_VERSION } from '../config/game.js';
+import { AUTH_KEYS } from '../config/auth.js';
 
 const log = createLog('saveFile');
 
 /** Where one user's save lives. */
 export function saveKey(userId) {
-  return userId ? `forecastFarm.save.v1:${userId}` : null;
+  // The prefix comes from config rather than being spelled out here, so there is
+  // one place that decides the key. The two were duplicated, and a change to one
+  // would have silently orphaned every existing save.
+  return userId ? `${AUTH_KEYS.savePrefix}${userId}` : null;
 }
 
 /** Write immediately. Returns false when storage refused. */

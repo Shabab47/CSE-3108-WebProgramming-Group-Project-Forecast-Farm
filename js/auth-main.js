@@ -143,7 +143,15 @@ async function start() {
       onForgotPassword() {
         panel?.unmount();
         panel = mountPasswordReset(root, {
-          requestPasswordReset: provider.requestPasswordReset,
+          // Wrapped rather than passed straight through, so the redirect target
+          // is derived from the page actually being served. Without it GoTrue sends
+          // the recovery link to the project's Site URL, and this page is the only
+          // one that reads the token out of the fragment — so a Site URL pointing
+          // anywhere else means the reset silently never completes (ISS-031).
+          requestPasswordReset: (options) => provider.requestPasswordReset({
+            ...options,
+            redirectTo: new URL('login.html', location.href).href,
+          }),
           updatePassword: provider.updatePassword,
           recoveryToken: () => recoveryToken,
           onBack(notice) {

@@ -31,7 +31,7 @@ Weeks are in `goals.md`. Week 1 was planning; T-02 onward belong to weeks 2–5.
 | :--- | :--- | :--- | :--- | ---: | :--- |
 | T-02 | Tooling: `package.json`, `scripts/check-imports.mjs`, `utils/log.js`, first passing test | Hisham | done | 0 | — |
 | T-03 | Config + state: all `config/*`, `state/types.js`, `initialState.js`, `store.js` | Hisham | doing | 0 | — |
-| T-04 | Services cleanup: rewrite `weatherApi`, `timeApi`; add `geocodeApi`; **add reverse geocoding**; save sample; delete `map.js` | Afif | todo | 0 | — |
+| T-04 | Services cleanup: rewrite `weatherApi`, `timeApi`; add `geocodeApi`; **add reverse geocoding**; save sample. ~~delete `map.js`~~ done | Afif | todo | 0 | — |
 | T-27 | **Login, out of plan order (DEC-017):** `loginPanel`, `loginFields`, `authErrors`, `authRules`, boot step 0, `state.session`, guest play | Hisham | done | 0 | week 2 |
 | T-28 | **`services/authApi.js` — Supabase over REST, the real provider.** Written and tested; needs the project URL and anon key | Shabab | done | 0 | week 2 |
 | T-29 | **Create the Supabase project** and set the redirect URL, then flip `USE_LOCAL_PROVIDER`. Code side done; the dashboard's Redirect URLs are still Shabab's to set — ISS-031 | Shabab | doing | 0 | week 2 |

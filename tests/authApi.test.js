@@ -103,6 +103,44 @@ test('with no URL and key it refuses instead of calling out', async () => {
   assert.equal(calls.length, 0, 'no request is attempted against a URL that does not exist');
 });
 
+test('the wording GoTrue actually uses for a bad address is mapped', async () => {
+  // The exact string from the live project, captured 2026-10-06. The pattern
+  // originally expected "invalid email" and missed this, so a bad address showed
+  // "That did not work" instead of naming the problem — see ISS-035. Written from
+  // a real response, not from the docs, which is the whole point.
+  const real = 'Email address "someone@example.com" is invalid';
+  stubFetch(() => ({ status: 400, body: { msg: real } }));
+
+  const result = await signUp({ email: 'someone@example.com', password: 'rice2026', farmerName: 'Someone' });
+
+  assert.equal(result.reason, 'email_invalid');
+});
+
+test('the live enumeration guard: one text for both credential failures', async () => {
+  // Captured from the live project. GoTrue returns byte-identical text for a
+  // wrong password and an unknown account, and ours collapses them again at the
+  // provider layer, so the oracle is closed in two places rather than one.
+  const live = 'Invalid login credentials';
+  stubFetch(() => ({ status: 400, body: { error_description: live } }));
+
+  const wrongPassword = await signIn({ email: 'farmer@rice.bd', password: 'wrongpass1' });
+  stubFetch(() => ({ status: 400, body: { error_description: live } }));
+  const noAccount = await signIn({ email: 'nobody@rice.bd', password: 'rice2026' });
+
+  assert.equal(wrongPassword.reason, 'invalid_credentials');
+  assert.equal(noAccount.reason, 'invalid_credentials');
+});
+
+test('rate limiting is live on the project and is mapped, not swallowed', async () => {
+  // The live project returned 429 with this text once the probe filled the hourly
+  // quota. It must reach the player as "wait a minute", not as a credential error.
+  stubFetch(() => ({ status: 429, body: { msg: 'email rate limit exceeded' } }));
+
+  const result = await signUp({ email: 'farmer@rice.bd', password: 'rice2026', farmerName: 'Someone' });
+
+  assert.equal(result.reason, 'too_many_requests');
+});
+
 test('the committed config exports no credentials of its own', async () => {
   // The anon key IS safe to commit by design, so this asserts something weaker
   // and more useful: the module's public exports carry no live secret, and the
@@ -240,6 +278,21 @@ test('sign-up with no session yet reports that confirmation is needed', async ()
 });
 
 /* --- password reset -------------------------------------------------------- */
+
+test('a reset request tells GoTrue where to send the player back to', async () => {
+  // Without redirect_to, GoTrue uses the project's Site URL. This page is the only
+  // one that reads the token out of the fragment, so if Site URL pointed anywhere
+  // else the reset would land on a page that ignores it and silently fail — ISS-031.
+  await requestPasswordReset({ email: 'farmer@rice.bd', redirectTo: 'https://app.test/login.html' });
+
+  assert.equal(calls[0].body.redirect_to, 'https://app.test/login.html');
+});
+
+test('a reset request with no redirect target still works, and omits the field', async () => {
+  await requestPasswordReset({ email: 'farmer@rice.bd' });
+
+  assert.equal('redirect_to' in calls[0].body, false, 'no empty string sent to GoTrue');
+});
 
 test('a reset request reports success even when GoTrue refuses', async () => {
   // GoTrue answers identically for unknown addresses, to avoid the same oracle.

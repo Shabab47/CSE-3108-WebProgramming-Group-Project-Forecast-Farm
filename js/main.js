@@ -17,17 +17,8 @@ import { qsOrNull, el } from './utils/dom.js';
 import { createLog } from './utils/log.js';
 import { loadProvider } from './auth-main.js';
 import { signInAsGuest, signOut as endAuth } from './services/localAuth.js';
-import {
-  adoptState,
-  emit,
-  exportPayload,
-  getState,
-  init,
-  readImport,
-  reset,
-  saveNow,
-  subscribe,
-} from './state/store.js';
+import { buildServerSave } from './remoteSave.js';
+import { adoptState, emit, exportPayload, getState, init, readImport, reset, saveNow, subscribe } from './state/store.js';
 import { mountToastStack } from './ui/toastStack.js';
 import { mountTopBar } from './ui/topBar.js';
 import { mountSavePanel } from './ui/savePanel.js';
@@ -179,8 +170,9 @@ async function start() {
     return;
   }
 
-  // Boot 1
-  const { loaded } = init(session);
+  // Boot 1. The server save is assembled in `state/remoteSave.js` because `state/`
+  // may not import a service — it is the one place that knows about both.
+  const { loaded } = await init(session, undefined, buildServerSave(provider, session));
   log.info(loaded ? 'resumed farm' : 'started a new farm');
 
   // Boot 2

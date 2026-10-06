@@ -72,6 +72,122 @@ The per-person weekly notes that used to live in the README table are now in `me
 
 ---
 
+## Hisham — server-side save storage, pending one manual SQL step
+
+- **Did:** Added the farm to Supabase so it follows a player across machines, which is the one
+  thing the browser save could not do. `supabase/migrations/001_farm_saves.sql` creates the table
+  and its Row Level Security policy; `js/services/saveApi.js` talks to PostgREST; `js/remoteSave.js`
+  assembles the adapter and `store.js` calls it.
+- **BLOCKED ON ONE MANUAL STEP.** The migration has to be pasted into the Supabase dashboard's SQL
+  editor. A browser cannot create a table, and the only other route is a `service_role` key, which
+  bypasses RLS and must never be in this repo (DEC-018). Until it is run, reads return "table not
+  found" and **the game plays exactly as it did before** — no migration, no visible change.
+- **localStorage is kept, deliberately, as an offline cache.** The server is the authority;
+  localStorage is what the player falls back to when the network drops. Each save writes the local
+  copy first — synchronously, so it survives the tab closing — then tries the server. Without
+  that, one dropped connection would cost someone their farm. This also means shipping it is not a
+  cliff: worst case before the SQL is run is the current behaviour.
+- **A 404 is not treated as "no farm".** Only a 406 is, because 406 genuinely means "this player
+  has no row yet". A 404 means the migration has not been run, and calling that "no farm" would
+  start a new farm and then overwrite the real one on the next save. There is a test that pins
+  that distinction, because it is the difference between a missing table and a data-loss bug.
+- **Breaking change:** `store.init()`, `saveNow()` and `clearSave()` are now `async`. A synchronous
+  `init` would write a fresh farm over the server's copy before reading it, so this one is not
+  optional. `tests/store.test.js` and `tests/localAuth.test.js` updated accordingly, and the
+  storage-throws case became `doesNotReject`, since the async equivalent of `doesNotThrow` is the
+  honest assertion.
+- **The layering check caught me putting the join in the wrong folder.** `state/` may not import a
+  service, so `state/remoteSave.js` failed `npm run check` with exactly that error. Moved to
+  `js/remoteSave.js`, beside `main.js` and `auth-main.js` — the entry points, which have no import
+  rules. That is the check earning its keep rather than being decoration.
+- **Tests 136 → 159.** `tests/saveApi.test.js` covers the request shape with `fetch` stubbed, so it
+  passes whether or not the table exists: the upsert (`resolution=merge-duplicates` plus
+  `on_conflict=user_id`), both auth headers, the no-farm 406, the missing-table 404, timeout, and
+  that no `service_role` string appears anywhere. Seven more in `store.test.js` cover the fallback:
+  server-first, offline fallback, failed write keeping the local copy, and `clearSave` removing
+  both copies.
+- **Also exposed:** `authApi.accessToken()`, because the token cannot cross from `services/` to
+  `services/` or to `state/`. It is deliberately not exposed to any UI module — a panel must never
+  see a token, or a template could render it into the page.
+- **Files:** `supabase/migrations/001_farm_saves.sql`, `js/services/saveApi.js`,
+  `js/remoteSave.js`, `js/state/store.js`, `js/state/saveFile.js`, `js/services/authApi.js`,
+  `js/main.js`, `tests/saveApi.test.js`, `tests/store.test.js`, `docs/architecture.md`
+- **Not verified:** anything requiring the real table. The RLS policy is reasoned about, not
+  executed, so it has to be tested against the live project once the migration is run.
+- **Next:** run the SQL, then check a farm saves, survives a reload, and reappears in another
+  browser. After that, ISS-027 with Shabab.
+
+---
+
+## Hisham — dead code sweep after the Supabase project landed
+
+- **Did:** Went looking for code nothing can reach, rather than trusting the word "dead" in a
+  comment. Checked every file under `js/` for an import of it anywhere in `js/`, `scripts/`,
+  `tests/` and the HTML, then checked every export of `config/auth.js` the same way.
+- **Deleted `js/services/map.js`.** DEC-012 deleted this file weeks ago and the decision was
+  logged, but it was still sitting on disk — broken Leaflet code calling an undefined `map`
+  global and `alert()`. It was one of the six known layering violations, which is how a file that
+  was supposed to be gone kept showing up in `npm run check`. Known violations are now **5, not 6**.
+- **Deleted two dead config exports.** `SESSION_LIFETIME_MS` and `STRENGTH_LEVELS` were read by
+  nothing anywhere. The password-strength buckets were never wired to the meter on the sign-up form,
+  which shows live per-rule guidance instead, so the buckets described a UI that does not exist.
+- **Fixed a duplication rather than deleting it.** `saveFile.js` spelled out
+  `forecastFarm.save.v1:` while `config/auth.js` exported `AUTH_KEYS.savePrefix` for the same
+  thing. Two sources for one storage key is how a change to one silently orphans every existing
+  save. `saveFile.js` now reads the config. No behaviour change: the tests assert the exact keys.
+- **What I did NOT delete, and why.** `localAuth.js` is 6.8 kB of account table, PBKDF2 hashing
+  and session storage, and ISS-027 does prescribe deleting it now that `authApi.js` is live. I left
+  it. It is not dead: `auth-main.js` still uses it as the fallback when `authApi.js` fails to
+  import, `main.js` calls its `signInAsGuest()`, and **three test files use it as a fixture**,
+  including `tests/mainBoot.test.js`. Deleting it is a refactor across Shabab's tests, not a
+  dead-code sweep, and it belongs in its own commit with him rather than folded in here. It goes
+  when `HASH` and the `accounts`/`session` keys go with it.
+- **Also left alone:** `weatherApi.js` and `timeApi.js`. Both are junk today — a fake
+  `YOUR_API_KEY` and code that writes straight into the DOM — but both are scheduled for T-04 and
+  DEC-003 keeps `timeApi.js` as a deliberate fallback. Deleting them would delete planned work in
+  Afif's folder, not dead code. They are the remaining five known violations and should disappear
+  when T-04 rewrites them.
+- **Files:** `js/services/map.js` (deleted), `js/config/auth.js`, `js/state/saveFile.js`,
+  `scripts/check-imports.mjs`, `docs/architecture.md`, `docs/team/goals.md`, `docs/team/tasks.md`
+- **Next:** ISS-027 with Shabab, once he is happy with the fallback behaviour. T-04 for the two
+  placeholder services.
+
+---
+
+## Hisham — live provider check after the Supabase project landed
+
+- **Did:** Shabab created the Supabase project and flipped `USE_LOCAL_PROVIDER`, and fixed two
+  things my flag flip would have broken: **ISS-033**, where the login page held a Supabase session
+  while the game page still read `localAuth` and redirected back in an inescapable loop, and
+  **ISS-034**, where the "is it configured" guard answered about different values than were sent.
+  Both good catches. With credentials in the repo I could finally do the thing none of the tests
+  could: **probe the live GoTrue API.**
+- **The point of the probe:** all 20 provider tests stubbed `fetch`, so the error table had never
+  been compared against what the server actually says. It had been written from the docs.
+- **Found:** **ISS-035** — GoTrue does not say `invalid email` for a refused address, it says
+  `Email address "someone@example.com" is invalid`. My pattern missed it, so the reason became
+  `auth_unknown` and a player who typed a bad address was told to try again rather than what was
+  wrong with it. Fixed, with a test holding the real string. Two things the probe confirmed rather
+  than broke: wrong password and unknown account return **byte-identical** text, so the enumeration
+  guard holds at the provider as well as in the message layer; and rate limiting is live on the
+  free tier, returning 429, which was already mapped correctly.
+- **Also fixed:** the reset flow never sent `redirect_to`, so the recovery link depended on the
+  dashboard's **Site URL** happening to point at `login.html` — the one page that reads the token
+  out of the fragment. `auth-main.js` now derives it from `location.href`. That removed a silent
+  failure where a reset could never complete. ISS-031 is now half mine and half Shabab's: the
+  dashboard still needs the redirect URLs, and a live probe proved the endpoint returns 200 even
+  for a disallowed origin, so that **cannot** be verified without receiving a real email.
+- **Files:** `js/services/gotrue.js`, `js/services/authApi.js`, `js/auth-main.js`,
+  `js/config/auth.js`, `tests/authApi.test.js`, `docs/team/issues.md`, `docs/team/ownership.md`
+- **Also:** `js/config/auth.js` still claimed "this project has no backend". Now that it has one,
+  that sentence was actively misleading, so it describes the legacy keys as legacy.
+- **Next:** ISS-027 is now actionable and still open — with the real provider live, the account
+  table and PBKDF2 hashing in `localAuth.js` are dead code kept alive only by a fallback path
+  that never runs. **ISS-026** should be revisited too: accounts are genuinely server-backed now,
+  so it is no longer accurate as written.
+
+---
+
 ## Login rebuilt to the panel contract
 
 - **Did:** Reworked the login page to the agreed contract after review. `ui/loginPanel.js` now
