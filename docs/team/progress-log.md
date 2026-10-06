@@ -72,6 +72,53 @@ The per-person weekly notes that used to live in the README table are now in `me
 
 ---
 
+## Hisham — server-side save storage, pending one manual SQL step
+
+- **Did:** Added the farm to Supabase so it follows a player across machines, which is the one
+  thing the browser save could not do. `supabase/migrations/001_farm_saves.sql` creates the table
+  and its Row Level Security policy; `js/services/saveApi.js` talks to PostgREST; `js/remoteSave.js`
+  assembles the adapter and `store.js` calls it.
+- **BLOCKED ON ONE MANUAL STEP.** The migration has to be pasted into the Supabase dashboard's SQL
+  editor. A browser cannot create a table, and the only other route is a `service_role` key, which
+  bypasses RLS and must never be in this repo (DEC-018). Until it is run, reads return "table not
+  found" and **the game plays exactly as it did before** — no migration, no visible change.
+- **localStorage is kept, deliberately, as an offline cache.** The server is the authority;
+  localStorage is what the player falls back to when the network drops. Each save writes the local
+  copy first — synchronously, so it survives the tab closing — then tries the server. Without
+  that, one dropped connection would cost someone their farm. This also means shipping it is not a
+  cliff: worst case before the SQL is run is the current behaviour.
+- **A 404 is not treated as "no farm".** Only a 406 is, because 406 genuinely means "this player
+  has no row yet". A 404 means the migration has not been run, and calling that "no farm" would
+  start a new farm and then overwrite the real one on the next save. There is a test that pins
+  that distinction, because it is the difference between a missing table and a data-loss bug.
+- **Breaking change:** `store.init()`, `saveNow()` and `clearSave()` are now `async`. A synchronous
+  `init` would write a fresh farm over the server's copy before reading it, so this one is not
+  optional. `tests/store.test.js` and `tests/localAuth.test.js` updated accordingly, and the
+  storage-throws case became `doesNotReject`, since the async equivalent of `doesNotThrow` is the
+  honest assertion.
+- **The layering check caught me putting the join in the wrong folder.** `state/` may not import a
+  service, so `state/remoteSave.js` failed `npm run check` with exactly that error. Moved to
+  `js/remoteSave.js`, beside `main.js` and `auth-main.js` — the entry points, which have no import
+  rules. That is the check earning its keep rather than being decoration.
+- **Tests 136 → 159.** `tests/saveApi.test.js` covers the request shape with `fetch` stubbed, so it
+  passes whether or not the table exists: the upsert (`resolution=merge-duplicates` plus
+  `on_conflict=user_id`), both auth headers, the no-farm 406, the missing-table 404, timeout, and
+  that no `service_role` string appears anywhere. Seven more in `store.test.js` cover the fallback:
+  server-first, offline fallback, failed write keeping the local copy, and `clearSave` removing
+  both copies.
+- **Also exposed:** `authApi.accessToken()`, because the token cannot cross from `services/` to
+  `services/` or to `state/`. It is deliberately not exposed to any UI module — a panel must never
+  see a token, or a template could render it into the page.
+- **Files:** `supabase/migrations/001_farm_saves.sql`, `js/services/saveApi.js`,
+  `js/remoteSave.js`, `js/state/store.js`, `js/state/saveFile.js`, `js/services/authApi.js`,
+  `js/main.js`, `tests/saveApi.test.js`, `tests/store.test.js`, `docs/architecture.md`
+- **Not verified:** anything requiring the real table. The RLS policy is reasoned about, not
+  executed, so it has to be tested against the live project once the migration is run.
+- **Next:** run the SQL, then check a farm saves, survives a reload, and reappears in another
+  browser. After that, ISS-027 with Shabab.
+
+---
+
 ## Hisham — dead code sweep after the Supabase project landed
 
 - **Did:** Went looking for code nothing can reach, rather than trusting the word "dead" in a

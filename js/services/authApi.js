@@ -46,6 +46,9 @@ const log = createLog('authApi');
  */
 let session = null;
 
+/** The live access token, alongside the session. See `accessToken()`. */
+let token = null;
+
 /** Reasons that must all look like "those details did not work" on sign-in. */
 const CREDENTIAL_REASONS = ['invalid_credentials', 'email_not_confirmed', 'not_confirmed'];
 
@@ -83,6 +86,7 @@ function adopt(data) {
   if (!built) return { ok: false, reason: 'auth_unknown' };
 
   session = built;
+  token = data?.access_token ?? null;
   writeRefreshToken(data?.refresh_token ?? null);
   return { ok: true, session };
 }
@@ -92,6 +96,21 @@ function adopt(data) {
 /** @returns {object|null} */
 export function currentSession() {
   return session;
+}
+
+/**
+ * The current access token, for another service that has to authenticate as this
+ * player — currently `services/saveApi.js`.
+ *
+ * Exposed rather than kept private because `services/` may not import another
+ * service, so the token cannot simply be fetched where it is needed. It is
+ * deliberately **not** given to any UI module: a panel must never see a token,
+ * or a template could render it into the page. Only an entry point may read this.
+ *
+ * @returns {string|null} null when signed out, or before the first sign-in
+ */
+export function accessToken() {
+  return session ? token : null;
 }
 
 /** Sign in with email and password. Every refusal is `invalid_credentials`. */
@@ -153,6 +172,7 @@ export async function signUp({ email, password, farmerName }) {
 export async function signOut() {
   const refreshToken = readRefreshToken();
   session = null;
+  token = null;
   writeRefreshToken(null);
 
   if (refreshToken && isSupabaseConfigured()) {
