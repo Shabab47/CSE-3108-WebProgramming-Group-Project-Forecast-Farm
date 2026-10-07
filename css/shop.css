@@ -6,41 +6,37 @@
  * in dark mode as the rest of the game.
  */
 
-/* --- launcher: the shop sign in the farm sidebar --------------------------- */
+/* --- launcher: the shop sign in the farm sidebar ---------------------------
+ *
+ * The artwork is the whole control: no card, no border, no shadow, no caption —
+ * just the drawing, at the width of the sidebar. The link is named by its
+ * `aria-label`; see js/ui/shopLauncher.js. */
 
 .shop-launch {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-3);
-  background: var(--surface-glass);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
+  display: block;
   text-decoration: none;
-  transition: transform var(--speed) var(--ease), border-color var(--speed) var(--ease);
 }
 
-.shop-launch:hover {
-  border-color: var(--accent);
-  transform: translateY(-1px);
-}
-
-/* The art is a square 1254x1254, so it fills the sidebar width without guessing
-   an aspect ratio. `alt` is empty on the image: the label below it is the name. */
 .shop-launch__art {
   width: 100%;
   height: auto;
-  border-radius: var(--radius-input);
+  transition: filter var(--speed) var(--ease), transform var(--speed) var(--ease);
 }
 
-.shop-launch__label {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: var(--text-muted);
+/* The sign lights up under the cursor.
+ *
+ * `drop-shadow` follows the image's alpha channel, and shop.png is transparent
+ * (Format32bppArgb, nothing in the corners), so the glow traces the drawing rather
+ * than the bounding box — which is exactly what a frameless control needs, and
+ * would not have worked behind a card.
+ *
+ * Two shadows rather than one: a tight core so the sign reads as lit from within,
+ * and a wide soft bloom around it. Focus gets the same treatment, because a
+ * keyboard user should not have to hover to find out where they are. */
+.shop-launch:hover .shop-launch__art,
+.shop-launch:focus-visible .shop-launch__art {
+  filter: drop-shadow(0 0 5px var(--gold)) drop-shadow(0 0 16px var(--gold-glow));
+  transform: translateY(-2px);
 }
 
 /* --- shop page shell -------------------------------------------------------- */

@@ -3,9 +3,13 @@
  *
  * The shop is a page of its own (`shop.html`), so this is an `<a>` and not a
  * button with a click handler: middle-click, ctrl-click and "open in new tab" all
- * work, and none of them needs code here. The art does the talking, with a text
- * label under it so the control is not an unlabelled image to a screen reader or
- * to anyone who cannot see it.
+ * work, and none of them needs code here.
+ *
+ * The picture is the whole control, so there is no caption under it and no frame
+ * around it. That puts the naming on the `aria-label`, which is the only thing
+ * giving this link an accessible name now — the image's own `alt` is deliberately
+ * empty, because a screen reader should announce "Open the seed shop, link" once
+ * rather than read out the artwork. The gold glow on hover lives in `css/shop.css`.
  *
  * The href is passed in rather than derived here. It carries `?guest=1` for a
  * guest, because a guest session lives in the URL rather than in storage — see
@@ -34,7 +38,6 @@ export function mountShopLauncher(root, actions) {
         height: 1254,
         loading: 'lazy',
       }),
-      el('span', { class: 'shop-launch__label', text: 'Shop' }),
     ]),
   );
 
