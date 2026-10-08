@@ -23,8 +23,8 @@ import { createLog } from './utils/log.js';
 import { loadProvider } from './auth-main.js';
 import { farmHref, resolveSession } from './main.js';
 import { buildServerSave } from './remoteSave.js';
-import { deleteAccount } from './services/accountApi.js';
-import { adoptState, clearSave, emit, getState, init, reset, saveNow } from './state/store.js';
+import { deleteAccount, eraseProgress } from './services/accountApi.js';
+import { adoptState, clearLocalSave, emit, getState, init, reset, saveNow } from './state/store.js';
 import { buildInitialState } from './state/initialState.js';
 import { mountSettings } from './ui/settingsView.js';
 import { mountToastStack } from './ui/toastStack.js';
@@ -37,43 +37,61 @@ const LOGIN_URL = 'login.html';
 /**
  * Erase the farm and leave the player a brand new one.
  *
- * Three steps, in this order, and the order is the whole point:
+ * Four steps, in this order, and the order is the whole point:
  *
- *  1. `clearSave()` removes **both** copies — the localStorage cache and the server
- *     row. Clearing only the server would let a reload resurrect the old farm from
- *     the cache, which is the failure this feature must not have. Its result is checked
- *     because the next step overwrites that same row (ISS-041).
- *  2. `adoptState(buildInitialState(session))` puts a freshly built farm in memory
- *     under the *same* session, so the player stays signed in and their username,
- *     email and farmer name are untouched — "as if he had just opened an account"
- *     means the farm, not the account.
- *  3. `adoptState` already writes immediately rather than waiting for the debounce,
+ *  1. `eraseProgress(password)` verifies the password and deletes the **server** row in
+ *     one statement, in the database. That has to come first: it is the only place the
+ *     check cannot be skipped, since the browser is what sends it. A refusal here means
+ *     nothing has been touched — the farm is still there, in both copies.
+ *  2. `clearLocalSave()` drops the localStorage copy. Separate from `clearSave()` because
+ *     the server half is already done and repeating it would be a pointless request whose
+ *     failure could be mistaken for a real one (ISS-041).
+ *  3. `adoptState(buildInitialState(session))` puts a freshly built farm in memory under
+ *     the *same* session, so the player stays signed in and their username, email and
+ *     farmer name are untouched — "as if he had just opened an account" means the farm,
+ *     not the account.
+ *  4. `adoptState` already writes immediately rather than waiting for the debounce,
  *     which matters here: the page is likely to be reloaded next, and a reset that
  *     had not reached disk yet would come back from the old save.
  *
- * @returns {Promise<{ok:boolean, reason?:string}>}
+ * @param {object} provider the loaded auth provider
+ * @returns {(password: string) => Promise<{ok:boolean, reason?:string}>}
  */
-async function deleteProgress() {
-  const session = getState()?.session;
+function makeDeleteProgress(provider) {
+  // Same reason the account action branches here: `services/` may not import another
+  // service, so the join between the two providers is the entry point.
+  const local = provider.deletesAccountsInPlace === true;
 
-  if (session?.status !== 'authed') {
-    return { ok: false, reason: 'not_signed_in' };
-  }
+  return async function deleteProgress(password) {
+    const session = getState()?.session;
 
-  // Checked, because step 2 writes a fresh farm over the same row: if the delete had
-  // been refused we would be telling the player their old farm is gone while leaving
-  // it on the server for them to sign back into (ISS-041).
-  const cleared = await clearSave();
-  if (cleared?.ok === false) {
-    log.warn('server farm was not cleared, so a fresh one was not written -', cleared.reason);
-    return { ok: false, reason: cleared.reason ?? 'server_delete_failed' };
-  }
+    if (session?.status !== 'authed') {
+      return { ok: false, reason: 'not_signed_in' };
+    }
 
-  const adopted = adoptState(buildInitialState(session));
-  if (!adopted.ok) return adopted;
+    // Before anything is destroyed, and that is the only order that works. The old order
+    // cleared first and checked later, which is how a *wrong* password ended up wiping
+    // the farm while the panel reported that nothing had changed.
+    const erased = local
+      ? await provider.eraseProgress({ password })
+      : await eraseProgress({ token: provider.accessToken?.(), password });
 
-  await saveNow();
-  return { ok: true };
+    if (!erased?.ok) {
+      log.warn('progress not erased -', String(erased?.reason));
+      return { ok: false, reason: erased?.reason ?? 'exception' };
+    }
+
+    // The server row is gone by now, so only the local copy is left. Not `clearSave()`:
+    // repeating the delete would be a pointless request whose failure — ISS-041 made
+    // that result meaningful — could be mistaken for the erase having failed.
+    clearLocalSave();
+
+    const adopted = adoptState(buildInitialState(session));
+    if (!adopted.ok) return adopted;
+
+    await saveNow();
+    return { ok: true };
+  };
 }
 
 /**
@@ -178,7 +196,7 @@ function makeDeleteAccount(provider) {
 function settingsActions(session, provider) {
   return {
     session,
-    deleteProgress,
+    deleteProgress: makeDeleteProgress(provider),
     requestAccountDeletion: makeDeleteAccount(provider),
     toast(message, tone) {
       emit('toast', { message, tone });

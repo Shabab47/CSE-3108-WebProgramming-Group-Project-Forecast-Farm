@@ -210,7 +210,56 @@ export function signInAsGuest() {
  */
 
 /**
- * Delete this account, now, if the password is right.
+ * Erase this player's farm, behind their password.
+ *
+ * The local provider's mirror of `erase_progress`. Same contract as the account version
+ * — `invalid_credentials` means the password was wrong and **nothing was deleted** —
+ * and the same reason codes, so the panel above cannot tell which provider it is talking
+ * to and cannot accidentally report a local refusal as a server one.
+ *
+ * There is no farm_saves row here: a local account's farm lives in localStorage, and
+ * `settings-main.js` drops that copy itself. What this checks is the thing that cannot be
+ * skipped from the browser — that the player knows the password for the account doing
+ * the deleting.
+ *
+ * @param {{password:string}} args
+ * @returns {Promise<{ok:boolean, reason?:string}>}
+ */
+export async function eraseProgress({ password } = {}) {
+  const session = currentSession();
+  if (!session) return { ok: false, reason: 'not_signed_in' };
+  if (!password) return { ok: false, reason: 'password_required' };
+
+  const accounts = read(ACCOUNTS_KEY, {});
+  const account = accounts[session.email];
+
+  // An `authed` session whose account row has gone — storage half-cleared, or two tabs
+  // racing. There is no credential to check and nothing to erase, so this refuses rather
+  // than letting a password field imply a verification that did not happen.
+  //
+  // A guest never reaches here: `currentSession()` requires `status === 'authed'`, so a
+  // guest is `not_signed_in` a line earlier. That is the honest answer too — a guest has
+  // no account and so no password, which is why `settingsView.js` sets
+  // `asksForPassword` false for one.
+  if (!account) {
+    log.warn('progress erase refused, account not found');
+    return { ok: false, reason: 'account_not_found' };
+  }
+
+  // Same constant-time comparison and the same stored salt as `signIn` and
+  // `deleteAccountData`. A wrong password returns here, and `settings-main.js` has not
+  // touched either copy of the save at this point.
+  const hash = await derive(password, fromBase64(account.salt));
+  if (!matches(hash, account.hash)) {
+    log.info('progress erase refused, wrong password');
+    return { ok: false, reason: 'invalid_credentials' };
+  }
+
+  return { ok: true };
+}
+
+/**
+ * Delete this local account, now, if the password is right.
  *
  * **The password is verified here, in the same call that deletes**, which is the point.
  * On the Supabase provider `delete_my_account()` does both server-side. An earlier

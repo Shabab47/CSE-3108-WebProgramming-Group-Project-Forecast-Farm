@@ -16,6 +16,7 @@ import * as localAuth from '../js/services/localAuth.js';
 import {
   currentSession,
   deleteAccountData,
+  eraseProgress,
   requestPasswordReset,
   signIn,
   signInAsGuest,
@@ -269,6 +270,58 @@ test('a deleted account can register again with the same email and username', as
   assert.equal(again.session.username, VALID.username);
 });
 
+/* --- progress erasure -------------------------------------------------------- */
+
+test('a wrong password erases no progress', async () => {
+  await signUp(VALID);
+
+  const result = await eraseProgress({ password: 'wrongpass1' });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'invalid_credentials');
+  assert.ok(currentSession(), 'still signed in');
+  assert.ok(
+    JSON.parse(localStorage.getItem(AUTH_KEYS.accounts))[VALID.email],
+    'the account row is untouched, because a farm reset must never cost an account',
+  );
+});
+
+test('the right password clears the progress gate', async () => {
+  await signUp(VALID);
+
+  const result = await eraseProgress({ password: VALID.password });
+
+  assert.equal(result.ok, true);
+});
+
+test('progress erasure refuses an empty password', async () => {
+  await signUp(VALID);
+
+  const result = await eraseProgress({ password: '' });
+
+  assert.equal(result.reason, 'password_required');
+});
+
+test('progress erasure needs a session, like the account version', async () => {
+  const result = await eraseProgress({ password: VALID.password });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'not_signed_in');
+});
+
+test('a guest has no account and so no password to check', async () => {
+  // A guest's farm is theirs, but there is no account row behind the session and no
+  // credential that could identify it. `currentSession()` requires `status === 'authed'`,
+  // so this is refused as unsigned-in — which is why the panel shows no password field
+  // for a guest rather than showing one and failing.
+  signInAsGuest();
+
+  const result = await eraseProgress({ password: VALID.password });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'not_signed_in');
+});
+
 test('every function the panel contract needs exists on this provider', async () => {
   // A missing export reaches the panel as `undefined` and only fails when a
   // player clicks, as a confusing "could not reach the server". Assert the whole
@@ -276,7 +329,7 @@ test('every function the panel contract needs exists on this provider', async ()
   for (const name of [
     'currentSession', 'signIn', 'signUp', 'signOut',
     'requestPasswordReset', 'updatePassword', 'signInAsGuest',
-    'deleteAccountData',
+    'deleteAccountData', 'eraseProgress',
   ]) {
     assert.equal(typeof localAuth[name], 'function', `missing contract member: ${name}`);
   }

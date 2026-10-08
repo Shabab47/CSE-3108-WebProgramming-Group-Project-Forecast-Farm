@@ -83,22 +83,10 @@
 }
 
 /* --- announcements --------------------------------------------------------
- * One polite live region for everything the auth flow says. Errors that must
- * interrupt are `role="alert"`; routine messages wait for a pause in speech. */
-
-.form-message {
-  padding: var(--space-3);
-  border-radius: var(--radius-input);
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-  background: var(--surface-sunken);
-}
-
-.form-message--error {
-  color: var(--danger);
-  background: var(--danger-soft);
-  border: 1px solid var(--danger);
-}
+ * The status-line styles live in `css/components.css` now, because this file is only
+ * loaded by `login.html` and `settings.html` uses the same `.form-message` markup without
+ * loading it. Kept as a note so the duplication is not mistaken for an oversight when
+ * someone greps for `.form-message` and finds this comment. */
 
 /* --- guest ---------------------------------------------------------------- */
 

@@ -96,12 +96,13 @@ test('every function the boot path and the panel need exists on the provider', (
   // both call sites use `?.()`. Requiring it on the local provider would force a
   // no-op onto it.
   //
-  // `deleteAccountData` takes the password and verifies it in the same call that
-  // deletes — see `005_immediate_account_deletion.sql`. It is required on both
-  // providers, because neither may expose a deletion a token alone can perform.
+  // `deleteAccountData` and `eraseProgress` each take the password and verify it in the
+  // same call that destroys something — see `005` and `006`. Both are required on both
+  // providers, because neither may expose an erasure a token alone can perform. Erase
+  // used to ask for no password at all; that was the gap DEC-025 closed.
   for (const name of [
     'currentSession', 'signIn', 'signUp', 'signOut',
-    'requestPasswordReset', 'updatePassword', 'deleteAccountData',
+    'requestPasswordReset', 'updatePassword', 'deleteAccountData', 'eraseProgress',
   ]) {
     assert.equal(typeof localAuth[name], 'function', `localAuth is missing ${name}`);
   }

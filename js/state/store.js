@@ -280,6 +280,25 @@ export async function clearSave() {
   return { ok: true, localCleared: true };
 }
 
+/**
+ * Delete only the local copy of this user's save.
+ *
+ * Separate from `clearSave()` because the destructive settings actions now remove the
+ * **server** row themselves — the password-gated RPCs in `005` and `006` do it in the
+ * same statement that checks the password, which is the only place the check can be
+ * guaranteed. Calling `clearSave()` afterwards would fire a second DELETE at a row
+ * that is already gone, and its failure would be reported as a real failure when
+ * nothing is actually wrong (ISS-041's fix made that result meaningful, so a pointless
+ * failure is now a pointless refusal).
+ *
+ * Synchronous, because `deleteSave` is, and because it cannot fail on a dropped
+ * connection — which is the whole reason it is worth having on its own.
+ */
+export function clearLocalSave() {
+  deleteSave(userId);
+  return { ok: true, localCleared: true };
+}
+
 /* --- import -----------------------------------------------------------------
  * Replacing the whole state is not `apply()`, because `apply()` takes a pure
  * domain function and a file is not one: there is no `ok:false` business rule to

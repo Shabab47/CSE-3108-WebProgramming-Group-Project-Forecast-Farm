@@ -198,6 +198,47 @@
   color: var(--text-faint);
 }
 
+/* --- status lines --------------------------------------------------------
+ * A polite live region for one part of a page to say things in: `js/ui/statusLine.js`.
+ *
+ * These lived in `auth.css`, which was the bug. `css/components.css` is the file every
+ * page loads, and `settings.html` does not load `auth.css` — so on the settings page
+ * these rules did not apply at all and "Checking your password." rendered as unstyled
+ * default text: no padding, no background, no distinction between a notice and a fault.
+ * It was in the DOM and nobody could see it properly.
+ *
+ * Kept here rather than moved, so nothing that loaded `auth.css` loses the styling. */
+
+.form-message {
+  padding: var(--space-3);
+  border-radius: var(--radius-input);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  background: var(--surface-sunken);
+}
+
+.form-message--error {
+  color: var(--danger);
+  background: var(--danger-soft);
+  border: 1px solid var(--danger);
+}
+
+.form-message--success {
+  color: var(--success);
+  background: var(--success-soft);
+  border: 1px solid var(--success);
+}
+
+/* `info` is progress, not a problem: "Checking your password." on the settings page.
+ * Without a rule it inherited the muted base and read as a fault, which is the opposite
+ * of what it is saying. The border separates it from the neutral state without reaching
+ * for the danger palette. */
+.form-message--info {
+  color: var(--text);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+}
+
 /* --- tabs --------------------------------------------------------------- */
 
 .tabs {
