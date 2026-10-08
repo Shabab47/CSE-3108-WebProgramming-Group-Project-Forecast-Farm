@@ -24,7 +24,7 @@ import {
 } from '../js/services/localAuth.js';
 import { AUTH_KEYS } from '../js/config/auth.js';
 
-const VALID = { email: 'farmer@rice.bd', password: 'rice2026', farmerName: 'Abdul Karim' };
+const VALID = { email: 'farmer@rice.bd', password: 'rice2026', farmerName: 'Abdul Karim', username: 'farmer_joe' };
 
 function installFakeStorage(initial = {}) {
   const data = new Map(Object.entries(initial));
@@ -48,10 +48,11 @@ test('signing up returns a session in the documented shape', async () => {
   const result = await signUp(VALID);
 
   assert.equal(result.ok, true);
-  assert.deepEqual(Object.keys(result.session).sort(), ['email', 'farmerName', 'status', 'userId']);
+  assert.deepEqual(Object.keys(result.session).sort(), ['email', 'farmerName', 'status', 'userId', 'username']);
   assert.equal(result.session.status, 'authed');
   assert.equal(result.session.email, 'farmer@rice.bd');
   assert.equal(result.session.farmerName, 'Abdul Karim');
+  assert.equal(result.session.username, 'farmer_joe');
   assert.ok(result.session.userId);
 });
 
@@ -70,6 +71,15 @@ test('the same email in different case is the same account', async () => {
   assert.equal(again.reason, 'email_taken');
 });
 
+test('the same username in different case is the same account', async () => {
+  await signUp(VALID);
+  await signOut();
+
+  const again = await signUp({ ...VALID, email: 'other@rice.bd', username: '  FARMER_JOE  ' });
+  assert.equal(again.ok, false);
+  assert.equal(again.reason, 'username_taken');
+});
+
 test('the password is never written to storage', async () => {
   await signUp(VALID);
 
@@ -82,7 +92,27 @@ test('signing in works with a differently cased and padded email', async () => {
   const created = await signUp(VALID);
   await signOut();
 
-  const result = await signIn({ email: '  FARMER@Rice.BD ', password: VALID.password });
+  const result = await signIn({ identifier: '  FARMER@Rice.BD ', password: VALID.password });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.session.userId, created.session.userId);
+});
+
+test('signing in works with a username', async () => {
+  const created = await signUp(VALID);
+  await signOut();
+
+  const result = await signIn({ identifier: 'farmer_joe', password: VALID.password });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.session.userId, created.session.userId);
+});
+
+test('signing in works with a differently cased username', async () => {
+  const created = await signUp(VALID);
+  await signOut();
+
+  const result = await signIn({ identifier: '  FARMER_JOE  ', password: VALID.password });
 
   assert.equal(result.ok, true);
   assert.equal(result.session.userId, created.session.userId);
@@ -92,10 +122,22 @@ test('an unknown email and a wrong password are indistinguishable', async () => 
   await signUp(VALID);
   await signOut();
 
-  const wrongPassword = await signIn({ email: VALID.email, password: 'rice2027' });
-  const noAccount = await signIn({ email: 'nobody@rice.bd', password: VALID.password });
+  const wrongPassword = await signIn({ identifier: VALID.email, password: 'rice2027' });
+  const noAccount = await signIn({ identifier: 'nobody@rice.bd', password: VALID.password });
 
   // If these ever diverge, this form becomes an account-enumeration oracle.
+  assert.equal(wrongPassword.reason, noAccount.reason);
+  assert.equal(wrongPassword.reason, 'invalid_credentials');
+  assert.equal(currentSession(), null, 'a refused attempt starts no session');
+});
+
+test('an unknown username and a wrong password are indistinguishable', async () => {
+  await signUp(VALID);
+  await signOut();
+
+  const wrongPassword = await signIn({ identifier: 'farmer_joe', password: 'rice2027' });
+  const noAccount = await signIn({ identifier: 'unknown_user', password: VALID.password });
+
   assert.equal(wrongPassword.reason, noAccount.reason);
   assert.equal(wrongPassword.reason, 'invalid_credentials');
   assert.equal(currentSession(), null, 'a refused attempt starts no session');
@@ -104,8 +146,15 @@ test('an unknown email and a wrong password are indistinguishable', async () => 
 test('sign-up is allowed to be specific about a taken email', async () => {
   await signUp(VALID);
 
-  const again = await signUp({ ...VALID, farmerName: 'Someone Else' });
+  const again = await signUp({ ...VALID, farmerName: 'Someone Else', username: 'different_user' });
   assert.equal(again.reason, 'email_taken');
+});
+
+test('sign-up is allowed to be specific about a taken username', async () => {
+  await signUp(VALID);
+
+  const again = await signUp({ ...VALID, email: 'other@rice.bd', farmerName: 'Someone Else' });
+  assert.equal(again.reason, 'username_taken');
 });
 
 test('signing out clears the session but keeps the account', async () => {
@@ -114,7 +163,8 @@ test('signing out clears the session but keeps the account', async () => {
 
   assert.equal(currentSession(), null);
   assert.ok(localStorage.getItem(AUTH_KEYS.accounts), 'signing out is not deleting the account');
-  assert.equal((await signIn(VALID)).ok, true, 'and it still signs back in');
+  assert.equal((await signIn({ identifier: VALID.email, password: VALID.password })).ok, true, 'and it still signs back in');
+  assert.equal((await signIn({ identifier: 'farmer_joe', password: VALID.password })).ok, true, 'and it still signs back in with username');
 });
 
 test('guest play is not a session and leaves nothing to resume', async () => {
@@ -176,5 +226,5 @@ test('storage that throws does not crash the provider', async () => {
   };
 
   assert.doesNotThrow(async () => { await signUp(VALID); });
-  assert.equal((await signIn(VALID)).reason, 'invalid_credentials', 'degrades to refused, never throws');
+  assert.equal((await signIn({ identifier: VALID.email, password: VALID.password })).reason, 'invalid_credentials', 'degrades to refused, never throws');
 });

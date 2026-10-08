@@ -6,8 +6,8 @@
  * file exists so `loginPanel.js` has something to run against before that
  * lands, and it deliberately implements the **same contract**:
  *
- *   signIn({email, password})           → Promise<{ok:true, session} | {ok:false, reason}>
- *   signUp({email, password, farmerName}) → same
+ *   signIn({identifier, password})           → Promise<{ok:true, session} | {ok:false, reason}>
+ *   signUp({email, password, farmerName, username}) → same
  *   signOut()                           → Promise<{ok:true}>
  *   currentSession()                    → session | null
  *
@@ -24,7 +24,7 @@
  */
 
 import { createLog } from '../utils/log.js';
-import { normaliseEmail, normaliseName } from '../utils/normalize.js';
+import { normaliseEmail, normaliseName, normaliseUsername } from '../utils/normalize.js';
 import { AUTH_KEYS, HASH } from '../config/auth.js';
 
 const log = createLog('localAuth');
@@ -91,8 +91,8 @@ function matches(a, b) {
  * Mirrors the state shape in the plan: { status, userId, email, farmerName }.
  * `uid` is the local uuid here; Supabase will supply auth.uid() instead. */
 
-function makeSession({ userId, email, farmerName }) {
-  return { status: 'authed', userId, email, farmerName };
+function makeSession({ userId, email, farmerName, username }) {
+  return { status: 'authed', userId, email, farmerName, username };
 }
 
 const GUEST = {
@@ -120,10 +120,23 @@ export function currentSession() {
   return session;
 }
 
-export async function signIn({ email, password }) {
-  const key = normaliseEmail(email);
+export async function signIn({ identifier, password }) {
+  const id = String(identifier ?? '').trim();
   const accounts = read(ACCOUNTS_KEY, {});
-  const account = accounts[key];
+
+  // Look up by email or username
+  let account = null;
+  if (id.includes('@')) {
+    account = accounts[normaliseEmail(id)] ?? null;
+  } else {
+    const usernameKey = normaliseUsername(id);
+    for (const acc of Object.values(accounts)) {
+      if (acc.username === usernameKey) {
+        account = acc;
+        break;
+      }
+    }
+  }
 
   // Both branches return the same reason on purpose: telling them apart would
   // confirm which emails have accounts. authErrors.js neutralises it too, and
@@ -136,23 +149,30 @@ export async function signIn({ email, password }) {
 
   const session = makeSession(account);
   persist(session);
-  log.info('signed in', key);
+  log.info('signed in', id);
   return { ok: true, session };
 }
 
-export async function signUp({ email, password, farmerName }) {
+export async function signUp({ email, password, farmerName, username }) {
   const key = normaliseEmail(email);
+  const usernameKey = normaliseUsername(username);
   const accounts = read(ACCOUNTS_KEY, {});
 
   // Specific on sign-up: the player typed this address, so it helps them and
   // reveals nothing they did not already know.
   if (accounts[key]) return { ok: false, reason: 'email_taken' };
 
+  // Username must be unique across all accounts
+  for (const acc of Object.values(accounts)) {
+    if (acc.username === usernameKey) return { ok: false, reason: 'username_taken' };
+  }
+
   const salt = crypto.getRandomValues(new Uint8Array(HASH.saltBytes));
   const account = {
     userId: crypto.randomUUID(),
     email: key,
     farmerName: normaliseName(farmerName),
+    username: usernameKey,
     salt: toBase64(salt),
     hash: await derive(password, salt),
     confirmed: true,
