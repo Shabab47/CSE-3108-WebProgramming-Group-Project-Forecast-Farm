@@ -90,6 +90,13 @@
   color: var(--danger);
 }
 
+/* One destructive action: its description, then the button that arms it. */
+.settings-action {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
 /* The account lines read as a list of facts rather than as paragraphs. */
 .settings-accounts {
   display: flex;

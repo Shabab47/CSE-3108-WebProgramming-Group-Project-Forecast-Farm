@@ -83,12 +83,33 @@ function readRecoveryToken() {
   return token;
 }
 
+/**
+ * A notice for arriving from the settings page having deleted an account.
+ *
+ * Read from the query and cleared from the URL, for the same reason the recovery token
+ * is: a flag should not sit in the address bar where it can be shared, bookmarked or
+ * screenshotted and mean something different next time.
+ *
+ * Shown as information, not as an error — being signed out was the point, not a
+ * failure. One wording, because both providers now delete immediately and behind the
+ * same password check, so there is no longer a difference to describe.
+ */
+function readArrivalNotice() {
+  const params = new URLSearchParams(location.search);
+  if (params.get('deleted') !== '1') return null;
+
+  history.replaceState(null, '', location.pathname);
+
+  return 'Your account, farm and username have been deleted, and you are signed out. You can register again with the same email whenever you like.';
+}
+
 async function start() {
   const root = qsOrNull('#auth-root');
   if (!root) return;
 
   const provider = await loadProvider();
   const recoveryToken = readRecoveryToken();
+  const arrivalNotice = readArrivalNotice();
 
   // The Supabase access token lives in memory only, so on any fresh page load
   // `currentSession()` is null even for a player who is genuinely signed in.
@@ -162,7 +183,7 @@ async function start() {
     });
   }
 
-  showLogin();
+  showLogin(arrivalNotice ?? undefined);
 }
 
 /**

@@ -23,7 +23,8 @@ import { createLog } from './utils/log.js';
 import { loadProvider } from './auth-main.js';
 import { farmHref, resolveSession } from './main.js';
 import { buildServerSave } from './remoteSave.js';
-import { adoptState, clearSave, emit, getState, init, saveNow } from './state/store.js';
+import { deleteAccount } from './services/accountApi.js';
+import { adoptState, clearSave, emit, getState, init, reset, saveNow } from './state/store.js';
 import { buildInitialState } from './state/initialState.js';
 import { mountSettings } from './ui/settingsView.js';
 import { mountToastStack } from './ui/toastStack.js';
@@ -49,10 +50,6 @@ const LOGIN_URL = 'login.html';
  *     which matters here: the page is likely to be reloaded next, and a reset that
  *     had not reached disk yet would come back from the old save.
  *
- * The session is read from the store rather than from the `session` argument
- * `start()` was given, because the store re-stamps the session onto a resumed farm
- * and that live copy is the authoritative one.
- *
  * @returns {Promise<{ok:boolean, reason?:string}>}
  */
 async function deleteProgress() {
@@ -71,12 +68,97 @@ async function deleteProgress() {
   return { ok: true };
 }
 
+/**
+ * Build the settings page's "delete my account" action.
+ *
+ * Three steps, and the order is the whole thing:
+ *
+ *  1. The panel has already asked for the password and refused an empty one.
+ *  2. The provider deletes — and **verifies that password in the same call.** On
+ *     Supabase that is `delete_my_account()`, which compares against the bcrypt hash
+ *     GoTrue stored before touching anything; on the local provider it is the existing
+ *     PBKDF2 comparison. An earlier version checked the password in the browser and
+ *     asked the server only to delete, which meant the check could be skipped by
+ *     calling the delete directly — survivable behind a 7-day grace period, not
+ *     survivable now that deletion is immediate (ISS-040).
+ *  3. Sign out and clear the local copy.
+ *
+ * **Nothing is deleted before step 2 succeeds.** An earlier version cleared the save
+ * first, "so an offline player still ends up with nothing" — which meant a *wrong*
+ * password wiped the farm and then reported that nothing had changed.
+ *
+ * @param {object} provider the loaded auth provider
+ * @returns {(password: string) => Promise<{ok:boolean, reason?:string}>}
+ */
+function makeDeleteAccount(provider) {
+  // The two providers genuinely do different things, so the branch lives in the entry
+  // point — `services/` may not import another service, which is the same reason
+  // `remoteSave.js` exists.
+  const local = provider.deletesAccountsInPlace === true;
+
+  /** Sign out and drop the in-memory state. Best effort on the network side. */
+  async function leave() {
+    try {
+      await provider.signOut();
+    } catch (error) {
+      // The local session is cleared regardless, so a provider that throws cannot
+      // leave the player apparently still signed in after asking to leave.
+      log.warn('sign out after deletion failed -', error.message);
+    }
+    reset();
+  }
+
+  return async function deleteAccount(password) {
+    const state = getState();
+    if (state?.session?.status !== 'authed') {
+      return { ok: false, reason: 'not_signed_in' };
+    }
+
+    let result;
+    try {
+      result = local
+        // The local provider deletes its own accounts, and verifies the password in the
+        // same call — there is no RPC to reach.
+        ? await provider.deleteAccountData({ password })
+        // Supabase: one RPC that checks the password against the bcrypt hash GoTrue
+        // stored and deletes the row if it matches. The check is server-side, so a
+        // stolen access token is not enough on its own (ISS-040).
+        : await deleteAccount({ token: provider.accessToken?.(), password });
+    } catch (error) {
+      log.error('account deletion threw -', error.message);
+      result = { ok: false, reason: 'exception' };
+    }
+
+    if (!result?.ok) {
+      // Nothing has been deleted on any path, and that is what the panel says. An
+      // earlier version cleared the save *before* checking the password, so a wrong one
+      // wiped the farm and still reported "nothing was changed".
+      log.warn('account not deleted -', String(result?.reason));
+      return result;
+    }
+
+    // Gone. The server rows went with the account by cascade, so `clearSave()` now has
+    // only the localStorage copy left to remove — and it is the one thing the cascade
+    // cannot reach. Best effort: the account is already deleted either way, and a failed
+    // local write must not report otherwise.
+    try {
+      await clearSave();
+    } catch (error) {
+      log.warn('could not clear the local save -', error.message);
+    }
+
+    await leave();
+    return { ok: true };
+  };
+}
+
 /* --- the panel's callbacks -------------------------------------------------- */
 
-function settingsActions(session) {
+function settingsActions(session, provider) {
   return {
     session,
     deleteProgress,
+    requestAccountDeletion: makeDeleteAccount(provider),
     toast(message, tone) {
       emit('toast', { message, tone });
     },
@@ -105,10 +187,10 @@ async function start() {
 
   // Boot 2
   mountToastStack();
-  mountSettings(root, settingsActions(session));
+  mountSettings(root, settingsActions(session, provider));
 
-  // Boot 4: autosave, identical to the farm and shop pages. Erasing writes through
-  // immediately, so this is only the safety net for anything else.
+  // Boot 4: autosave, identical to the farm and shop pages. Both destructive actions
+  // write through immediately, so this is only the safety net for anything else.
   setInterval(saveNow, AUTOSAVE_MS);
   window.addEventListener('pagehide', saveNow);
   document.addEventListener('visibilitychange', () => {
