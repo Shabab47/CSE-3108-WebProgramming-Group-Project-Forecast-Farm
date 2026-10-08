@@ -61,7 +61,7 @@ function buildInventory() {
 /**
  * A fresh farm: 200 gold, sixteen unowned plots, the default location.
  *
- * @param {object} session `{status, userId, email, farmerName}` or null
+ * @param {object} session `{status, userId, email, farmerName, username}` or null
  */
 export function buildInitialState(session) {
   const now = Date.now();
@@ -106,5 +106,6 @@ export function normaliseSession(session) {
     userId: String(session.userId ?? ''),
     email: String(session.email ?? ''),
     farmerName: String(session.farmerName ?? ''),
+    username: String(session.username ?? ''),
   };
 }

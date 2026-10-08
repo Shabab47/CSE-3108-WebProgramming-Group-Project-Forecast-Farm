@@ -41,6 +41,11 @@ export const PASSWORD_RULES = [
 export const NAME_MIN_LENGTH = 2;
 export const NAME_MAX_LENGTH = 24;
 
+/** Username shape: alphanumeric and underscore, no spaces. */
+export const USERNAME_PATTERN = /^[a-zA-Z0-9_]{3,20}$/;
+export const USERNAME_MIN_LENGTH = 3;
+export const USERNAME_MAX_LENGTH = 20;
+
 /**
  * PBKDF2 parameters, used only by the legacy local provider.
  *

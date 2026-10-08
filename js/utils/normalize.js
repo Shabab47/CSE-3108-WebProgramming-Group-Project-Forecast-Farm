@@ -18,3 +18,10 @@ export function normaliseName(name) {
     .trim()
     .replace(/\s+/g, ' ');
 }
+
+/** Trim and lowercase a username. */
+export function normaliseUsername(username) {
+  return String(username ?? '')
+    .trim()
+    .toLowerCase();
+}
