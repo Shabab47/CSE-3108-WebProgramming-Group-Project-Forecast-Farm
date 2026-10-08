@@ -7,8 +7,8 @@
  * Implements the same contract as `localAuth.js`, so nothing in `js/ui/` changes
  * when the two swap:
  *
- *   signIn({email, password})            → Promise<{ok:true, session}|{ok:false, reason}>
- *   signUp({email, password, farmerName}) → same, or {ok:true, session:null, needsConfirmation:true}
+ *   signIn({identifier, password})            → Promise<{ok:true, session}|{ok:false, reason}>
+ *   signUp({email, password, farmerName, username}) → same, or {ok:true, session:null, needsConfirmation:true}
  *   signOut()                             → Promise<{ok:true}>
  *   currentSession()                      → session | null
  *   requestPasswordReset({email})         → Promise<{ok:true}|{ok:false, reason}>
@@ -31,8 +31,8 @@
  */
 
 import { createLog } from '../utils/log.js';
-import { normaliseEmail, normaliseName } from '../utils/normalize.js';
-import { SUPABASE_NOT_CONFIGURED, isSupabaseConfigured } from '../config/supabase.js';
+import { normaliseEmail, normaliseName, normaliseUsername } from '../utils/normalize.js';
+import { SUPABASE_NOT_CONFIGURED, connection, isSupabaseConfigured } from '../config/supabase.js';
 import { bestEffort, post, postAuthed } from './gotrue.js';
 import { readRefreshToken, writeRefreshToken } from './tokenStore.js';
 
@@ -75,19 +75,140 @@ function toSession(data) {
     farmerName: normaliseName(
       user.user_metadata?.farmer_name ?? String(user.email ?? '').split('@')[0],
     ),
+    username: normaliseUsername(user.user_metadata?.username ?? ''),
   };
+}
+
+/* --- the usernames table ----------------------------------------------------
+ *
+ * GoTrue's password grant takes an email and nothing else, so a username sign-in
+ * has to become an email address before it can be sent anywhere. `username` is the
+ * primary key of `public.usernames`, which is what makes it unique — enforced by
+ * the database rather than by a read-then-write here, so two players racing for the
+ * same name cannot both win. See `supabase/migrations/002_usernames.sql`.
+ *
+ * These calls live here rather than in a sibling service because `services/` may
+ * not import another service, and the token only exists in this module. That is the
+ * same constraint that put `accessToken()` on the public surface of the provider.
+ */
+
+/** PostgREST headers. `onConflict` needs the unique index on `user_id`. */
+function restHeaders(extra = {}) {
+  return {
+    'Content-Type': 'application/json',
+    apikey: connection().anonKey,
+    ...extra,
+  };
+}
+
+/**
+ * The email a username belongs to, or null when it is free or the table is missing.
+ *
+ * Anonymous by design: a username is being resolved *before* there is a session.
+ * Null covers "no such username", "table not migrated yet" and "offline" alike, and
+ * the caller turns all three into `invalid_credentials`, which is also what a wrong
+ * password produces.
+ */
+async function lookupEmailByUsername(username) {
+  if (!isSupabaseConfigured() || !username) return null;
+
+  const url = `${connection().url}/rest/v1/usernames?username=eq.${encodeURIComponent(username)}&select=email&limit=1`;
+  try {
+    const response = await fetch(url, { method: 'GET', headers: restHeaders() });
+    if (!response.ok) return null;
+    const rows = await response.json();
+    return rows?.[0]?.email ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Whether a username is already registered.
+ *
+ * Checked at sign-up so the player is told before the account exists, rather than
+ * discovering at their next sign-in that the name they chose silently never worked.
+ * It is still only a courtesy check — the primary key is what actually decides, and
+ * a name taken between this call and the write below is caught there.
+ */
+async function usernameIsTaken(username) {
+  if (!isSupabaseConfigured() || !username) return false;
+  return (await lookupEmailByUsername(username)) !== null;
+}
+
+/**
+ * Record the username for an account that has just become a session.
+ *
+ * Called from `adopt()` rather than from `signUp()`, and that ordering is the whole
+ * design. With email confirmation on, `signUp()` gets back no session and no user
+ * id, so there is nothing to attach a row to — the account does not exist yet as far
+ * as the caller is concerned. Adopting a session is the first moment we hold a user
+ * id, a bearer token the RLS policy will accept, and the metadata username together.
+ * It also means an account created before this table existed heals itself the first
+ * time its owner signs in, instead of needing a backfill.
+ *
+ * Failures are swallowed on purpose. The player is authenticated by this point: GoTrue
+ * has already issued tokens and the farm is about to load. Refusing the sign-in
+ * because a metadata row could not be written would turn a cosmetic failure into a
+ * lockout, and the cost is only that this one account cannot sign in by username yet.
+ *
+ * @returns {Promise<boolean>} whether the row is on record
+ */
+async function recordUsername({ userId, username, email, accessToken }) {
+  if (!isSupabaseConfigured() || !userId || !username || !accessToken) return false;
+
+  try {
+    const response = await fetch(`${connection().url}/rest/v1/usernames`, {
+      method: 'POST',
+      headers: restHeaders({
+        Authorization: `Bearer ${accessToken}`,
+        // Upsert keyed on the account, so adopting a second session for the same
+        // player refreshes their row instead of failing on the duplicate.
+        Prefer: 'resolution=merge-duplicates,on_conflict=user_id',
+      }),
+      body: JSON.stringify({ username, email, user_id: userId }),
+    });
+
+    if (!response.ok) {
+      // 409/23505 means the name went to someone else between sign-up and here. The
+      // account is fine; it just cannot answer to that username, so say so quietly.
+      log.warn('username not recorded -', response.status);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    log.warn('could not record the username -', error.message);
+    return false;
+  }
 }
 
 /* --- adopting a session ------------------------------------------------------ */
 
-/** Store the refresh token and adopt the session, or report why we could not. */
-function adopt(data) {
+/**
+ * Store the refresh token and adopt the session, or report why we could not.
+ *
+ * Async only because the username row is written here — see `recordUsername`. The
+ * write cannot fail the sign-in, so awaiting it costs one request on a path that
+ * already makes several and buys a username that works from the next page load
+ * rather than the one after.
+ */
+async function adopt(data) {
   const built = toSession(data);
   if (!built) return { ok: false, reason: 'auth_unknown' };
 
   session = built;
   token = data?.access_token ?? null;
   writeRefreshToken(data?.refresh_token ?? null);
+
+  if (built.username) {
+    await recordUsername({
+      userId: built.userId,
+      username: built.username,
+      email: built.email,
+      accessToken: token,
+    });
+  }
+
   return { ok: true, session };
 }
 
@@ -113,10 +234,21 @@ export function accessToken() {
   return session ? token : null;
 }
 
-/** Sign in with email and password. Every refusal is `invalid_credentials`. */
-export async function signIn({ email, password }) {
+/**
+ * Sign in with an identifier (email or username) and password.
+ * Every refusal is `invalid_credentials`.
+ */
+export async function signIn({ identifier, password }) {
+  const id = String(identifier ?? '').trim();
+  const isEmail = id.includes('@');
+  const email = isEmail ? normaliseEmail(id) : await lookupEmailByUsername(normaliseUsername(id));
+
+  if (!email) {
+    return { ok: false, reason: 'invalid_credentials' };
+  }
+
   const result = await post('token?grant_type=password', {
-    email: normaliseEmail(email),
+    email,
     password,
   });
 
@@ -125,7 +257,7 @@ export async function signIn({ email, password }) {
     return { ok: false, reason };
   }
 
-  const adopted = adopt(result.data);
+  const adopted = await adopt(result.data);
   if (adopted.ok) log.info('signed in');
   return adopted;
 }
@@ -139,14 +271,29 @@ export async function signIn({ email, password }) {
  * access token would sign an unconfirmed player straight in and skip the
  * `CONFIRM_EMAIL` state entirely.
  *
- * The farmer name goes in `data`, not as a top-level field: GoTrue stores `data`
- * as `raw_user_meta_data`, and an unknown top-level key would be rejected.
+ * The farmer name and username go in `data`, not as top-level fields: GoTrue
+ * stores `data` as `raw_user_meta_data`, and an unknown top-level key would be
+ * rejected.
+ *
+ * The username is checked for being taken *first*, before the account is created.
+ * A refusal is much cheaper than an account that exists and cannot sign in by
+ * username, and the player still gets the specific "that username is taken"
+ * message rather than a neutral one, because they are typing it into a sign-up
+ * form and learn nothing they did not already know.
  */
-export async function signUp({ email, password, farmerName }) {
+export async function signUp({ email, password, farmerName, username }) {
+  const wanted = normaliseUsername(username);
+  if (wanted && await usernameIsTaken(wanted)) {
+    return { ok: false, reason: 'username_taken' };
+  }
+
   const result = await post('signup', {
     email: normaliseEmail(email),
     password,
-    data: { farmer_name: normaliseName(farmerName) },
+    data: {
+      farmer_name: normaliseName(farmerName),
+      username: wanted,
+    },
   });
 
   if (!result.ok) return { ok: false, reason: result.reason };
@@ -156,7 +303,7 @@ export async function signUp({ email, password, farmerName }) {
     return { ok: true, session: null, needsConfirmation: true };
   }
 
-  const adopted = adopt(result.data);
+  const adopted = await adopt(result.data);
   if (adopted.ok) log.info('registered and signed in');
   return adopted;
 }
@@ -254,7 +401,7 @@ export async function restoreSession() {
     return null;
   }
 
-  const adopted = adopt(result.data);
+  const adopted = await adopt(result.data);
   // Keep the old token if the response carried none, so a refresh that omits it
   // does not sign the player out on the next reload.
   if (!result.data?.refresh_token) writeRefreshToken(refreshToken);

@@ -56,7 +56,7 @@ const ACCESS = {
   user: {
     id: 'uuid-1234',
     email: 'farmer@rice.bd',
-    user_metadata: { farmer_name: 'Abdul Karim' },
+    user_metadata: { farmer_name: 'Abdul Karim', username: 'farmer_joe' },
   },
 };
 
@@ -96,7 +96,7 @@ beforeEach(async () => {
 test('with no URL and key it refuses instead of calling out', async () => {
   __setForTest({ url: '', key: '' });
 
-  const result = await signIn({ email: 'farmer@rice.bd', password: 'rice2026' });
+  const result = await signIn({ identifier: 'farmer@rice.bd', password: 'rice2026' });
 
   assert.equal(result.ok, false);
   assert.equal(result.reason, SUPABASE_NOT_CONFIGURED);
@@ -111,7 +111,7 @@ test('the wording GoTrue actually uses for a bad address is mapped', async () =>
   const real = 'Email address "someone@example.com" is invalid';
   stubFetch(() => ({ status: 400, body: { msg: real } }));
 
-  const result = await signUp({ email: 'someone@example.com', password: 'rice2026', farmerName: 'Someone' });
+  const result = await signUp({ email: 'someone@example.com', password: 'rice2026', farmerName: 'Someone', username: 'someone' });
 
   assert.equal(result.reason, 'email_invalid');
 });
@@ -123,9 +123,9 @@ test('the live enumeration guard: one text for both credential failures', async 
   const live = 'Invalid login credentials';
   stubFetch(() => ({ status: 400, body: { error_description: live } }));
 
-  const wrongPassword = await signIn({ email: 'farmer@rice.bd', password: 'wrongpass1' });
+  const wrongPassword = await signIn({ identifier: 'farmer@rice.bd', password: 'wrongpass1' });
   stubFetch(() => ({ status: 400, body: { error_description: live } }));
-  const noAccount = await signIn({ email: 'nobody@rice.bd', password: 'rice2026' });
+  const noAccount = await signIn({ identifier: 'nobody@rice.bd', password: 'rice2026' });
 
   assert.equal(wrongPassword.reason, 'invalid_credentials');
   assert.equal(noAccount.reason, 'invalid_credentials');
@@ -136,7 +136,7 @@ test('rate limiting is live on the project and is mapped, not swallowed', async 
   // quota. It must reach the player as "wait a minute", not as a credential error.
   stubFetch(() => ({ status: 429, body: { msg: 'email rate limit exceeded' } }));
 
-  const result = await signUp({ email: 'farmer@rice.bd', password: 'rice2026', farmerName: 'Someone' });
+  const result = await signUp({ email: 'farmer@rice.bd', password: 'rice2026', farmerName: 'Someone', username: 'someone' });
 
   assert.equal(result.reason, 'too_many_requests');
 });
@@ -163,31 +163,32 @@ test('the committed config exports no credentials of its own', async () => {
 /* --- the contract ---------------------------------------------------------- */
 
 test('signing in returns a session in the same shape as the local provider', async () => {
-  const result = await signIn({ email: 'farmer@rice.bd', password: 'rice2026' });
+  const result = await signIn({ identifier: 'farmer@rice.bd', password: 'rice2026' });
 
   assert.equal(result.ok, true);
-  assert.deepEqual(Object.keys(result.session).sort(), ['email', 'farmerName', 'status', 'userId']);
+  assert.deepEqual(Object.keys(result.session).sort(), ['email', 'farmerName', 'status', 'userId', 'username']);
   assert.equal(result.session.status, 'authed');
   assert.equal(result.session.userId, 'uuid-1234');
   assert.equal(result.session.email, 'farmer@rice.bd');
   assert.equal(result.session.farmerName, 'Abdul Karim');
+  assert.equal(result.session.username, 'farmer_joe');
 });
 
 test('the email is normalised before it is sent', async () => {
-  await signIn({ email: '  FARMER@Rice.BD ', password: 'rice2026' });
+  await signIn({ identifier: '  FARMER@Rice.BD ', password: 'rice2026' });
 
   assert.equal(calls[0].body.email, 'farmer@rice.bd');
 });
 
 test('the request carries the anon key and asks GoTrue for a password grant', async () => {
-  await signIn({ email: 'farmer@rice.bd', password: 'rice2026' });
+  await signIn({ identifier: 'farmer@rice.bd', password: 'rice2026' });
 
   assert.match(calls[0].url, /\/auth\/v1\/token\?grant_type=password$/);
   assert.equal(calls[0].init.headers.apikey, 'anon-test-key');
 });
 
 test('the password is never placed in a URL', async () => {
-  await signIn({ email: 'farmer@rice.bd', password: 'rice2026' });
+  await signIn({ identifier: 'farmer@rice.bd', password: 'rice2026' });
 
   assert.ok(!calls[0].url.includes('rice2026'));
 });
@@ -196,10 +197,10 @@ test('the password is never placed in a URL', async () => {
 
 test('a wrong password and an unknown account are indistinguishable', async () => {
   stubFetch(() => ({ status: 400, body: { error_description: 'Invalid login credentials' } }));
-  const wrongPassword = await signIn({ email: 'farmer@rice.bd', password: 'nope1234' });
+  const wrongPassword = await signIn({ identifier: 'farmer@rice.bd', password: 'nope1234' });
 
   stubFetch(() => ({ status: 400, body: { error_description: 'Invalid login credentials' } }));
-  const noAccount = await signIn({ email: 'nobody@rice.bd', password: 'rice2026' });
+  const noAccount = await signIn({ identifier: 'nobody@rice.bd', password: 'rice2026' });
 
   assert.equal(wrongPassword.reason, 'invalid_credentials');
   assert.equal(noAccount.reason, wrongPassword.reason);
@@ -208,7 +209,7 @@ test('a wrong password and an unknown account are indistinguishable', async () =
 test('an unconfirmed email is refused as invalid credentials, not as its own reason', async () => {
   stubFetch(() => ({ status: 400, body: { error_description: 'Email not confirmed' } }));
 
-  const result = await signIn({ email: 'farmer@rice.bd', password: 'rice2026' });
+  const result = await signIn({ identifier: 'farmer@rice.bd', password: 'rice2026' });
 
   // Its own reason would tell the caller the account exists but is unconfirmed.
   assert.equal(result.reason, 'invalid_credentials');
@@ -217,7 +218,7 @@ test('an unconfirmed email is refused as invalid credentials, not as its own rea
 test('a taken email on sign-up maps to email_taken', async () => {
   stubFetch(() => ({ status: 422, body: { error_description: 'User already registered' } }));
 
-  const result = await signUp({ email: 'farmer@rice.bd', password: 'rice2026', farmerName: 'Someone' });
+  const result = await signUp({ email: 'farmer@rice.bd', password: 'rice2026', farmerName: 'Someone', username: 'someone' });
 
   assert.equal(result.reason, 'email_taken');
 });
@@ -226,7 +227,7 @@ test('an unmapped provider error never leaks its raw text', async () => {
   const weird = 'https://internal.supabase.co/debug/trace-9931';
   stubFetch(() => ({ status: 500, body: { error_description: weird } }));
 
-  const result = await signIn({ email: 'farmer@rice.bd', password: 'rice2026' });
+  const result = await signIn({ identifier: 'farmer@rice.bd', password: 'rice2026' });
 
   assert.equal(result.ok, false);
   assert.ok(!String(result.reason).includes('supabase'), 'no URL in the reason');
@@ -236,7 +237,7 @@ test('an unmapped provider error never leaks its raw text', async () => {
 test('a network failure is reported as connectivity, not as bad credentials', async () => {
   globalThis.fetch = async () => { throw new TypeError('Failed to fetch'); };
 
-  const result = await signIn({ email: 'farmer@rice.bd', password: 'rice2026' });
+  const result = await signIn({ identifier: 'farmer@rice.bd', password: 'rice2026' });
 
   assert.equal(result.reason, 'network_request_failed');
 });
@@ -248,7 +249,7 @@ test('a non-JSON response body does not throw', async () => {
     json: async () => { throw new SyntaxError('Unexpected token <'); },
   });
 
-  const result = await signIn({ email: 'farmer@rice.bd', password: 'rice2026' });
+  const result = await signIn({ identifier: 'farmer@rice.bd', password: 'rice2026' });
 
   assert.equal(result.ok, false);
   assert.ok(result.reason);
@@ -256,20 +257,27 @@ test('a non-JSON response body does not throw', async () => {
 
 /* --- sign-up and confirmation ---------------------------------------------- */
 
-test('sign-up sends the farmer name as metadata, not as a top-level field', async () => {
+test('sign-up sends the farmer name and username as metadata, not as top-level fields', async () => {
   stubFetch(() => ({ status: 200, body: { user: { id: 'uuid-1234', email: 'farmer@rice.bd' } } }));
 
-  await signUp({ email: 'farmer@rice.bd', password: 'rice2026', farmerName: 'Abdul Karim' });
+  await signUp({ email: 'farmer@rice.bd', password: 'rice2026', farmerName: 'Abdul Karim', username: 'farmer_joe' });
 
-  assert.equal(calls[0].body.data.farmer_name, 'Abdul Karim');
-  assert.ok(!('farmer_name' in calls[0].body), 'not a column GoTrue would reject');
+  // Not `calls[0]`: sign-up checks the username is free first, so the signup is not
+  // necessarily the first request. Find it, or this asserts on the wrong call.
+  const signup = calls.find((call) => call.url.endsWith('/auth/v1/signup'));
+  assert.ok(signup, 'the account was created');
+
+  assert.equal(signup.body.data.farmer_name, 'Abdul Karim');
+  assert.equal(signup.body.data.username, 'farmer_joe');
+  assert.ok(!('farmer_name' in signup.body), 'not a column GoTrue would reject');
+  assert.ok(!('username' in signup.body), 'not a column GoTrue would reject');
 });
 
 test('sign-up with no session yet reports that confirmation is needed', async () => {
   // GoTrue returns 200 with no tokens when it has emailed a confirmation link.
   stubFetch(() => ({ status: 200, body: { user: { id: 'uuid-1234', email: 'farmer@rice.bd' } } }));
 
-  const result = await signUp({ email: 'farmer@rice.bd', password: 'rice2026', farmerName: 'Abdul Karim' });
+  const result = await signUp({ email: 'farmer@rice.bd', password: 'rice2026', farmerName: 'Abdul Karim', username: 'farmer_joe' });
 
   assert.equal(result.ok, true);
   assert.equal(result.session, null);
@@ -313,6 +321,156 @@ test('a reset request still surfaces rate limiting', async () => {
   assert.equal(result.reason, 'too_many_requests');
 });
 
+test('signing in with a username looks up the email and signs in', async () => {
+  // First call: lookup email by username
+  // Second call: GoTrue password grant with the found email
+  stubFetch((url) => {
+    if (url.includes('/rest/v1/usernames')) {
+      return { status: 200, body: [{ email: 'farmer@rice.bd' }] };
+    }
+    return { status: 200, body: ACCESS };
+  });
+
+  const result = await signIn({ identifier: 'farmer_joe', password: 'rice2026' });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.session.username, 'farmer_joe');
+  assert.equal(calls[1].body.email, 'farmer@rice.bd');
+});
+
+test('signing in with an unknown username returns invalid_credentials', async () => {
+  stubFetch((url) => {
+    if (url.includes('/rest/v1/usernames')) {
+      return { status: 200, body: [] };
+    }
+    return { status: 200, body: ACCESS };
+  });
+
+  const result = await signIn({ identifier: 'unknown_user', password: 'rice2026' });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'invalid_credentials');
+});
+
+/* --- the username row -------------------------------------------------------
+ *
+ * These are the tests the feature would have failed without. GoTrue stores the
+ * username as metadata and has no way to search it, so a row in `public.usernames`
+ * is the only thing that makes a username sign-in resolvable — and nothing
+ * populated that table until `adopt()` started writing to it. */
+
+test('adopting a session records the username so it can be looked up later', async () => {
+  stubFetch(() => ({ status: 200, body: ACCESS }));
+
+  await signIn({ identifier: 'farmer@rice.bd', password: 'rice2026' });
+
+  const write = calls.find((call) => call.url.endsWith('/rest/v1/usernames') && call.init.method === 'POST');
+  assert.ok(write, 'a session with a username must write a row for it');
+  assert.deepEqual(write.body, {
+    username: 'farmer_joe',
+    email: 'farmer@rice.bd',
+    user_id: 'uuid-1234',
+  });
+});
+
+test('the username row is written with the player token, so RLS can see whose it is', async () => {
+  stubFetch(() => ({ status: 200, body: ACCESS }));
+
+  await signIn({ identifier: 'farmer@rice.bd', password: 'rice2026' });
+
+  const write = calls.find((call) => call.url.endsWith('/rest/v1/usernames') && call.init.method === 'POST');
+  // The anon key alone would fail the `auth.uid() = user_id` insert policy.
+  assert.equal(write.init.headers.Authorization, 'Bearer access-token');
+});
+
+test('a username row is upserted, so signing in twice does not duplicate it', async () => {
+  stubFetch(() => ({ status: 200, body: ACCESS }));
+
+  await signIn({ identifier: 'farmer@rice.bd', password: 'rice2026' });
+  await signOut();
+  await signIn({ identifier: 'farmer@rice.bd', password: 'rice2026' });
+
+  const write = calls.find((call) => call.url.endsWith('/rest/v1/usernames') && call.init.method === 'POST');
+  // Keyed on the account, not the username, so a second session updates in place.
+  assert.match(write.init.headers.Prefer, /on_conflict=user_id/);
+  assert.match(write.init.headers.Prefer, /merge-duplicates/);
+});
+
+test('a failed username write does not fail the sign-in', async () => {
+  // The player is already authenticated at that point. Turning a metadata write
+  // failure into a sign-in failure would be a lockout over something cosmetic.
+  stubFetch((url) => {
+    if (url.endsWith('/rest/v1/usernames')) {
+      return { status: 500, body: { message: 'boom' } };
+    }
+    return { status: 200, body: ACCESS };
+  });
+
+  const result = await signIn({ identifier: 'farmer@rice.bd', password: 'rice2026' });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.session.username, 'farmer_joe');
+  assert.ok(currentSession(), 'the session stands even though the row did not');
+});
+
+test('a username taken between sign-up and the write is refused, not silently stolen', async () => {
+  stubFetch((url) => {
+    if (url.endsWith('/rest/v1/usernames')) {
+      return { status: 409, body: { code: '23505', message: 'duplicate key' } };
+    }
+    return { status: 200, body: ACCESS };
+  });
+
+  const result = await signIn({ identifier: 'farmer@rice.bd', password: 'rice2026' });
+
+  // The account is fine; only this username is unusable. Failing the sign-in here
+  // would be worse than the problem.
+  assert.equal(result.ok, true);
+});
+
+test('a username already registered is refused at sign-up, before the account exists', async () => {
+  stubFetch((url) => {
+    if (url.includes('/rest/v1/usernames') && url.includes('select=email')) {
+      return { status: 200, body: [{ email: 'someone@rice.bd' }] };
+    }
+    return { status: 200, body: ACCESS };
+  });
+
+  const result = await signUp({
+    email: 'new@rice.bd',
+    password: 'rice2026',
+    farmerName: 'Someone',
+    username: 'farmer_joe',
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'username_taken');
+  assert.equal(
+    calls.filter((call) => call.url.includes('/auth/v1/signup')).length,
+    0,
+    'no account is created for a username that is already gone',
+  );
+});
+
+test('a free username gets past the check and on to the account', async () => {
+  stubFetch((url) => {
+    if (url.includes('/rest/v1/usernames') && url.includes('select=email')) {
+      return { status: 200, body: [] };
+    }
+    return { status: 200, body: { user: { id: 'uuid-1234', email: 'farmer@rice.bd' } } };
+  });
+
+  const result = await signUp({
+    email: 'farmer@rice.bd',
+    password: 'rice2026',
+    farmerName: 'Abdul Karim',
+    username: 'farmer_joe',
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.needsConfirmation, true);
+});
+
 /* --- password update after the emailed link -------------------------------- */
 
 test('updating a password without a recovery session is refused', async () => {
@@ -326,7 +484,7 @@ test('updating a password without a recovery session is refused', async () => {
 /* --- session lifetime ------------------------------------------------------ */
 
 test('signing out clears the session', async () => {
-  await signIn({ email: 'farmer@rice.bd', password: 'rice2026' });
+  await signIn({ identifier: 'farmer@rice.bd', password: 'rice2026' });
   assert.ok(currentSession());
 
   await signOut();
@@ -335,7 +493,7 @@ test('signing out clears the session', async () => {
 });
 
 test('a failed restore leaves the player signed out rather than half-signed-in', async () => {
-  await signIn({ email: 'farmer@rice.bd', password: 'rice2026' });
+  await signIn({ identifier: 'farmer@rice.bd', password: 'rice2026' });
   await signOut();
 
   stubFetch(() => ({ status: 401, body: { error_description: 'Invalid Refresh Token' } }));
@@ -348,7 +506,7 @@ test('a failed restore leaves the player signed out rather than half-signed-in',
 test('a session with no user id is treated as a failure, not a blank session', async () => {
   stubFetch(() => ({ status: 200, body: { access_token: 'a', user: {} } }));
 
-  const result = await signIn({ email: 'farmer@rice.bd', password: 'rice2026' });
+  const result = await signIn({ identifier: 'farmer@rice.bd', password: 'rice2026' });
 
   assert.equal(result.ok, false);
   assert.equal(currentSession(), null);
