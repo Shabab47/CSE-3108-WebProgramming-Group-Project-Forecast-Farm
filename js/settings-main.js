@@ -116,7 +116,7 @@ function makeDeleteAccount(provider) {
     reset();
   }
 
-  return async function deleteAccount(password) {
+  return async function deleteMyAccount(password) {
     const state = getState();
     if (state?.session?.status !== 'authed') {
       return { ok: false, reason: 'not_signed_in' };
@@ -131,6 +131,12 @@ function makeDeleteAccount(provider) {
         // Supabase: one RPC that checks the password against the bcrypt hash GoTrue
         // stored and deletes the row if it matches. The check is server-side, so a
         // stolen access token is not enough on its own (ISS-040).
+        //
+        // Named distinctly from the import on purpose. This used to be called
+        // `deleteAccount` too, which shadowed it: the call below resolved to *itself*,
+        // recursed until the stack blew, and the RangeError surfaced as the generic
+        // "your account could not be deleted" — with a working server, a correct
+        // password, and no hint anywhere that the real cause was a name collision.
         : await deleteAccount({ token: provider.accessToken?.(), password });
     } catch (error) {
       log.error('account deletion threw -', error.message);
