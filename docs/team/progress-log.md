@@ -7,6 +7,50 @@ The per-person weekly notes that used to live in the README table are now in `me
 
 ---
 
+## Shop, settings, username sign-in, and account deletion
+
+- **Did:** Four surfaces, in the order they were asked for. The seed shop as its own page
+  behind an artwork button. A settings page behind a second one, holding two destructive
+  actions: **erase all progress** (two clicks) and **delete my account** (two clicks and the
+  password). Username sign-in alongside email. Then account deletion, rebuilt twice.
+- **The interesting part was what each change broke rather than what it added.**
+  - **The `usernames` table was world-readable.** The SELECT policy was `using (true)`, on the
+    reasoning that resolving a username to an email happens before sign-in. That is true, and it
+    says nothing about the endpoint: RLS governs *rows*, not queries, so `?select=*` returned
+    every username and email to any holder of the anon key that ships in this repo. Replaced
+    with a `security definer` function that resolves one name. ISS-040 by way of ISS-002.
+  - **The username write was silently refused.** `Prefer: resolution=merge-duplicates` is refused
+    by those policies — 403, verified on the live project, while the identical body without the
+    header answers 201. So usernames were never recorded and username sign-in was dead. Every
+    test passed, because the tests stub `fetch` and never saw the 403.
+  - **Erasing progress wiped the farm on a *wrong* password.** `clearSave()` ran before the
+    password was checked, and the panel then said "nothing was changed". Fixed by ordering, not
+    by clearing later.
+  - **`clearSave()` could not report a failed server delete** (ISS-041), so "your farm is cleared"
+    could be false with an expired access token. It returns a result now.
+  - **A shadowed import broke the delete button entirely.** `settings-main.js` imported
+    `deleteAccount` and also declared a local function of that name, so the call resolved to
+    itself and recursed until the stack blew. The `RangeError` surfaced as a generic failure with
+    the server working and the password correct. `npm run check` now fails on a declaration that
+    shadows an import — verified by reintroducing the bug.
+- **On deletion itself.** It was built as a 7-day grace period, then changed to immediate. The
+  grace period was doing two jobs and only one was the delay: it was the only thing bounding a
+  client-side-only password gate. Immediate deletion turned that same gap into permanent loss, so
+  the check moved into the database (`delete_my_account(password)`, comparing the bcrypt hash with
+  `pgcrypto`) rather than staying in the browser. DEC-024 supersedes DEC-022; both are kept.
+- **Also:** two migrations install and drop things the project had been carrying in chat only —
+  `002_usernames.sql` (owner SELECT policy) and `005_immediate_account_deletion.sql` (which now
+  installs `pgcrypto` itself after failing twice on projects without it). `docs/setup.md` was
+  written for the person who clones this next.
+- **Tests:** **209 passing.** The additions that mattered are the ones pinning behaviour a stub
+  could not see: that the username insert carries no `Prefer` header, that a 409 is a success, and
+  that a refused server delete is reported rather than swallowed.
+- **Lesson worth keeping:** three of these bugs were invisible to the suite and to a live test of
+  the service in isolation. They were only found by probing the running project, and one of them
+  by testing the thing a player actually clicks.
+
+---
+
 ## Supabase project created, and the switch that would have broken login
 
 - **Did:** Picked up T-29. Project `ygfrvwyydxrocvywzysk` created, URL and the `anon` key committed

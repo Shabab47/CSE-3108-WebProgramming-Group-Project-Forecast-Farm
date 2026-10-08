@@ -36,12 +36,16 @@ Weeks are in `goals.md`. Week 1 was planning; T-02 onward belong to weeks 2–5.
 | T-28 | **`services/authApi.js` — Supabase over REST, the real provider.** Written and tested; needs the project URL and anon key | Shabab | done | 0 | week 2 |
 | T-29 | **Create the Supabase project** and set the redirect URL, then flip `USE_LOCAL_PROVIDER`. Done: project created, credentials committed, Redirect URLs and Site URL set, flag flipped | Shabab | done | 0 | week 2 |
 | T-30 | **Export and import a farm:** `state/transfer.js` (format, checksum, rebase), `utils/checksum.js`, `ui/savePanel.js`, `store.adoptState` | Hisham | done | 0 | week 2 |
+| T-31 | **Seed shop as its own page:** `shop.html`, `js/shop-main.js`, `ui/shopLauncher.js`, `ui/shopView.js`, `css/shop.css`, `domain/shop.js`. DEC-024's predecessor — ISS-036, the plan wanted a modal | Shabab | done | 1 | week 2 |
+| T-32 | **Settings page:** `settings.html`, `js/settings-main.js`, `ui/settingsLauncher.js`, `ui/settingsView.js`, `ui/dangerAction.js`, `ui/accountCard.js`, `css/settings.css`. Erase-progress and delete-account | Shabab | done | 1 | week 2 |
+| T-33 | **Username sign-in:** `public.usernames` (002), `email_for_username()`, `normaliseUsername`, `usernameLooksValid`, the `usernames` field on sign-up | Shabab | done | 0 | week 2 |
+| T-34 | **Account deletion:** `delete_my_account(password)` (005), `services/accountApi.js`, the password gate in `dangerAction.js`. DEC-024 | Shabab | done | 0 | week 2 |
 
 ## Phase 1 — Page and field · week 2
 
 | ID | Task | Owner | Status | Phase | Updated |
 | :--- | :--- | :--- | :--- | ---: | :--- |
-| T-05 | Layout shell: `index.html`, `css/*`, panel placeholders, `main.js` boot | Kafi | todo | 1 | — |
+| T-05 | Layout shell: `index.html`, `css/*`, panel placeholders, `main.js` boot. Shipped as part of T-31/T-32 — the shop and settings pages were built on the shell | Kafi | done | 1 | week 2 |
 | T-06 | Static field: `utils/iso.js`, `farmView`, `plotTile`, `pumpView`, `css/field.css`, debug sliders, calibrate geometry | Hisham | todo | 1 | — |
 
 ## Phase 2 — Economy core · weeks 3 and 4

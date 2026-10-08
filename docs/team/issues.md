@@ -9,6 +9,11 @@ All entries below were found during the pre-build audit, by reading the plan
 against the actual assets and the live Open-Meteo responses. Nobody had written any code yet,
 so these are all cheap to fix now and expensive to find later.
 
+**An entry is a record of what was true when it was written.** A `fixed` entry keeps the
+numbers it was written with — "56 tests" was accurate then and is not a claim about today.
+Check the entry's own date, and `git log` for that file, before acting on one. For the
+current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
+
 ---
 
 ## Triage
