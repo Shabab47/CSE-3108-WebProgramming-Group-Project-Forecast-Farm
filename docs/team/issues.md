@@ -524,10 +524,75 @@ so these are all cheap to fix now and expensive to find later.
   back to the login form they had already passed. The planned Land and Market tabs are not
   built yet and `index.html` still shows placeholders for them.
 
-### ISS-037 Seed prices made the game unwinnable
-- Reported by: Shabab | Owner: Shabab | Status: **fixed**
-- Where: `js/config/crops.js`, `docs/crops.md`
-- Problem: The placeholder balance had rice seeds at 10 gold selling at 40 a planting. The
+### ISS-040 The password gate on account deletion was client-side only
+- Reported by: Shabab (review) | Owner: Shabab | Status: **fixed** in DEC-024
+- Where: was `003_account_deletion.sql`, now `005_immediate_account_deletion.sql`
+- Problem: `request_account_deletion()` authenticated with `auth.uid()` and nothing else,
+  so `POST /rest/v1/rpc/request_account_deletion` with **any valid access token**
+  scheduled a deletion with no credential at all. The password prompt protected the
+  settings form, not the endpoint against anyone who read the source.
+- Fix: the check moved into the database. `delete_my_account(password)` compares against
+  the bcrypt hash in `auth.users.encrypted_password` using `pgcrypto`'s `crypt()`, and
+  deletes nothing on a mismatch. `verifyPassword` is deleted from `js/services/authApi.js`
+  and `tests/mainBoot.test.js` asserts it stays gone, so the check cannot quietly drift
+  back into the browser where a caller could skip it.
+- Why it could sit as a logged issue: the 7-day window absorbed it. A token holder who
+  did not know the password could not sign back in, so signing in cancelled the deletion
+  and the account returned. Deletion is immediate now, so nothing absorbs it.
+- Reviewed and accepted; do not report it again as new.
+### ISS-041 `clearSave()` cannot report a failed server-side delete
+- Reported by: Shabab (review) | Owner: unassigned | Status: **open**
+- Where: `js/state/store.js`
+- Problem: `remote.delete?.()` resolves to `{ok:false, reason:'server_error'}` when
+  PostgREST refuses (an expired access token, most likely) â€” `saveApi.deleteRemoteSave`
+  never throws. `clearSave()` only catches, so it drops the resolved value and reports
+  success regardless. The `farm_saves` row survives a "my farm is cleared" promise.
+- Why it matters now: the settings page says the farm is cleared the moment a deletion
+  is scheduled. With an expired token that can be false, and signing back in inside the
+  7 days would restore the old farm.
+- Not fixed here: it is pre-existing and lives in the store, which is shared by every
+  caller, and the honest fix is for `clearSave()` to return a result the callers can
+  check. `deleteProgress` and the account-deletion flow both currently ignore it.
+  `tests/store.test.js:282` stubs `server.delete` to always succeed, so the swallow is
+  untested.
+
+### ISS-042 Editing your own username metadata orphans the `usernames` row
+- Reported by: Shabab (review) | Owner: unassigned | Status: **open**
+- Where: `js/services/authApi.js`
+- Problem: `recordUsername` is skipped when `user_metadata.username` is empty, and
+  metadata is user-writable via `PUT /auth/v1/user`. A player who clears or changes
+  their username metadata leaves the old row claimed forever â€” its primary key is never
+  released, so the name stays taken by an account that no longer answers to it. Silent
+  and permanent.
+- Fix when wanted: on adopting a session, delete the caller's existing row before
+  writing the new one. Needs the delete policy that `002` already has.
+### ISS-038 Account deletion has no emailed confirmation
+- Reported by: Shabab | Owner: Shabab | Status: **open** (deliberate, not blocked)
+- Where: `js/settings-main.js`, `supabase/migrations/005_immediate_account_deletion.sql`
+- Problem: deleting an account takes two clicks and the password, but nothing is sent to
+  the player's inbox. There is no "was this really you?" link on a second device.
+- Why it is not worse now: the password is verified in the database before anything is
+  deleted (DEC-024, ISS-040), so the deletion cannot be performed with a stolen session
+  token alone — which is what the old 7-day window used to be guarding. What remains is
+  that someone who knows the password *and* holds a live session can delete without a
+  second channel, which is the same position as being signed in.
+- The fix, if wanted: a Supabase Edge Function holding the `service_role` key in Supabase's
+  secret store, minting a single-use token with a 15-minute expiry and emailing it.
+  Rejected on cost (DEC-022): a deploy step, an email provider and a token table, against a
+  risk the password check already bounds. **Nothing secret enters this repo either way** —
+  see DEC-018.
+- Also worth knowing: Supabase's backup retention means deleted data stays recoverable from
+  a restore point for some days afterwards. Irrelevant for a game's farm data; not
+  something the game could fix if it mattered.
+
+### ISS-039 The 7-day delay meant the email could not be re-registered during the window
+- Reported by: Shabab | Owner: Shabab | Status: **fixed** by removing the delay
+- Where: was `003_account_deletion.sql`, now dropped by `005`
+- Problem: a player who scheduled a deletion could not register again with the same email
+  until the purge ran, because GoTrue still held the account. The `email_taken` message
+  ("sign in instead") was the right guidance, but the delay was surprising.
+- Fixed: deletion is immediate (DEC-024), so the email is free the moment the account is
+  gone, and the copy no longer promises a window.
   team set seed prices at 100 / 200 / 300 / 400 / 500, which against the old sell values
   made every rice planting a 60 gold loss: a player who planted lost money, so the
   sixteen-plot goal could never be reached.
