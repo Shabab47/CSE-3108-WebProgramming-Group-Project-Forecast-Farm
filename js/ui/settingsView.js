@@ -14,28 +14,24 @@
  * is entirely the player's own and they get a replacement for it immediately.
  *
  * **Delete my account** deletes the account, its farm and its username immediately, and
- *   signs the player out. Two clicks *and* a password, because there is no replacement
- *   and no undo at all. See `js/settings-main.js` for what is actually removed, and
- *   DEC-024 for why the password is checked in the database rather than here.
+ * signs the player out. Two clicks *and* a password, because there is no replacement
+ * and no undo at all. See `js/settings-main.js` for what is actually removed, and
+ * DEC-024 for why the password is checked in the database rather than here.
  *
  * Both go through `dangerAction`, so both arm before they act and neither can be
  * fired by reaching for the other.
+ *
+ * The account facts card is `accountCard.js`, and the arm-and-confirm control with its
+ * password gate is `dangerAction.js` — both extracted to keep this file inside the
+ * budget it holds panels to.
  */
 
 import { clear, el, setText } from '../utils/dom.js';
 import { createLog } from '../utils/log.js';
+import { accountCard } from './accountCard.js';
 import { dangerAction, passwordGate } from './dangerAction.js';
 
 const log = createLog('settingsView');
-
-/** One `key: value` line, or nothing when the value is empty. */
-function row(key, value) {
-  if (!value) return null;
-  return el('p', { class: 'settings-accounts__row' }, [
-    el('span', { class: 'settings-accounts__key', text: `${key}:` }),
-    el('span', { class: 'settings-accounts__value', text: value }),
-  ]);
-}
 
 /**
  * @param {HTMLElement} root
@@ -188,27 +184,6 @@ export function mountSettings(root, actions) {
     location.replace('login.html?deleted=1');
   });
 
-  /* --- account facts ----------------------------------------------------- */
-
-  const accountCard = el('div', { class: 'card' }, [
-    el('div', { class: 'card__head' }, [el('span', { class: 'card__title', text: 'Account' })]),
-    el('div', { class: 'card__body' }, [
-      el('dl', { class: 'settings-accounts' }, [
-        row('Farmer', session?.farmerName),
-        row('Username', session?.username),
-        row('Email', session?.email),
-      ].filter(Boolean)),
-      el('p', {
-        class: 'field__hint',
-        // A guest has no account to name and nothing to come back to, so say the way
-        // out rather than listing empty rows.
-        text: isGuest
-          ? 'You are playing as a guest, so this farm lives in this browser only. Create an account to keep it.'
-          : 'These are the details you signed up with.',
-      }),
-    ]),
-  ]);
-
   /* --- shell ------------------------------------------------------------- */
 
   root.append(
@@ -218,7 +193,7 @@ export function mountSettings(root, actions) {
         el('h1', { class: 'settings-top__title', text: 'Settings' }),
       ]),
     ]),
-    accountCard,
+    accountCard(session),
     el('div', { class: 'card card--danger' }, [
       el('div', { class: 'card__head' }, [el('span', { class: 'card__title', text: 'Erase progress' })]),
       el('div', { class: 'card__body' }, [progress.node, message]),
@@ -277,3 +252,4 @@ function failureSentence(result, fallback) {
     ? 'Sign in again before doing that, so we know whose it is.'
     : fallback;
 }
+

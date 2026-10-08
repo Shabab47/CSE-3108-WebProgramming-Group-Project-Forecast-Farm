@@ -540,32 +540,43 @@ so these are all cheap to fix now and expensive to find later.
   did not know the password could not sign back in, so signing in cancelled the deletion
   and the account returned. Deletion is immediate now, so nothing absorbs it.
 - Reviewed and accepted; do not report it again as new.
-### ISS-041 `clearSave()` cannot report a failed server-side delete
-- Reported by: Shabab (review) | Owner: unassigned | Status: **open**
-- Where: `js/state/store.js`
+### ISS-041 `clearSave()` could not report a failed server-side delete
+- Reported by: Shabab (review) | Owner: Shabab | Status: **fixed**
+- Where: `js/state/store.js`, `js/settings-main.js`
 - Problem: `remote.delete?.()` resolves to `{ok:false, reason:'server_error'}` when
-  PostgREST refuses (an expired access token, most likely) — `saveApi.deleteRemoteSave`
-  never throws. `clearSave()` only catches, so it drops the resolved value and reports
-  success regardless. The `farm_saves` row survives a "my farm is cleared" promise.
-- Why it matters now: the settings page says the farm is cleared the moment a deletion
-  is scheduled. With an expired token that can be false, and signing back in inside the
-  7 days would restore the old farm.
-- Not fixed here: it is pre-existing and lives in the store, which is shared by every
-  caller, and the honest fix is for `clearSave()` to return a result the callers can
-  check. `deleteProgress` and the account-deletion flow both currently ignore it.
-  `tests/store.test.js:282` stubs `server.delete` to always succeed, so the swallow is
-  untested.
+  PostgREST refuses — an expired access token, most likely — and `saveApi.js` never
+  throws. `clearSave()` only had a `catch`, so it dropped the resolved value and returned
+  nothing at all. The settings page said the farm was cleared while the row survived.
+- Impact: signing back in restored the farm the player had been told was gone. The
+  suite never caught it because `tests/store.test.js` stubbed `server.delete` to always
+  return `{ok:true}`.
+- Fix: `clearSave()` returns `{ok, reason?, localCleared}`. `deleteProgress` refuses to
+  write a fresh farm over a row it could not delete, and the account-deletion path warns
+  rather than claiming a clean sweep. Three tests cover a refused delete, a throwing
+  delete, and the no-server case.
 
-### ISS-042 Editing your own username metadata orphans the `usernames` row
-- Reported by: Shabab (review) | Owner: unassigned | Status: **open**
-- Where: `js/services/authApi.js`
-- Problem: `recordUsername` is skipped when `user_metadata.username` is empty, and
-  metadata is user-writable via `PUT /auth/v1/user`. A player who clears or changes
-  their username metadata leaves the old row claimed forever — its primary key is never
-  released, so the name stays taken by an account that no longer answers to it. Silent
-  and permanent.
-- Fix when wanted: on adopting a session, delete the caller's existing row before
-  writing the new one. Needs the delete policy that `002` already has.
+### ISS-042 Editing your own username metadata orphaned the `usernames` row
+- Reported by: Shabab (review) | Owner: Shabab | Status: **fixed**, pending migration
+- Where: `js/services/authApi.js`, `supabase/migrations/002_usernames.sql`
+- Problem: two causes, one behind the other.
+  1. `recordUsername` skipped the write entirely when `user_metadata.username` was empty,
+     and metadata is user-writable via `PUT /auth/v1/user`. A player who changed their
+     username left the old row claimed by an account that could no longer answer to it —
+     permanently, since the name is the primary key.
+  2. The fix needed to release the old row, and it could not: **DELETE and PATCH both
+     silently matched zero rows.** Verified against the live project — `Prefer:
+     return=representation` answered 200 with an empty array, while the same table's
+     INSERT worked. The cause was in `002`: the leak fix had dropped *every* SELECT
+     policy including the owner's, and an owner with no SELECT policy cannot update or
+     delete their own row.
+- Fix: `002` grants `usernames_readable_by_owner` (`using (auth.uid() = user_id)`) —
+  the player's own username and email, to themselves, and nobody else's. That is a
+  different policy from the anon one that was removed; `email_for_username()` remains
+  the only route to anybody else, and only one name at a time. On a 409,
+  `recordUsername` now releases the account's own row and retries, so a rename frees the
+  old name.
+- **Requires re-running `002_usernames.sql` on the live project before the rename path
+  works.** The insert path — and therefore username sign-in — does not depend on it.
 ### ISS-038 Account deletion has no emailed confirmation
 - Reported by: Shabab | Owner: Shabab | Status: **open** (deliberate, not blocked)
 - Where: `js/settings-main.js`, `supabase/migrations/005_immediate_account_deletion.sql`
@@ -573,13 +584,13 @@ so these are all cheap to fix now and expensive to find later.
   the player's inbox. There is no "was this really you?" link on a second device.
 - Why it is not worse now: the password is verified in the database before anything is
   deleted (DEC-024, ISS-040), so the deletion cannot be performed with a stolen session
-  token alone � which is what the old 7-day window used to be guarding. What remains is
+  token alone � which is what the old 7-day window used to be guarding. What remains is
   that someone who knows the password *and* holds a live session can delete without a
   second channel, which is the same position as being signed in.
 - The fix, if wanted: a Supabase Edge Function holding the `service_role` key in Supabase's
   secret store, minting a single-use token with a 15-minute expiry and emailing it.
   Rejected on cost (DEC-022): a deploy step, an email provider and a token table, against a
-  risk the password check already bounds. **Nothing secret enters this repo either way** �
+  risk the password check already bounds. **Nothing secret enters this repo either way** �
   see DEC-018.
 - Also worth knowing: Supabase's backup retention means deleted data stays recoverable from
   a restore point for some days afterwards. Irrelevant for a game's farm data; not
