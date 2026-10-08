@@ -1,0 +1,129 @@
+-- Remove every account and every trace of its data, keeping all structure.
+--
+-- Run once in the Supabase dashboard: SQL Editor → New query → paste → Run.
+--
+-- **This deletes accounts. It does not delete anything else.** Every table, column,
+-- index, policy and function in all three migrations is left exactly as it is — the
+-- next person to sign up gets a working account with a working username and a working
+-- settings page. Nothing needs re-running afterwards.
+--
+-- ---------------------------------------------------------------------------
+-- 1. What "clear the accounts" has to touch
+-- ---------------------------------------------------------------------------
+--
+-- Four places, and the first three fall out of the fourth automatically:
+--
+--   public.farm_saves               the farm          ← cascade
+--   public.usernames                username → email ← cascade
+--   account_deletion_requests       pending countdown ← cascade
+--   auth.identities                 GoTrue's own     ← cascade
+--   auth.users                      the accounts themselves
+--
+-- `auth.users` is the root. All four above reference it `on delete cascade`, so
+--
+--     delete from auth.users;
+--
+-- is the whole operation. There is deliberately no per-table `delete from` here: a
+-- script that sweeps tables one at a time is a script that can half-finish, and if one
+-- of those deletes fails you are left with an orphaned farm whose owner no longer
+-- exists. One statement cannot be half-done.
+--
+-- ---------------------------------------------------------------------------
+-- 2. Check before you delete
+-- ---------------------------------------------------------------------------
+--
+-- Run this first. It is read-only and tells you exactly what is about to go:
+--
+--    select
+--      (select count(*) from auth.users)                        as accounts,
+--      (select count(*) from auth.identities)                   as identities,
+--      (select count(*) from public.farm_saves)                 as farms,
+--      (select count(*) from public.usernames)                  as usernames,
+--      (select count(*) from public.account_deletion_requests)  as pending_deletions;
+--
+-- Anything other than 0 in the last four is a decision: an account with a farm means
+-- somebody has actually played. To keep one and delete the rest, see section 5.
+--
+-- ---------------------------------------------------------------------------
+-- 3. The deletion
+-- ---------------------------------------------------------------------------
+
+-- `auth.identities` is GoTrue's own table and is owned by Supabase, but the reference
+-- to `auth.users` cascades, so it goes with the user. Naming it here would be
+-- redundant, and naming it *wrong* would be a second thing that can fail.
+begin;
+
+-- Everything. There is no filter: the intent is an empty project.
+delete from auth.users;
+
+commit;
+
+-- ---------------------------------------------------------------------------
+-- 4. Confirm
+-- ---------------------------------------------------------------------------
+--
+--    select
+--      (select count(*) from auth.users)                        as accounts,
+--      (select count(*) from auth.identities)                   as identities,
+--      (select count(*) from public.farm_saves)                 as farms,
+--      (select count(*) from public.usernames)                  as usernames,
+--      (select count(*) from public.account_deletion_requests)  as pending_deletions;
+--
+-- All five must be 0.
+--
+-- The structure is still there, and this is what proves it:
+--
+--    select proname from pg_proc
+--     where proname in ('email_for_username','request_account_deletion',
+--                       'cancel_account_deletion','deletion_deadline',
+--                       'purge_expired_account_deletions');
+--    -- expect 5
+--
+--    select jobname, active from cron.job
+--     where jobname = 'purge-expired-account-deletions';
+--    -- expect one row, active = true
+--
+--    select policyname, cmd from pg_policies
+--     where tablename in ('usernames','farm_saves','account_deletion_requests')
+--     order by tablename, cmd;
+--    -- usernames: 3 owner policies and no SELECT policy
+--    -- farm_saves: 'own row only'
+--    -- account_deletion_requests: 'own deletion request only' for select only
+--
+-- ---------------------------------------------------------------------------
+-- 5. Keeping one account
+-- ---------------------------------------------------------------------------
+--
+-- To wipe everything except a specific account, replace section 3's delete with:
+--
+--    begin;
+--    delete from auth.users where id <> '<keep-this-uuid>';
+--    commit;
+--
+-- The cascade still removes that account's farm, username and identities, because
+-- they belong to the users being deleted rather than to the one being kept.
+--
+-- ---------------------------------------------------------------------------
+-- 6. If the SQL editor refuses
+-- ---------------------------------------------------------------------------
+--
+-- `delete from auth.users` needs the same elevated privilege as the migrations, which
+-- the SQL editor has by default — it is `postgres`. If it is refused with
+-- `permission denied for table users`, the fix is to run it as the SQL editor's role
+-- rather than to work around it with a `service_role` key, which must never enter this
+-- repository (DEC-018).
+--
+-- There is no faster alternative: the anon key cannot delete an auth user, by design.
+--
+-- ---------------------------------------------------------------------------
+-- 7. What this does not reset
+-- ---------------------------------------------------------------------------
+--
+-- The refresh token in each browser's localStorage survives, but it no longer matches
+-- any account, so the next sign-in attempt fails and the player is sent to the login
+-- form. That is correct behaviour, not a leftover: an invalid token is exactly what a
+-- signed-out player should hold.
+--
+-- Supabase's backups keep deleted accounts recoverable for the backup retention
+-- window. Irrelevant for farm data, worth knowing if the reason for clearing is
+-- something other than a tidy demo.
