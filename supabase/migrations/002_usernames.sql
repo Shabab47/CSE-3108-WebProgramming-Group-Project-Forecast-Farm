@@ -75,6 +75,23 @@ as $$
   select email from public.usernames where username = lower(btrim(wanted));
 $$;
 
+-- The owner may read their own row, and nobody else's.
+--
+-- This is **not** the anon policy that was removed above. That one was `using (true)`
+-- and served the whole table to anyone; this one is scoped to the caller's own row, and
+-- it exists because an owner with no SELECT policy cannot UPDATE or DELETE their row
+-- either — verified against the live project, where both returned 204 with an empty
+-- result set, silently doing nothing while looking like success. Without it a player
+-- could never change or release a username, which is ISS-042.
+--
+-- What it exposes is the player's own username and their own email address, to
+-- themselves. `email_for_username()` remains the only route to somebody else's, and
+-- only one name at a time.
+drop policy if exists "usernames_readable_by_owner" on public.usernames;
+create policy "usernames_readable_by_owner"
+  on public.usernames for select
+  using (auth.uid() = user_id);
+
 -- A row may only ever be written for the account that owns it. Without the
 -- `auth.uid()` check on the insert, any signed-in player could claim any username.
 --

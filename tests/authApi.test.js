@@ -285,6 +285,49 @@ test('sign-up with no session yet reports that confirmation is needed', async ()
   assert.equal(currentSession(), null, 'no session until the inbox is clicked');
 });
 
+test('a conflict on the account releases the stale row and records the new name (ISS-042)', async () => {
+  // A player who changes their username metadata still holds the old row, whose
+  // primary key keeps the old name claimed by an account that cannot answer to it —
+  // permanently, and silently. So on a 409 this account's own row is deleted and the
+  // insert retried, which both frees the old name and records the new one.
+  stubFetch((url, init = {}) => {
+    if (url.endsWith('/rest/v1/usernames') && init.method === 'DELETE') {
+      return { status: 204, body: null };
+    }
+    if (url.endsWith('/rest/v1/usernames') && init.method === 'POST') {
+      return { status: 409, body: { code: '23505', message: 'duplicate key' } };
+    }
+    return { status: 200, body: ACCESS };
+  });
+
+  const result = await signIn({ identifier: 'farmer@rice.bd', password: 'rice2026' });
+
+  assert.equal(result.ok, true);
+  const release = calls.find((call) => call.init.method === 'DELETE');
+  assert.ok(release, 'the stale row must be released');
+  assert.match(release.url, /user_id=eq\.uuid-1234/, 'scoped to this account only');
+});
+
+test('a conflict on a username owned by somebody else does not lock the player out', async () => {
+  // 409 because another account holds that name, not because we hold a stale row. The
+  // delete is still attempted but finds nothing, and the account is otherwise fine —
+  // it simply cannot sign in by that username, which is not our problem to solve.
+  stubFetch((url, init = {}) => {
+    if (url.endsWith('/rest/v1/usernames') && init.method === 'DELETE') {
+      return { status: 204, body: null };
+    }
+    if (url.endsWith('/rest/v1/usernames') && init.method === 'POST') {
+      return { status: 409, body: { code: '23505', message: 'duplicate key' } };
+    }
+    return { status: 200, body: ACCESS };
+  });
+
+  const result = await signIn({ identifier: 'farmer@rice.bd', password: 'rice2026' });
+
+  assert.equal(result.ok, true);
+  assert.ok(currentSession(), 'a taken name must never lock the player out of their account');
+});
+
 /* --- password reset -------------------------------------------------------- */
 
 test('a reset request tells GoTrue where to send the player back to', async () => {

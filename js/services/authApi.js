@@ -208,17 +208,11 @@ async function usernameIsTaken(username) {
 async function recordUsername({ userId, username, email, accessToken }) {
   if (!isSupabaseConfigured() || !userId || !username || !accessToken) return false;
 
-  // A plain insert, **not** an upsert. `Prefer: resolution=merge-duplicates` is refused
-  // by the RLS policies on this table — verified against the live project, where every
-  // variant of it (`on_conflict=user_id`, `on_conflict=username`, and the header with no
-  // `on_conflict` at all) answers 403 "new row violates row-level security policy",
-  // while the same body with no `Prefer` header answers 201. There is no SELECT policy
-  // for the owner, and the upsert path needs one.
-  //
-  // The upsert was only ever an optimisation, to avoid a conflict when a session is
-  // adopted twice. A conflict is the success case anyway: 409 means the row is already
-  // there, or the name went to someone else, and in both readings this account's
-  // username is not going to change by retrying. Treated as done.
+  // `Prefer: resolution=merge-duplicates` is deliberately absent: RLS refuses it (every
+  // variant answers 403, the same body without the header answers 201), and there is no
+  // owner SELECT policy at the time this was written — which is why the upsert had to
+  // go. `002_usernames.sql` now grants the owner a SELECT policy on their own row, so
+  // the update-and-reinsert path below is available again.
   const result = await rest('usernames', {
     method: 'POST',
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -227,12 +221,45 @@ async function recordUsername({ userId, username, email, accessToken }) {
 
   if (result.ok) return true;
 
-  // 409/23505 is the already-recorded case, not a failure. Anything else — a revoked
-  // token, a missing table — is worth a line in the log, because it means this account
-  // cannot sign in by username yet.
-  if (result.status === 409) return true;
+  // 409 means a row already claims this username *or* this account already has one.
+  // Which of the two changes what to do next, and the difference matters: the second
+  // means the player's metadata username changed, and the row they are still holding
+  // has to be released or it keeps the old name claimed forever (ISS-042).
+  if (result.status !== 409) {
+    log.warn('username not recorded -', result.status ?? result.reason);
+    return false;
+  }
 
-  log.warn('username not recorded -', result.status ?? result.reason);
+  return (await releaseStaleUsername({ userId, accessToken })) ? true : false;
+}
+
+/**
+ * Delete this account's username row so a new one can take its place.
+ *
+ * Runs when an insert conflicts, which is the signal that the account already holds a
+ * row that no longer matches its metadata — the rename case. Without it the old username
+ * stays claimed by an account that cannot answer to it, permanently and silently.
+ *
+ * Filtered on `user_id`, not on the username, so it can only ever touch this caller's own
+ * row however the rename went. A failure is not fatal: the account still works, and the
+ * name is a cosmetic loss, so this reports rather than throwing.
+ */
+async function releaseStaleUsername({ userId, accessToken }) {
+  const result = await rest(`usernames?user_id=eq.${encodeURIComponent(userId)}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+
+  if (result.ok) {
+    log.info('released a stale username row');
+    return true;
+  }
+
+  // 404 means the migration has not been run, or the row is not there after all — in
+  // which case there was nothing to release and the conflict was somebody else's name.
+  if (result.status !== 404) {
+    log.warn('could not release the stale username -', result.status ?? result.reason);
+  }
   return false;
 }
 
