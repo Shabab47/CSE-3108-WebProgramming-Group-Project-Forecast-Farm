@@ -1,0 +1,116 @@
+/* The settings: the sidebar button on the farm, and the panel on settings.html.
+ *
+ * Two separate surfaces, so they are kept apart below — the launcher is sized by
+ * the 200px sidebar, the cards are sized by the page. Every value comes from
+ * css/variables.css, and both follow the theme tokens so the settings looks the same
+ * in dark mode as the rest of the game.
+ */
+
+/* --- launcher: the settings gear in the farm sidebar ------------------------
+ *
+ * The artwork is the whole control: no card, no border, no shadow, no caption —
+ * just the drawing, at the width of the sidebar. The link is named by its
+ * `aria-label`; see js/ui/settingsLauncher.js. */
+
+.settings-launch {
+  display: block;
+  text-decoration: none;
+}
+
+.settings-launch__art {
+  width: 100%;
+  height: auto;
+  transition: filter var(--speed) var(--ease), transform var(--speed) var(--ease);
+}
+
+.settings-launch:hover .settings-launch__art,
+.settings-launch:focus-visible .settings-launch__art {
+  filter: drop-shadow(0 0 5px var(--gold)) drop-shadow(0 0 16px var(--gold-glow));
+  transform: translateY(-2px);
+}
+
+/* --- settings page shell ---------------------------------------------------- */
+
+.settings-page {
+  display: block;
+}
+
+.settings-shell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 640px;
+  margin: 0 auto;
+  padding: var(--space-5) var(--space-4);
+}
+
+/* --- settings header -------------------------------------------------------- */
+
+.settings-top {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.settings-top__lead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.settings-top__back {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.settings-top__back:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+.settings-top__title {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* --- danger zone ------------------------------------------------------------
+ *
+ * The one card on the page that warns before you touch it. The border and the
+ * heading borrow the danger tokens, so the zone reads as a warning in dark mode
+ * too rather than only in the light theme. `.btn--danger` itself lives in
+ * components.css with the other button variants. */
+
+.card--danger {
+  border-color: var(--danger);
+}
+
+.card--danger .card__title {
+  color: var(--danger);
+}
+
+/* The account lines read as a list of facts rather than as paragraphs. */
+.settings-accounts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+}
+
+.settings-accounts__row {
+  display: flex;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  margin: 0;
+}
+
+.settings-accounts__key {
+  color: var(--text-muted);
+  min-width: 90px;
+}
+
+.settings-accounts__value {
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
