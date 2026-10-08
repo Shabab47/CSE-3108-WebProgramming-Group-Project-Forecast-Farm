@@ -170,11 +170,7 @@ export function mountSettings(root, actions) {
         return;
       }
 
-      // Nothing was deleted and no countdown started, so this is genuinely "nothing
-      // changed" — and saying so is the reassurance that matters most here.
-      announce(
-        'We could not reach the account server, so nothing was changed — your farm is untouched. Try again in a moment.',
-      );
+      announce(deletionFailureSentence(result));
       return;
     }
 
@@ -248,8 +244,47 @@ async function onConfirm(action, work, { onDone, onFailed }) {
 
 /** The not-signed-in case deserves its own sentence; it is a different problem. */
 function failureSentence(result, fallback) {
-  return result?.reason === 'not_signed_in'
-    ? 'Sign in again before doing that, so we know whose it is.'
-    : fallback;
+  if (result?.reason === 'not_signed_in') {
+    return 'Sign in again before doing that, so we know whose it is.';
+  }
+  return fallback ?? 'That did not work. Try again in a moment.';
+}
+
+/**
+ * Why an account deletion failed, when it was not the password.
+ *
+ * The distinction that matters is **whose problem it is**. "Could not reach the server"
+ * sends a player off debugging their own wifi, and two of these reasons are not that at
+ * all — they are the project not being set up yet, which no amount of retrying will fix.
+ * So they get their own sentences rather than falling through to the generic one.
+ *
+ * `not_migrated` in particular is the single most likely thing to hit while
+ * `005_immediate_account_deletion.sql` has not been run, and it arrives as a bare 404
+ * from PostgREST — indistinguishable from a wrong URL without this mapping.
+ *
+ * @param {{reason?:string}} result
+ * @returns {string}
+ */
+function deletionFailureSentence(result) {
+  if (result?.reason === 'not_signed_in') {
+    return 'Sign in again before deleting your account, so we know whose it is.';
+  }
+
+  if (result?.reason === 'not_migrated') {
+    return 'Account deletion is not switched on on this project yet. Nothing was changed — tell the team to run the latest database migration.';
+  }
+
+  // The fail-closed case in `005`: pgcrypto could not verify the stored hash, so the
+  // function refuses rather than deleting without a password. Worth saying plainly,
+  // because "could not verify your password" sounds like the player typed it wrong.
+  if (result?.reason === 'cannot_verify_password') {
+    return 'This project cannot check passwords on the server yet, so deletion is switched off rather than allowed without one. Nothing was changed.';
+  }
+
+  if (result?.reason === 'timeout' || result?.reason === 'network_request_failed') {
+    return 'We could not reach the account server, so nothing was changed — your farm is untouched. Try again in a moment.';
+  }
+
+  return 'Your account could not be deleted. Nothing was changed — try again in a moment.';
 }
 

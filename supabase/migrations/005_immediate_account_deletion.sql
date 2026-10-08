@@ -7,10 +7,9 @@
 --
 -- ## If it fails
 --
--- The only statement that can fail on its own is section 2, and it fails loudly on
--- purpose: if `pgcrypto` is not installed, it raises rather than creating a function
--- that cannot verify a password. That is the fail-closed behaviour we want, and the
--- message names the fix. The rest of the file is `if exists` throughout.
+-- It should not need anything from you — `pgcrypto` is installed by this file. The only
+-- remaining way to fail is a project where `create extension` is refused, and then the
+-- message from section 2 names the fix. Everything else is `if exists` throughout.
 --
 -- ---------------------------------------------------------------------------
 -- 1. Why this replaces the 7-day grace period
@@ -74,6 +73,24 @@
 --
 -- The lookup is over `pg_proc`, so the schema name cannot come from a request — there
 -- is nothing to inject here.
+
+-- Install the dependency rather than assuming it is there.
+--
+-- Earlier revisions of this file began with a plain `create or replace function` whose
+-- body named `extensions.crypt(...)`, and it failed on that line every time on a
+-- project without pgcrypto — which is a normal Supabase state, since pgcrypto is not
+-- enabled by default. Because a failed statement aborts the run, the function was
+-- never created while the drops below it still went through, which left the project in a
+-- half-migrated state twice.
+--
+-- Installing it here makes the migration self-sufficient. `if not exists` is a no-op
+-- when it is already there, wherever it already lives — and where it lands does not
+-- matter, because the function below looks the schema up rather than assuming it.
+--
+-- This succeeds because the SQL editor runs as `postgres`, which may create an
+-- extension. It is *not* something a browser or the anon key could do, and it is not a
+-- `service_role` key: extensions live in the database, not in a secret (DEC-018).
+create extension if not exists pgcrypto;
 
 do $$
 declare
