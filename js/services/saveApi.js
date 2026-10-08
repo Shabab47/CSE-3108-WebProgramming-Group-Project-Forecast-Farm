@@ -158,9 +158,12 @@ export async function writeRemoteSave(token, userId, state) {
 }
 
 /**
- * Delete this account's farm. Used by the debug panel and by tests; there is no
- * player-facing "delete my farm" yet and there should not be one without a
- * confirmation flow.
+ * Delete this account's farm. Used by the debug panel, by the settings page, and
+ * by tests.
+ *
+ * This is the *farm*, not the account: the row in `auth.users` is untouched. See
+ * the note on account deletion in `js/settings-main.js` for why that cannot be
+ * done from here.
  */
 export async function deleteRemoteSave(token, userId) {
   if (!userId) return { ok: false, reason: 'nothing_to_delete' };

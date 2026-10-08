@@ -15,6 +15,7 @@ import assert from 'node:assert/strict';
 import * as localAuth from '../js/services/localAuth.js';
 import {
   currentSession,
+  deleteAccountData,
   requestPasswordReset,
   signIn,
   signInAsGuest,
@@ -199,6 +200,75 @@ test('the local provider refuses password reset instead of faking success', asyn
   });
 });
 
+/* --- account deletion --------------------------------------------------------
+ *
+ * Immediate here, with no 7-day grace period, and the reason is in the provider's
+ * doc comment: a deadline would have nowhere to live once the session is gone, so a
+ * sign-out-and-return would reset the countdown forever. What matters is that the
+ * account genuinely goes — the local accounts table *is* the account. */
+
+test('deleting an account clears the session and the account itself', async () => {
+  await signUp(VALID);
+  const userId = currentSession().userId;
+
+  const result = await deleteAccountData({ password: VALID.password });
+
+  assert.equal(result.ok, true);
+  assert.equal(currentSession(), null, 'no session survives the removal');
+  assert.ok(userId);
+  assert.equal(
+    JSON.parse(localStorage.getItem(AUTH_KEYS.accounts))[VALID.email],
+    undefined,
+    'the account row is gone, not just the session',
+  );
+});
+
+test('a wrong password deletes nothing at all', async () => {
+  await signUp(VALID);
+
+  const result = await deleteAccountData({ password: 'wrongpass1' });
+
+  // The whole reason the check moved into this function: deletion is immediate now, so
+  // a check the caller could skip would mean a token alone destroys an account.
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'invalid_credentials');
+  assert.ok(currentSession(), 'still signed in — nothing was destroyed');
+  assert.ok(
+    JSON.parse(localStorage.getItem(AUTH_KEYS.accounts))[VALID.email],
+    'the account row is untouched',
+  );
+});
+
+test('an empty password is refused before any work is done', async () => {
+  await signUp(VALID);
+
+  const result = await deleteAccountData({ password: '' });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'password_required');
+  assert.ok(currentSession());
+});
+
+test('deleting an account with no session is refused rather than faked', async () => {
+  const result = await deleteAccountData({ password: VALID.password });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'not_signed_in');
+});
+
+test('a deleted account can register again with the same email and username', async () => {
+  await signUp(VALID);
+  await deleteAccountData({ password: VALID.password });
+
+  // Both the email and the username went with the account row, so neither is still
+  // taken. The Supabase provider frees them the same way, by cascade from the deleted
+  // account — so both providers now promise the player the same thing.
+  const again = await signUp(VALID);
+  assert.equal(again.ok, true);
+  assert.equal(again.session.email, VALID.email);
+  assert.equal(again.session.username, VALID.username);
+});
+
 test('every function the panel contract needs exists on this provider', async () => {
   // A missing export reaches the panel as `undefined` and only fails when a
   // player clicks, as a confusing "could not reach the server". Assert the whole
@@ -206,6 +276,7 @@ test('every function the panel contract needs exists on this provider', async ()
   for (const name of [
     'currentSession', 'signIn', 'signUp', 'signOut',
     'requestPasswordReset', 'updatePassword', 'signInAsGuest',
+    'deleteAccountData',
   ]) {
     assert.equal(typeof localAuth[name], 'function', `missing contract member: ${name}`);
   }
@@ -225,6 +296,24 @@ test('storage that throws does not crash the provider', async () => {
     removeItem() { throw new Error('blocked'); },
   };
 
-  assert.doesNotThrow(async () => { await signUp(VALID); });
-  assert.equal((await signIn({ identifier: VALID.email, password: VALID.password })).reason, 'invalid_credentials', 'degrades to refused, never throws');
+  // `assert.doesNotThrow` is **synchronous**: handed an async function it returns at
+  // the first await, never sees the rejection, and passes unconditionally. An earlier
+  // version of this test did exactly that and asserted nothing at all — it looked like
+  // a safety net and was not one.
+  //
+  // What the provider actually owes is stronger than "does not throw", and this now
+  // asserts it directly: a blocked store resolves to a *refusal*. `signUp` reads the
+  // account table (which swallows the storage error and returns an empty table),
+  // builds an account, then fails to write it — so the result is `storage_unavailable`,
+  // an `ok: false` a panel can show, rather than a rejection nothing catches.
+  const created = await signUp(VALID);
+  assert.equal(created.ok, false);
+  assert.equal(created.reason, 'storage_unavailable');
+  assert.equal(currentSession(), null, 'a refused sign-up starts no session');
+
+  assert.equal(
+    (await signIn({ identifier: VALID.email, password: VALID.password })).reason,
+    'invalid_credentials',
+    'and signing in degrades to refused rather than throwing',
+  );
 });

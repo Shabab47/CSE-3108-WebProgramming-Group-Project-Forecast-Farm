@@ -95,12 +95,40 @@ test('every function the boot path and the panel need exists on the provider', (
   // `restoreSession` is deliberately absent from this list: it is Supabase-only, and
   // both call sites use `?.()`. Requiring it on the local provider would force a
   // no-op onto it.
+  //
+  // `deleteAccountData` takes the password and verifies it in the same call that
+  // deletes — see `005_immediate_account_deletion.sql`. It is required on both
+  // providers, because neither may expose a deletion a token alone can perform.
   for (const name of [
     'currentSession', 'signIn', 'signUp', 'signOut',
-    'requestPasswordReset', 'updatePassword',
+    'requestPasswordReset', 'updatePassword', 'deleteAccountData',
   ]) {
     assert.equal(typeof localAuth[name], 'function', `localAuth is missing ${name}`);
   }
+
+  assert.equal(
+    localAuth.deletesAccountsInPlace,
+    true,
+    'this provider deletes its own accounts rather than calling an RPC',
+  );
+});
+
+test('neither provider exposes a deletion that skips the password', async () => {
+  // The guarantee behind `005`. Before it, the Supabase RPC authenticated with
+  // `auth.uid()` alone and the password was checked in the browser, so the check could
+  // be bypassed by calling the delete endpoint directly.
+  const supabase = await import('../js/services/authApi.js');
+
+  // The check moved into the database (`delete_my_account(password)`), so neither
+  // provider has a client-side "check then delete" pair to bypass — the local one
+  // verifies and deletes in a single function, and the Supabase one has no
+  // delete-without-password entry point at all.
+  assert.equal(
+    typeof supabase.verifyPassword,
+    'undefined',
+    'the browser-side check must stay gone; the database owns it now',
+  );
+  assert.equal(typeof localAuth.deleteAccountData, 'function');
 });
 
 /* --- boot step 0 ------------------------------------------------------------- */
