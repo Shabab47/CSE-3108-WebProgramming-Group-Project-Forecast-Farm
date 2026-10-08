@@ -86,9 +86,51 @@ The per-person weekly notes that used to live in the README table are now in `me
 - **Split the panel rather than grow it.** `settingsView.js` was 290 lines and past the budget
   it documents. It is now 197, with `passwordGate.js`, `runDestructive.js` and
   `dangerMessages.js` beside it.
-- **Tests:** **247 passing**, up 38. The one I would keep forever is the empty-list assertion in
+- **Tests:** **247 passing** at this point. The one I would keep forever is the empty-list assertion in
   `dangerAction.test.js` — a refused password must not reach the success path. That is the
   original bug, pinned.
+
+---
+
+## "Checking your password." was in the DOM and completely invisible
+
+- **Reported as:** the password check on the settings page gave no feedback at all.
+- **It was not a missing feature.** `runDestructive` had been calling
+  `announce('Checking your password.', 'info')` since it was written. The sentence was
+  rendered, correct, in the right place in the tree. Three separate things were wrong.
+- **1. The wrong card.** The page had **one** status node, rendered inside the *erase
+  progress* card. Every sentence the *account* action produced appeared above the progress
+  button, in a card the player might have scrolled past and had not clicked. And `onArm`
+  cleared that same shared node, so arming one action wiped the other's words. Now each
+  action owns a live region in its own card — which is also the right thing for a screen
+  reader, since a shared node narrates a password check at the bottom of the page as
+  page-level news.
+- **2. No styling at all.** `.form-message` was defined in `css/auth.css`, and
+  `settings.html` does not load `auth.css`. So on that page the sentence had no padding,
+  no background and no colour: unstyled default text, indistinguishable from body copy.
+  The rules now live in `css/components.css`, which every page loads. **This is the actual
+  answer to "it doesn't show"** — the markup was never wrong, and reading the tree could
+  never have revealed it.
+- **3. `--info` did not exist.** Only `--error` was defined, so `info` fell back to the
+  neutral base and read as a fault — which is the opposite of what "Checking your
+  password." means. Added, with `--success` while there.
+- **The fix that mattered most was the test, not the CSS.** `AGENTS.md` had recorded that
+  this suite has no DOM and that the two headless smoke tests covering that gap lived
+  outside the repo — "which is itself worth fixing". So: `tests/helpers/fakeDom.js`, a
+  ~270-line fake `document` with no library, and `tests/settingsDom.test.js`. 17 tests
+  that mount the real panel and assert on what a player can read and which card says it.
+- **It immediately paid for itself by catching 2.5.** It found the shared-node bug, the
+  `onArm` cross-clearing, *and* a class styled in a file the page does not load — which
+  is the actual cause above, and which no amount of reading `settingsView.js` would have
+  surfaced. Both fixes are mutation-tested: reverting each one fails the suite.
+- **One thing I was careful not to "fix":** the test also flagged `card__body` as
+  unstyled. It is styled nowhere and always has been, because `.card` carries the padding
+  — a structural hook, not a bug. Rather than add a rule or silence the check, the
+  assertion was narrowed to what actually matters: *if a class is styled somewhere, then
+  this page's stylesheets must be where it is styled.* That is exactly the shape of the
+  real bug, and it ignores semantics-as-markup on purpose.
+- **Tests:** **264 passing**, up 3. `settingsView.js` is 201 lines after the split;
+  `statusLine.js` took the widget out of it.
 - **Lesson worth keeping:** three of these bugs were invisible to the suite and to a live test of
   the service in isolation. They were only found by probing the running project, and one of them
   by testing the thing a player actually clicks.

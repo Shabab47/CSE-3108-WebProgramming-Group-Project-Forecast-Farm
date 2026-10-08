@@ -462,8 +462,10 @@ farm and still reported that nothing had changed.
 | the settings page | `js/ui/settingsView.js` |
 | the arm-and-confirm control both actions use | `js/ui/dangerAction.js` |
 | the password field an armed action reveals | `js/ui/passwordGate.js` |
-| the order a destructive action runs in — password first, always | `js/ui/runDestructive.js` (tested in `tests/dangerAction.test.js`) |
+| the order a destructive action runs in - password first, always | `js/ui/runDestructive.js` (tested in `tests/dangerAction.test.js`) |
 | why a failure says what it says | `js/ui/dangerMessages.js` |
+| where a page says something to the player | `js/ui/statusLine.js` - one per region, never one shared node |
+| shared card, field and status styles | `css/components.css` - the only file every page loads |
 | what a username may contain | `js/domain/authRules.js` (`usernameLooksValid`), `js/config/auth.js` |
 | how a username becomes an email | `supabase/migrations/002_usernames.sql` (`email_for_username`) |
 | how an account is deleted, and why the password is checked in SQL | `supabase/migrations/005_immediate_account_deletion.sql`, then DEC-024 |
@@ -479,6 +481,7 @@ farm and still reported that nothing had changed.
 | API calls | `js/services/*` |
 | save / load | `js/state/store.js`, `js/state/saveFile.js` |
 | the export file format, checksum, rebase | `js/state/transfer.js` |
+| why a CSS rule exists but nothing looks different | compare the class against the stylesheets **that page** links — `settings.html` does not load `auth.css`, and that is how `.form-message` went unstyled there for a while. `tests/settingsDom.test.js` asserts it |
 | the export / import buttons | `js/ui/savePanel.js` |
 | which provider runs | `USE_LOCAL_PROVIDER` in `js/auth-main.js` (used by both entry points) |
 | the state shape | `js/state/types.js`, `js/state/initialState.js` |

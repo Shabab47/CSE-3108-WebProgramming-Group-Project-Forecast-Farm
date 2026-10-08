@@ -13,7 +13,7 @@ build step and no runtime dependency — `npm install` installs nothing, on purp
 
 ```bash
 npm run dev      # serve on http://127.0.0.1:5173
-npm test         # 247 tests
+npm test         # 264 tests
 npm run check    # layering rules; fails the build on a forbidden import
 ```
 

@@ -196,7 +196,7 @@ Week 1 is broken out per person, because "all four" tells you nothing about who 
 | 1 | Base service connections | ✅ Complete | Weather API · time API · place lookup | **Afif** |
 | 1 | Structure, data flow and art direction | ✅ Complete | Folder and module design · layering rules · art direction · 16 doc files | **Hisham** |
 | 2 | Sign-in and save system | ✅ Complete | Login page · session-gated boot · password reset · export and import a farm | **Shabab**, **Hisham** |
-| 2 | Project foundation | 🔄 In progress | Tooling · config · state store · layering check · 247 passing tests | **Hisham** |
+| 2 | Project foundation | 🔄 In progress | Tooling · config · state store · layering check · 264 passing tests | **Hisham** |
 | 2 | Shop, settings, username sign-in | ✅ Complete | Seed shop · settings page · password-gated erasure · `usernames` table | **Shabab**, **Hisham** |
 | 2 | Working farm screen | ⬜ Next | — | **Kafi** page shell, CSS · **Afif** reverse geocoding |
 | 3 | Land economy, then planting and growth | ⬜ Planned | — | **Hisham** |
