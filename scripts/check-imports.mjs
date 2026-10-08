@@ -31,12 +31,13 @@ const ALLOWED = {
  * main.js and the page entry scripts may import anything, and may touch the DOM.
  *
  * One entry per HTML page: index.html -> main.js, login.html -> auth-main.js,
- * almanac.html -> almanac-main.js, shop.html -> shop-main.js. A page that needs
- * its own boot sequence needs its own entry — the alternative is growing a
- * module that boots four different pages, which is how `auth-main.js` ended up
- * imported by the game page and needing the `#auth-root` guard.
+ * almanac.html -> almanac-main.js, shop.html -> shop-main.js,
+ * settings.html -> settings-main.js. A page that needs its own boot sequence needs
+ * its own entry — the alternative is growing a module that boots four different
+ * pages, which is how `auth-main.js` ended up imported by the game page and needing
+ * the `#auth-root` guard.
  */
-const WILD_CARD = new Set(['main.js', 'auth-main.js', 'almanac-main.js', 'shop-main.js']);
+const WILD_CARD = new Set(['main.js', 'auth-main.js', 'almanac-main.js', 'shop-main.js', 'settings-main.js']);
 
 /** Files allowed to touch the DOM outside js/ui/ (ISS-010). */
 const DOM_WHITELIST = new Set(['utils/dom.js']);

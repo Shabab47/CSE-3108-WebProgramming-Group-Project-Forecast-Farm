@@ -92,4 +92,5 @@ server.listen(PORT, HOST, () => {
   console.log(`  login  http://${HOST}:${PORT}/login.html`);
   console.log(`  game   http://${HOST}:${PORT}/index.html`);
   console.log(`  shop   http://${HOST}:${PORT}/shop.html`);
+  console.log(`  settings http://${HOST}:${PORT}/settings.html`);
 });

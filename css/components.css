@@ -81,6 +81,20 @@
   color: var(--text);
 }
 
+/* For actions that destroy something the player cannot get back — the only
+ * control that uses it is the delete-progress button in settings. */
+.btn--danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--on-accent);
+}
+
+.btn--danger:hover {
+  background: var(--danger-soft);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
 .btn--block {
   width: 100%;
 }

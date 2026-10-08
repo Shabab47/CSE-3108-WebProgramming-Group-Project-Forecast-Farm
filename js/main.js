@@ -23,6 +23,7 @@ import { mountToastStack } from './ui/toastStack.js';
 import { mountTopBar } from './ui/topBar.js';
 import { mountSavePanel } from './ui/savePanel.js';
 import { mountShopLauncher } from './ui/shopLauncher.js';
+import { mountSettingsLauncher } from './ui/settingsLauncher.js';
 import { AUTOSAVE_MS } from './config/game.js';
 
 const log = createLog('main');
@@ -30,6 +31,7 @@ const log = createLog('main');
 const LOGIN_URL = 'login.html';
 const SHOP_URL = 'shop.html';
 const FARM_URL = 'index.html';
+const SETTINGS_URL = 'settings.html';
 
 /**
  * The two hrefs that cross between the farm and the shop.
@@ -50,6 +52,10 @@ export function shopHref(session) {
 
 export function farmHref(session) {
   return session?.status === 'guest' ? `${FARM_URL}?guest=1` : FARM_URL;
+}
+
+export function settingsHref(session) {
+  return session?.status === 'guest' ? `${SETTINGS_URL}?guest=1` : SETTINGS_URL;
 }
 
 /**
@@ -99,6 +105,7 @@ function placeholder(label, detail) {
 function mountShell(session, onSignOut) {
   mountTopBar(qsOrNull('#top-bar'), { session, onSignOut });
   mountShopLauncher(qsOrNull('#shop-launch'), { href: shopHref(session) });
+  mountSettingsLauncher(qsOrNull('#settings-launch'), { href: settingsHref(session) });
 
   qsOrNull('#sidebar').append(
     placeholder('Season', 'Season card — T-11'),
