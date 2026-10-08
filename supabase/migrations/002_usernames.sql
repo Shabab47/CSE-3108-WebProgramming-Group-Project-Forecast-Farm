@@ -32,31 +32,78 @@ create unique index if not exists usernames_user_id_key
 
 alter table public.usernames enable row level security;
 
--- Readable by anyone, including a signed-out visitor, because resolving a username
--- to an email happens *before* there is a session. This is the one deliberate
--- trade-off in the feature: it means anyone can confirm whether a username is
--- registered. That is acceptable here and should be kept in mind — the email it
--- resolves to is already entered by the same visitor in the sign-in box, and the
--- alternative (no table) is not username sign-in at all. It is *not* an
--- enumeration oracle on the sign-in path, because `services/authApi.js` answers
--- identically for an unknown username and a wrong password (DEC-019).
-create policy "usernames_readable_by_anyone"
-  on public.usernames for select
-  using (true);
+-- **There is deliberately no SELECT policy for `anon`.** An earlier version of this
+-- migration had `using (true)`, on the reasoning that resolving a username to an email
+-- happens before there is a session. That reasoning was wrong about the shape of the
+-- endpoint: RLS governs *rows*, not *queries*. With the policy in place,
+-- `GET /rest/v1/usernames?select=*` returned the whole table — every username and its
+-- email — to anyone holding the anon key, which is committed to this repo. Verified
+-- against the live project: the unfiltered query answered HTTP 200, and would have
+-- returned one row per registered account.
+--
+-- The fix is the function below. It resolves exactly one name, so the worst case
+-- becomes "someone can ask whether one username exists" rather than "anyone can
+-- download the address book". See `email_for_username` for why that residual is
+-- accepted.
+drop policy if exists "usernames_readable_by_anyone" on public.usernames;
+
+-- Resolve one username to its email, for the password grant.
+--
+-- `security definer` because the caller has no session yet, and no SELECT policy
+-- because we do not want them to have one. It takes exactly one name and returns
+-- exactly one value, which is the narrowest thing that can still do the job.
+--
+-- `security definer` on a function reading a table is a privilege escalation, so the
+-- usual two guards apply and neither is optional: `search_path` is pinned to nothing
+-- (no schema hijack), and EXECUTE is revoked from `PUBLIC` below and granted only to
+-- `anon` and `authenticated`.
+--
+-- **The residual trade-off, stated plainly:** this function is an account-existence
+-- oracle for usernames. `authApi.js` answers `invalid_credentials` for both an unknown
+-- name and a wrong password, so the *reason code* is uniform — but a caller who can
+-- tell `null` from an email learns whether a given username is taken. That is inherent
+-- to username sign-in: resolving the name has to happen before the password does.
+-- Username login cannot be built without it; a directory of every account cannot be
+-- built around it. If this ever needs to be closed, username sign-in is what has to go.
+create or replace function public.email_for_username(wanted text)
+returns text
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select email from public.usernames where username = lower(btrim(wanted));
+$$;
 
 -- A row may only ever be written for the account that owns it. Without the
 -- `auth.uid()` check on the insert, any signed-in player could claim any username.
+--
+-- Every policy is dropped before it is created. `create policy` is **not**
+-- idempotent — it fails with `42710 policy ... already exists` — so a migration that
+-- only wraps the table and the function in `if not exists` is not re-runnable once a
+-- policy is in the way. That is exactly the mistake the first re-run of this file hit.
+drop policy if exists "usernames_insertable_by_owner" on public.usernames;
 create policy "usernames_insertable_by_owner"
   on public.usernames for insert
   with check (auth.uid() = user_id);
 
 -- Same, for the re-record path: a session adopted twice updates the row it owns
 -- rather than failing on a second insert.
+drop policy if exists "usernames_updatable_by_owner" on public.usernames;
 create policy "usernames_updatable_by_owner"
   on public.usernames for update
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
+drop policy if exists "usernames_deletable_by_owner" on public.usernames;
 create policy "usernames_deletable_by_owner"
   on public.usernames for delete
   using (auth.uid() = user_id);
+
+-- EXECUTE defaults to PUBLIC in Postgres, which `anon` inherits. `anon` is granted
+-- here on purpose and only here: this is the one table access a signed-out visitor
+-- legitimately needs, and it returns one address for one name.
+revoke execute on function public.email_for_username(text) from public;
+
+grant execute on function public.email_for_username(text) to anon;
+grant execute on function public.email_for_username(text) to authenticated;

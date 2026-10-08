@@ -322,11 +322,12 @@ test('a reset request still surfaces rate limiting', async () => {
 });
 
 test('signing in with a username looks up the email and signs in', async () => {
-  // First call: lookup email by username
-  // Second call: GoTrue password grant with the found email
+  // First call: resolve the username through `email_for_username`, which returns one
+  // bare string rather than a row — the table itself has no SELECT policy for `anon`.
+  // Second call: the GoTrue password grant with the email it gave back.
   stubFetch((url) => {
-    if (url.includes('/rest/v1/usernames')) {
-      return { status: 200, body: [{ email: 'farmer@rice.bd' }] };
+    if (url.includes('/rest/v1/rpc/email_for_username')) {
+      return { status: 200, body: 'farmer@rice.bd' };
     }
     return { status: 200, body: ACCESS };
   });
@@ -335,13 +336,34 @@ test('signing in with a username looks up the email and signs in', async () => {
 
   assert.equal(result.ok, true);
   assert.equal(result.session.username, 'farmer_joe');
+
+  const lookup = calls.find((call) => call.url.includes('/rest/v1/rpc/email_for_username'));
+  assert.ok(lookup, 'the username is resolved before anything is sent to GoTrue');
+  assert.deepEqual(lookup.body, { wanted: 'farmer_joe' }, 'the name is sent as data, not in the URL');
   assert.equal(calls[1].body.email, 'farmer@rice.bd');
+});
+
+test('the usernames table is never read directly, only through the function', async () => {
+  // Regression guard for the leak: `?select=*` on the table used to return every
+  // username and email to any holder of the shipped anon key. The table has no SELECT
+  // policy for `anon` precisely so a direct read fails, and this asserts the client
+  // does not try.
+  stubFetch(() => ({ status: 200, body: 'farmer@rice.bd' }));
+
+  await signIn({ identifier: 'farmer_joe', password: 'rice2026' });
+
+  for (const call of calls) {
+    assert.ok(
+      !call.url.endsWith('/rest/v1/usernames') || call.init.method !== 'GET',
+      `the table must not be read directly: ${call.url}`,
+    );
+  }
 });
 
 test('signing in with an unknown username returns invalid_credentials', async () => {
   stubFetch((url) => {
-    if (url.includes('/rest/v1/usernames')) {
-      return { status: 200, body: [] };
+    if (url.includes('/rest/v1/rpc/email_for_username')) {
+      return { status: 200, body: null };
     }
     return { status: 200, body: ACCESS };
   });
@@ -383,17 +405,39 @@ test('the username row is written with the player token, so RLS can see whose it
   assert.equal(write.init.headers.Authorization, 'Bearer access-token');
 });
 
-test('a username row is upserted, so signing in twice does not duplicate it', async () => {
+test('the username row is a plain insert, never an upsert', async () => {
+  // Regression guard, and the whole bug. `Prefer: resolution=merge-duplicates` is
+  // refused by the RLS policies on `usernames`: verified against the live project,
+  // where every variant answers 403 "new row violates row-level security policy" while
+  // the same body with no `Prefer` header answers 201. There is no owner SELECT policy,
+  // and the upsert path needs one — so an upsert here silently records nothing, and
+  // username sign-in is dead while every test still passes.
   stubFetch(() => ({ status: 200, body: ACCESS }));
 
   await signIn({ identifier: 'farmer@rice.bd', password: 'rice2026' });
-  await signOut();
-  await signIn({ identifier: 'farmer@rice.bd', password: 'rice2026' });
 
   const write = calls.find((call) => call.url.endsWith('/rest/v1/usernames') && call.init.method === 'POST');
-  // Keyed on the account, not the username, so a second session updates in place.
-  assert.match(write.init.headers.Prefer, /on_conflict=user_id/);
-  assert.match(write.init.headers.Prefer, /merge-duplicates/);
+  assert.equal(
+    write.init.headers.Prefer,
+    undefined,
+    'no Prefer header at all — that is the only form these policies allow',
+  );
+});
+
+test('an already-recorded username is a success, not a failure', async () => {
+  // A second adoption inserts the same row again and gets 409 from the primary key.
+  // That is the success case: the row is there, and retrying would not change it.
+  stubFetch((url) => {
+    if (url.endsWith('/rest/v1/usernames')) {
+      return { status: 409, body: { code: '23505', message: 'duplicate key' } };
+    }
+    return { status: 200, body: ACCESS };
+  });
+
+  const result = await signIn({ identifier: 'farmer@rice.bd', password: 'rice2026' });
+
+  assert.equal(result.ok, true, 'a conflict must not read as a broken write');
+  assert.ok(currentSession());
 });
 
 test('a failed username write does not fail the sign-in', async () => {
@@ -430,8 +474,8 @@ test('a username taken between sign-up and the write is refused, not silently st
 
 test('a username already registered is refused at sign-up, before the account exists', async () => {
   stubFetch((url) => {
-    if (url.includes('/rest/v1/usernames') && url.includes('select=email')) {
-      return { status: 200, body: [{ email: 'someone@rice.bd' }] };
+    if (url.includes('/rest/v1/rpc/email_for_username')) {
+      return { status: 200, body: 'someone@rice.bd' };
     }
     return { status: 200, body: ACCESS };
   });
@@ -454,8 +498,8 @@ test('a username already registered is refused at sign-up, before the account ex
 
 test('a free username gets past the check and on to the account', async () => {
   stubFetch((url) => {
-    if (url.includes('/rest/v1/usernames') && url.includes('select=email')) {
-      return { status: 200, body: [] };
+    if (url.includes('/rest/v1/rpc/email_for_username')) {
+      return { status: 200, body: null };
     }
     return { status: 200, body: { user: { id: 'uuid-1234', email: 'farmer@rice.bd' } } };
   });

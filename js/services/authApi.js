@@ -102,25 +102,76 @@ function restHeaders(extra = {}) {
 }
 
 /**
+ * A request with a deadline, so a half-open PostgREST connection cannot hang the game.
+ *
+ * Both callers below are awaited from `adopt()`, which sits on the boot path — a
+ * request that never answers would stop `restoreSession()` resolving, and with it the
+ * redirect to the login form. The player would get a permanently blank page with no
+ * way forward. `saveApi.js` and `accountApi.js` both arm an `AbortController` for the
+ * same reason; these two did not, which is why `restoreSession()` is now wrapped in
+ * `Promise.race` below as a second line of defence.
+ */
+const REST_TIMEOUT_MS = 10_000;
+
+/**
+ * @param {string} path path under `/rest/v1`
+ * @param {{method?:string, headers?:object, body?:object}} options
+ * @returns {Promise<{ok:true, data:any}|{ok:false, reason:string, status?:number}>}
+ */
+async function rest(path, { method = 'GET', headers = {}, body } = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REST_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(`${connection().url}/rest/v1/${path}`, {
+      method,
+      headers: restHeaders(headers),
+      body: body === undefined ? undefined : JSON.stringify(body),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) return { ok: false, reason: 'server_error', status: response.status };
+
+    // 204 and a scalar RPC both answer with no useful body in one case or another;
+    // a parse failure is not an error worth propagating.
+    try {
+      return { ok: true, data: await response.json() };
+    } catch {
+      return { ok: true, data: null };
+    }
+  } catch (error) {
+    const reason = error.name === 'AbortError' ? 'timeout' : 'network_request_failed';
+    return { ok: false, reason };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
  * The email a username belongs to, or null when it is free or the table is missing.
  *
- * Anonymous by design: a username is being resolved *before* there is a session.
- * Null covers "no such username", "table not migrated yet" and "offline" alike, and
+ * Anonymous by design: a username is being resolved *before* there is a session. This
+ * goes through `email_for_username()` rather than reading the table, because the table
+ * has no SELECT policy for `anon` — reading it directly was a full directory dump of
+ * every username and email to anyone holding the shipped anon key. See
+ * `002_usernames.sql`.
+ *
+ * Null covers "no such username", "function not migrated yet" and "offline" alike, and
  * the caller turns all three into `invalid_credentials`, which is also what a wrong
  * password produces.
  */
 async function lookupEmailByUsername(username) {
   if (!isSupabaseConfigured() || !username) return null;
 
-  const url = `${connection().url}/rest/v1/usernames?username=eq.${encodeURIComponent(username)}&select=email&limit=1`;
-  try {
-    const response = await fetch(url, { method: 'GET', headers: restHeaders() });
-    if (!response.ok) return null;
-    const rows = await response.json();
-    return rows?.[0]?.email ?? null;
-  } catch {
-    return null;
-  }
+  // Function name and argument are separate, so the username is JSON-encoded rather
+  // than interpolated into a URL: no escaping to get wrong, and no way for a crafted
+  // username to alter the filter.
+  const result = await rest('rpc/email_for_username', {
+    method: 'POST',
+    body: { wanted: username },
+  });
+
+  return result.ok && typeof result.data === 'string' ? result.data : null;
 }
 
 /**
@@ -157,29 +208,32 @@ async function usernameIsTaken(username) {
 async function recordUsername({ userId, username, email, accessToken }) {
   if (!isSupabaseConfigured() || !userId || !username || !accessToken) return false;
 
-  try {
-    const response = await fetch(`${connection().url}/rest/v1/usernames`, {
-      method: 'POST',
-      headers: restHeaders({
-        Authorization: `Bearer ${accessToken}`,
-        // Upsert keyed on the account, so adopting a second session for the same
-        // player refreshes their row instead of failing on the duplicate.
-        Prefer: 'resolution=merge-duplicates,on_conflict=user_id',
-      }),
-      body: JSON.stringify({ username, email, user_id: userId }),
-    });
+  // A plain insert, **not** an upsert. `Prefer: resolution=merge-duplicates` is refused
+  // by the RLS policies on this table — verified against the live project, where every
+  // variant of it (`on_conflict=user_id`, `on_conflict=username`, and the header with no
+  // `on_conflict` at all) answers 403 "new row violates row-level security policy",
+  // while the same body with no `Prefer` header answers 201. There is no SELECT policy
+  // for the owner, and the upsert path needs one.
+  //
+  // The upsert was only ever an optimisation, to avoid a conflict when a session is
+  // adopted twice. A conflict is the success case anyway: 409 means the row is already
+  // there, or the name went to someone else, and in both readings this account's
+  // username is not going to change by retrying. Treated as done.
+  const result = await rest('usernames', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body: { username, email, user_id: userId },
+  });
 
-    if (!response.ok) {
-      // 409/23505 means the name went to someone else between sign-up and here. The
-      // account is fine; it just cannot answer to that username, so say so quietly.
-      log.warn('username not recorded -', response.status);
-      return false;
-    }
-    return true;
-  } catch (error) {
-    log.warn('could not record the username -', error.message);
-    return false;
-  }
+  if (result.ok) return true;
+
+  // 409/23505 is the already-recorded case, not a failure. Anything else — a revoked
+  // token, a missing table — is worth a line in the log, because it means this account
+  // cannot sign in by username yet.
+  if (result.status === 409) return true;
+
+  log.warn('username not recorded -', result.status ?? result.reason);
+  return false;
 }
 
 /* --- adopting a session ------------------------------------------------------ */
@@ -187,10 +241,10 @@ async function recordUsername({ userId, username, email, accessToken }) {
 /**
  * Store the refresh token and adopt the session, or report why we could not.
  *
- * Async only because the username row is written here — see `recordUsername`. The
+ * Async only because the username row is written here — see `recordUsername`. That
  * write cannot fail the sign-in, so awaiting it costs one request on a path that
- * already makes several and buys a username that works from the next page load
- * rather than the one after.
+ * already makes several and buys a username that works from the next page load rather
+ * than the one after.
  */
 async function adopt(data) {
   const built = toSession(data);
@@ -200,6 +254,9 @@ async function adopt(data) {
   token = data?.access_token ?? null;
   writeRefreshToken(data?.refresh_token ?? null);
 
+  // No pending-deletion check here any more. An earlier version cancelled a scheduled
+  // 7-day deletion on every session adoption, which cost a request on every page load
+  // to protect against a grace period that no longer exists.
   if (built.username) {
     await recordUsername({
       userId: built.userId,
@@ -209,7 +266,13 @@ async function adopt(data) {
     });
   }
 
-  return { ok: true, session };
+  // `built`, **not** the module-level `session`. The two awaits above are a window in
+  // which a concurrent `signOut()` can null `session`, and returning it would hand the
+  // caller `{ok: true, session: null}` — which the login page reads as "signed up but
+  // awaiting confirmation" and answers with a confirmation-email notice for an account
+  // that needed no confirmation. The session that was just built is the correct answer
+  // regardless of what happened to the variable since.
+  return { ok: true, session: built };
 }
 
 /* --- the contract ----------------------------------------------------------- */
@@ -389,11 +452,36 @@ export async function updatePassword({ accessToken, password }) {
  * Called before `store.init` so a reload does not bounce the player to the login
  * form. Any failure returns null and signs out: a player with no usable token is
  * simply signed out, which is correct and needs no error message.
+ *
+ * **The `Promise.race` is a second line of defence, not decoration.** `adopt()` awaits
+ * two PostgREST calls now, and both have their own 10 s timeouts. This covers the case
+ * where a future change makes one of them hang anyway: without it, `restoreSession()`
+ * never settles, so `resolveSession()` never settles, so `start()` never reaches
+ * `location.replace(LOGIN_URL)` — and the player is left staring at a blank page with no
+ * way to reach the login form. A game that cannot be played is worse than one that asks
+ * to sign in again.
  */
+const RESTORE_HARD_LIMIT_MS = 15_000;
+
 export async function restoreSession() {
   const refreshToken = readRefreshToken();
   if (!refreshToken || !isSupabaseConfigured()) return null;
 
+  return Promise.race([
+    restore(refreshToken),
+    new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        log.warn('restore did not settle in time, treating as signed out');
+        writeRefreshToken(null);
+        resolve(null);
+      }, RESTORE_HARD_LIMIT_MS);
+      // Do not hold the event loop open for this timer once the race is decided.
+      timer.unref?.();
+    }),
+  ]);
+}
+
+async function restore(refreshToken) {
   const result = await post('token?grant_type=refresh_token', { refresh_token: refreshToken });
   if (!result.ok) {
     log.warn('refresh failed, signing out');
@@ -405,5 +493,5 @@ export async function restoreSession() {
   // Keep the old token if the response carried none, so a refresh that omits it
   // does not sign the player out on the next reload.
   if (!result.data?.refresh_token) writeRefreshToken(refreshToken);
-  return adopted.ok ? session : null;
+  return adopted.ok ? adopted.session : null;
 }
