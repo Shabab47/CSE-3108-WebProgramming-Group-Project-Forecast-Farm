@@ -13,3 +13,5 @@ desktop.ini
 .env
 .env.local
 *.log
+# Local agent notes — useful on this machine, not part of the project
+AGENTS.md

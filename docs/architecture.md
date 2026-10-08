@@ -146,7 +146,28 @@ place that decides **which** sentence. Keeping it out of the panel means:
   confirmed — collapses to one neutral sentence on the sign-in path. The same
   reason on the sign-up path may be specific, because the player just typed that
   address. `ENUMERATION_SENSITIVE` lists them, and a test asserts every entry is
-  neutralised, so adding a new provider code cannot quietly widen the oracle.
+    neutralised, so adding a new provider code cannot quietly widen the oracle.
+
+### One entry script per page
+
+Four pages, four entry scripts, each of which repeats the same two steps before any UI
+exists: resolve the session, load the save.
+
+| Page | Entry | Module that owns its boot |
+| :--- | :--- | :--- |
+| `login.html` | `auth-main.js` | `loadProvider()`, also used by the others |
+| `index.html` | `main.js` | `resolveSession()`, `init()`, `mountShell()` |
+| `shop.html` | `shop-main.js` | imports `resolveSession` from `main.js` |
+| `settings.html` | `settings-main.js` | imports `resolveSession` from `main.js` |
+
+They all ask `resolveSession(provider)` rather than each reading storage, because the
+first version disagreed and produced a redirect loop (ISS-033). Importing `main.js` from
+another entry point is safe because its `start()` is guarded on `#top-bar`, which only
+`index.html` has — the same trick `settings-main.js` uses with `#settings-root`.
+
+A guest's session is deliberately never written to storage, so the other pages cannot
+rediscover it. `?guest=1` across the link is what carries it, and `shopHref` /
+`farmHref` / `settingsHref` in `js/main.js` are the only places that URL is built.
 
 ### Session shape and the state field
 
@@ -302,6 +323,62 @@ an imported file is not one. `adoptState()` is its own path, and it re-stamps th
 **live** session — a file carries the session it was exported with, and adopting that
 verbatim would let a file put a stale identity into state.
 
+### Username sign-in
+
+GoTrue's password grant accepts an email and nothing else, so a username has to become
+an email before it can be sent anywhere. `public.usernames` maps one to the other, with
+`username` as the **primary key** — that is what makes it unique, enforced by the database
+rather than by a read-then-write a client could race.
+
+The lookup happens **before** sign-in, so it is the one thing an anonymous visitor can
+call. It goes through `email_for_username(text)` rather than a table read, because RLS
+governs *rows*, not *queries*: an earlier `using (true)` SELECT policy let
+`GET /rest/v1/usernames?select=*` return every username and email to anyone holding the
+committed anon key. The function returns one address for one name, which is the narrowest
+thing that can do the job. A player can also read their **own** row, which is what lets
+them rename a username and release the old one.
+
+The row is written when a session is **adopted**, not at sign-up — with email confirmation
+on, sign-up returns no user id to attach a row to yet. That also means an account created
+before the table existed heals itself on first sign-in.
+
+### Deleting an account
+
+Two clicks **and** the password, then the account, its farm, its username and its farmer
+name all go together.
+
+**The password is checked in the database**, by `delete_my_account(password)` in
+`005_immediate_account_deletion.sql`, which compares it with `pgcrypto`'s `crypt()`
+against the bcrypt hash GoTrue stored and deletes only on a match. This is the part worth
+understanding before changing anything:
+
+- Deleting a row from `auth.users` needs privileges no browser request holds. The usual
+  route is GoTrue's admin API with a `service_role` key, which must never enter this
+  repository because it bypasses RLS entirely (DEC-018). Comparing the hash is the only
+  route to a server-side check without one.
+- The check **cannot** be done in the browser. A client-side check is skipped by calling
+  the delete endpoint directly, which once meant any valid access token could destroy an
+  account with no password at all (ISS-040). Both providers now verify in the same call
+  that deletes, so neither exposes that.
+- It **fails closed**. If `crypt()` is unavailable, pgcrypto lacks bcrypt, or the stored
+  hash is not bcrypt, the function raises and deletes nothing. A project in that state
+  cannot delete an account at all, which is the right failure: an unverifiable password is
+  never treated as a correct one.
+
+Three properties keep the function narrow, and removing any one of them turns it into a
+way to delete anyone's account:
+
+1. **It takes no parameter.** It acts on `auth.uid()` only, so a caller can never name
+   another account. `tests/mainBoot.test.js` asserts the browser-side check stays gone.
+2. **`set search_path = ''`.** No schema hijack.
+3. **EXECUTE is revoked from `PUBLIC`** — which Postgres grants by default and `anon`
+   inherits — then granted only to `authenticated`.
+
+One `delete from auth.users` is the whole deletion. `auth.identities`,
+`public.farm_saves` and `public.usernames` all declare
+`references auth.users(id) on delete cascade`, so there is no half-deleted state to
+reconcile and no second code path that can forget a table.
+
 ---
 
 ## Where do I find...?
@@ -333,6 +410,11 @@ verbatim would let a file put a stale identity into state.
 | boot step 0, the session gate | `js/main.js` (`resolveSession`) |
 | the shop, prices and availability | `js/config/crops.js` |
 | the purchase rule | `js/domain/shop.js` (`buySeeds`) |
+| the settings page, and its two destructive actions | `js/ui/settingsView.js` |
+| the arm-and-confirm control either one uses | `js/ui/dangerAction.js` |
+| what a username may contain | `js/domain/authRules.js` (`usernameLooksValid`), `js/config/auth.js` |
+| how a username becomes an email | `supabase/migrations/002_usernames.sql` (`email_for_username`) |
+| how an account is deleted, and why the password is checked in SQL | `supabase/migrations/005_immediate_account_deletion.sql`, then DEC-024 |
 | the shop button and the seed list | `js/ui/shopLauncher.js`, `js/ui/shopView.js` |
 | shop page layout | `css/shop.css`, `shop.html` |
 | field drawing / click bugs | `js/ui/farmView.js`, `js/ui/plotTile.js`, `js/utils/iso.js`, `css/field.css` |
@@ -361,9 +443,11 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 ├── index.html                  the game page — app shell, 3 grid columns
 ├── login.html                  the sign-in / sign-up page
 ├── shop.html                   the seed shop — its own page, its own entry script
+├── settings.html               account details, erase progress, delete account
 ├── almanac.html                empty — placeholder page
 ├── LICENSE                     MIT
 ├── README.md
+├── AGENTS.md                   the working agreements, for a newcomer or an agent
 ├── package.json                scripts only, no dependencies
 │
 ├── css/
@@ -374,6 +458,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   ├── components.css          cards, buttons, inputs, meters, toasts
 │   ├── auth.css                the login card
 │   ├── shop.css                the shop sign and the seed list
+│   ├── settings.css            the settings gear and the settings page
 │   └── field.css               planned — isometric stage and plot layers
 │
 ├── data/
@@ -383,6 +468,8 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   ├── main.js                 boot order, boot 0 is the session gate
 │   ├── auth-main.js            the login page entry, wires panel to provider
 │   ├── shop-main.js            the shop page entry, same gate as main.js
+│   ├── settings-main.js        the settings page entry, same gate as main.js
+│   ├── remoteSave.js           joins the store to the server-save service
 │   ├── config/                 pure data, imports nothing
 │   │   ├── auth.js             storage keys, password policy, PBKDF2 cost
 │   │   ├── supabase.js         project URL + anon key (set, T-29)
@@ -395,7 +482,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── seasons.js          empty
 │   │   └── weatherEvents.js    empty
 │   ├── domain/                 game rules — no DOM, no fetch
-│   │   ├── authRules.js        what counts as a valid email or password
+│   │   ├── authRules.js        what counts as a valid username, email or password
 │   │   ├── shop.js             buySeeds, canAfford, the refusal reasons
 │   │   ├── farm.js             empty
 │   │   ├── notifications.js    empty
@@ -403,20 +490,26 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   └── weather.js          empty
 │   ├── services/               the only place that calls fetch
 │   │   ├── authApi.js          Supabase REST provider — live
+│   │   ├── accountApi.js       delete_my_account over PostgREST RPC
 │   │   ├── gotrue.js           the GoTrue transport and error mapping
 │   │   ├── tokenStore.js       the only place a token is written to storage
+│   │   ├── saveApi.js          the farm_saves table — read, write, delete
 │   │   ├── localAuth.js        the GUEST provider, same contract
 │   │   ├── timeApi.js          rewrites — writes straight into the DOM
 │   │   └── weatherApi.js       rewrites — OpenWeatherMap placeholder key
 │   ├── ui/                     render only, reads the store
+│   │   ├── accountCard.js      the account facts card on settings
 │   │   ├── almanac.js          empty
 │   │   ├── authErrors.js       provider code → sentence, enumeration guard
 │   │   ├── cropPicker.js       empty
+│   │   ├── dangerAction.js     the arm-and-confirm control, with its password gate
 │   │   ├── farmView.js         empty
 │   │   ├── loginFields.js      labelled input builders
 │   │   ├── loginPanel.js       the sign-in / sign-up form and its states
 │   │   ├── passwordReset.js    forgot-password: request, sent, set
 │   │   ├── savePanel.js        export / import a farm file
+│   │   ├── settingsLauncher.js the settings gear in the farm sidebar
+│   │   ├── settingsView.js     the settings page: two destructive actions
 │   │   ├── shopLauncher.js     the shop sign in the farm sidebar
 │   │   ├── shopView.js         the seed list on shop.html
 │   │   ├── toastStack.js       transient messages
@@ -425,11 +518,12 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   ├── utils/
 │   │   ├── dom.js              the only whitelisted DOM access
 │   │   ├── log.js              scoped logger, `[scope] message`
-│   │   ├── normalize.js        email and display-name normalisation
+│   │   ├── normalize.js        email, username and display-name normalisation
 │   │   ├── date.js             empty
 │   │   └── season.js           empty
 │   ├── state/
 │   │   ├── initialState.js     builds a fresh farm: 200 gold, 16 plots
+│   │   ├── saveFile.js         the per-user localStorage save
 │   │   ├── store.js            getState, apply, subscribe, bus, save/load
 │   │   └── types.js            planned — JSDoc @typedef for State
 │   └── debug/                  planned — the ?debug=1 panel
@@ -444,6 +538,8 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── pump.png            moves to pump/pump.png
 │   │   ├── Shop/
 │   │   │   └── shop.png        the shop sign, used as the shop button
+│   │   ├── settings/
+│   │   │   └── settings.png    the settings gear, used as the settings button
 │   │   ├── crops/
 │   │   │   ├── rice/           rice_1.png … rice_5.png + "rice seed.png"
 │   │   │   ├── wheat/          "wheat seed.png" — stages awaiting art
@@ -459,6 +555,14 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   ├── dev-server.mjs          static server for npm run dev
 │   └── check-imports.mjs       layering rules for npm run check
 │
+├── supabase/
+│   └── migrations/             run these by hand — see docs/setup.md
+│       ├── 001_farm_saves.sql           the server-side save
+│       ├── 002_usernames.sql            username ↔ email, for username sign-in
+│       ├── 003_account_deletion.sql     superseded by 005; do not run
+│       ├── 004_clear_all_accounts.sql   a tool, not a setup step
+│       └── 005_immediate_account_deletion.sql  delete, behind a password check
+│
 ├── tests/                      node:test, pure code only
 │   ├── authApi.test.js         Supabase provider, fetch stubbed
 │   ├── mainBoot.test.js        boot step 0, the provider switch
@@ -467,9 +571,12 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   ├── initialState.test.js    fresh farm, zones, session coercion
 │   ├── shop.test.js            the purchase rule and the crop economy
 │   ├── localAuth.test.js       the guest provider's contract
-│   └── store.test.js           persistence, save migration, corruption
+│   ├── saveApi.test.js         the server-save request shape
+│   ├── store.test.js           persistence, save migration, corruption
+│   └── transfer.test.js        save file format, checksum, import
 │
 └── docs/
+    ├── setup.md                run it: migrations in order, and how to check each
     ├── architecture.md         layers, data flow, boot order, accounts
     ├── crops.md                crop numbers, stages, harvest maths
     ├── weather-events.md       the 9 events, classification, effects

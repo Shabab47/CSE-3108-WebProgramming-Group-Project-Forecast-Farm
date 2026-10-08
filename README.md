@@ -63,6 +63,7 @@ The README is deliberately short. Everything below is the detail.
 | [`notifications.md`](docs/notifications.md) | The crop warning messages and when they fire |
 | [`crop-choice-guide.md`](docs/crop-choice-guide.md) | Which crop to plant in each season, and using the forecast |
 | [`architecture.md`](docs/architecture.md) | Project structure, layering rules, accounts and saving, data flow, and **the full annotated file tree** |
+| [`setup.md`](docs/setup.md) | **Start here to run it** — migrations in order, and how to check each one worked |
 | [`team/decisions.md`](docs/team/decisions.md) | Choices already made, so nobody relitigates them — **read this before changing how accounts or saves work** |
 | [`game-design/implementation-plan.md`](docs/game-design/implementation-plan.md) | The complete build plan |
 | [`team/`](docs/team/README.md) | Goals, tasks, ownership, logged issues, decisions, weekly notes |
@@ -79,9 +80,11 @@ Vanilla ES modules, plain CSS, no framework and no runtime dependencies.
 index.html      the game page
 login.html      sign in or create an account
 shop.html       the seed shop — buy seed packets with your gold
-css/            styling — layout, colours, components, fields, login card, shop
+settings.html   account details, erase progress, delete account
+css/            styling — layout, colours, components, fields, login card, shop, settings
 js/             the game code, split by responsibility
 assets/         artwork and icons
+supabase/       database migrations — run these by hand, see setup.md
 docs/           all project documentation
 tests/          the test suite, run with npm test
 ```
@@ -118,7 +121,8 @@ npm run check    # layering rules: imports, fetch, DOM access
 | :--- | :--- |
 | `/login.html` | Sign in or create an account. `index.html` redirects here if there is no session. |
 | `/index.html` | The farm. Loads your save, or starts a new one. |
-| `/shop.html` | The seed shop. Buys seed packets; gold is deducted and the farm is saved immediately. Redirects to the login page if there is no session. |
+| `/shop.html` | The seed shop. Buys seed packets; gold is deducted and the farm is saved immediately. |
+| `/settings.html` | Your account details, erase all progress, or delete your account. |
 
 Append `?debug=1` to the URL for the debug panel: geometry sliders, gold and time cheats,
 forced weather, plot IDs.
@@ -128,18 +132,28 @@ forced weather, plot IDs.
 > [DEC-020](docs/team/decisions.md)). A farm is also saved server-side, in a `farm_saves` table with
 > Row Level Security, so one account cannot read another's.
 >
-> **Setup for a fresh clone.** Neither of these can be committed, so a clone needs them before
-> accounts work fully:
+> **→ [docs/setup.md](docs/setup.md) has the database migrations, in order, and how to check each one
+> worked.** They cannot be committed and cannot be run from the browser, so a clone needs them. The
+> short version:
 >
-> - **Run `supabase/migrations/001_farm_saves.sql`** in the dashboard: SQL Editor → New query → paste
->   → Run. Safe to re-run. Without it, saves stay in this browser only.
-> - **Authentication → URL Configuration.** Add `http://localhost:5173` and the deployed origin to
->   **Redirect URLs**, and set the same origin as **Site URL**. Both are set on the live project now.
->   Without them, "forgot password" silently never delivers an email
->   ([ISS-031](docs/team/issues.md)).
-> - **Confirm email** is currently **off**, so a new account signs in immediately. Turn it on before
->   a demo to exercise the confirmation step — but the free tier's SMTP allowance is a few emails an
->   hour shared by everyone, so a reviewer who signs up after the first may receive nothing.
+> | Migration | Gives you | Without it |
+> | :--- | :--- | :--- |
+> | `001_farm_saves.sql` | The server-side save | Saves stay in this browser only |
+> | `002_usernames.sql` | Username sign-in | **Username login fails silently** |
+> | `005_immediate_account_deletion.sql` | Account deletion, behind a password check | **Deletion fails** |
+>
+> `003` is superseded by `005` — do not run it. `004` is a tool that deletes every account,
+> not a setup step. Run them in the Supabase dashboard's SQL Editor, in numeric order; all are
+> safe to re-run.
+>
+> **Also needed on the dashboard.** Authentication → URL Configuration: add
+> `http://localhost:5173` and the deployed origin to **Redirect URLs**, and set the same origin as
+> **Site URL**. Both are set on the live project. Without them, "forgot password" silently never
+> delivers an email ([ISS-031](docs/team/issues.md)).
+>
+> **Confirm email** is currently **off**, so a new account signs in immediately. Turn it on before a
+> demo to exercise the confirmation step — but the free tier's SMTP allowance is a few emails an
+> hour shared by everyone, so a reviewer who signs up after the first may receive nothing.
 >
 > **Play as guest** stays local by design and writes nothing to the server; a guest farm cannot be
 > exported. Clearing site data deletes a guest farm for good. Exported farm files are
@@ -162,10 +176,12 @@ three that would have broken the game were caught in that review before a line o
 written. Art is tracked separately in [`asset-checklist.md`](docs/asset-checklist.md), where **46
 assets are still outstanding** — including two failure sprites that rice itself still needs.
 
-Week two has since added the sign-in and save system. **Shabab** built the login page and the
-account flow; **Hisham** added the state store, the Supabase provider, and exporting and importing a
-farm. Four weeks of building remain: the farm screen, then the economy, then live weather, then the
-finished release.
+Week two has since added the sign-in and save system, the seed shop, username sign-in, and
+the settings page — where a player can erase their progress or delete their account.
+**Shabab** built the login and account flow, the shop, and the settings page; **Hisham**
+added the state store, the Supabase provider, exporting and importing a farm, and the
+layering rules that hold the project together. Four weeks of building remain: the farm
+screen, then the economy, then live weather, then the finished release.
 
 <a id="progress"></a>
 
@@ -180,7 +196,8 @@ Week 1 is broken out per person, because "all four" tells you nothing about who 
 | 1 | Base service connections | ✅ Complete | Weather API · time API · place lookup | **Afif** |
 | 1 | Structure, data flow and art direction | ✅ Complete | Folder and module design · layering rules · art direction · 16 doc files | **Hisham** |
 | 2 | Sign-in and save system | ✅ Complete | Login page · session-gated boot · password reset · export and import a farm | **Shabab**, **Hisham** |
-| 2 | Project foundation | 🔄 In progress | Tooling · config · state store · layering check · 121 passing tests | **Hisham** |
+| 2 | Project foundation | 🔄 In progress | Tooling · config · state store · layering check · 209 passing tests | **Hisham** |
+| 2 | Shop, settings, username sign-in | ✅ Complete | Seed shop · settings page · account deletion · `usernames` table | **Shabab**, **Hisham** |
 | 2 | Working farm screen | ⬜ Next | — | **Kafi** page shell, CSS · **Afif** reverse geocoding |
 | 3 | Land economy, then planting and growth | ⬜ Planned | — | **Hisham** |
 | 4 | Pump, water and market, then live weather | ⬜ Planned | — | **Hisham** pump, market · **Afif** live weather |
@@ -188,17 +205,29 @@ Week 1 is broken out per person, because "all four" tells you nothing about who 
 
 ### Accounts and saving — what works today
 
-Sign-in and account creation run. **The player is never shown a farm they have not signed into**, and a
-guest can still play without an account.
+Sign-in and account creation run, on its own page. **The player is never shown a farm they
+have not signed into**, and a guest can still play without an account.
 
 | Works now | Detail |
 | :--- | :--- |
-| Sign in, register, guest play | Email and password, or play without an account |
+| Sign in, register, guest play | **Email or username** and password, or play without an account |
 | The farm is kept per account | Two people on one machine do not share a farm |
 | Save and restore | Progress survives a reload and a closed tab |
 | **Export your farm** | Writes a `.farm` file you can keep or move to another computer |
 | **Import a farm** | Reads one back, with a confirmation before it replaces anything |
 | Password reset | Live — needs the redirect URL set in the Supabase dashboard, see above |
+| Buy seeds | The shop, in its own page. Gold is deducted and the save is written immediately |
+| **Erase all progress** | Settings page. Starts a brand new farm under the same account |
+| **Delete account** | Settings page. Two clicks **and** the password, checked in the database |
+
+**Username and farmer name are different things.** The farmer name is what the game greets
+you by and may contain spaces. The username is the login handle: letters, numbers and
+underscores only, 3–20 characters, unique, and never shown to anyone but you.
+
+**Deleting an account is immediate and irreversible.** The password is verified by the
+database before anything is removed, so a stolen session token cannot do it. The account,
+its farm, its username and its farmer name all go together — see
+[DEC-024](docs/team/decisions.md).
 
 **Two limits worth knowing:**
 
