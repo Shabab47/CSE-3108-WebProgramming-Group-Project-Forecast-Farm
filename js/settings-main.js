@@ -41,7 +41,8 @@ const LOGIN_URL = 'login.html';
  *
  *  1. `clearSave()` removes **both** copies — the localStorage cache and the server
  *     row. Clearing only the server would let a reload resurrect the old farm from
- *     the cache, which is the failure this feature must not have.
+ *     the cache, which is the failure this feature must not have. Its result is checked
+ *     because the next step overwrites that same row (ISS-041).
  *  2. `adoptState(buildInitialState(session))` puts a freshly built farm in memory
  *     under the *same* session, so the player stays signed in and their username,
  *     email and farmer name are untouched — "as if he had just opened an account"
@@ -59,7 +60,14 @@ async function deleteProgress() {
     return { ok: false, reason: 'not_signed_in' };
   }
 
-  await clearSave();
+  // Checked, because step 2 writes a fresh farm over the same row: if the delete had
+  // been refused we would be telling the player their old farm is gone while leaving
+  // it on the server for them to sign back into (ISS-041).
+  const cleared = await clearSave();
+  if (cleared?.ok === false) {
+    log.warn('server farm was not cleared, so a fresh one was not written -', cleared.reason);
+    return { ok: false, reason: cleared.reason ?? 'server_delete_failed' };
+  }
 
   const adopted = adoptState(buildInitialState(session));
   if (!adopted.ok) return adopted;
@@ -139,10 +147,17 @@ function makeDeleteAccount(provider) {
 
     // Gone. The server rows went with the account by cascade, so `clearSave()` now has
     // only the localStorage copy left to remove — and it is the one thing the cascade
-    // cannot reach. Best effort: the account is already deleted either way, and a failed
-    // local write must not report otherwise.
+    // cannot reach.
+    //
+    // Its result is checked even though the account is already deleted, because it is
+    // the only way to know whether a farm row survived (ISS-041). It is a warning, not a
+    // failure: the account is gone whatever this returns, and refusing to sign the
+    // player out of a deleted account would be absurd.
     try {
-      await clearSave();
+      const cleared = await clearSave();
+      if (cleared?.ok === false) {
+        log.warn('account deleted but a farm copy may have survived -', cleared.reason);
+      }
     } catch (error) {
       log.warn('could not clear the local save -', error.message);
     }

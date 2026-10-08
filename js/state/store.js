@@ -241,16 +241,43 @@ export function load() {
  *
  * Both copies: the server row as well as the local cache, or signing out and back
  * in on the same machine would resurrect a farm the player just deleted.
+ *
+ * **Returns whether the server copy actually went.** This used to fire and forget, and
+ * that was a lie the settings page repeated: `saveApi.deleteRemoteSave` resolves to
+ * `{ok:false}` when PostgREST refuses — most likely an expired access token — rather
+ * than throwing, so a bare `catch` never saw it. The row survived while the UI said
+ * "your farm is cleared", and signing back in inside the deletion window restored the
+ * old farm (ISS-041).
+ *
+ * The local copy is deleted first and unconditionally, because that part cannot fail on
+ * a dropped connection and it is the one the player can see. The result reports the
+ * server half honestly.
+ *
+ * @returns {Promise<{ok:boolean, reason?:string, localCleared:boolean}>}
  */
 export async function clearSave() {
   deleteSave(userId);
-  if (remote) {
-    try {
-      await remote.delete?.();
-    } catch (error) {
-      log.warn('could not clear the server save -', error.message);
-    }
+
+  if (!remote) return { ok: true, localCleared: true };
+
+  let result;
+  try {
+    // Optional call: a provider with no server save has no `delete`, and the absence is
+    // not a failure — there was no server copy to remove.
+    result = await (remote.delete ? remote.delete() : { ok: true });
+  } catch (error) {
+    log.warn('could not clear the server save -', error.message);
+    return { ok: false, reason: 'server_delete_failed', localCleared: true };
   }
+
+  // The adapter's own shape is `{ok, reason}`; treat a missing `ok` as success so an
+  // adapter that returns nothing is not reported as a failure it did not have.
+  if (result?.ok === false) {
+    log.warn('server save was not cleared -', result.reason ?? 'unknown');
+    return { ok: false, reason: result.reason ?? 'server_delete_failed', localCleared: true };
+  }
+
+  return { ok: true, localCleared: true };
 }
 
 /* --- import -----------------------------------------------------------------
