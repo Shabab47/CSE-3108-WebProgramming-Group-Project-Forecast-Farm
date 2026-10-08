@@ -379,6 +379,55 @@ One `delete from auth.users` is the whole deletion. `auth.identities`,
 `references auth.users(id) on delete cascade`, so there is no half-deleted state to
 reconcile and no second code path that can forget a table.
 
+### Erasing progress
+
+Two clicks **and** the password, then the farm goes and a brand new one is built under the
+same session. The account, username, email and farmer name all survive.
+
+This is the second of the two destructive actions, and it was originally *not* behind a
+password — the reasoning was that a farm is the player's own and one click away from being
+rebuilt. That is not the right test. A farm is the accumulated product of real play, and
+"easy to replace" is not "protected": a stolen session token could destroy weeks of work.
+
+So it uses the same mechanism, one function over in `006_password_gated_erase.sql`:
+
+```sql
+erase_progress(password) -> boolean
+```
+
+Every property of `delete_my_account` is kept, deliberately:
+
+| | |
+| :--- | :--- |
+| Takes no account id | acts on `auth.uid()` only, so a caller cannot name another farm |
+| `set search_path = ''` | no schema hijack |
+| `EXECUTE` revoked from `PUBLIC`, granted to `authenticated` | the anon key in this repo grants nothing |
+| bcrypt hash compared with `pgcrypto`'s `crypt()` | fails closed if the hash is not bcrypt |
+| Deletes only `public.farm_saves` | leaves `auth.users`, identities, usernames and farmers alone |
+
+The one difference is the return: `false` means wrong password, and **nothing was deleted**.
+`delete_my_account` returns `false` too, so both refusals arrive at the panel as the same
+shape and the same sentence.
+
+**Why the check and the delete are one statement, not two calls.** A separate "verify
+password" endpoint would be one the browser could simply not call. `js/mainBoot.test.js`
+asserts `authApi.verifyPassword` stays `undefined` for exactly that reason. The cost is one
+bcrypt comparison per guess, the same bound `delete_my_account` has always had.
+
+The entry point is `makeDeleteProgress()` in `js/settings-main.js`, and its order is the
+whole feature:
+
+1. `eraseProgress({ token, password })` — verifies and deletes the **server** row. Nothing
+   has been touched yet, so a refusal needs no cleanup.
+2. `clearLocalSave()` — drops the localStorage copy. Not `clearSave()`: the server half is
+   already done, and a second request at a deleted row could fail and be reported as a real
+   failure (ISS-041).
+3. `adoptState(buildInitialState(session))` then `saveNow()` — the new farm, written at once
+   rather than waiting for the debounce, because the page is likely to be reloaded next.
+
+The old order cleared **first** and asked afterwards, which is how a wrong password wiped the
+farm and still reported that nothing had changed.
+
 ---
 
 ## Where do I find...?
@@ -410,11 +459,15 @@ reconcile and no second code path that can forget a table.
 | boot step 0, the session gate | `js/main.js` (`resolveSession`) |
 | the shop, prices and availability | `js/config/crops.js` |
 | the purchase rule | `js/domain/shop.js` (`buySeeds`) |
-| the settings page, and its two destructive actions | `js/ui/settingsView.js` |
-| the arm-and-confirm control either one uses | `js/ui/dangerAction.js` |
+| the settings page | `js/ui/settingsView.js` |
+| the arm-and-confirm control both actions use | `js/ui/dangerAction.js` |
+| the password field an armed action reveals | `js/ui/passwordGate.js` |
+| the order a destructive action runs in — password first, always | `js/ui/runDestructive.js` (tested in `tests/dangerAction.test.js`) |
+| why a failure says what it says | `js/ui/dangerMessages.js` |
 | what a username may contain | `js/domain/authRules.js` (`usernameLooksValid`), `js/config/auth.js` |
 | how a username becomes an email | `supabase/migrations/002_usernames.sql` (`email_for_username`) |
 | how an account is deleted, and why the password is checked in SQL | `supabase/migrations/005_immediate_account_deletion.sql`, then DEC-024 |
+| how a farm is erased, and why that is behind a password too | `supabase/migrations/006_password_gated_erase.sql`, then DEC-025 |
 | the shop button and the seed list | `js/ui/shopLauncher.js`, `js/ui/shopView.js` |
 | shop page layout | `css/shop.css`, `shop.html` |
 | field drawing / click bugs | `js/ui/farmView.js`, `js/ui/plotTile.js`, `js/utils/iso.js`, `css/field.css` |

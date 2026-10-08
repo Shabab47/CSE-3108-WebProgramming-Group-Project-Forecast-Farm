@@ -13,7 +13,7 @@ build step and no runtime dependency — `npm install` installs nothing, on purp
 
 ```bash
 npm run dev      # serve on http://127.0.0.1:5173
-npm test         # 209 tests
+npm test         # 247 tests
 npm run check    # layering rules; fails the build on a forbidden import
 ```
 
@@ -47,6 +47,7 @@ Every file is written to be re-runnable: `if not exists`, `drop policy if exists
 | 003 | `003_account_deletion.sql` | *Superseded by 005 — do not run it.* A 7-day deletion countdown that `005` drops. Kept so the countdown is one re-run away if it is ever wanted. | Nothing |
 | 004 | `004_clear_all_accounts.sql` | Deletes every account. A tool, not a setup step. | Nothing |
 | 005 | `005_immediate_account_deletion.sql` | `delete_my_account(password)` + installs `pgcrypto` | **Account deletion fails** |
+| 006 | `006_password_gated_erase.sql` | `erase_progress(password)` - erases farm progress, behind the same password check | **Erasing progress fails** |
 
 ### 002 and 005 need a second run after their first
 
@@ -70,34 +71,40 @@ automated test passed straight through.
 
 ```sql
 select proname from pg_proc
- where proname in ('email_for_username', 'delete_my_account');
--- expect 2 rows
+ where proname in ('email_for_username', 'delete_my_account', 'erase_progress');
+-- expect 3 rows
 ```
 
 ### 2. The security is what it should be
 
-This is the one worth reading rather than skimming. The two functions have **opposite**
-answers, and both are correct:
+This is the one worth reading rather than skimming. The three functions have **different**
+answers, and every one of them is correct:
 
 | Function | `anon_can` | Why |
 | :--- | :--- | :--- |
 | `email_for_username` | **true** | It resolves a username to an email *before* sign-in, so an anonymous visitor has to be able to call it. It returns one address for one name, which is the narrowest thing that can do the job. |
 | `delete_my_account` | **false** | It deletes an account. `anon` is the key that ships in the browser, so if `anon` can call this, anyone can. |
+| `erase_progress` | **false** | Same reason. It erases a farm, and takes a password — but the password check is only worth something if the caller cannot skip it, and `anon` has no session to be checked against. |
 
-Check both:
+Check all three:
 
 ```sql
 select p.proname,
        has_function_privilege('anon',           p.oid, 'execute') as anon_can,
        has_function_privilege('authenticated',  p.oid, 'execute') as player_can
   from pg_proc p
- where p.proname in ('email_for_username', 'delete_my_account');
+ where p.proname in ('email_for_username', 'delete_my_account', 'erase_progress');
 -- email_for_username : anon_can = true,  player_can = true
 -- delete_my_account  : anon_can = false, player_can = true
+-- erase_progress     : anon_can = false, player_can = true
 ```
 
-If `delete_my_account` reads `anon_can = true`, **stop and fix it before anything else.**
-Anyone could delete any account with no password at all.
+If either deletion function reads `anon_can = true`, **stop and fix it before anything
+else.** Anyone could destroy any account or farm with no password at all.
+
+`erase_progress` returning `anon_can = false` is also what makes the guest case honest: a
+guest has no account and so no password, which is why the settings page shows no password
+field for one rather than showing a field it could not check.
 
 ### 3. No table is readable by a signed-out visitor
 
@@ -132,6 +139,7 @@ migration and a dropped connection are different problems and get different sent
 | Console line | Means |
 | :--- | :--- |
 | `[accountApi] account deletion refused, status 404` | `005` has not been run — no such function |
+| `[accountApi] progress erase refused, status 404` | `006` has not been run — no such function |
 | `[accountApi] account deletion refused, status 401` | Access token expired; sign in again |
 | `[accountApi] account deletion call failed - timeout` | No answer from the server |
 | `[accountApi] account deletion refused, wrong password` | Correct refusal; nothing was deleted |

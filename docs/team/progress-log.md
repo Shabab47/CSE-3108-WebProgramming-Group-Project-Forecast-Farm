@@ -42,9 +42,53 @@ The per-person weekly notes that used to live in the README table are now in `me
   `002_usernames.sql` (owner SELECT policy) and `005_immediate_account_deletion.sql` (which now
   installs `pgcrypto` itself after failing twice on projects without it). `docs/setup.md` was
   written for the person who clones this next.
-- **Tests:** **209 passing.** The additions that mattered are the ones pinning behaviour a stub
+- **Tests:** **209 passing at this point** (247 after the password gate on progress, below). The
+  additions that mattered are the ones pinning behaviour a stub
   could not see: that the username insert carries no `Prefer` header, that a 409 is a success, and
   that a refused server delete is reported rather than swallowed.
+
+---
+
+## Both destructive actions behind the password, and the test that could not exist before
+
+- **Did:** "Erase all progress" now takes the password. It did not before, and the reason it did
+  not is worth recording because it was wrong in an instructive way.
+- **The original argument:** deleting an account is irreversible, so that one is behind a
+  password; erasing a farm is not, because the account survives and you get a new one in a
+  second. Therefore the farm did not need protecting.
+- **Why that is wrong:** a farm is weeks of accumulated play. *Easy to replace is not
+  protected.* And the gap was concrete — a stolen session token could destroy it outright,
+  with nothing to check and nothing logged. DEC-025 extends DEC-024's rule to the other
+  irreversible thing on the page.
+- **Same shape as the account function, on purpose.** `006_password_gated_erase.sql` adds
+  `erase_progress(password)`: no account id, `search_path = ''`, EXECUTE revoked from
+  `PUBLIC` and granted to `authenticated`, bcrypt compared with `crypt()`, fails closed. It
+  deletes **only** `farm_saves`, so the player stays signed in. The check and the delete are
+  one statement — a separate verify endpoint would be one the browser could skip, which is the
+  exact gap DEC-022 had.
+- **The order was the actual bug, and it was in the entry script.** `deleteProgress()` used to
+  clear both copies of the save and *then* ask the server. So a wrong password wiped the farm
+  and the panel reported that nothing had changed. Now the password-gated call goes first,
+  and nothing is touched until it succeeds — the same order the account path already used.
+  `clearSave()` became `clearLocalSave()` for the same reason: the server half is already done,
+  and repeating it would be a request at a deleted row whose failure reads as a real one
+  (ISS-041).
+- **Two hand-written handlers had drifted, so they became one.** Both actions now run through
+  `runDestructive()`. Writing it once is the fix; the part I would emphasise is *where* it
+  lives: it takes its collaborators as arguments, so `tests/dangerAction.test.js` can assert
+  the ordering with fakes. That is new — `js/settings-main.js` is an entry script and previously
+  had no test at all, which is exactly how the original bug survived a green suite.
+- **Also found while doing this: `js/services/accountApi.js` had no test file.** The client half
+  of *both* RPCs — shipped, live, and never loaded by a single test — because the suite stubs
+  `fetch` and nothing imported it. 17 tests now, covering the reason mapping the panel depends
+  on: `not_migrated` for a 404, `cannot_verify_password` for a fail-closed project, and a
+  timeout that is never reported as a wrong password.
+- **Split the panel rather than grow it.** `settingsView.js` was 290 lines and past the budget
+  it documents. It is now 197, with `passwordGate.js`, `runDestructive.js` and
+  `dangerMessages.js` beside it.
+- **Tests:** **247 passing**, up 38. The one I would keep forever is the empty-list assertion in
+  `dangerAction.test.js` — a refused password must not reach the success path. That is the
+  original bug, pinned.
 - **Lesson worth keeping:** three of these bugs were invisible to the suite and to a live test of
   the service in isolation. They were only found by probing the running project, and one of them
   by testing the thing a player actually clicks.

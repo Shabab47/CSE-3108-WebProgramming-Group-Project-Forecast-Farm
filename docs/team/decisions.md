@@ -7,6 +7,55 @@ Format: who decided, the choice, why, and what was rejected.
 
 ---
 
+### DEC-025 Erasing progress is behind a password too, not just deleting the account
+**Decided by:** Shabab47
+
+**Choice:** the settings page's *second* destructive action — "erase all progress" — now takes
+the password as well: two clicks and the password, same as deleting the account.
+`supabase/migrations/006_password_gated_erase.sql` adds `erase_progress(password)`, which
+compares the password with `crypt()` against the same bcrypt hash and deletes **only**
+`public.farm_saves`, leaving `auth.users`, identities, usernames and farmers untouched so the
+player stays signed in.
+
+**Why it was not already:** the original reasoning was that the farm is entirely the player's
+own and one click away from being rebuilt, so it was not "as bad as" deleting an account. That
+is the wrong test. A farm is the accumulated product of real play, and *easy to replace is not
+protected* — a stolen session token could destroy weeks of work, and after the fact the panel
+could not tell the player it had done something irreversible without one. DEC-024 established
+the rule for the account; this applies it to the other irreversible thing on the page.
+
+**Same three properties as `delete_my_account`,** and each one is load-bearing: it takes no
+account id and acts on `auth.uid()` only; `set search_path = ''`; EXECUTE revoked from
+`PUBLIC` and granted only to `authenticated`. It fails closed the same way. `docs/setup.md`
+checks all three functions' privileges in one query, because two of them being callable by
+`anon` would undo both decisions.
+
+**Also: one statement, not two calls.** The check and the delete are the same SQL, as in
+DEC-024. A separate `verify_password` RPC would be one the browser could skip, which is the
+exact gap DEC-022 had. `false` comes back on a wrong password and nothing is deleted.
+
+**Also: the order in the entry point is the feature.** `makeDeleteProgress()` verifies and
+deletes the server row *first*, then calls `clearLocalSave()` — not `clearSave()`, whose server
+half is now a pointless request whose failure could be reported as a real one (ISS-041). The
+earlier code cleared both copies first and asked afterwards, so a **wrong password wiped the
+farm and still reported that nothing had changed.**
+
+**Both actions now run through `runDestructive()`** (`js/ui/runDestructive.js`), which owns
+that ordering and takes its collaborators as arguments so the invariant can be tested without a
+DOM — `tests/dangerAction.test.js` asserts it as behaviour with fakes. The two hand-written
+handlers had already drifted, and drift between two copies of "check the password, then
+destroy" is exactly how the original bug happened.
+
+**Rejected: asking in the browser only.** A password field that the client compares is
+decoration; `authApi` would then have needed to expose a delete-without-password entry point,
+which is the thing DEC-024 deleted and `tests/mainBoot.test.js` guards against.
+
+**Rejected: one function with a flag,** e.g. `erase_progress(password, also_delete_account)`.
+Two rows and two grants are cheaper to reason about than one function whose behaviour depends
+on a boolean, and the permissions differ: neither may be callable by `anon`.
+
+---
+
 ### DEC-024 Account deletion is immediate, behind a server-side password check
 **Decided by:** Shabab47
 
