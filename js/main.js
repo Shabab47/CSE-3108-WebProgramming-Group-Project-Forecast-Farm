@@ -4,6 +4,7 @@ import { loadProvider } from './auth-main.js';
 import { signInAsGuest } from './services/localAuth.js';
 import { buildServerSave } from './remoteSave.js';
 import { adoptState, apply, emit, exportPayload, getState, init, readImport, reset, saveNow, subscribe } from './state/store.js';
+import { mountBootLoader } from './ui/loadingTips.js';
 import { mountToastStack } from './ui/toastStack.js';
 import { mountTopBar } from './ui/topBar.js';
 import { mountSavePanel } from './ui/savePanel.js';
@@ -218,10 +219,21 @@ function bootWeather() {
 }
 
 async function start() {
+  // Mounted before the first `await` on purpose. Everything below is network:
+  // the session restore and the remote save read. Without this the player
+  // stares at an empty page for as long as those take — up to 15 s, since
+  // `gotrue.js` has no request deadline. It paints nothing until
+  // `SHOW_AFTER_MS`, so a warm load still shows no loader at all.
+  const loader = mountBootLoader({ label: 'Loading your farm' });
+
   const provider = await loadProvider();
   const session = await resolveSession(provider);
 
   if (!session) {
+    log.info('no session, handing off to login');
+    // Closed before the redirect, or the veil is still on screen when the
+    // browser swaps documents.
+    loader.done();
     location.replace(LOGIN_URL);
     return;
   }
@@ -238,6 +250,13 @@ async function start() {
   });
 
   bootWeather();
+
+  // The shell is up and playable now, so the veil goes. Deliberately *not*
+  // waiting for `bootWeather()` — that fetch is fire-and-forget and the farm
+  // works without it; the forecast panel fills itself in when the response
+  // lands. Holding the veil until then would mean a weather timeout keeps a
+  // perfectly good farm hidden behind a veil.
+  loader.done();
 
   setInterval(saveNow, AUTOSAVE_MS);
   window.addEventListener('pagehide', saveNow);

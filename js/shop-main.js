@@ -28,6 +28,7 @@ import { buildServerSave } from './remoteSave.js';
 import { apply, emit, init, saveNow, subscribe } from './state/store.js';
 import { buySeeds } from './domain/shop.js';
 import { mountShop } from './ui/shopView.js';
+import { mountBootLoader } from './ui/loadingTips.js';
 import { mountToastStack } from './ui/toastStack.js';
 import { AUTOSAVE_MS } from './config/game.js';
 
@@ -63,12 +64,18 @@ function shopActions() {
 }
 
 async function start() {
+  // Before the first `await`, for the same reason as `js/main.js`: the wait
+  // below is network, and this page is empty until it finishes. Shows nothing
+  // for a load faster than `SHOW_AFTER_MS`.
+  const loader = mountBootLoader({ label: 'Loading the shop' });
+
   // Boot 0: no session means the shop is never mounted. A guest gets the same farm
   // as before, because a guest's save is keyed on the fixed user id `guest`.
   const provider = await loadProvider();
   const session = await resolveSession(provider);
   if (!session) {
     log.info('no session, handing off to login');
+    loader.done();
     location.replace(LOGIN_URL);
     return;
   }
@@ -81,6 +88,7 @@ async function start() {
   // Boot 2
   mountToastStack();
   mountShop(qsOrNull('#shop-root'), { ...shopActions(), backHref: farmHref(session) });
+  loader.done();
 
   // Boot 4: autosave, identical to the farm page. The purchase above saves on its
   // own; this is the safety net for anything else that changes the state here.

@@ -64,6 +64,26 @@ than an overlay: the shell must not render before auth. `js/auth-main.js` is the
 mirror image — it redirects *to* the game when a session already exists, so
 neither page can bounce the visitor back and forth.
 
+### What is on screen while boot happens
+
+Steps 0 and 1 are network, and the panels are empty until they finish — up to 15
+s on a bad connection (ISS-043). So a veil covers the gap.
+
+`mountBootLoader()` is the **first statement of `start()` on all four pages**, before
+any `await`, and `done()` is called once the real UI is mounted:
+
+```
+start() → mountBootLoader() → await loadProvider() → await resolveSession()
+        → await init(...)   → mount*() → loader.done()
+```
+
+`js/ui/loadingTips.js` owns it, the facts and the three thresholds are in
+`js/config/tips.js`, and the rules are in `.boot-loader` (css/components.css).
+It appends to `<body>` itself rather than being declared in markup — see DEC-026
+for why it is allowed to paint before auth is resolved, and why the veil holds no
+state. It shows **nothing at all** for a load faster than `SHOW_AFTER_MS`, so the
+common case is unchanged.
+
 ---
 
 ## Accounts
@@ -441,6 +461,9 @@ farm and still reported that nothing had changed.
 | Supabase project URL and anon key | `js/config/supabase.js` — **anon key only, never `service_role`** |
 | which provider runs | `USE_LOCAL_PROVIDER` in `js/auth-main.js` (used by both entry points) |
 | how weather maps to game events | `js/config/weatherEvents.js`, `js/domain/weather.js` |
+| what a waiting player reads on the loading veil | `js/config/tips.js` |
+| how long the veil waits before painting | `js/config/tips.js` (`SHOW_AFTER_MS`, `FIRST_TIP_AFTER_MS`) |
+| what the veil looks like | `js/ui/loadingTips.js`, `.boot-loader` in `css/components.css` |
 | what weather does to crops | `js/config/cropWeatherMatrix.js`, `js/domain/simulator.js` |
 | pump cost / water speed | `js/config/game.js` |
 | plant / harvest / clear rules | `js/domain/farm.js` |
@@ -534,6 +557,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── field.js            FIELD geometry, ZONES, PLOT_PRICES
 │   │   ├── game.js             START_GOLD, PUMP, WATER, HEALTH, timings
 │   │   ├── crops.js            the crop table — prices, grow times, availability
+│   │   ├── tips.js             loading-screen facts and their timings
 │   │   ├── cropWeatherMatrix.js empty
 │   │   ├── seasons.js          empty
 │   │   └── weatherEvents.js    empty
@@ -560,6 +584,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── cropPicker.js       empty
 │   │   ├── dangerAction.js     the arm-and-confirm control, with its password gate
 │   │   ├── farmView.js         empty
+│   │   ├── loadingTips.js      the boot veil and its rotating facts
 │   │   ├── loginFields.js      labelled input builders
 │   │   ├── loginPanel.js       the sign-in / sign-up form and its states
 │   │   ├── passwordReset.js    forgot-password: request, sent, set
@@ -622,6 +647,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 ├── tests/                      node:test, pure code only
 │   ├── authApi.test.js         Supabase provider, fetch stubbed
 │   ├── mainBoot.test.js        boot step 0, the provider switch
+│   ├── loadingTips.test.js     the boot veil: no flash, rotation, teardown
 │   ├── authErrors.test.js      error mapping, account enumeration
 │   ├── authRules.test.js       validation rules
 │   ├── initialState.test.js    fresh farm, zones, session coercion

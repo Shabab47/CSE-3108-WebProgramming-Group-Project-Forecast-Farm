@@ -382,6 +382,73 @@
   color: var(--text-muted);
 }
 
+/* --- boot loader ---------------------------------------------------------
+   The veil shown while a page resolves its session and save. Appended to
+   `<body>` by `js/ui/loadingTips.js` rather than sitting inside `.app` or a
+   `.card`: `.card` sets `backdrop-filter` (components.css:15), which creates a
+   stacking context and would fight a fixed element placed inside it.
+
+   z-index 300 sits above `.toast-stack`'s 200 so a load is never interrupted,
+   but a toast raised by the page that is replacing it still paints on top. */
+.boot-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  background: var(--bg);
+}
+
+.boot-loader__panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  max-width: min(420px, 100%);
+  padding: var(--space-5) var(--space-6);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  text-align: center;
+}
+
+/* The spinner class is shared with .btn — see components.css:107. Sizing it
+   here is the only reason it needs a rule of its own. */
+.boot-loader__spinner {
+  width: 22px;
+  height: 22px;
+  color: var(--accent);
+}
+
+.boot-loader__status {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+/* Fixed height so the panel does not resize each time the tip text changes
+   length, which would otherwise make the card twitch. */
+.boot-loader__tip {
+  min-height: 3em;
+  font-size: var(--text-sm);
+  color: var(--text-faint);
+}
+
+/* Replayed per rotation by toggling the class off and on; `reset.css:109`
+   already neutralises this for `prefers-reduced-motion`. */
+.boot-loader__tip--in {
+  animation: tip-in var(--speed) var(--ease);
+}
+
+@keyframes tip-in {
+  from {
+    opacity: 0;
+  }
+}
+
 /* --- visually hidden ------------------------------------------------------ */
 
 .visually-hidden {

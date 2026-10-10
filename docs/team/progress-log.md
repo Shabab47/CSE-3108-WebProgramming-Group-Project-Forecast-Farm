@@ -7,6 +7,38 @@ The per-person weekly notes that used to live in the README table are now in `me
 
 ---
 
+## Loading tips on every page boot
+
+- **Did:** Added a full-page loading veil with a spinner and a rotating weather/farming fact.
+  `js/ui/loadingTips.js` exposes `mountBootLoader()` / `done()`; `js/config/tips.js` holds 22 facts
+  (12 weather, 10 game) and the three thresholds. Wired as the first statement of `start()` on all
+  four pages, dismissed after the real UI mounts. Styles in `.boot-loader`, reusing the
+  `.btn__spinner` that had been dead CSS since it was written.
+- **Touched:** `js/config/tips.js` (new), `js/ui/loadingTips.js` (new), `tests/loadingTips.test.js`
+  (new, 13 tests), `css/components.css`, `js/main.js`, `js/auth-main.js`, `js/shop-main.js`,
+  `js/settings-main.js`, `docs/architecture.md`, `docs/team/issues.md`, `docs/team/decisions.md`.
+- **Why:** Every page awaited the session *and* the remote save before mounting anything, so a
+  player on a bad connection saw a blank white page for up to 15 s (ISS-043). `gotrue.js` sets no
+  request deadline, so that bound is only the `Promise.race` in `authApi.js`.
+- **Two thresholds, and why there are two:** nothing paints for 250 ms, so a fast load still shows
+  no loader at all; and no fact appears until 1500 ms, so a short wait gets a spinner and no
+  trivia. A loader that flashes on every navigation is worse than none.
+- **Broke (and was caught before it shipped):** two bugs in the loader itself, both found by the
+  new tests rather than by reading. `done()` called `unmount()` while `unmount` was an
+  object-literal method — a `ReferenceError` on *every* page. And the first fact landed at
+  1750 ms instead of the documented 1500 ms, because the delay was composed with the reveal
+  delay. Both fixed; `js/ui/loadingTips.js` now has a named `unmount` function and measures both
+  thresholds from mount.
+- **Also logged:** ISS-044 — `js/settings-main.js:181` calls `clearSave()` but only imports
+  `clearLocalSave`, so account deletion reports success while leaving the farm in localStorage.
+  Found while auditing boot, **not fixed here**: it is another person's folder and an unrelated
+  data-loss bug, and AGENTS.md §8 says one commit per step. DEC-025 may mean the fix is to change
+  the call rather than add the import — read that first.
+- **Docs:** architecture.md boot order + tree + "where to change", DEC-026 for painting pre-auth,
+  ISS-043 and ISS-044 logged before any fix.
+- **Not done:** `almanac.html` is still a zero-byte file, so it gets no loader until it exists.
+  Browser-verified by serving, not by clicking — no browser was attached to the session.
+
 ## Central asset registry with automatic enforcement
 
 - **Did:** Created `js/config/assets.js` — a registry of all 31 asset files with path, name, byte
