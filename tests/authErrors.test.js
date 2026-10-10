@@ -29,6 +29,7 @@ const ENUMERATION_SENSITIVE = [
   'no_account',
   'email_taken',
   'user_already_exists',
+  'username_taken',
   'email_not_confirmed',
   'not_confirmed',
 ];
@@ -56,7 +57,14 @@ test('validation reasons read the same on both paths', () => {
   for (const context of ['signIn', 'signUp']) {
     assert.equal(authErrorToMessage('email_invalid', context), 'That does not look like an email address.');
     assert.equal(authErrorToMessage('password_weak', context), 'Use at least 8 characters, with a letter and a number.');
+    assert.equal(authErrorToMessage('identifier_required', context), 'Enter your email or username.');
+    assert.equal(authErrorToMessage('username_invalid', context), 'Usernames are 3-20 characters: letters, numbers, and underscores.');
   }
+});
+
+test('a taken username is neutral on sign-in but specific on sign-up', () => {
+  assert.equal(authErrorToMessage('username_taken', 'signIn'), NEUTRAL_SIGN_IN);
+  assert.equal(authErrorToMessage('username_taken', 'signUp'), 'That username is already taken. Try another.');
 });
 
 test('throttling is surfaced, never retried around', () => {

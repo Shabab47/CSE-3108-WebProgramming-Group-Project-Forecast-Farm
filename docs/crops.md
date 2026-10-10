@@ -6,15 +6,46 @@ numbers mean and why they are what they are.
 ## Crop table
 
 | id | Name | Grow hours | Seed price | Sell / unit | Yield units | Water need | Available |
-| :--- | :--- | ---: | ---: | ---: | ---: | ---: | :--- |
-| `rice` | Rice | 6 | 10 | 4 | 10 | Very high (0.9) | **yes** |
-| `wheat` | Wheat | 5 | 8 | 3 | 10 | Medium (0.5) | no |
-| `potato` | Potato | 4 | 6 | 3 | 10 | Medium (0.5) | no |
-| `corn` | Corn | 8 | 14 | 5 | 10 | High (0.7) | no |
-| `tomato` | Tomato | 6 | 12 | 5 | 10 | Medium (0.5) | no |
+| :--- | :--- | ---: | ---: | ---: | ---: | :--- | :--- |
+| `rice` | Rice | 6 | 100 | 20 | 10 | Very high (0.9) | **yes** |
+| `potato` | Potato | 4 | 200 | 40 | 10 | Medium (0.5) | no |
+| `tomato` | Tomato | 6 | 300 | 60 | 10 | Medium (0.5) | no |
+| `wheat` | Wheat | 5 | 400 | 80 | 10 | Medium (0.5) | no |
+| `corn` | Corn | 8 | 500 | 100 | 10 | High (0.7) | no |
 
 All balance values are placeholders for a first playable build. Tune them in
 `js/config/crops.js`; nothing else needs to change.
+
+### Seed prices
+
+100 / 200 / 300 / 400 / 500 gold, in the order the shop lists them, cheapest
+first (`SHOP_ORDER`). The ladder is the shop's whole economy for now, so it is
+worth saying why it starts where it does:
+
+- A new farm has `START_GOLD` (200). That buys two rice packets, or one potato
+  packet, and nothing else — the first purchase is a choice, not a formality.
+- Rice at 100 is deliberately the cheapest, because rice is the only crop with art
+  and therefore the only one a new player can actually plant. The cheapest thing
+  in the shop has to be the thing that works.
+- Ten rice seeds is a full farm's worth of planting (16 plots), so `×10` is a real
+  target rather than a rounding error, and corn at 500 is a mid-game goal.
+
+The old placeholder prices (10 / 8 / 6 / 14 / 12) were from before the shop
+existed and are not reachable in any sensible play pattern. Change the numbers in
+`config/crops.js`, not here.
+
+### A harvest returns twice the seed
+
+`sellPrice` is not an independent knob: `yield * sellPrice` is **exactly twice**
+`seedPrice`, for every crop. So one packet of rice costs 100 and a full-health
+harvest of it is worth 200, and the same ratio holds for corn at 500 and 1,000.
+
+That ratio is the game's risk model. Quality comes from `plot.health`, so a
+plot that dried out or took a beating in bad weather sells below 100% of its
+value, and below 50% health a harvest no longer pays for the seed that produced
+it. A farm that ignores the forecast stops growing; one that reads it compounds.
+Tune `seedPrice` and `sellPrice` together — a crop that sells for less than its
+seed makes the sixteen-plot goal unreachable.
 
 Rice is the only playable crop because it is the only crop with art. A crop becomes playable
 when its five stage images exist: `assets/images/crops/<id>/<id>_1.png` through
@@ -120,11 +151,11 @@ second plot and ten rice seeds outright.
 
 ### A note on pacing
 
-Rice earns about 30 gold per planting after seed cost, and takes six hours to grow. Buying all
-sixteen plots is therefore a very long haul at that rate — deliberately so, but worth
-revisiting if playtesting shows the mid-game going quiet. The debug panel's *unlock all plots*
-button exists so a full farm can be demonstrated without grinding. Reachable-by estimates in the
-table above assume a full farm earning at that rate, so a small farm is slower, not faster.
+Rice earns about 100 gold per planting after seed cost — 200 in, 200 out — and takes six hours to
+grow. Buying all sixteen plots is therefore a very long haul at that rate — deliberately so, but
+worth revisiting if playtesting shows the mid-game going quiet. The debug panel's *unlock all
+plots* button exists so a full farm can be demonstrated without grinding. Reachable-by estimates
+in the table above assume a full farm earning at that rate, so a small farm is slower, not faster.
 
 ## Harvest and quality
 
@@ -134,9 +165,9 @@ quality = plot.health / 100          // 0..1
 gold    = units * crop.sellPrice * qualityAvg
 ```
 
-A plot harvested at full health sells for `10 * 4 * 1.0` = 40 gold on rice, against a 10 gold
-seed. Quality is averaged into the existing stack when harvest is added, so selling part of a
-stack and then adding more does not distort the average.
+A plot harvested at full health sells for `10 * 20 * 1.0` = 200 gold on rice, against a 100 gold
+seed — the 2× ratio described above. Quality is averaged into the existing stack when harvest is
+added, so selling part of a stack and then adding more does not distort the average.
 
 ## Crop artwork
 

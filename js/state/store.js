@@ -241,16 +241,62 @@ export function load() {
  *
  * Both copies: the server row as well as the local cache, or signing out and back
  * in on the same machine would resurrect a farm the player just deleted.
+ *
+ * **Returns whether the server copy actually went.** This used to fire and forget, and
+ * that was a lie the settings page repeated: `saveApi.deleteRemoteSave` resolves to
+ * `{ok:false}` when PostgREST refuses — most likely an expired access token — rather
+ * than throwing, so a bare `catch` never saw it. The row survived while the UI said
+ * "your farm is cleared", and signing back in inside the deletion window restored the
+ * old farm (ISS-041).
+ *
+ * The local copy is deleted first and unconditionally, because that part cannot fail on
+ * a dropped connection and it is the one the player can see. The result reports the
+ * server half honestly.
+ *
+ * @returns {Promise<{ok:boolean, reason?:string, localCleared:boolean}>}
  */
 export async function clearSave() {
   deleteSave(userId);
-  if (remote) {
-    try {
-      await remote.delete?.();
-    } catch (error) {
-      log.warn('could not clear the server save -', error.message);
-    }
+
+  if (!remote) return { ok: true, localCleared: true };
+
+  let result;
+  try {
+    // Optional call: a provider with no server save has no `delete`, and the absence is
+    // not a failure — there was no server copy to remove.
+    result = await (remote.delete ? remote.delete() : { ok: true });
+  } catch (error) {
+    log.warn('could not clear the server save -', error.message);
+    return { ok: false, reason: 'server_delete_failed', localCleared: true };
   }
+
+  // The adapter's own shape is `{ok, reason}`; treat a missing `ok` as success so an
+  // adapter that returns nothing is not reported as a failure it did not have.
+  if (result?.ok === false) {
+    log.warn('server save was not cleared -', result.reason ?? 'unknown');
+    return { ok: false, reason: result.reason ?? 'server_delete_failed', localCleared: true };
+  }
+
+  return { ok: true, localCleared: true };
+}
+
+/**
+ * Delete only the local copy of this user's save.
+ *
+ * Separate from `clearSave()` because the destructive settings actions now remove the
+ * **server** row themselves — the password-gated RPCs in `005` and `006` do it in the
+ * same statement that checks the password, which is the only place the check can be
+ * guaranteed. Calling `clearSave()` afterwards would fire a second DELETE at a row
+ * that is already gone, and its failure would be reported as a real failure when
+ * nothing is actually wrong (ISS-041's fix made that result meaningful, so a pointless
+ * failure is now a pointless refusal).
+ *
+ * Synchronous, because `deleteSave` is, and because it cannot fail on a dropped
+ * connection — which is the whole reason it is worth having on its own.
+ */
+export function clearLocalSave() {
+  deleteSave(userId);
+  return { ok: true, localCleared: true };
 }
 
 /* --- import -----------------------------------------------------------------

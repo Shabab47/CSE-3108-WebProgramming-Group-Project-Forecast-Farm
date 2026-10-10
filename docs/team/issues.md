@@ -9,6 +9,11 @@ All entries below were found during the pre-build audit, by reading the plan
 against the actual assets and the live Open-Meteo responses. Nobody had written any code yet,
 so these are all cheap to fix now and expensive to find later.
 
+**An entry is a record of what was true when it was written.** A `fixed` entry keeps the
+numbers it was written with — "56 tests" was accurate then and is not a claim about today.
+Check the entry's own date, and `git log` for that file, before acting on one. For the
+current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
+
 ---
 
 ## Triage
@@ -21,7 +26,7 @@ so these are all cheap to fix now and expensive to find later.
 | ISS-035 | Invalid-email text from GoTrue fell through to an unmapped reason | Medium | Hisham | **fixed** | T-04 |
 | ISS-027 | `localAuth.js` is a second writer to localStorage | **High** | Hisham | open | T-04 |
 | ISS-028 | `authApi.js` needs credentials to reach Supabase | **High** | Shabab | **fixed** | T-29 |
-| ISS-031 | Password reset needs a redirect URL configured in Supabase | Medium | Shabab | partly fixed | T-29 |
+| ISS-031 | Password reset needs a redirect URL configured in Supabase | Medium | Shabab | **fixed** | T-29 |
 | ISS-026 | Client-side accounts are not real security | **High** | Hisham | open | — |
 | ISS-006 | Dead crops permanently brick a plot | **High** | Hisham | open | T-08 |
 | ISS-007 | Pump's transparent canvas eats plot clicks | **High** | Hisham | open | T-06 |
@@ -125,6 +130,20 @@ so these are all cheap to fix now and expensive to find later.
 - Fixed 2026-10-06 (T-29): project `ygfrvwyydxrocvywzysk` created, URL and `anon` key committed to
   `js/config/supabase.js`, `USE_LOCAL_PROVIDER = false`. Real accounts and password reset now work,
   the latter subject to ISS-031.
+- **Migration run 2026-10-06, verified against the live project.** `supabase/migrations/001_farm_saves.sql`
+  executed in the SQL Editor. `GET /rest/v1/farm_saves` returns **200** where it previously returned
+  **404 `PGRST205`** ("Could not find the table"), so the table exists. `pg_policies` shows the policy
+  as `own row only` / `ALL`, matching the file. An unauthenticated read with the anon key returns
+  `content-range: */0` — RLS is filtering per-row rather than blanket-denying, which is the correct
+  behaviour: a missing policy would have denied the owner too.
+- **Not yet verified: the round trip.** Creating the table is not the same as the game using it. These
+  are outstanding and must not be recorded as passed until they are:
+  1. A signed-in player's autosave lands a row (`farm_saves` returns one row with their `user_id`).
+  2. The same farm appears in a second browser, which has no localStorage copy to fall back on.
+  3. A cross-account read returns `[]`, **not** `403`. RLS filtering the row is correct; a blanket 403
+     would also block the owner's legitimate access.
+  "Changes survive a reload" additionally cannot be tested yet — nothing is implemented that can be
+  changed, so a farm reappearing proves nothing while localStorage is the fallback.
 - **Still open: signed export.** `js/state/transfer.js` has no server to call, so there is nowhere to
   hold a secret the client cannot read. Export/import therefore ships **integrity-checked but
   unsigned**, and `verifySignature()` is the seam where an Edge Function goes. Nothing in the UI or
@@ -218,8 +237,8 @@ so these are all cheap to fix now and expensive to find later.
 - Fix: _half done._ The code half is now fixed: `auth-main.js` derives `redirect_to` from
   `location.href` and sends it with the recover request, so the link lands on `login.html` no
   matter what **Site URL** is set to. That removed the silent-failure mode entirely, and a test
-  asserts the field is sent. The dashboard half still needs Shabab: add the dev and deployed
-  origins to **Redirect URLs**, or Supabase will not deliver the mail at all. A live probe of
+  asserts the field is sent. **Done 2026-10-06:** Shabab added the dev and deployed
+  origins to **Redirect URLs** and set **Site URL** in the dashboard. A live probe of
   `/auth/v1/recover` returned 200 for every origin including one that was deliberately not
   allowed, so the endpoint's response **cannot** be used to check this — it has to be verified by
   receiving an actual email. The README carries it as a setup step.
@@ -493,3 +512,109 @@ so these are all cheap to fix now and expensive to find later.
   Two people editing the same file is the main cause of merge conflicts, so it is worth an
   explicit yes.
 - Fix: _pending._ Confirm or amend at the first team meeting, then delete this entry.
+
+### ISS-036 The shop is a page, not the modal the plan describes
+- Reported by: Shabab | Owner: Shabab | Status: **fixed**
+- Where: `shop.html`, `js/shop-main.js`, `js/ui/shopView.js`, `js/ui/shopLauncher.js`
+- Problem: `docs/architecture.md` and `docs/team/ownership.md` describe a `shopPanel`
+  modal inside `index.html`, with `js/ui/topBar.js` and friends owned by one person. The team
+  asked for a separate page instead, to keep the files easy to read.
+- Cause: A deliberate design change after the plan was written, not a mistake.
+- Fix: Done in T-08. `shop.html` is its own page with its own entry script, so it repeats
+  the session gate the farm page has; `resolveSession` and `shopHref` are imported from
+  `js/main.js` rather than copied, and `shop-main.js` is now a wildcard entry in
+  `scripts/check-imports.mjs`. `shopPanel.js` is now `shopView.js`. The cost is stated
+  rather than hidden: two pages must answer the session question the same way, and a guest
+  needs `?guest=1` carried across the navigation in both directions or they would be sent
+  back to the login form they had already passed. The planned Land and Market tabs are not
+  built yet and `index.html` still shows placeholders for them.
+
+### ISS-040 The password gate on account deletion was client-side only
+- Reported by: Shabab (review) | Owner: Shabab | Status: **fixed** in DEC-024
+- Where: was `003_account_deletion.sql`, now `005_immediate_account_deletion.sql`
+- Problem: `request_account_deletion()` authenticated with `auth.uid()` and nothing else,
+  so `POST /rest/v1/rpc/request_account_deletion` with **any valid access token**
+  scheduled a deletion with no credential at all. The password prompt protected the
+  settings form, not the endpoint against anyone who read the source.
+- Fix: the check moved into the database. `delete_my_account(password)` compares against
+  the bcrypt hash in `auth.users.encrypted_password` using `pgcrypto`'s `crypt()`, and
+  deletes nothing on a mismatch. `verifyPassword` is deleted from `js/services/authApi.js`
+  and `tests/mainBoot.test.js` asserts it stays gone, so the check cannot quietly drift
+  back into the browser where a caller could skip it.
+- Why it could sit as a logged issue: the 7-day window absorbed it. A token holder who
+  did not know the password could not sign back in, so signing in cancelled the deletion
+  and the account returned. Deletion is immediate now, so nothing absorbs it.
+- Reviewed and accepted; do not report it again as new.
+### ISS-041 `clearSave()` could not report a failed server-side delete
+- Reported by: Shabab (review) | Owner: Shabab | Status: **fixed**
+- Where: `js/state/store.js`, `js/settings-main.js`
+- Problem: `remote.delete?.()` resolves to `{ok:false, reason:'server_error'}` when
+  PostgREST refuses — an expired access token, most likely — and `saveApi.js` never
+  throws. `clearSave()` only had a `catch`, so it dropped the resolved value and returned
+  nothing at all. The settings page said the farm was cleared while the row survived.
+- Impact: signing back in restored the farm the player had been told was gone. The
+  suite never caught it because `tests/store.test.js` stubbed `server.delete` to always
+  return `{ok:true}`.
+- Fix: `clearSave()` returns `{ok, reason?, localCleared}`. `deleteProgress` refuses to
+  write a fresh farm over a row it could not delete, and the account-deletion path warns
+  rather than claiming a clean sweep. Three tests cover a refused delete, a throwing
+  delete, and the no-server case.
+
+### ISS-042 Editing your own username metadata orphaned the `usernames` row
+- Reported by: Shabab (review) | Owner: Shabab | Status: **fixed**, pending migration
+- Where: `js/services/authApi.js`, `supabase/migrations/002_usernames.sql`
+- Problem: two causes, one behind the other.
+  1. `recordUsername` skipped the write entirely when `user_metadata.username` was empty,
+     and metadata is user-writable via `PUT /auth/v1/user`. A player who changed their
+     username left the old row claimed by an account that could no longer answer to it —
+     permanently, since the name is the primary key.
+  2. The fix needed to release the old row, and it could not: **DELETE and PATCH both
+     silently matched zero rows.** Verified against the live project — `Prefer:
+     return=representation` answered 200 with an empty array, while the same table's
+     INSERT worked. The cause was in `002`: the leak fix had dropped *every* SELECT
+     policy including the owner's, and an owner with no SELECT policy cannot update or
+     delete their own row.
+- Fix: `002` grants `usernames_readable_by_owner` (`using (auth.uid() = user_id)`) —
+  the player's own username and email, to themselves, and nobody else's. That is a
+  different policy from the anon one that was removed; `email_for_username()` remains
+  the only route to anybody else, and only one name at a time. On a 409,
+  `recordUsername` now releases the account's own row and retries, so a rename frees the
+  old name.
+- **Requires re-running `002_usernames.sql` on the live project before the rename path
+  works.** The insert path — and therefore username sign-in — does not depend on it.
+### ISS-038 Account deletion has no emailed confirmation
+- Reported by: Shabab | Owner: Shabab | Status: **open** (deliberate, not blocked)
+- Where: `js/settings-main.js`, `supabase/migrations/005_immediate_account_deletion.sql`
+- Problem: deleting an account takes two clicks and the password, but nothing is sent to
+  the player's inbox. There is no "was this really you?" link on a second device.
+- Why it is not worse now: the password is verified in the database before anything is
+  deleted (DEC-024, ISS-040), so the deletion cannot be performed with a stolen session
+  token alone � which is what the old 7-day window used to be guarding. What remains is
+  that someone who knows the password *and* holds a live session can delete without a
+  second channel, which is the same position as being signed in.
+- The fix, if wanted: a Supabase Edge Function holding the `service_role` key in Supabase's
+  secret store, minting a single-use token with a 15-minute expiry and emailing it.
+  Rejected on cost (DEC-022): a deploy step, an email provider and a token table, against a
+  risk the password check already bounds. **Nothing secret enters this repo either way** �
+  see DEC-018.
+- Also worth knowing: Supabase's backup retention means deleted data stays recoverable from
+  a restore point for some days afterwards. Irrelevant for a game's farm data; not
+  something the game could fix if it mattered.
+
+### ISS-039 The 7-day delay meant the email could not be re-registered during the window
+- Reported by: Shabab | Owner: Shabab | Status: **fixed** by removing the delay
+- Where: was `003_account_deletion.sql`, now dropped by `005`
+- Problem: a player who scheduled a deletion could not register again with the same email
+  until the purge ran, because GoTrue still held the account. The `email_taken` message
+  ("sign in instead") was the right guidance, but the delay was surprising.
+- Fixed: deletion is immediate (DEC-024), so the email is free the moment the account is
+  gone, and the copy no longer promises a window.
+  team set seed prices at 100 / 200 / 300 / 400 / 500, which against the old sell values
+  made every rice planting a 60 gold loss: a player who planted lost money, so the
+  sixteen-plot goal could never be reached.
+- Cause: `js/config/crops.js` was empty, so the crop numbers existed only in `docs/crops.md`
+  as prose nobody was reading against each other.
+- Fix: Done in T-08. `sellPrice` is now derived so that `yield * sellPrice` is exactly twice
+  `seedPrice` for every crop, giving the economy one rule instead of ten unrelated numbers,
+  and `tests/shop.test.js` asserts the invariant. Quality (plot health) is what erodes the
+  margin, so ignoring the forecast is what stops a farm compounding.

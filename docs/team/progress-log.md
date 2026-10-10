@@ -10,8 +10,9 @@ The per-person weekly notes that used to live in the README table are now in `me
 ## Central asset registry with automatic enforcement
 
 - **Did:** Created `js/config/assets.js` — a registry of all 31 asset files with path, name, byte
-  size, pixel dimensions, status and category. Added helper functions (`groundTile`, `cropSprite`,
-  `cropFailure`, `weatherIcon`, `cropIcon`, `pumpFrame`) and `totalSize()`. Created
+  size, pixel dimensions, status, category and the page it appears on. Added path builders
+  (`groundTile`, `cropStageImg`, `cropSeedImg`, `cropFailureImg`, `weatherIcon`, `cropIcon`,
+  `pumpFrame`), plus `assetsForPage()` and `totalSize()`. Created
   `tests/assets.test.js` which scans the `assets/` directory and fails if any file is missing from
   the registry, any entry points to a missing file, or any size does not match.
 - **Touched:** `js/config/assets.js` (new), `tests/assets.test.js` (new), `AGENTS.md` (doc matrix
@@ -19,6 +20,136 @@ The per-person weekly notes that used to live in the README table are now in `me
 - **Why:** The team needed a single place to see and edit asset sizes, and a way to guarantee new
   assets get registered — the test makes it impossible to forget.
 - **Problems:** None. All 162 tests pass, import check clean.
+
+---
+
+## Shop, settings, username sign-in, and account deletion
+
+- **Did:** Four surfaces, in the order they were asked for. The seed shop as its own page
+  behind an artwork button. A settings page behind a second one, holding two destructive
+  actions: **erase all progress** (two clicks) and **delete my account** (two clicks and the
+  password). Username sign-in alongside email. Then account deletion, rebuilt twice.
+- **The interesting part was what each change broke rather than what it added.**
+  - **The `usernames` table was world-readable.** The SELECT policy was `using (true)`, on the
+    reasoning that resolving a username to an email happens before sign-in. That is true, and it
+    says nothing about the endpoint: RLS governs *rows*, not queries, so `?select=*` returned
+    every username and email to any holder of the anon key that ships in this repo. Replaced
+    with a `security definer` function that resolves one name. ISS-040 by way of ISS-002.
+  - **The username write was silently refused.** `Prefer: resolution=merge-duplicates` is refused
+    by those policies — 403, verified on the live project, while the identical body without the
+    header answers 201. So usernames were never recorded and username sign-in was dead. Every
+    test passed, because the tests stub `fetch` and never saw the 403.
+  - **Erasing progress wiped the farm on a *wrong* password.** `clearSave()` ran before the
+    password was checked, and the panel then said "nothing was changed". Fixed by ordering, not
+    by clearing later.
+  - **`clearSave()` could not report a failed server delete** (ISS-041), so "your farm is cleared"
+    could be false with an expired access token. It returns a result now.
+  - **A shadowed import broke the delete button entirely.** `settings-main.js` imported
+    `deleteAccount` and also declared a local function of that name, so the call resolved to
+    itself and recursed until the stack blew. The `RangeError` surfaced as a generic failure with
+    the server working and the password correct. `npm run check` now fails on a declaration that
+    shadows an import — verified by reintroducing the bug.
+- **On deletion itself.** It was built as a 7-day grace period, then changed to immediate. The
+  grace period was doing two jobs and only one was the delay: it was the only thing bounding a
+  client-side-only password gate. Immediate deletion turned that same gap into permanent loss, so
+  the check moved into the database (`delete_my_account(password)`, comparing the bcrypt hash with
+  `pgcrypto`) rather than staying in the browser. DEC-024 supersedes DEC-022; both are kept.
+- **Also:** two migrations install and drop things the project had been carrying in chat only —
+  `002_usernames.sql` (owner SELECT policy) and `005_immediate_account_deletion.sql` (which now
+  installs `pgcrypto` itself after failing twice on projects without it). `docs/setup.md` was
+  written for the person who clones this next.
+- **Tests:** **209 passing at this point** (247 after the password gate on progress, below). The
+  additions that mattered are the ones pinning behaviour a stub
+  could not see: that the username insert carries no `Prefer` header, that a 409 is a success, and
+  that a refused server delete is reported rather than swallowed.
+
+---
+
+## Both destructive actions behind the password, and the test that could not exist before
+
+- **Did:** "Erase all progress" now takes the password. It did not before, and the reason it did
+  not is worth recording because it was wrong in an instructive way.
+- **The original argument:** deleting an account is irreversible, so that one is behind a
+  password; erasing a farm is not, because the account survives and you get a new one in a
+  second. Therefore the farm did not need protecting.
+- **Why that is wrong:** a farm is weeks of accumulated play. *Easy to replace is not
+  protected.* And the gap was concrete — a stolen session token could destroy it outright,
+  with nothing to check and nothing logged. DEC-025 extends DEC-024's rule to the other
+  irreversible thing on the page.
+- **Same shape as the account function, on purpose.** `006_password_gated_erase.sql` adds
+  `erase_progress(password)`: no account id, `search_path = ''`, EXECUTE revoked from
+  `PUBLIC` and granted to `authenticated`, bcrypt compared with `crypt()`, fails closed. It
+  deletes **only** `farm_saves`, so the player stays signed in. The check and the delete are
+  one statement — a separate verify endpoint would be one the browser could skip, which is the
+  exact gap DEC-022 had.
+- **The order was the actual bug, and it was in the entry script.** `deleteProgress()` used to
+  clear both copies of the save and *then* ask the server. So a wrong password wiped the farm
+  and the panel reported that nothing had changed. Now the password-gated call goes first,
+  and nothing is touched until it succeeds — the same order the account path already used.
+  `clearSave()` became `clearLocalSave()` for the same reason: the server half is already done,
+  and repeating it would be a request at a deleted row whose failure reads as a real one
+  (ISS-041).
+- **Two hand-written handlers had drifted, so they became one.** Both actions now run through
+  `runDestructive()`. Writing it once is the fix; the part I would emphasise is *where* it
+  lives: it takes its collaborators as arguments, so `tests/dangerAction.test.js` can assert
+  the ordering with fakes. That is new — `js/settings-main.js` is an entry script and previously
+  had no test at all, which is exactly how the original bug survived a green suite.
+- **Also found while doing this: `js/services/accountApi.js` had no test file.** The client half
+  of *both* RPCs — shipped, live, and never loaded by a single test — because the suite stubs
+  `fetch` and nothing imported it. 17 tests now, covering the reason mapping the panel depends
+  on: `not_migrated` for a 404, `cannot_verify_password` for a fail-closed project, and a
+  timeout that is never reported as a wrong password.
+- **Split the panel rather than grow it.** `settingsView.js` was 290 lines and past the budget
+  it documents. It is now 197, with `passwordGate.js`, `runDestructive.js` and
+  `dangerMessages.js` beside it.
+- **Tests:** **247 passing** at this point. The one I would keep forever is the empty-list assertion in
+  `dangerAction.test.js` — a refused password must not reach the success path. That is the
+  original bug, pinned.
+
+---
+
+## "Checking your password." was in the DOM and completely invisible
+
+- **Reported as:** the password check on the settings page gave no feedback at all.
+- **It was not a missing feature.** `runDestructive` had been calling
+  `announce('Checking your password.', 'info')` since it was written. The sentence was
+  rendered, correct, in the right place in the tree. Three separate things were wrong.
+- **1. The wrong card.** The page had **one** status node, rendered inside the *erase
+  progress* card. Every sentence the *account* action produced appeared above the progress
+  button, in a card the player might have scrolled past and had not clicked. And `onArm`
+  cleared that same shared node, so arming one action wiped the other's words. Now each
+  action owns a live region in its own card — which is also the right thing for a screen
+  reader, since a shared node narrates a password check at the bottom of the page as
+  page-level news.
+- **2. No styling at all.** `.form-message` was defined in `css/auth.css`, and
+  `settings.html` does not load `auth.css`. So on that page the sentence had no padding,
+  no background and no colour: unstyled default text, indistinguishable from body copy.
+  The rules now live in `css/components.css`, which every page loads. **This is the actual
+  answer to "it doesn't show"** — the markup was never wrong, and reading the tree could
+  never have revealed it.
+- **3. `--info` did not exist.** Only `--error` was defined, so `info` fell back to the
+  neutral base and read as a fault — which is the opposite of what "Checking your
+  password." means. Added, with `--success` while there.
+- **The fix that mattered most was the test, not the CSS.** `AGENTS.md` had recorded that
+  this suite has no DOM and that the two headless smoke tests covering that gap lived
+  outside the repo — "which is itself worth fixing". So: `tests/helpers/fakeDom.js`, a
+  ~270-line fake `document` with no library, and `tests/settingsDom.test.js`. 17 tests
+  that mount the real panel and assert on what a player can read and which card says it.
+- **It immediately paid for itself by catching 2.5.** It found the shared-node bug, the
+  `onArm` cross-clearing, *and* a class styled in a file the page does not load — which
+  is the actual cause above, and which no amount of reading `settingsView.js` would have
+  surfaced. Both fixes are mutation-tested: reverting each one fails the suite.
+- **One thing I was careful not to "fix":** the test also flagged `card__body` as
+  unstyled. It is styled nowhere and always has been, because `.card` carries the padding
+  — a structural hook, not a bug. Rather than add a rule or silence the check, the
+  assertion was narrowed to what actually matters: *if a class is styled somewhere, then
+  this page's stylesheets must be where it is styled.* That is exactly the shape of the
+  real bug, and it ignores semantics-as-markup on purpose.
+- **Tests:** **264 passing**, up 3. `settingsView.js` is 201 lines after the split;
+  `statusLine.js` took the widget out of it.
+- **Lesson worth keeping:** three of these bugs were invisible to the suite and to a live test of
+  the service in isolation. They were only found by probing the running project, and one of them
+  by testing the thing a player actually clicks.
 
 ---
 
@@ -127,10 +258,19 @@ The per-person weekly notes that used to live in the README table are now in `me
 - **Files:** `supabase/migrations/001_farm_saves.sql`, `js/services/saveApi.js`,
   `js/remoteSave.js`, `js/state/store.js`, `js/state/saveFile.js`, `js/services/authApi.js`,
   `js/main.js`, `tests/saveApi.test.js`, `tests/store.test.js`, `docs/architecture.md`
-- **Not verified:** anything requiring the real table. The RLS policy is reasoned about, not
-  executed, so it has to be tested against the live project once the migration is run.
-- **Next:** run the SQL, then check a farm saves, survives a reload, and reappears in another
-  browser. After that, ISS-027 with Shabab.
+- **Not verified:** the round trip. The table did not exist when this was written, so nothing
+  that needs it was exercised.
+- **Update 2026-10-06 (Shabab):** the migration has since been run against the live project, and the
+  table is verified to exist — `GET /rest/v1/farm_saves` went from `404 PGRST205` to `200`, and
+  `pg_policies` shows `own row only` / `ALL`. An anon-key read returns `*/0`, so RLS filters per-row
+  rather than denying everything.
+- **Still not verified:** whether the game actually writes through. Three checks are outstanding — a
+  signed-in autosave lands a row, the same farm appears in a second browser with no localStorage
+  copy, and a cross-account read returns `[]` rather than `403`. Until those pass this feature is
+  unverified rather than done. "Changes survive a reload" cannot be tested yet either: nothing is
+  implemented that can be changed, and localStorage being the fallback means a reappearing farm
+  proves nothing on its own.
+- **Next:** run those three checks. After that, ISS-027 with Shabab.
 
 ---
 

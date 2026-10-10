@@ -45,7 +45,7 @@ globalThis.document = { querySelector: () => null, createElement: () => ({}) };
 globalThis.location = { search: '', href: 'http://localhost:5173/index.html', replace() {} };
 
 /** Imported after the stubs, since both entry scripts touch the DOM as they load. */
-const { resolveSession } = await import('../js/main.js');
+const { farmHref, resolveSession, shopHref } = await import('../js/main.js');
 const { loadProvider } = await import('../js/auth-main.js');
 const localAuth = await import('../js/services/localAuth.js');
 
@@ -95,12 +95,41 @@ test('every function the boot path and the panel need exists on the provider', (
   // `restoreSession` is deliberately absent from this list: it is Supabase-only, and
   // both call sites use `?.()`. Requiring it on the local provider would force a
   // no-op onto it.
+  //
+  // `deleteAccountData` and `eraseProgress` each take the password and verify it in the
+  // same call that destroys something — see `005` and `006`. Both are required on both
+  // providers, because neither may expose an erasure a token alone can perform. Erase
+  // used to ask for no password at all; that was the gap DEC-025 closed.
   for (const name of [
     'currentSession', 'signIn', 'signUp', 'signOut',
-    'requestPasswordReset', 'updatePassword',
+    'requestPasswordReset', 'updatePassword', 'deleteAccountData', 'eraseProgress',
   ]) {
     assert.equal(typeof localAuth[name], 'function', `localAuth is missing ${name}`);
   }
+
+  assert.equal(
+    localAuth.deletesAccountsInPlace,
+    true,
+    'this provider deletes its own accounts rather than calling an RPC',
+  );
+});
+
+test('neither provider exposes a deletion that skips the password', async () => {
+  // The guarantee behind `005`. Before it, the Supabase RPC authenticated with
+  // `auth.uid()` alone and the password was checked in the browser, so the check could
+  // be bypassed by calling the delete endpoint directly.
+  const supabase = await import('../js/services/authApi.js');
+
+  // The check moved into the database (`delete_my_account(password)`), so neither
+  // provider has a client-side "check then delete" pair to bypass — the local one
+  // verifies and deletes in a single function, and the Supabase one has no
+  // delete-without-password entry point at all.
+  assert.equal(
+    typeof supabase.verifyPassword,
+    'undefined',
+    'the browser-side check must stay gone; the database owns it now',
+  );
+  assert.equal(typeof localAuth.deleteAccountData, 'function');
 });
 
 /* --- boot step 0 ------------------------------------------------------------- */
@@ -156,4 +185,34 @@ test('a signed-in player arriving with ?guest=1 keeps their session', async () =
   const session = { status: 'authed', userId: 'uuid-3', email: 'a@b.co', farmerName: 'A' };
 
   assert.equal(await resolveSession(fakeProvider({ currentSession: () => session })), session);
+});
+
+/* --- the two links between the farm and the shop -------------------------------- */
+
+test('the shop button and the way back point at different pages', () => {
+  // The bug this asserts against: "Back to the farm" was built with `shopHref`, so
+  // it linked to shop.html — the page the player was already on, so the button did
+  // nothing. Both helpers live in one file precisely so the two cannot be swapped.
+  const session = { status: 'authed', userId: 'uuid-4', email: 'a@b.co', farmerName: 'A' };
+
+  assert.equal(shopHref(session), 'shop.html');
+  assert.equal(farmHref(session), 'index.html');
+  assert.notEqual(shopHref(session), farmHref(session));
+});
+
+test('a guest carries ?guest=1 across the navigation, in both directions', () => {
+  // Without the flag the other page finds no session and redirects to the login
+  // form, so "sign in once" becomes "sign in on every page".
+  const guest = { status: 'guest', userId: 'guest', email: '', farmerName: '' };
+
+  assert.equal(shopHref(guest), 'shop.html?guest=1');
+  assert.equal(farmHref(guest), 'index.html?guest=1');
+});
+
+test('a missing session still produces a usable href', () => {
+  // `mountShell` runs before anything can be null in practice, but an undefined
+  // session must not produce "undefined" as a URL.
+  for (const href of [shopHref(null), shopHref(undefined), farmHref(null)]) {
+    assert.match(href, /^(shop|index)\.html$/);
+  }
 });

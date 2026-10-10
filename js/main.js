@@ -22,11 +22,41 @@ import { adoptState, emit, exportPayload, getState, init, readImport, reset, sav
 import { mountToastStack } from './ui/toastStack.js';
 import { mountTopBar } from './ui/topBar.js';
 import { mountSavePanel } from './ui/savePanel.js';
+import { mountShopLauncher } from './ui/shopLauncher.js';
+import { mountSettingsLauncher } from './ui/settingsLauncher.js';
 import { AUTOSAVE_MS } from './config/game.js';
 
 const log = createLog('main');
 
 const LOGIN_URL = 'login.html';
+const SHOP_URL = 'shop.html';
+const FARM_URL = 'index.html';
+const SETTINGS_URL = 'settings.html';
+
+/**
+ * The two hrefs that cross between the farm and the shop.
+ *
+ * Both pages are reached by navigation, so both need the same guest handling. A
+ * guest session is deliberately never written to storage — see the comment on
+ * `resolveSession` — so the other page cannot rediscover it and would bounce the
+ * player back to the login form, losing the "sign in once" promise in the middle
+ * of a game. Carrying `?guest=1` across is what keeps that promise;
+ * `shop-main.js` reads the same flag.
+ *
+ * These are the only two places a URL is built for the other page, so a fix to
+ * the guest flag is a fix in one file.
+ */
+export function shopHref(session) {
+  return session?.status === 'guest' ? `${SHOP_URL}?guest=1` : SHOP_URL;
+}
+
+export function farmHref(session) {
+  return session?.status === 'guest' ? `${FARM_URL}?guest=1` : FARM_URL;
+}
+
+export function settingsHref(session) {
+  return session?.status === 'guest' ? `${SETTINGS_URL}?guest=1` : SETTINGS_URL;
+}
 
 /**
  * Boot step 0: who is playing?
@@ -74,10 +104,11 @@ function placeholder(label, detail) {
 
 function mountShell(session, onSignOut) {
   mountTopBar(qsOrNull('#top-bar'), { session, onSignOut });
+  mountShopLauncher(qsOrNull('#shop-launch'), { href: shopHref(session) });
+  mountSettingsLauncher(qsOrNull('#settings-launch'), { href: settingsHref(session) });
 
   qsOrNull('#sidebar').append(
     placeholder('Season', 'Season card — T-11'),
-    placeholder('Shop', 'Seeds, land and market — T-08, T-10'),
     placeholder('Inventory', 'Seeds and harvest — T-08'),
   );
 

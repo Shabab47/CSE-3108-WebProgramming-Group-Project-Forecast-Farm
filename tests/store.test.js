@@ -285,10 +285,53 @@ test('clearSave removes both copies', async () => {
   server.delete = async () => { deleted = true; return { ok: true }; };
 
   await init(SESSION, buildInitialState, server);
-  await clearSave();
+  const result = await clearSave();
 
   assert.equal(localStorage.getItem(KEY), null);
   assert.equal(deleted, true, 'the server row goes too, or signing back in would resurrect it');
+  assert.equal(result.ok, true);
+});
+
+test('a refused server delete is reported, not swallowed (ISS-041)', async () => {
+  // `saveApi.deleteRemoteSave` resolves to `{ok:false}` when PostgREST refuses — most
+  // likely an expired access token — rather than throwing. The old `clearSave` only had
+  // a `catch`, so it saw nothing, returned void, and the settings page went on saying
+  // "your farm is cleared" while the row survived on the server.
+  const server = fakeServer({});
+  server.delete = async () => ({ ok: false, reason: 'server_error', status: 401 });
+
+  await init(SESSION, buildInitialState, server);
+  const result = await clearSave();
+
+  assert.equal(result.ok, false, 'a refused delete must not read as success');
+  assert.equal(result.reason, 'server_error');
+  assert.equal(
+    result.localCleared,
+    true,
+    'the local copy is still removed — it cannot fail and the player can see it',
+  );
+  assert.equal(localStorage.getItem(KEY), null);
+});
+
+test('a server delete that throws is reported rather than swallowed', async () => {
+  const server = fakeServer({});
+  server.delete = async () => { throw new Error('offline'); };
+
+  await init(SESSION, buildInitialState, server);
+  const result = await clearSave();
+
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'server_delete_failed');
+});
+
+test('clearSave succeeds when there is no server save at all', async () => {
+  // A guest, or the local provider. The absence of a `delete` is not a failure — there
+  // was no server copy to remove, so reporting otherwise would be inventing a problem.
+  await init(SESSION);
+  const result = await clearSave();
+
+  assert.equal(result.ok, true);
+  assert.equal(result.reason, undefined);
 });
 
 /* --- import ---------------------------------------------------------------- */

@@ -15,6 +15,8 @@ import assert from 'node:assert/strict';
 import * as localAuth from '../js/services/localAuth.js';
 import {
   currentSession,
+  deleteAccountData,
+  eraseProgress,
   requestPasswordReset,
   signIn,
   signInAsGuest,
@@ -24,7 +26,7 @@ import {
 } from '../js/services/localAuth.js';
 import { AUTH_KEYS } from '../js/config/auth.js';
 
-const VALID = { email: 'farmer@rice.bd', password: 'rice2026', farmerName: 'Abdul Karim' };
+const VALID = { email: 'farmer@rice.bd', password: 'rice2026', farmerName: 'Abdul Karim', username: 'farmer_joe' };
 
 function installFakeStorage(initial = {}) {
   const data = new Map(Object.entries(initial));
@@ -48,10 +50,11 @@ test('signing up returns a session in the documented shape', async () => {
   const result = await signUp(VALID);
 
   assert.equal(result.ok, true);
-  assert.deepEqual(Object.keys(result.session).sort(), ['email', 'farmerName', 'status', 'userId']);
+  assert.deepEqual(Object.keys(result.session).sort(), ['email', 'farmerName', 'status', 'userId', 'username']);
   assert.equal(result.session.status, 'authed');
   assert.equal(result.session.email, 'farmer@rice.bd');
   assert.equal(result.session.farmerName, 'Abdul Karim');
+  assert.equal(result.session.username, 'farmer_joe');
   assert.ok(result.session.userId);
 });
 
@@ -70,6 +73,15 @@ test('the same email in different case is the same account', async () => {
   assert.equal(again.reason, 'email_taken');
 });
 
+test('the same username in different case is the same account', async () => {
+  await signUp(VALID);
+  await signOut();
+
+  const again = await signUp({ ...VALID, email: 'other@rice.bd', username: '  FARMER_JOE  ' });
+  assert.equal(again.ok, false);
+  assert.equal(again.reason, 'username_taken');
+});
+
 test('the password is never written to storage', async () => {
   await signUp(VALID);
 
@@ -82,7 +94,27 @@ test('signing in works with a differently cased and padded email', async () => {
   const created = await signUp(VALID);
   await signOut();
 
-  const result = await signIn({ email: '  FARMER@Rice.BD ', password: VALID.password });
+  const result = await signIn({ identifier: '  FARMER@Rice.BD ', password: VALID.password });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.session.userId, created.session.userId);
+});
+
+test('signing in works with a username', async () => {
+  const created = await signUp(VALID);
+  await signOut();
+
+  const result = await signIn({ identifier: 'farmer_joe', password: VALID.password });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.session.userId, created.session.userId);
+});
+
+test('signing in works with a differently cased username', async () => {
+  const created = await signUp(VALID);
+  await signOut();
+
+  const result = await signIn({ identifier: '  FARMER_JOE  ', password: VALID.password });
 
   assert.equal(result.ok, true);
   assert.equal(result.session.userId, created.session.userId);
@@ -92,10 +124,22 @@ test('an unknown email and a wrong password are indistinguishable', async () => 
   await signUp(VALID);
   await signOut();
 
-  const wrongPassword = await signIn({ email: VALID.email, password: 'rice2027' });
-  const noAccount = await signIn({ email: 'nobody@rice.bd', password: VALID.password });
+  const wrongPassword = await signIn({ identifier: VALID.email, password: 'rice2027' });
+  const noAccount = await signIn({ identifier: 'nobody@rice.bd', password: VALID.password });
 
   // If these ever diverge, this form becomes an account-enumeration oracle.
+  assert.equal(wrongPassword.reason, noAccount.reason);
+  assert.equal(wrongPassword.reason, 'invalid_credentials');
+  assert.equal(currentSession(), null, 'a refused attempt starts no session');
+});
+
+test('an unknown username and a wrong password are indistinguishable', async () => {
+  await signUp(VALID);
+  await signOut();
+
+  const wrongPassword = await signIn({ identifier: 'farmer_joe', password: 'rice2027' });
+  const noAccount = await signIn({ identifier: 'unknown_user', password: VALID.password });
+
   assert.equal(wrongPassword.reason, noAccount.reason);
   assert.equal(wrongPassword.reason, 'invalid_credentials');
   assert.equal(currentSession(), null, 'a refused attempt starts no session');
@@ -104,8 +148,15 @@ test('an unknown email and a wrong password are indistinguishable', async () => 
 test('sign-up is allowed to be specific about a taken email', async () => {
   await signUp(VALID);
 
-  const again = await signUp({ ...VALID, farmerName: 'Someone Else' });
+  const again = await signUp({ ...VALID, farmerName: 'Someone Else', username: 'different_user' });
   assert.equal(again.reason, 'email_taken');
+});
+
+test('sign-up is allowed to be specific about a taken username', async () => {
+  await signUp(VALID);
+
+  const again = await signUp({ ...VALID, email: 'other@rice.bd', farmerName: 'Someone Else' });
+  assert.equal(again.reason, 'username_taken');
 });
 
 test('signing out clears the session but keeps the account', async () => {
@@ -114,7 +165,8 @@ test('signing out clears the session but keeps the account', async () => {
 
   assert.equal(currentSession(), null);
   assert.ok(localStorage.getItem(AUTH_KEYS.accounts), 'signing out is not deleting the account');
-  assert.equal((await signIn(VALID)).ok, true, 'and it still signs back in');
+  assert.equal((await signIn({ identifier: VALID.email, password: VALID.password })).ok, true, 'and it still signs back in');
+  assert.equal((await signIn({ identifier: 'farmer_joe', password: VALID.password })).ok, true, 'and it still signs back in with username');
 });
 
 test('guest play is not a session and leaves nothing to resume', async () => {
@@ -149,6 +201,127 @@ test('the local provider refuses password reset instead of faking success', asyn
   });
 });
 
+/* --- account deletion --------------------------------------------------------
+ *
+ * Immediate here, with no 7-day grace period, and the reason is in the provider's
+ * doc comment: a deadline would have nowhere to live once the session is gone, so a
+ * sign-out-and-return would reset the countdown forever. What matters is that the
+ * account genuinely goes — the local accounts table *is* the account. */
+
+test('deleting an account clears the session and the account itself', async () => {
+  await signUp(VALID);
+  const userId = currentSession().userId;
+
+  const result = await deleteAccountData({ password: VALID.password });
+
+  assert.equal(result.ok, true);
+  assert.equal(currentSession(), null, 'no session survives the removal');
+  assert.ok(userId);
+  assert.equal(
+    JSON.parse(localStorage.getItem(AUTH_KEYS.accounts))[VALID.email],
+    undefined,
+    'the account row is gone, not just the session',
+  );
+});
+
+test('a wrong password deletes nothing at all', async () => {
+  await signUp(VALID);
+
+  const result = await deleteAccountData({ password: 'wrongpass1' });
+
+  // The whole reason the check moved into this function: deletion is immediate now, so
+  // a check the caller could skip would mean a token alone destroys an account.
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'invalid_credentials');
+  assert.ok(currentSession(), 'still signed in — nothing was destroyed');
+  assert.ok(
+    JSON.parse(localStorage.getItem(AUTH_KEYS.accounts))[VALID.email],
+    'the account row is untouched',
+  );
+});
+
+test('an empty password is refused before any work is done', async () => {
+  await signUp(VALID);
+
+  const result = await deleteAccountData({ password: '' });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'password_required');
+  assert.ok(currentSession());
+});
+
+test('deleting an account with no session is refused rather than faked', async () => {
+  const result = await deleteAccountData({ password: VALID.password });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'not_signed_in');
+});
+
+test('a deleted account can register again with the same email and username', async () => {
+  await signUp(VALID);
+  await deleteAccountData({ password: VALID.password });
+
+  // Both the email and the username went with the account row, so neither is still
+  // taken. The Supabase provider frees them the same way, by cascade from the deleted
+  // account — so both providers now promise the player the same thing.
+  const again = await signUp(VALID);
+  assert.equal(again.ok, true);
+  assert.equal(again.session.email, VALID.email);
+  assert.equal(again.session.username, VALID.username);
+});
+
+/* --- progress erasure -------------------------------------------------------- */
+
+test('a wrong password erases no progress', async () => {
+  await signUp(VALID);
+
+  const result = await eraseProgress({ password: 'wrongpass1' });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'invalid_credentials');
+  assert.ok(currentSession(), 'still signed in');
+  assert.ok(
+    JSON.parse(localStorage.getItem(AUTH_KEYS.accounts))[VALID.email],
+    'the account row is untouched, because a farm reset must never cost an account',
+  );
+});
+
+test('the right password clears the progress gate', async () => {
+  await signUp(VALID);
+
+  const result = await eraseProgress({ password: VALID.password });
+
+  assert.equal(result.ok, true);
+});
+
+test('progress erasure refuses an empty password', async () => {
+  await signUp(VALID);
+
+  const result = await eraseProgress({ password: '' });
+
+  assert.equal(result.reason, 'password_required');
+});
+
+test('progress erasure needs a session, like the account version', async () => {
+  const result = await eraseProgress({ password: VALID.password });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'not_signed_in');
+});
+
+test('a guest has no account and so no password to check', async () => {
+  // A guest's farm is theirs, but there is no account row behind the session and no
+  // credential that could identify it. `currentSession()` requires `status === 'authed'`,
+  // so this is refused as unsigned-in — which is why the panel shows no password field
+  // for a guest rather than showing one and failing.
+  signInAsGuest();
+
+  const result = await eraseProgress({ password: VALID.password });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'not_signed_in');
+});
+
 test('every function the panel contract needs exists on this provider', async () => {
   // A missing export reaches the panel as `undefined` and only fails when a
   // player clicks, as a confusing "could not reach the server". Assert the whole
@@ -156,6 +329,7 @@ test('every function the panel contract needs exists on this provider', async ()
   for (const name of [
     'currentSession', 'signIn', 'signUp', 'signOut',
     'requestPasswordReset', 'updatePassword', 'signInAsGuest',
+    'deleteAccountData', 'eraseProgress',
   ]) {
     assert.equal(typeof localAuth[name], 'function', `missing contract member: ${name}`);
   }
@@ -175,6 +349,24 @@ test('storage that throws does not crash the provider', async () => {
     removeItem() { throw new Error('blocked'); },
   };
 
-  assert.doesNotThrow(async () => { await signUp(VALID); });
-  assert.equal((await signIn(VALID)).reason, 'invalid_credentials', 'degrades to refused, never throws');
+  // `assert.doesNotThrow` is **synchronous**: handed an async function it returns at
+  // the first await, never sees the rejection, and passes unconditionally. An earlier
+  // version of this test did exactly that and asserted nothing at all — it looked like
+  // a safety net and was not one.
+  //
+  // What the provider actually owes is stronger than "does not throw", and this now
+  // asserts it directly: a blocked store resolves to a *refusal*. `signUp` reads the
+  // account table (which swallows the storage error and returns an empty table),
+  // builds an account, then fails to write it — so the result is `storage_unavailable`,
+  // an `ok: false` a panel can show, rather than a rejection nothing catches.
+  const created = await signUp(VALID);
+  assert.equal(created.ok, false);
+  assert.equal(created.reason, 'storage_unavailable');
+  assert.equal(currentSession(), null, 'a refused sign-up starts no session');
+
+  assert.equal(
+    (await signIn({ identifier: VALID.email, password: VALID.password })).reason,
+    'invalid_credentials',
+    'and signing in degrades to refused rather than throwing',
+  );
 });

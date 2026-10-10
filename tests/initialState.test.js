@@ -76,7 +76,7 @@ test('a malformed session is coerced, never passed through', () => {
   assert.equal(normaliseSession({ status: 'weird' }), null);
 
   const guest = normaliseSession({ status: 'guest', userId: 'guest' });
-  assert.deepEqual(guest, { status: 'guest', userId: 'guest', email: '', farmerName: '' });
+  assert.deepEqual(guest, { status: 'guest', userId: 'guest', email: '', farmerName: '', username: '' });
 });
 
 test('the default location is Dhaka with a timezone', () => {

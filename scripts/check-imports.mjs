@@ -27,8 +27,17 @@ const ALLOWED = {
   debug: ['config', 'utils', 'state', 'domain', 'services', 'ui'],
 };
 
-/** main.js and the page entry scripts may import anything. */
-const WILD_CARD = new Set(['main.js', 'auth-main.js', 'almanac-main.js']);
+/**
+ * main.js and the page entry scripts may import anything, and may touch the DOM.
+ *
+ * One entry per HTML page: index.html -> main.js, login.html -> auth-main.js,
+ * almanac.html -> almanac-main.js, shop.html -> shop-main.js,
+ * settings.html -> settings-main.js. A page that needs its own boot sequence needs
+ * its own entry — the alternative is growing a module that boots four different
+ * pages, which is how `auth-main.js` ended up imported by the game page and needing
+ * the `#auth-root` guard.
+ */
+const WILD_CARD = new Set(['main.js', 'auth-main.js', 'almanac-main.js', 'shop-main.js', 'settings-main.js']);
 
 /** Files allowed to touch the DOM outside js/ui/ (ISS-010). */
 const DOM_WHITELIST = new Set(['utils/dom.js']);
@@ -138,6 +147,45 @@ for (const file of await jsFiles(JS_ROOT)) {
       report(file, lineNo, 'inline event handler in markup; attach it in JS');
     }
   });
+
+  // A declaration that shadows one of this file's own imports.
+  //
+  // Cost: nothing to notice. Consequence: `js/settings-main.js` imported
+  // `deleteAccount` from the account service and also declared a local function of
+  // that name, so the call inside it resolved to *itself* and recursed until the stack
+  // blew. The RangeError was caught and reported as "your account could not be
+  // deleted" — with the server working, the password correct, and nothing on screen
+  // pointing at the real cause. Every test passed, because the tests that exercise the
+  // service import it directly and never load the entry point.
+  //
+  // It is a grep, like everything else here, and it cannot see a shadowing that is not
+  // a plain top-level declaration. That is enough: it is the shape that actually
+  // happened, and it is cheap to keep.
+  const imported = new Set();
+  for (const line of lines) {
+    const match = line.match(/^\s*import\s+(?:\{([^}]*)\}|(\w+))/);
+    if (!match) continue;
+    const named = match[1] ? match[1].split(',') : [match[2]];
+    for (const raw of named) {
+      const name = (raw.split(/\s+as\s+/).pop() ?? '').trim();
+      if (name) imported.add(name);
+    }
+  }
+
+  if (imported.size > 0) {
+    lines.forEach((text, index) => {
+      // Any *named* function binding — including one returned from a factory, which is
+      // exactly the shape that hid here. `function (\w+)(` only matches a name, so an
+      // anonymous callback is not a match.
+      const named = text.match(/\bfunction\s+(\w+)\s*\(/)
+        ?? text.match(/^\s*(?:export\s+)?(?:const|let|var)\s+(\w+)\s*=/);
+      if (!named) return;
+      const name = named[1];
+      if (imported.has(name)) {
+        report(file, index + 1, `'${name}' shadows an import of the same name; a call inside it will resolve to itself`);
+      }
+    });
+  }
 }
 
 if (problems.length > 0) {

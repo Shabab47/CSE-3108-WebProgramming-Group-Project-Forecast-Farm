@@ -32,6 +32,11 @@
   --success: #6cbf85;
   --success-soft: #23331f;
 
+  /* Brighter than the light theme's gold: the sign sits on a near-black sidebar,
+     where a dim glow is invisible. */
+  --gold: #ffc65c;
+  --gold-glow: rgba(255, 198, 92, 0.5);
+
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
   --shadow-pop: 0 2px 4px rgba(0, 0, 0, 0.45), 0 16px 40px rgba(0, 0, 0, 0.5);
 }
@@ -65,6 +70,11 @@
     --warning-soft: #372c15;
     --success: #6cbf85;
     --success-soft: #23331f;
+
+    /* Brighter than the light theme's gold: the sign sits on a near-black sidebar,
+       where a dim glow is invisible. */
+    --gold: #ffc65c;
+    --gold-glow: rgba(255, 198, 92, 0.5);
 
     --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
     --shadow-pop: 0 2px 4px rgba(0, 0, 0, 0.45), 0 16px 40px rgba(0, 0, 0, 0.5);

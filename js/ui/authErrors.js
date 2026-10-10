@@ -15,7 +15,7 @@
  *   'session' — refresh or restore failures.
  */
 
-export const NEUTRAL_SIGN_IN = 'Check your email and password and try again.';
+export const NEUTRAL_SIGN_IN = 'Check your email or username and password and try again.';
 
 /** Shown after sign-up, which is where a new player learns they must confirm. */
 export const CONFIRM_EMAIL =
@@ -39,6 +39,7 @@ const MESSAGES = {
   not_confirmed: CONFIRM_EMAIL,
 
   // --- validation, mirrored from domain/authRules.js ---
+  identifier_required: 'Enter your email or username.',
   email_required: 'Enter your email address.',
   email_invalid: 'That does not look like an email address.',
   password_required: 'Enter your password.',
@@ -46,6 +47,9 @@ const MESSAGES = {
   password_weak: 'Use at least 8 characters, with a letter and a number.',
   name_required: 'Tell us what to call you.',
   name_length: 'Names are 2 to 24 characters.',
+  username_required: 'Choose a username.',
+  username_invalid: 'Usernames are 3-20 characters: letters, numbers, and underscores.',
+  username_taken: 'That username is already taken. Try another.',
 
   // --- connectivity ---
   offline: 'No connection. The farm needs the network to sign you in.',
@@ -87,6 +91,7 @@ const ENUMERATION_SENSITIVE = new Set([
   'no_account',
   'email_taken',
   'user_already_exists',
+  'username_taken',
   'email_not_confirmed',
   'not_confirmed',
 ]);

@@ -19,6 +19,8 @@ export const RULE_TEXT = {
 export const RULE_LIST = PASSWORD_RULES.map((rule) => RULE_TEXT[rule.id]).join(', ');
 
 const EMAIL_INPUT = { label: 'Email', type: 'email', autocomplete: 'email', placeholder: 'you@example.com' };
+const IDENTIFIER_INPUT = { label: 'Email or username', type: 'text', autocomplete: 'username', placeholder: 'you@example.com or username' };
+const USERNAME_INPUT = { label: 'Username', type: 'text', autocomplete: 'username', placeholder: 'Choose a unique username' };
 
 /**
  * One labelled field.
@@ -123,7 +125,7 @@ export function buildForms() {
     labelledBy: 'tab-signin',
     label: 'Sign in',
     fields: {
-      email: field('signin', 'email', EMAIL_INPUT),
+      identifier: field('signin', 'identifier', IDENTIFIER_INPUT),
       password: field('signin', 'password', {
         label: 'Password',
         type: 'password',
@@ -143,6 +145,7 @@ export function buildForms() {
         autocomplete: 'name',
         placeholder: 'How should we greet you?',
       }),
+      username: field('signup', 'username', USERNAME_INPUT),
       email: field('signup', 'email', EMAIL_INPUT),
       password: field('signup', 'password', {
         label: 'Password',

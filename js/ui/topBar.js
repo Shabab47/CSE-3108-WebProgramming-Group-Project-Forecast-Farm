@@ -56,7 +56,7 @@ export function mountTopBar(root, actions) {
       // returning player can see at a glance which farm is open.
       el('span', {
         class: isGuest ? 'badge' : 'badge badge--accent',
-        title: session.email || 'Not signed in',
+        title: session.username || session.email || 'Not signed in',
         text: session.farmerName || 'Guest farmer',
       }),
       signOut,

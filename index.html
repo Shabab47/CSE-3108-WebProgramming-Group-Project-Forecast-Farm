@@ -12,6 +12,8 @@
     <link rel="stylesheet" href="css/themes.css" />
     <link rel="stylesheet" href="css/layout.css" />
     <link rel="stylesheet" href="css/components.css" />
+    <link rel="stylesheet" href="css/shop.css" />
+    <link rel="stylesheet" href="css/settings.css" />
   </head>
 
   <body>
@@ -19,8 +21,12 @@
       <!-- topBar: logo, location search, action buttons -->
       <header class="app__top" id="top-bar"></header>
 
-      <!-- sidebar: season card, shop, inventory -->
-      <aside class="app__sidebar" id="sidebar"></aside>
+      <!-- sidebar: shop, settings, season card, inventory. The shop sits at the top
+           because it is the one control a new player is looking for. -->
+      <aside class="app__sidebar" id="sidebar">
+        <div id="shop-launch"></div>
+        <div id="settings-launch"></div>
+      </aside>
 
       <!-- centre column: forecast card, then the isometric farm -->
       <main class="app__centre">

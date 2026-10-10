@@ -39,6 +39,12 @@
   --success: #2f7d4f;
   --success-soft: #e6f2ea;
 
+  /* The shop sign's hover glow. A warm gold, kept here rather than in the shop
+     stylesheet so dark mode overrides it the same way it overrides everything
+     else. The soft one is the bloom; the solid one is the tight core. */
+  --gold: #f0a92e;
+  --gold-glow: rgba(240, 169, 46, 0.45);
+
   /* Radii. Cards 16-20px per the style mockup. */
   --radius-card: 18px;
   --radius-input: 10px;

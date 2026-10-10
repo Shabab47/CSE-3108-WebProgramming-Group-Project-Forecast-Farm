@@ -70,7 +70,13 @@ const server = createServer(async (req, res) => {
 
   res.writeHead(200, {
     'Content-Type': MIME[extname(file).toLowerCase()] ?? 'application/octet-stream',
-    'Cache-Control': 'no-cache',
+    // `no-store`, not `no-cache`. A dev server that lets the browser keep a copy of
+    // a module produces the worst kind of bug report: "I fixed it and nothing
+    // changed". `no-cache` still permits storing, and with no ETag or Last-Modified
+    // to revalidate against, whether a stale copy is reused is left to the
+    // browser's discretion. `no-store` means every reload is the file on disk,
+    // which is the only contract a dev server can honestly offer.
+    'Cache-Control': 'no-store',
   });
 
   if (req.method === 'HEAD') {
@@ -85,4 +91,6 @@ server.listen(PORT, HOST, () => {
   console.log(`Forecast Farm dev server → http://${HOST}:${PORT}/`);
   console.log(`  login  http://${HOST}:${PORT}/login.html`);
   console.log(`  game   http://${HOST}:${PORT}/index.html`);
+  console.log(`  shop   http://${HOST}:${PORT}/shop.html`);
+  console.log(`  settings http://${HOST}:${PORT}/settings.html`);
 });
