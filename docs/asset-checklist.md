@@ -3,6 +3,10 @@
 Every image and sound the game needs, who owns it, and what is still missing.
 Owner: **Kafi**. Art direction: **Hisham**.
 
+> **The canonical asset registry with byte sizes is [`js/config/assets.js`](../js/config/assets.js).**
+> A test (`tests/assets.test.js`) scans the `assets/` directory and fails if any file is missing
+> from the registry, any registry entry points to a missing file, or any size does not match.
+
 Last reviewed at the end of week 1, planning phase. Tick a box when the file exists **and** has
 content — an empty placeholder file does not count.
 

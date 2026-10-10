@@ -7,6 +7,21 @@ The per-person weekly notes that used to live in the README table are now in `me
 
 ---
 
+## Central asset registry with automatic enforcement
+
+- **Did:** Created `js/config/assets.js` — a registry of all 31 asset files with path, name, byte
+  size, pixel dimensions, status and category. Added helper functions (`groundTile`, `cropSprite`,
+  `cropFailure`, `weatherIcon`, `cropIcon`, `pumpFrame`) and `totalSize()`. Created
+  `tests/assets.test.js` which scans the `assets/` directory and fails if any file is missing from
+  the registry, any entry points to a missing file, or any size does not match.
+- **Touched:** `js/config/assets.js` (new), `tests/assets.test.js` (new), `AGENTS.md` (doc matrix
+  row + checklist item), `docs/asset-checklist.md` (pointer note), `README.md` (structure tree).
+- **Why:** The team needed a single place to see and edit asset sizes, and a way to guarantee new
+  assets get registered — the test makes it impossible to forget.
+- **Problems:** None. All 162 tests pass, import check clean.
+
+---
+
 ## Supabase project created, and the switch that would have broken login
 
 - **Did:** Picked up T-29. Project `ygfrvwyydxrocvywzysk` created, URL and the `anon` key committed
