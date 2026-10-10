@@ -37,7 +37,17 @@ The per-person weekly notes that used to live in the README table are now in `me
 - **Docs:** architecture.md boot order + tree + "where to change", DEC-026 for painting pre-auth,
   ISS-043 and ISS-044 logged before any fix.
 - **Not done:** `almanac.html` is still a zero-byte file, so it gets no loader until it exists.
-  Browser-verified by serving, not by clicking — no browser was attached to the session.
+- **Not verified in a browser.** Verified by `npm run check`, `npm test`, `node --check`, and
+  confirming all four pages plus the new module serve HTTP 200 from the dev server — but no
+  browser was attached to the session, so **nobody has watched it render**. Two things worth a
+  human eye before it is trusted: the sign-out redirect path (the veil must close before
+  `location.replace`, or it flashes during the hop), and that a screen reader announces
+  "Loading your farm…" once rather than every 5 s. Throttle to Slow 3G to see anything at all —
+  under 250 ms it correctly shows nothing.
+- **Ownership:** `js/ui/loadingTips.js` and `js/config/tips.js` registered in
+  `docs/team/ownership.md` as Shabab47 / Kafi. `css/components.css` is Kafi's folder — the
+  `.boot-loader` block is appended rather than edited into existing rules, to keep the merge
+  trivial.
 
 ## Central asset registry with automatic enforcement
 

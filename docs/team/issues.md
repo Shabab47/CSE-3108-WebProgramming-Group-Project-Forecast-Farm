@@ -583,7 +583,7 @@ current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
 - **Requires re-running `002_usernames.sql` on the live project before the rename path
   works.** The insert path — and therefore username sign-in — does not depend on it.
 ### ISS-043 Every page showed a blank white screen while it booted
-- Reported by: Shabab47 | Owner: Shabab47 | Status: **fixed** in `feature/loading-tips`
+- Reported by: Shabab47 | Owner: Shabab47 | Status: **fixed**
 - Where: `js/main.js`, `js/auth-main.js`, `js/shop-main.js`, `js/settings-main.js`
 - Problem: all four entry points awaited the session **and** the remote save before mounting a
   single panel, so the player looked at an empty page for the whole of it. `#top-bar`,
