@@ -84,7 +84,7 @@ settings.html   account details, erase progress, delete account
 css/            styling — layout, colours, components, fields, login card, shop, settings
 js/             the game code, split by responsibility
 assets/         artwork and icons
-js/config/      field geometry, crops, game balance, weather events, **asset registry (assets.js)**
+js/config/      field geometry, crops, game balance, weather events, loading tips, **asset registry (assets.js)**
 supabase/       database migrations — run these by hand, see setup.md
 docs/           all project documentation
 tests/          the test suite, run with npm test

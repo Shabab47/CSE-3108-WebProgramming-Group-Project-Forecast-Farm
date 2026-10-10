@@ -27,6 +27,7 @@ import { deleteAccount, eraseProgress } from './services/accountApi.js';
 import { adoptState, clearLocalSave, emit, getState, init, reset, saveNow } from './state/store.js';
 import { buildInitialState } from './state/initialState.js';
 import { mountSettings } from './ui/settingsView.js';
+import { mountBootLoader } from './ui/loadingTips.js';
 import { mountToastStack } from './ui/toastStack.js';
 import { AUTOSAVE_MS } from './config/game.js';
 
@@ -209,11 +210,16 @@ async function start() {
   const root = qsOrNull('#settings-root');
   if (!root) return;
 
+  // Before the first `await`, for the same reason as `js/main.js`. This page
+  // renders nothing until the session and save resolve.
+  const loader = mountBootLoader({ label: 'Loading settings' });
+
   // Boot 0: no session means settings is never mounted, exactly as on the farm.
   const provider = await loadProvider();
   const session = await resolveSession(provider);
   if (!session) {
     log.info('no session, handing off to login');
+    loader.done();
     location.replace(LOGIN_URL);
     return;
   }
@@ -227,6 +233,7 @@ async function start() {
   // Boot 2
   mountToastStack();
   mountSettings(root, settingsActions(session, provider));
+  loader.done();
 
   // Boot 4: autosave, identical to the farm and shop pages. Both destructive actions
   // write through immediately, so this is only the safety net for anything else.

@@ -7,6 +7,32 @@ Format: who decided, the choice, why, and what was rejected.
 
 ---
 
+### DEC-026 The loading tips may paint before the session is known
+**Decided by:** Hisham
+
+**Choice:** a full-page veil with a spinner and a rotating weather/farming fact is mounted as the
+first statement of `start()` on all four pages, and is therefore on screen while boot step 0 —
+resolving the session — is still in flight.
+
+**Why this needed deciding at all:** `docs/architecture.md` says the shell must not render before
+auth, and boot step 0 exists precisely so a signed-out visitor never sees a flash of farm UI. A
+loader sitting in that gap looks, to a reader, like a violation of that rule. It is not: the veil
+reads no state, holds no farm data, and is destroyed on `location.replace`. What is forbidden is
+the *shell* rendering early — a spinner does not tell anyone their gold or their crops.
+
+**Rejected: putting the loader in the HTML.** It would be painted before any JS runs, which is
+the one case that would genuinely leak pre-auth, and it needs an empty `<div>` in four markup
+files — `almanac.html` is still a zero-byte file and would have needed one too. Appending from
+`js/ui/loadingTips.js` keeps the rule "nothing is on screen until JS decides" intact.
+
+**Rejected: showing nothing and shortening the wait instead.** `js/services/gotrue.js` really does
+need `AbortController` deadlines; that is a separate fix and should happen regardless. A loading
+screen is not a substitute for a request timeout, and this decision does not claim it is.
+
+**The rule that makes it safe:** the veil paints nothing at all until `SHOW_AFTER_MS` (250 ms).
+A page that renders faster than that never shows it, so the common case is unchanged and there is
+no flash to get used to. See `js/config/tips.js` for the three thresholds and why each exists.
+
 ### DEC-025 Erasing progress is behind a password too, not just deleting the account
 **Decided by:** Shabab47
 

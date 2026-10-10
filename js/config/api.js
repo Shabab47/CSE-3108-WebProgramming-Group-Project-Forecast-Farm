@@ -27,7 +27,10 @@ export const USE_SAMPLE_DATA = false;
 export const WEATHER_FIELDS = {
   current: [
     'temperature_2m',
+    'apparent_temperature',
     'relative_humidity_2m',
+    'precipitation',
+    'is_day',
     'weather_code',
     'wind_speed_10m',
     'wind_direction_10m',

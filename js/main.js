@@ -1,30 +1,22 @@
-/**
- * Entry point for index.html.
- *
- * Boot order, per docs/architecture.md:
- *   0. Resolve the session. No session → the login page, and the game is never
- *      mounted, so a signed-out visitor never sees a flash of farm UI.
- *   1. Load the user's save, or build a fresh farm.
- *   2. Mount UI.
- *   3. Fetch weather. (T-11, not built yet.)
- *   4. Start the simulator and the autosave. (T-09/T-08, not built yet.)
- *
- * This is the only module that imports a service. UI receives callbacks through
- * `mountX(root, actions)`, never a service import.
- */
-
 import { qsOrNull, el } from './utils/dom.js';
 import { createLog } from './utils/log.js';
 import { loadProvider } from './auth-main.js';
-import { signInAsGuest, signOut as endAuth } from './services/localAuth.js';
+import { signInAsGuest } from './services/localAuth.js';
 import { buildServerSave } from './remoteSave.js';
-import { adoptState, emit, exportPayload, getState, init, readImport, reset, saveNow, subscribe } from './state/store.js';
+import { adoptState, apply, emit, exportPayload, getState, init, readImport, reset, saveNow, subscribe } from './state/store.js';
+import { mountBootLoader } from './ui/loadingTips.js';
 import { mountToastStack } from './ui/toastStack.js';
 import { mountTopBar } from './ui/topBar.js';
 import { mountSavePanel } from './ui/savePanel.js';
 import { mountShopLauncher } from './ui/shopLauncher.js';
 import { mountSettingsLauncher } from './ui/settingsLauncher.js';
+import { mountWeatherPanel } from './ui/weatherPanel.js';
+import { mountFarmView } from './ui/farmView.js';
+import { mountLocationBar } from './ui/locationBar.js';
+import { fetchWeather } from './services/weatherApi.js';
+import { reverseGeocode, searchPlaces } from './services/geocodeApi.js';
 import { AUTOSAVE_MS } from './config/game.js';
+import { REFRESH_MS } from './config/api.js';
 
 const log = createLog('main');
 
@@ -33,19 +25,6 @@ const SHOP_URL = 'shop.html';
 const FARM_URL = 'index.html';
 const SETTINGS_URL = 'settings.html';
 
-/**
- * The two hrefs that cross between the farm and the shop.
- *
- * Both pages are reached by navigation, so both need the same guest handling. A
- * guest session is deliberately never written to storage — see the comment on
- * `resolveSession` — so the other page cannot rediscover it and would bounce the
- * player back to the login form, losing the "sign in once" promise in the middle
- * of a game. Carrying `?guest=1` across is what keeps that promise;
- * `shop-main.js` reads the same flag.
- *
- * These are the only two places a URL is built for the other page, so a fix to
- * the guest flag is a fix in one file.
- */
 export function shopHref(session) {
   return session?.status === 'guest' ? `${SHOP_URL}?guest=1` : SHOP_URL;
 }
@@ -58,26 +37,6 @@ export function settingsHref(session) {
   return session?.status === 'guest' ? `${SETTINGS_URL}?guest=1` : SETTINGS_URL;
 }
 
-/**
- * Boot step 0: who is playing?
- *
- * Asked of the provider `js/auth-main.js` selected, which is the point of ISS-033.
- * This used to read the session out of localStorage via `localAuth.js`, which was
- * fine while that *was* the provider and stops being fine the moment it is not: the
- * login page would hold a Supabase session, this page would find nothing, and the
- * player would be redirected back to login forever.
- *
- * `restoreSession()` is awaited because the Supabase access token is memory-only
- * and a page navigation is a fresh module — without it every visit looks signed
- * out. It is absent on the local provider, where the session is already in storage,
- * hence the optional call.
- *
- * `?guest=1` is how the login page hands a guest session over without putting it
- * in storage, so a guest's farm cannot be resumed by anyone else on the machine.
- *
- * @param {object} provider from `loadProvider()`
- * @returns {Promise<object|null>} a session, or null when the visitor must sign in
- */
 export async function resolveSession(provider) {
   const live = provider.currentSession() ?? (await provider.restoreSession?.());
   if (live) return live;
@@ -88,17 +47,10 @@ export async function resolveSession(provider) {
   return null;
 }
 
-/* --- placeholder panels --------------------------------------------------
- * The layout shell exists so the page matches the wireframe. Each panel is
- * filled in by its own module in later tasks; until then it says so plainly
- * rather than rendering an empty card. */
-
 function placeholder(label, detail) {
-  return el('div', { class: 'card' }, [
-    el('div', { class: 'placeholder' }, [
-      el('span', { class: 'placeholder__label', text: label }),
-      el('span', { text: detail }),
-    ]),
+  return el('div', { class: 'placeholder' }, [
+    el('span', { class: 'placeholder__label', text: label }),
+    el('span', { text: detail }),
   ]);
 }
 
@@ -107,23 +59,14 @@ function mountShell(session, onSignOut) {
   mountShopLauncher(qsOrNull('#shop-launch'), { href: shopHref(session) });
   mountSettingsLauncher(qsOrNull('#settings-launch'), { href: settingsHref(session) });
 
+  mountLocationBar(qsOrNull('#location-bar'), {
+    onSearch: searchFor,
+    onUseDeviceLocation: useDeviceLocation,
+  });
+
   qsOrNull('#sidebar').append(
     placeholder('Season', 'Season card — T-11'),
     placeholder('Inventory', 'Seeds and harvest — T-08'),
-  );
-
-  qsOrNull('#forecast-card').append(
-    el('div', { class: 'placeholder' }, [
-      el('span', { class: 'placeholder__label', text: 'Forecast area' }),
-      el('span', { text: 'Current conditions and the 24-hour strip — T-11' }),
-    ]),
-  );
-
-  qsOrNull('#farm-view').append(
-    el('div', { class: 'placeholder' }, [
-      el('span', { class: 'placeholder__label', text: 'Farm screen' }),
-      el('span', { text: 'The isometric 4×4 field — T-06' }),
-    ]),
   );
 
   qsOrNull('#right-rail').append(
@@ -138,16 +81,6 @@ function mountShell(session, onSignOut) {
   mountSavePanel(qsOrNull('#save-panel'), saveActions());
 }
 
-/**
- * The save panel's callbacks.
- *
- * `main.js` is the only module that may import both a UI panel and the store, so
- * this is the one place the two are joined. The panel itself never sees `store`.
- *
- * `canExport` is false for a guest: there is no account for a file to name, so an
- * exported guest farm would carry an empty owner and could never be verified
- * later. The panel says so rather than producing a hollow file.
- */
 function saveActions() {
   return {
     canExport: () => getState()?.session?.status === 'authed',
@@ -161,74 +94,180 @@ function saveActions() {
   };
 }
 
-/** Keep the gold readout honest, so the shell already behaves like the game. */
-function wireHud() {
-  const goldEl = qsOrNull('#gold-value');
-  if (!goldEl) return;
+function renderPanels(state) {
+  mountWeatherPanel(qsOrNull('#forecast-card'), {
+    location: state?.location,
+    weather: state?.weather,
+  });
 
-  subscribe((state) => {
-    if (state) goldEl.textContent = `${state.gold} gold`;
+  mountFarmView(qsOrNull('#farm-view'), {
+    plots: state?.plots ?? [],
+    selection: state?.selection,
+    onPlotClick: (plotId) => log.trace('plot clicked', plotId),
+  });
+
+  const goldEl = qsOrNull('#gold-value');
+  if (goldEl && state) goldEl.textContent = `${state.gold} gold`;
+}
+
+function setLocation(next) {
+  return apply((state) => ({ ok: true, state: { ...state, location: next } }));
+}
+
+function setWeather(weather) {
+  return apply((state) => ({ ok: true, state: { ...state, weather } }));
+}
+
+async function refreshWeather({ quiet = false } = {}) {
+  const location = getState()?.location;
+  if (!location) return;
+
+  const result = await fetchWeather(location);
+
+  if (!result.ok) {
+    log.warn('weather fetch failed -', result.reason);
+    if (!quiet) emit('toast', { message: 'Could not reach the weather service.', tone: 'error' });
+    return;
+  }
+
+  setWeather(result);
+}
+
+function useDeviceLocation({ announce = true } = {}) {
+  if (announce) emit('toast', { message: 'Finding your location…', tone: 'info' });
+
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) {
+      emit('toast', { message: 'This browser cannot share a location.', tone: 'error' });
+      resolve(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        const named = await reverseGeocode(latitude, longitude);
+
+        const next = {
+          name: named.ok ? named.name : 'Current location',
+          country: named.ok ? named.country : '',
+          lat: latitude,
+          lon: longitude,
+          tz: 'auto',
+          pinned: true,
+        };
+
+        setLocation(next);
+        await refreshWeather({ quiet: true });
+        emit('toast', { message: `Showing weather for ${next.name}.`, tone: 'success' });
+        resolve(true);
+      },
+      () => {
+        emit('toast', { message: 'Location permission denied, keeping the saved farm.', tone: 'error' });
+        resolve(false);
+      },
+      { timeout: 10000, maximumAge: 600000, enableHighAccuracy: false },
+    );
   });
 }
 
-/**
- * Sign out: flush the save, clear the session and the state, go back to login.
- *
- * The save is flushed *first*, so a slow network call cannot cost the player their
- * crops. On the Supabase provider `signOut` is async.
- */
+async function searchFor(query) {
+  emit('toast', { message: `Looking for “${query}”…`, tone: 'info' });
+
+  const result = await searchPlaces(query);
+  const place = result.ok ? result.results?.[0] : null;
+
+  if (!place) {
+    emit('toast', { message: `No place found for “${query}”.`, tone: 'error' });
+    return;
+  }
+
+  setLocation({
+    name: place.name,
+    country: place.country,
+    lat: place.lat,
+    lon: place.lon,
+    tz: place.tz,
+    pinned: true,
+  });
+
+  await refreshWeather({ quiet: true });
+  emit('toast', { message: `Farm moved to ${place.name}.`, tone: 'success' });
+}
+
 async function signOut(provider) {
   saveNow();
   try {
     await provider.signOut();
   } catch (error) {
-    // The provider clears its local session regardless; log and continue rather
-    // than stranding the player on a page they asked to leave.
     log.warn('sign out failed -', error.message);
   }
   reset();
-  log.info('signed out');
   location.replace(LOGIN_URL);
 }
 
+function bootWeather() {
+  const saved = getState()?.location;
+  const needsDeviceFix = !saved?.pinned;
+
+  refreshWeather({ quiet: true }).then(() => {
+    if (!needsDeviceFix) return;
+    return useDeviceLocation({ announce: false });
+  });
+
+  setInterval(() => refreshWeather({ quiet: true }), REFRESH_MS);
+}
+
 async function start() {
-  // Boot 0: no session means the game is never mounted at all.
+  // Mounted before the first `await` on purpose. Everything below is network:
+  // the session restore and the remote save read. Without this the player
+  // stares at an empty page for as long as those take — up to 15 s, since
+  // `gotrue.js` has no request deadline. It paints nothing until
+  // `SHOW_AFTER_MS`, so a warm load still shows no loader at all.
+  const loader = mountBootLoader({ label: 'Loading your farm' });
+
   const provider = await loadProvider();
   const session = await resolveSession(provider);
+
   if (!session) {
     log.info('no session, handing off to login');
+    // Closed before the redirect, or the veil is still on screen when the
+    // browser swaps documents.
+    loader.done();
     location.replace(LOGIN_URL);
     return;
   }
 
-  // Boot 1. The server save is assembled in `state/remoteSave.js` because `state/`
-  // may not import a service — it is the one place that knows about both.
   const { loaded } = await init(session, undefined, buildServerSave(provider, session));
   log.info(loaded ? 'resumed farm' : 'started a new farm');
 
-  // Boot 2
   mountToastStack();
   mountShell(session, () => signOut(provider));
-  wireHud();
+  renderPanels(getState());
 
-  // Boot 4, partial: the simulator arrives in T-09. Autosave is safe now.
+  subscribe((state) => {
+    if (state) renderPanels(state);
+  });
+
+  bootWeather();
+
+  // The shell is up and playable now, so the veil goes. Deliberately *not*
+  // waiting for `bootWeather()` — that fetch is fire-and-forget and the farm
+  // works without it; the forecast panel fills itself in when the response
+  // lands. Holding the veil until then would mean a weather timeout keeps a
+  // perfectly good farm hidden behind a veil.
+  loader.done();
+
   setInterval(saveNow, AUTOSAVE_MS);
   window.addEventListener('pagehide', saveNow);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') saveNow();
   });
-
-  log.trace('boot complete for', getState()?.session?.userId);
 }
 
-/**
- * Only on the real page.
- *
- * `tests/mainBoot.test.js` imports `resolveSession` to exercise the boot paths,
- * and a bare `start()` would redirect that test process to the login page.
- * `#top-bar` is on index.html and nowhere else, so it marks "the page, not an
- * import".
- */
 if (qsOrNull('#top-bar')) {
-  start();
+  start().catch((error) => {
+    log.error('boot failed -', error.message);
+    document.body.textContent = 'Forecast Farm could not start. Check the browser console.';
+  });
 }

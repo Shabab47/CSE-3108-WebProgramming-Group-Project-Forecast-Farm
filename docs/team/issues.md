@@ -582,6 +582,43 @@ current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
   old name.
 - **Requires re-running `002_usernames.sql` on the live project before the rename path
   works.** The insert path — and therefore username sign-in — does not depend on it.
+### ISS-043 Every page showed a blank white screen while it booted
+- Reported by: Hisham | Owner: Hisham | Status: **fixed**
+- Where: `js/main.js`, `js/auth-main.js`, `js/shop-main.js`, `js/settings-main.js`
+- Problem: all four entry points awaited the session **and** the remote save before mounting a
+  single panel, so the player looked at an empty page for the whole of it. `#top-bar`,
+  `#sidebar`, `#farm-view`, `#shop-root`, `#settings-root` and `#auth-root` are all empty
+  containers until boot finishes. On the farm page the wait is bounded only by the
+  `Promise.race` in `js/services/authApi.js` (`RESTORE_HARD_LIMIT_MS`, 15 s) — `js/services/
+  gotrue.js` sets no `AbortController` at all, so sign-in, sign-up and token refresh can hang
+  indefinitely. A player on a bad connection had up to fifteen seconds of white and no way to
+  tell whether the page was broken or merely slow.
+- Cause: not a bug so much as a missing feature. Boot deliberately renders nothing before the
+  session is known (see `docs/architecture.md`), and nothing was ever put on screen in the gap.
+- Fix: `js/ui/loadingTips.js`. A veil with a spinner and a rotating fact, mounted as the first
+  statement of every `start()` and dismissed by `done()`. `js/config/tips.js` holds the facts and
+  the three thresholds. See DEC-026 for why it is allowed to paint before auth.
+
+### ISS-044 `clearSave()` called in `settings-main.js` but never imported
+- Reported by: Hisham (audit, found while building ISS-043) | Owner: unassigned | Status: **open** — deliberately not fixed here, it belongs to whoever owns settings
+- Where: `js/settings-main.js:181` against the import list at `js/settings-main.js:27`
+- Problem: the account-deletion path calls `await clearSave()`, but the module imports only
+  `clearLocalSave`. `clearSave` is `undefined` in that scope, so the call throws a
+  `ReferenceError`. The surrounding `try/catch` swallows it and logs a warning, so the flow
+  reports **success** to the player while the local-storage half never runs — the account row is
+  gone server-side but the farm is left in `localStorage` on a shared machine.
+- Cause: a rename that was applied to the call but not the import list. `store.js` exports both
+  names and they are not interchangeable: `clearLocalSave()` is the local half only,
+  `clearSave()` is the one that also deletes the server row.
+- Why it is not fixed in the loading-tips commit: this is unrelated to the boot loader and sits
+  in another person's area (`docs/team/ownership.md`). Folding an account-deletion data-loss fix
+  into a UI commit is exactly the bundling AGENTS.md §8 warns against. **It should be treated as
+  a security-adjacent bug, not a cosmetic one** — the player is told their data is gone and it
+  is not.
+- Note: DEC-025 changed this call to `clearLocalSave()` deliberately, so whoever picks this up
+  should read that decision first — the correct fix may be to change the *call* rather than add
+  the import.
+
 ### ISS-038 Account deletion has no emailed confirmation
 - Reported by: Shabab | Owner: Shabab | Status: **open** (deliberate, not blocked)
 - Where: `js/settings-main.js`, `supabase/migrations/005_immediate_account_deletion.sql`

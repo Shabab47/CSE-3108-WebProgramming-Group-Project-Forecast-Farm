@@ -192,7 +192,8 @@ and forcing a rain forecast with rice planted raises *"Rain incoming — skip ir
 
 - [ ] Every crop with five stage images flipped to `available: true`, no code changes
 - [ ] `almanac.html` populated, linked from the UI
-- [ ] Empty, loading and error states on every panel
+- [ ] Empty, loading and error states on every panel — *page-level loading state done
+      (ISS-043); per-panel empty/error states still to do*
 - [ ] Keyboard focus ring on plots; plots are real buttons
 - [ ] Image weight reviewed — if 40 layers of 1000 px PNGs are slow, add 512 px copies and
       change only `config/assets.js`

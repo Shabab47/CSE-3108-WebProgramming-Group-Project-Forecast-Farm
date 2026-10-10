@@ -28,6 +28,7 @@ import { qsOrNull } from './utils/dom.js';
 import { createLog } from './utils/log.js';
 import { mountLoginPanel } from './ui/loginPanel.js';
 import { mountPasswordReset } from './ui/passwordReset.js';
+import { mountBootLoader } from './ui/loadingTips.js';
 import * as localAuth from './services/localAuth.js';
 
 const log = createLog('auth-main');
@@ -107,6 +108,11 @@ async function start() {
   const root = qsOrNull('#auth-root');
   if (!root) return;
 
+  // Before the first `await`, same as the other three entry points. `#auth-root`
+  // is empty until `showLogin()` runs, and getting here means a dynamic import
+  // plus a session restore, so the form can take a moment to appear.
+  const loader = mountBootLoader({ label: 'Loading' });
+
   const provider = await loadProvider();
   const recoveryToken = readRecoveryToken();
   const arrivalNotice = readArrivalNotice();
@@ -123,6 +129,7 @@ async function start() {
   // sees the form again rather than a dead end.
   if (session && !recoveryToken) {
     log.trace('session already active, going to the farm');
+    loader.done();
     goToGame();
     return;
   }
@@ -184,6 +191,7 @@ async function start() {
   }
 
   showLogin(arrivalNotice ?? undefined);
+  loader.done();
 }
 
 /**
