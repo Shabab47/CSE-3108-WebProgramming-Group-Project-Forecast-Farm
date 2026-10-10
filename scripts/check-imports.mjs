@@ -61,9 +61,6 @@ const UNLAYERED = new Set(['utils/dom.js', 'utils/iso.js', 'utils/log.js']);
 const KNOWN = new Set([
   'services/timeApi.js:7  document. outside js/ui/ (utils/dom.js is whitelisted)',
   'services/timeApi.js:13  document. outside js/ui/ (utils/dom.js is whitelisted)',
-  'services/weatherApi.js:2  document. outside js/ui/ (utils/dom.js is whitelisted)',
-  'services/weatherApi.js:11  document. outside js/ui/ (utils/dom.js is whitelisted)',
-  'services/weatherApi.js:19  document. outside js/ui/ (utils/dom.js is whitelisted)',
 ]);
 
 const problems = [];
