@@ -8,7 +8,7 @@ Format: who decided, the choice, why, and what was rejected.
 ---
 
 ### DEC-026 The loading tips may paint before the session is known
-**Decided by:** Shabab47
+**Decided by:** Hisham
 
 **Choice:** a full-page veil with a spinner and a rotating weather/farming fact is mounted as the
 first statement of `start()` on all four pages, and is therefore on screen while boot step 0 —

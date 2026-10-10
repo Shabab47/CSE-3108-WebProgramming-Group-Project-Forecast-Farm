@@ -7,7 +7,7 @@ The per-person weekly notes that used to live in the README table are now in `me
 
 ---
 
-## Loading tips on every page boot
+## Loading tips on every page boot — Hisham
 
 - **Did:** Added a full-page loading veil with a spinner and a rotating weather/farming fact.
   `js/ui/loadingTips.js` exposes `mountBootLoader()` / `done()`; `js/config/tips.js` holds 22 facts
@@ -45,9 +45,12 @@ The per-person weekly notes that used to live in the README table are now in `me
   "Loading your farm…" once rather than every 5 s. Throttle to Slow 3G to see anything at all —
   under 250 ms it correctly shows nothing.
 - **Ownership:** `js/ui/loadingTips.js` and `js/config/tips.js` registered in
-  `docs/team/ownership.md` as Shabab47 / Kafi. `css/components.css` is Kafi's folder — the
-  `.boot-loader` block is appended rather than edited into existing rules, to keep the merge
-  trivial.
+  `docs/team/ownership.md` as Hisham / Kafi — Kafi to sanity-check, since the whole of
+  `js/ui/*` is his per the members page. `css/components.css` is also his, so the `.boot-loader`
+  block is **appended** at the end rather than edited into existing rules, to keep the merge
+  trivial for whoever next touches it. `js/config/tips.js` sits with the other config data
+  because it is pure data and `config/` imports nothing — but note it is *not* covered by the
+  existing `js/config/{field,game,assets}.js` row, which is why it got its own line.
 - **Rebased over T-11, and it changed the answer.** `bb36161` (live weather, T-11) rewrote
   `js/main.js` — same file, four conflicts — and made the forecast a fire-and-forget
   `refreshWeather()` after the panels mount. So `done()` now fires after `renderPanels()`, not

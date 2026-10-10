@@ -15,7 +15,7 @@ small.
 | `js/services/` | Afif | Hisham |
 | `js/domain/weather.js`, `js/domain/notifications.js` | Afif | Hisham |
 | `js/ui/weatherPanel.js`, `js/ui/envMetrics.js` | Afif | Kafi |
-| `js/ui/loadingTips.js`, `js/config/tips.js` | Shabab47 | Kafi |
+| `js/ui/loadingTips.js`, `js/config/tips.js` | Hisham | Kafi |
 | `css/` | Kafi | Shabab |
 | `css/auth.css` | Kafi | Hisham |
 | `js/ui/savePanel.js` | Hisham | Kafi |

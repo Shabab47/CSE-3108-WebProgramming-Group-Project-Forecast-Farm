@@ -583,7 +583,7 @@ current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
 - **Requires re-running `002_usernames.sql` on the live project before the rename path
   works.** The insert path — and therefore username sign-in — does not depend on it.
 ### ISS-043 Every page showed a blank white screen while it booted
-- Reported by: Shabab47 | Owner: Shabab47 | Status: **fixed**
+- Reported by: Hisham | Owner: Hisham | Status: **fixed**
 - Where: `js/main.js`, `js/auth-main.js`, `js/shop-main.js`, `js/settings-main.js`
 - Problem: all four entry points awaited the session **and** the remote save before mounting a
   single panel, so the player looked at an empty page for the whole of it. `#top-bar`,
@@ -600,7 +600,7 @@ current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
   the three thresholds. See DEC-026 for why it is allowed to paint before auth.
 
 ### ISS-044 `clearSave()` called in `settings-main.js` but never imported
-- Reported by: Shabab47 (audit, found while building ISS-043) | Owner: unassigned | Status: **open** — deliberately not fixed here, it belongs to whoever owns settings
+- Reported by: Hisham (audit, found while building ISS-043) | Owner: unassigned | Status: **open** — deliberately not fixed here, it belongs to whoever owns settings
 - Where: `js/settings-main.js:181` against the import list at `js/settings-main.js:27`
 - Problem: the account-deletion path calls `await clearSave()`, but the module imports only
   `clearLocalSave`. `clearSave` is `undefined` in that scope, so the call throws a
