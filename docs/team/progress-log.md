@@ -48,6 +48,12 @@ The per-person weekly notes that used to live in the README table are now in `me
   `docs/team/ownership.md` as Shabab47 / Kafi. `css/components.css` is Kafi's folder — the
   `.boot-loader` block is appended rather than edited into existing rules, to keep the merge
   trivial.
+- **Rebased over T-11, and it changed the answer.** `bb36161` (live weather, T-11) rewrote
+  `js/main.js` — same file, four conflicts — and made the forecast a fire-and-forget
+  `refreshWeather()` after the panels mount. So `done()` now fires after `renderPanels()`, not
+  after the last `await`: holding the veil until weather settled would hide a perfectly playable
+  farm behind a weather timeout. T-11 also replaced `wireHud()` with `renderPanels()`, so that
+  call went with it. All 280 tests pass against the merged result.
 
 ## Central asset registry with automatic enforcement
 

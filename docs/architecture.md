@@ -84,6 +84,13 @@ for why it is allowed to paint before auth is resolved, and why the veil holds n
 state. It shows **nothing at all** for a load faster than `SHOW_AFTER_MS`, so the
 common case is unchanged.
 
+**`done()` waits for the shell, not for the weather.** Since T-11 the forecast is
+a fire-and-forget `refreshWeather()` that runs *after* the panels are mounted,
+and it can be slow or can fail. Holding the veil until it settled would mean a
+weather timeout keeps a perfectly playable farm hidden, so the veil is dismissed
+as soon as `mountShell()` + `renderPanels()` have run and the forecast panel
+fills itself in behind it.
+
 ---
 
 ## Accounts
