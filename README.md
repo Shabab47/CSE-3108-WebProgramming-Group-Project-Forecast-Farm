@@ -200,15 +200,15 @@ Each week is broken out per person, because "all four" tells you nothing about w
 | 1 | Structure, data flow and art direction | ✅ Complete | Folder and module design · layering rules · art direction · 16 doc files | **Hisham** |
 | 2 | Sign-in menu UI | ✅ Complete | Login page · sign-in, register and guest play · password reset | **Kafi** |
 | 2 | Gameplay scene UI | ✅ Complete | Farm screen · plots · panels and controls | **Kafi** |
-| 2 | Supabase connection | ✅ Complete | Project URL and anon key · GoTrue REST provider · session-gated boot | **Shabab**, **Hisham** |
+| 2 | Supabase connection | ✅ Complete | Project URL and anon key · | **Shabab**, **Hisham** |
 | 2 | Farm save, export and import | ✅ Complete | `farm_saves` table with Row Level Security · `.farm` file export and import | **Hisham** |
 | 2 | Asset registry | ✅ Complete | `js/config/assets.js` — every image and sound in one place | **Hisham** |
 | 2 | Shop and username sign-in | ✅ Complete | Seed shop · `usernames` table | **Shabab** |
 | 2 | Erase progress and delete account | ✅ Complete | Both behind a password check, verified in the database | **Shabab** |
 | 2 | Weather on the game screen | ✅ Complete | Live weather for the player's location · weather panel and location bar | **Afif** |
-| 3 | Land economy, then planting and growth | ⬜ Planned | — | **Hisham** |
-| 4 | Pump, water and market, then live weather | ⬜ Planned | — | **Hisham** pump, market · **Afif** live weather |
-| 5 | Weather effects, crop alerts, then ship v0.1 | ⬜ Planned | — | **Afif** weather effects · **Kafi** polish, almanac · **Shabab** handover |
+| 3 | Land economy, then planting and growth | ⬜ Planned | — | *Not Decided* |
+| 4 | Pump, water and market, then live weather | ⬜ Planned | — | *Not Decided* pump, market · **Afif** live weather |
+| 5 | Weather effects, crop alerts, then ship v0.1 | ⬜ Planned | — | *Not Decided* weather effects · **Kafi** polish, almanac · **Shabab** handover |
 
 ### Accounts and saving — what works today
 
