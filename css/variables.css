@@ -1,18 +1,9 @@
-/* Design tokens.
- *
- * Every colour, radius and spacing value in the project lives here. No other
- * stylesheet may invent a hex value -- if you need a new one, add it to the
- * right custom property first and use that.
- */
-
 :root {
   /* Accent: one colour, used for actions, focus and active states. */
   --accent: #2f7d4f;
   --accent-strong: #256540;
   --accent-soft: #e6f2ea;
   --accent-ring: rgba(47, 125, 79, 0.35);
-  /* Text sitting on a filled accent surface. Inverted per theme, so a primary
-     button always clears 4.5:1. */
   --on-accent: #ffffff;
 
   /* Neutrals, warm-tinted to sit with the crop art. */
@@ -20,8 +11,6 @@
   --surface: #ffffff;
   --surface-glass: rgba(255, 255, 255, 0.82);
   --surface-sunken: #eef1ec;
-  /* Inputs sit inside a glass card, so they need their own tone to read as
-     fields rather than as more card. */
   --input-bg: #fbfcfa;
 
   --text: #1f2721;
@@ -39,18 +28,19 @@
   --success: #2f7d4f;
   --success-soft: #e6f2ea;
 
-  /* The shop sign's hover glow. A warm gold, kept here rather than in the shop
-     stylesheet so dark mode overrides it the same way it overrides everything
-     else. The soft one is the bloom; the solid one is the tight core. */
   --gold: #f0a92e;
   --gold-glow: rgba(240, 169, 46, 0.45);
 
-  /* Radii. Cards 16-20px per the style mockup. */
-  --radius-card: 18px;
-  --radius-input: 10px;
-  --radius-chip: 999px;
+  --shadow-card:
+    0 1px 2px rgba(31, 39, 33, 0.04), 0 8px 24px rgba(31, 39, 33, 0.06);
+  --shadow-pop:
+    0 2px 4px rgba(31, 39, 33, 0.06), 0 16px 40px rgba(31, 39, 33, 0.12);
 
-  /* Spacing scale. */
+  /* --- STOPGAP. Do not use these in new code -------------------------
+   * Spacing and radii are being hardcoded per file. These ten definitions
+   * exist only because `css/components.css` still has 41 references to them;
+   * delete them in the same commit that hardcodes that file's last one.
+   */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -59,13 +49,17 @@
   --space-6: 32px;
   --space-7: 48px;
 
-  /* Elevation. */
-  --shadow-card: 0 1px 2px rgba(31, 39, 33, 0.04), 0 8px 24px rgba(31, 39, 33, 0.06);
-  --shadow-pop: 0 2px 4px rgba(31, 39, 33, 0.06), 0 16px 40px rgba(31, 39, 33, 0.12);
+  --radius-card: 18px;
+  --radius-input: 10px;
+  --radius-chip: 999px;
 
-  /* Type. */
-  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-sans:
+    system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-display: "Luckiest Guy", var(--font-sans);
+  --font-ui: "Irish Grover", var(--font-sans);
+
   --text-xs: 0.75rem;
   --text-sm: 0.875rem;
   --text-md: 1rem;
@@ -75,7 +69,6 @@
   --speed: 160ms;
   --ease: cubic-bezier(0.2, 0, 0.2, 1);
 
-  /* Layout constants. The 900px breakpoint stacks to one column. */
   --breakpoint-mobile: 900px;
   --sidebar-width: 200px;
   --rail-width: 280px;

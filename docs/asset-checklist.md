@@ -31,9 +31,11 @@ plants stand proud of the soil. See `docs/architecture.md` for the geometry.
 | Weather icons | 9 | 0 | **9** |
 | Crop icons | 5 | 0 | **5** |
 | Environment tiles | 4 | 4 | 0 |
+| Menu background + logo | 2 | 2 | 0 |
+| Display fonts | 2 | 2 | 0 |
 | Pump animation frames | 3 | 1 | **2** |
 | Sounds — *out of scope* | 3 | 0 | — |
-| **Total in scope** | **56** | **10** | **46** |
+| **Total in scope** | **60** | **14** | **46** |
 
 Rice is **not** finished. It has its five growth stages but is missing both failure states, which
 are per-crop like every other sprite.
@@ -103,6 +105,24 @@ the filter.
 
 ---
 
+## Menu and auth screens
+
+| File | What it is | Status |
+| :--- | :--- | :--- |
+| `assets/images/menu_bg.png` | The opening menu's painted background, 1440×1024 | ✅ done |
+| `assets/images/title.png` | The game logo on the opening menu, 1188×373 | ✅ done |
+| `assets/fonts/LuckiestGuy-Regular.ttf` | Logo, button and plank face | ✅ done |
+| `assets/fonts/IrishGrover-Regular.ttf` | Field labels, body text, small links | ✅ done |
+
+The two fonts are self-hosted and declared in `css/fonts.css`. Both are SIL Open
+Font License, so they can be committed and shipped — check the licence file that
+came with each download is committed too.
+
+The sign toggle that belongs in the top bar arrives with sounds (ISS-023). The bar
+is the wordmark alone until then.
+
+---
+
 ## Environment
 
 | File | What it is | Status |
@@ -164,6 +184,10 @@ Listed so the count is honest. **Do not wire these up.** Sounds are not in versi
 
 Not needed for version 1, listed so nobody mistakes them for oversights: the farmer sprite and
 seeding animation, rain and wind particle effects, and a background for the page behind the field.
+
+> **A background now exists, but not for the field.** `assets/images/menu_bg.png` is the opening
+> menu's, and it does not sit behind the farm — the farm is drawn on the app grid with its own
+> art. The line above still means what it says.
 
 ---
 

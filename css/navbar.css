@@ -1,0 +1,43 @@
+.navbar {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 16px;
+  height: 40px;
+  padding: 0 8px;
+}
+
+.navbar__logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: inherit;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+}
+
+.navbar__mark {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.navbar__account {
+  display: flex;
+  align-items: center;
+  justify-self: end;
+  gap: 8px;
+}
+
+.navbar__account .badge {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .navbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}

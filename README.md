@@ -78,10 +78,10 @@ Vanilla ES modules, plain CSS, no framework and no runtime dependencies.
 
 ```
 index.html      the game page
-login.html      sign in or create an account
+login.html      the opening menu, sign in, or create an account
 shop.html       the seed shop — buy seed packets with your gold
 settings.html   account details, erase progress, delete account
-css/            styling — layout, colours, components, fields, login card, shop, settings
+css/            styling — one file per component: layout, tokens, shared, and the login trio
 js/             the game code, split by responsibility
 assets/         artwork and icons
 js/config/      field geometry, crops, game balance, weather events, loading tips, **asset registry (assets.js)**
@@ -120,7 +120,7 @@ npm run check    # layering rules: imports, fetch, DOM access
 
 | Page | What it is |
 | :--- | :--- |
-| `/login.html` | Sign in or create an account. `index.html` redirects here if there is no session. |
+| `/login.html` | The opening menu, and sign in or create an account. `index.html` redirects here if there is no session. |
 | `/index.html` | The farm. Loads your save, or starts a new one. |
 | `/shop.html` | The seed shop. Buys seed packets; gold is deducted and the farm is saved immediately. |
 | `/settings.html` | Your account details, erase all progress, or delete your account. |

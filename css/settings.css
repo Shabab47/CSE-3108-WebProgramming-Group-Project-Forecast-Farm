@@ -38,10 +38,10 @@
 .settings-shell {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: 16px;
   max-width: 640px;
   margin: 0 auto;
-  padding: var(--space-5) var(--space-4);
+  padding: 24px 16px;
 }
 
 /* --- settings header -------------------------------------------------------- */
@@ -49,13 +49,13 @@
 .settings-top {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: 8px;
 }
 
 .settings-top__lead {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: 4px;
 }
 
 .settings-top__back {
@@ -94,20 +94,20 @@
 .settings-action {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: 8px;
 }
 
 /* The account lines read as a list of facts rather than as paragraphs. */
 .settings-accounts {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: 4px;
   margin: 0;
 }
 
 .settings-accounts__row {
   display: flex;
-  gap: var(--space-2);
+  gap: 8px;
   font-size: var(--text-sm);
   margin: 0;
 }

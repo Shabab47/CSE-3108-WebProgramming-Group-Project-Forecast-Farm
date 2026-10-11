@@ -1,14 +1,14 @@
 .weather {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: 16px;
 }
 
 .weather__place {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: var(--space-3);
+  gap: 12px;
 }
 
 .weather__place-name {
@@ -31,7 +31,7 @@
 .weather__now {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
+  gap: 16px;
 }
 
 .weather__now-icon {
@@ -90,7 +90,7 @@
 .weather__idle {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
+  gap: 16px;
   color: var(--text-faint);
 }
 
@@ -113,15 +113,15 @@
 .weather__details {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--space-2);
+  gap: 8px;
 }
 
 .weather-stat {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-input);
+  padding: 8px 12px;
+  border-radius: 10px;
   background: var(--surface-sunken);
   min-width: 0;
 }
@@ -145,14 +145,14 @@
 
 .weather__hourly {
   border-top: 1px solid var(--border);
-  padding-top: var(--space-3);
+  padding-top: 12px;
 }
 
 .hourly {
   display: flex;
-  gap: var(--space-2);
+  gap: 8px;
   overflow-x: auto;
-  padding-bottom: var(--space-2);
+  padding-bottom: 8px;
   scrollbar-width: thin;
 }
 
@@ -160,11 +160,11 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-1);
+  gap: 4px;
   flex: 1 0 auto;
   min-width: 52px;
-  padding: var(--space-2) var(--space-1);
-  border-radius: var(--radius-input);
+  padding: 8px 4px;
+  border-radius: 10px;
   background: var(--surface-sunken);
 }
 

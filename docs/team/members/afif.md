@@ -62,7 +62,7 @@ service. That is the outstanding item above.
 
 ## Week 4
 
-- [ ] Weather panel wired into the running game — `topBar` search, `weatherPanel`, `envMetrics`
+- [ ] Weather panel wired into the running game — `navbar` search, `weatherPanel`, `envMetrics`
 - [ ] Sample fallback badge, and a saved response in `data/sample-forecast.json`
 - [ ] Simulator effects: matrix, dry drain, death, rain water and evaporation
 - [ ] `domain/notifications.js` `forProjection()` plus `state.notified` dedupe (ISS-013)

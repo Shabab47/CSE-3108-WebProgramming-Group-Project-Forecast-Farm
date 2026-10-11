@@ -7,6 +7,129 @@ The per-person weekly notes that used to live in the README table are now in `me
 
 ---
 
+## Login CSS split by component — Jim
+
+- **Did:** `css/auth.css` was one file holding three components. It is now three — `auth.css` (the
+  backdrop and stage), `menu.css` (the menu and `.btn--menu`), `sign.css` (the board, its form
+  overrides, `.btn--go` and `.btn--back`). The 19 `--art-*` tokens are gone from `variables.css`;
+  those files write their values directly. DEC-029.
+- **Why one file per component.** A component split means a file owns its element completely.
+  `.btn--go` now sits beside `.sign` instead of back in a shared `components.css`, so adding a
+  variant does not mean editing two layers and hoping the load order cooperates.
+- **Why the tokens went.** DEC-027 already established that the login page does not follow
+  `data-theme`, so nothing ever overrode `--art-*`. They were 19 names for values one page read.
+  `--font-display` and `--font-ui` stay tokens — the faces are declared in `css/fonts.css` and are
+  genuinely shared.
+- **Value-neutral, and checked rather than asserted.** Every rule was diffed against the pre-split
+  file with tokens resolved: 47 selectors, no computed value changed. The only intended differences
+  are four `width: min(100%, Npx)` becoming `width: 100%; max-width: Npx`, and `--sign-shape` moving
+  from `.auth` onto `.sign` — safe because `signBoard.js` always nests `.sign__inner` inside `.sign`.
+  `tests/settingsDom.test.js` is 17/17, and all 32 classes the login JS renders resolve to a rule
+  in a file the page links.
+- **The contrast rationale moved with the tokens.** The notes explaining the wordmark green, the
+  label colour on the board and the error chip were comments on the `--art-*` block; deleting the
+  block would have deleted the reasoning. They are now in `architecture.md`.
+- **Also did, same pass:** the game page. `.topbar*` (now `.navbar*`) moved out of `layout.css` into
+  a new `navbar.css`, and `css/farm.css` became `css/scene.css` — it also absorbed the `.field-stage` rule
+  `layout.css` was carrying, so one of two identical blocks is gone. `layout.css` is now just the
+  grid. Verified value-neutral against `HEAD`: 32 selectors, one diff, and that one diff is the
+  duplicate collapsing.
+- **Colours stay tokens on the game page, unlike the login page.** `themes.css` really does override
+  `--accent`, `--surface-sunken` and the rest, so inlining them would break dark mode here. The
+  login page could drop its tokens only because DEC-027 had already taken it out of the theme. That
+  asymmetry is the reason the two halves of this split are not identical.
+- **Then the same pass took the spacing and radius scales out.** Seven `--space-*` steps and three
+  `--radius-*` values are now hardcoded px. 52 references converted across `layout`, `navbar`,
+  `reset`, `scene`, `weather`, `shop` and `settings`, each verified value-identical by resolving
+  tokens on both sides and diffing rule by rule — zero differences, so nothing on any page moved.
+- **`components.css` is deliberately untouched**, so its 41 references are the only ones left. The
+  ten definitions stayed in `variables.css` marked STOPGAP purely so that file keeps rendering;
+  deleting them before converting it would have silently dropped 37 `gap`s, 30 `padding`s and 18
+  `border-radius`s to their initial values, which is invisible in CSS — no error, just no spacing.
+  `AGENTS.md` and `architecture.md` both say so, and the block says how to finish it.
+- **Why the scales went.** Nothing overrides spacing or radii. `themes.css` swaps colours and
+  nothing else, so those were indirection with no second reader.
+- **Renamed `.topbar*` to `.navbar*`, and the module to match.** `js/ui/topBar.js` is now
+  `js/ui/navbar.js`, `mountTopBar` is `mountNavbar`, and the log scope is `navbar`. The class was
+  renamed to match `css/navbar.css`, but leaving the module called `topBar.js` would have made it
+  the only file in `js/ui/` not named after the class root it renders — `farmView.js`/`.farm-view`,
+  `menuPanel.js`/`.menu`, `signBoard.js`/`.sign`, `shopLauncher.js`/`.shop-launch` all follow it.
+  `#top-bar` and `.app__top` were deliberately left: the id is the mount guard that
+  `shop-main.js` and `settings-main.js` both cite as the reason importing `resolveSession` is safe
+  there, and `.app__top` is a grid area in the spatial set `top / left / centre / right`, not a
+  component name. Verified: all 6 navbar classes resolve to a rule `index.html` links, the guard
+  still fires on `index.html` and is still absent from `shop.html` and `settings.html`, and every
+  relative import in the four entry scripts resolves.
+- **The load order was wrong, which is why the height appeared to do nothing.** `index.html` loaded
+  `navbar.css` *before* `components.css`. `.navbar` and `.card` are both single-class specificity,
+  so `.card`'s `padding: var(--space-4)` won the tie and the bar measured `height + 32 + 2` —
+  changing `height:` moved nothing, because padding dominated. Moved the link after
+  `components.css` so the navbar owns its own box. This was my error: I asserted the order was
+  already right in the plan and then inserted the link in the wrong position.
+- **The navbar owns its own height now.** `.navbar` declares `height: 60px` and `padding: 0 8px`,
+  so the bar no longer inherits `.card`'s padding — previously nothing set a height at all and the
+  bar was as tall as its tallest child plus the card's 16px. Zeroing the padding means the height
+  will not move when T-38 hardcodes `.card`'s `var(--space-4)`. 60px gives a 60px content box for a
+  39px sign-out button; **48px is the floor**, below which the button touches the card border.
+- **The placeholder search slot is gone.** `navbar.js` rendered a `disabled` input with the
+  placeholder "arrives with live weather (T-11)", hidden under 900px, and duplicated the real one.
+  The location search lives in the weather panel (`locationBar.js` → `#location-bar`).
+- **That removal also fixed a grid bug it would otherwise have hidden.** The bar had three columns
+  (`auto minmax(0,1fr) auto`) for three children. With the search gone, `.navbar__account` would
+  have landed in the `1fr` track, stretched full width, and left-aligned its badge instead of
+  sitting at the right edge. Now two columns with `justify-self: end` on the account, which is what
+  preserves the old alignment. The tallest child also dropped from 50px to 39px, which is why 60px
+  is comfortable rather than tight.
+- **Found while checking coverage, logged as ISS-046:** `.btn--secondary`, `.divider` and
+  `.navbar__name` are rendered but have no rule anywhere, and neither does the `.location-bar*`
+  family. The save panel's "Save" button has been rendering as a plain `.btn` because of this.
+- **Also fixed:** ISS-045. The docs pointed at `css/field.css`, which has never existed. Corrected to
+  `css/scene.css` — which is also the name this file took in this pass, so the doc fix and the
+  rename landed together.
+- **Left alone:** `.menu__logo` keeps the 600px already in the working tree, and no class was
+  renamed — three of the files that render them belong to Hisham.
+
+---
+
+## The opening menu, sign in and create account — Kafi
+
+- **Did:** `login.html` is now the three screens in the design — a menu with the logo and three
+  orange buttons, then the sign-in and create-account forms on a wooden sign, all over the painted
+  farm background. The panel used to be a tab pair with both forms built and one hidden; each is now
+  its own view, mounted alone. `show(view)` in `js/ui/authViews.js` is the only place a view changes.
+- **No auth behaviour changed.** Same provider calls, same validation, same errors, same redirects.
+  The sound toggle in the design was left out — sounds are out of scope (ISS-023) and there is no
+  audio code, so a button that mutes nothing is worse than no button.
+- **The view graph is its own module.** `js/ui/authViews.js` owns which button leads to which
+  screen; `js/auth-main.js` keeps only the boot. It imports no provider and calls no service, and
+  the split is what keeps both under the 200-line budget. `passwordReset.js` was split the same way
+  (`resetRequest.js`, `resetSet.js`) — it was already over budget at 276 lines.
+- **Three things the design asked for that could not be built as drawn.**
+  - **The green sign-in button.** The mockup's green with white text is 2.2:1 and fails AA. The
+    dark ink the mockup already uses on every other button keeps the fills as bright as drawn and
+    passes at 4.96:1 or better.
+  - **The field labels and error text.** Both were too light on the wood. Labels were darkened;
+    errors got a pale chip, because no shade of red clears 4.5:1 against `#a9714a`. Every pairing
+    was measured; the notes were on the `--art-*` tokens, and DEC-029 moved them to
+    `architecture.md`.
+  - **The board's outline.** `clip-path` cuts a border away rather than shaping it, so the sign is
+    two stacked layers sharing one polygon. Because the percentages are relative to each layer's
+    own box and the board grows with the number of fields, the first polygon clipped the right-hand
+    column and the footer — caught by screenshotting the tall create-account view, not by reading
+    the CSS.
+- **Two bugs only a browser found:** the menu stole focus on page load (painting a focus ring nobody
+  asked for), and the plank collided with the board's top arc at mobile widths.
+- **Verified by driving it, not by eye:** menu → sign in → back → register → forgot password, the
+  `?deleted=1` arrival notice, the recovery-link entry with fragment scrubbing, live password
+  guidance, empty-submit errors, and all nine text pairings measured against real backgrounds.
+- **Merged over the T-11 weather work** (loading tips, the asset registry, live location). Both sides
+  were kept: `auth-main.js` now shows the boot loader *and* the new view graph, and the four new
+  files are registered in `ASSETS` so `tests/assets.test.js` passes.
+- **Editing another folder:** `js/ui/loginPanel.js`, `loginFields.js` and `passwordReset.js` are
+  Hisham's; Kafi is the backup on all three. `js/auth-main.js` was unassigned and is now Kafi's.
+
+---
+
 ## Loading tips on every page boot — Hisham
 
 - **Did:** Added a full-page loading veil with a spinner and a rotating weather/farming fact.

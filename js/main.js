@@ -6,7 +6,7 @@ import { buildServerSave } from './remoteSave.js';
 import { adoptState, apply, emit, exportPayload, getState, init, readImport, reset, saveNow, subscribe } from './state/store.js';
 import { mountBootLoader } from './ui/loadingTips.js';
 import { mountToastStack } from './ui/toastStack.js';
-import { mountTopBar } from './ui/topBar.js';
+import { mountNavbar } from './ui/navbar.js';
 import { mountSavePanel } from './ui/savePanel.js';
 import { mountShopLauncher } from './ui/shopLauncher.js';
 import { mountSettingsLauncher } from './ui/settingsLauncher.js';
@@ -55,7 +55,7 @@ function placeholder(label, detail) {
 }
 
 function mountShell(session, onSignOut) {
-  mountTopBar(qsOrNull('#top-bar'), { session, onSignOut });
+  mountNavbar(qsOrNull('#top-bar'), { session, onSignOut });
   mountShopLauncher(qsOrNull('#shop-launch'), { href: shopHref(session) });
   mountSettingsLauncher(qsOrNull('#settings-launch'), { href: settingsHref(session) });
 

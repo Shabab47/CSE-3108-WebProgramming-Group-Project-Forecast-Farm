@@ -40,6 +40,12 @@ Weeks are in `goals.md`. Week 1 was planning; T-02 onward belong to weeks 2–5.
 | T-32 | **Settings page:** `settings.html`, `js/settings-main.js`, `ui/settingsLauncher.js`, `ui/settingsView.js`, `ui/dangerAction.js`, `ui/accountCard.js`, `css/settings.css`. Erase-progress and delete-account | Shabab | done | 1 | week 2 |
 | T-33 | **Username sign-in:** `public.usernames` (002), `email_for_username()`, `normaliseUsername`, `usernameLooksValid`, the `usernames` field on sign-up | Shabab | done | 0 | week 2 |
 | T-34 | **Account deletion:** `delete_my_account(password)` (005), `services/accountApi.js`, the password gate in `dangerAction.js`. DEC-024 | Shabab | done | 0 | week 2 |
+| T-35 | **Opening menu + auth redesign:** `menuPanel`, `signBoard`, `authViews`, `css/fonts.css`, the `login.html` scene and top bar, one view per form instead of a tab pair. No auth behaviour change | Kafi | done | 0 | week 2 |
+| T-36 | **Login CSS split by component:** `css/auth.css` into `auth` / `menu` / `sign`, `--art-*` retired, literal values throughout. DEC-029. Value-neutral, verified by rule diff | Jim | done | 0 | 2026-10-11 |
+| T-37 | **Game page CSS split by component:** `.topbar*` (now `.navbar*`) out of `layout.css` into `navbar.css`, `css/farm.css` into `scene.css` with the duplicated `.field-stage` merged. Value-neutral, verified by rule diff | Jim | done | 1 | 2026-10-11 |
+| T-38 | **Spacing and radii hardcoded per file:** 52 references converted across 7 files, seven `--space-*` and three `--radius-*` retired. `components.css` deliberately left on a marked stopgap — 41 refs remain | Jim | doing | 1 | 2026-10-11 |
+| T-39 | **`topbar` → `navbar`:** 6 class names, `topBar.js` → `navbar.js`, `mountTopBar` → `mountNavbar`. `#top-bar` and `.app__top` deliberately unchanged. Convention: every `js/ui/` module is named for the class root it renders | Jim | done | 1 | 2026-10-11 |
+| T-40 | **Navbar owns its height, search slot removed:** `height: 60px` + `padding: 0 8px` so the bar no longer depends on `.card`'s padding; the dead `disabled` search input deleted, since the real one lives in the weather panel. Three grid columns became two — `justify-self: end` keeps the account right-aligned. Required moving `navbar.css` after `components.css` in `index.html`: at equal specificity `.card` was winning, so `height:` did nothing | Jim | done | 1 | 2026-10-11 |
 
 ## Phase 1 — Page and field · week 2
 
@@ -61,7 +67,7 @@ Weeks are in `goals.md`. Week 1 was planning; T-02 onward belong to weeks 2–5.
 
 | ID | Task | Owner | Status | Phase | Updated |
 | :--- | :--- | :--- | :--- | ---: | :--- |
-| T-11 | Weather panel: `topBar` search, `weatherPanel`, `envMetrics`, `seasonCard`, heat meter, sample fallback badge | Afif | todo | 3 | — |
+| T-11 | Weather panel: `navbar` search, `weatherPanel`, `envMetrics`, `seasonCard`, heat meter, sample fallback badge | Afif | todo | 3 | — |
 | T-12 | Classification + effects: `domain/weather.js`, matrix, simulator effects, forced-weather debug dropdown | Afif | todo | 3 | — |
 | T-13 | Notifications: `notifications.js`, `toastStack`, forecast projection per planted crop | Afif | todo | 3 | — |
 

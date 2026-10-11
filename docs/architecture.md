@@ -53,7 +53,7 @@ services (fetch)  →  main.js  →  store.apply  →  domain (pure rules)  → 
 1. `store.init(session)` — loads `forecastFarm.save.v1:<userId>`, or builds
    `initialState(session)`. Either way the live session goes into state.
 2. Preload images (rice stages + both ground tiles + base + pump).
-3. Mount UI: topBar, sidebar, seasonCard, weatherPanel, farmView, hud, buttonBar,
+3. Mount UI: navbar, sidebar, seasonCard, weatherPanel, farmView, hud, buttonBar,
    meters, envMetrics, toastStack.
 4. Fetch weather for `state.location`, or the sample fallback. Repeat every `REFRESH_MS`.
 5. Start the simulator interval (`TICK_MS`) and the autosave interval (`AUTOSAVE_MS`).
@@ -98,16 +98,54 @@ fills itself in behind it.
 Two pages, and login comes first.
 
 ```
-login.html ──► js/auth-main.js ──► js/ui/loginPanel.js ──┐
-                   │  injects signIn/signUp/signOut    │
-                   │  as actions                       ▼
-                   └────────────────────────► js/services/authApi.js   (Supabase REST, fetch)
+login.html ──► js/auth-main.js ──► mountAuthViews(root, actions)
+                   │  boot: provider, entry view, callbacks
+                   ▼
+             js/ui/authViews.js ──► show(view)
+                   ├─► js/ui/menuPanel.js      menu, sign in, create account
+                   ├─► js/ui/loginPanel.js     one form, on js/ui/signBoard.js
+                   └─► js/ui/passwordReset.js  request, sent, set
+                   │
+                   ▼
+             js/services/authApi.js   (Supabase REST, fetch)
 
 index.html ──► js/main.js ──► boot 0: resolveSession()
                               │ no session → login.html, game never mounts
                               ▼
                         js/state/store.js ──► forecastFarm.save.v1:<userId>
 ```
+
+### Views on the login page
+
+One page, four faces, and `show(view)` in `js/ui/authViews.js` is the only place
+a view changes:
+
+```
+menu ──Sign in─────► signIn ──Create account──► signUp
+     ──Register────► signUp ──Sign in instead──► signIn
+     ──Play as guest► onGuest()
+
+signIn ──Back────────► menu
+signIn ──Forgot──────► reset ──Back──► signIn
+```
+
+Each view is mounted alone and the previous one unmounted, so only what the
+player is looking at is in the DOM. That replaced an earlier tabbed panel that
+built both forms and hid one — a form that exists only to be hidden is a form a
+screen reader and a test both have to reason around.
+
+Two entries override the default view, both because the alternative buries the
+reason the player arrived. `chooseStartView()` in `js/auth-main.js` decides, from
+what was read out of the URL at boot:
+
+| Arriving | Lands on | Why |
+| :--- | :--- | :--- |
+| with a recovery token in the URL fragment | `reset` | they followed a link from their inbox to choose a password, nothing else |
+| with `?deleted=1` | `signIn`, with a notice | the sentence is about an account they had; the menu would hide it under three buttons |
+
+Focus moves with the view: onto the first field for a form, onto the first
+button when returning to the menu from a form, and **not at all** on first load,
+where the browser has already opened on the right view.
 
 ### The panel contract
 
@@ -116,14 +154,56 @@ outside call arrives through `actions`:
 
 | Action | Returns | The panel handles |
 | :--- | :--- | :--- |
-| `currentSession()` | `session \| null` | whether to render the form at all |
-| `signIn({email, password})` | `Promise<{ok:true, session} \| {ok:false, reason}>` | spinner, then route on |
-| `signUp({email, password, farmerName})` | same, or `{ok:true, session:null, needsConfirmation:true}` | spinner, then route on |
+| `signIn({identifier, password})` | `Promise<{ok:true, session} \| {ok:false, reason}>` | busy state, then route on |
+| `signUp({email, password, farmerName, username})` | same, or `{ok:true, session:null}` | busy state, then route on |
 | `signOut()` | `Promise<{ok:true}>` | — |
 | `onAuthenticated(session \| null)` | — | routing; **`null` means awaiting email confirmation** |
+| `onBack()` | — | return to the menu |
+| `onSwitch(mode)` | — | sign in ⇄ create account |
 | `onGuest()` | — | guest play |
 | `onForgotPassword()` | — | opens the reset flow |
 | `notice` | `string \| undefined` | a sentence to show on arrival, styled as info |
+
+`currentSession()` is not in the list any more: the panel is mounted *after*
+boot has already decided there is no session, so asking again could only
+contradict it.
+
+### The login page is painted art
+
+The menu and the two forms are the one surface in the project that is illustration
+rather than app chrome: a full-bleed background, a wooden sign, chunky outlined
+buttons, and two display faces.
+
+- **Three stylesheets draw it, one per component.** `css/auth.css` is the page
+  backdrop and stage, `css/menu.css` is the opening menu and its buttons,
+  `css/sign.css` is the wooden board, its form overrides and its buttons. It does
+  not use the app grid, so `css/layout.css` is untouched. One file per component
+  is the direction the rest of `css/` is heading — see DEC-029.
+- **It does not follow `data-theme`, and it carries its colours literally rather
+  than as tokens.** A wooden sign is brown in a dark theme too, so a token would
+  have nothing to switch. Every other page is unaffected and still reads
+  `variables.css`.
+- **The faces are self-hosted** (`css/fonts.css`, `assets/fonts/`), not linked
+  from a font CDN — the game has no build step and no third-party runtime. Only
+  `login.html` links that file, so `--font-display` and `--font-ui` fall through
+  to `--font-sans` everywhere else. Those two stay tokens even here, because the
+  faces they name are declared in another file.
+- **The sign is two stacked layers sharing one `clip-path` polygon** — an outer
+  dark border and an inner wood panel. A single element with a CSS border could
+  not do it: `clip-path` cuts a border away rather than shaping it. The polygon is
+  declared on `.sign` and inherited by `.sign__inner`, which is always its child,
+  so the two layers cannot drift apart. Because the polygon's percentages are
+  relative to each layer's own box, the board's height changes with the number of
+  fields, and the inner padding has to be generous enough that content clears the
+  taper at every height.
+- **Every text pairing clears WCAG AA,** including the ones the mockup draws
+  light. Where a mockup colour failed, the text colour changed rather than the
+  fill. Three deviations are worth naming, because none is obvious from the code:
+  the wordmark is `#1a8f16` and not the mockup's `#35c419`, which is 2.32:1 on
+  white where this is 4.7:1 and still the same green; field labels on the board
+  are `#1e0f04` and not `#3b2412`, which is 3.56:1 and they are 14px text needing
+  4.5; and error text sits on its own pale chip, because no shade of red clears
+  4.5:1 against the board's brown.
 
 **`onAuthenticated(null)` is not an error.** Sign-up can succeed without issuing
 a session, because GoTrue emails a confirmation link first. The panel clears the
@@ -481,9 +561,15 @@ farm and still reported that nothing had changed.
 | what counts as a valid email or password | `js/domain/authRules.js` |
 | provider error code → player-facing sentence | `js/ui/authErrors.js` |
 | which sign-in failures must look identical | `js/ui/authErrors.js` (`ENUMERATION_SENSITIVE`) |
-| the sign-in / sign-up form and its states | `js/ui/loginPanel.js` |
+| the opening menu | `js/ui/menuPanel.js` |
+| which view the login page is showing, and how a view changes | `js/ui/authViews.js` (`show`) |
+| which view the login page opens on | `js/auth-main.js` (`chooseStartView`) |
+| the sign-in / create-account form and its states | `js/ui/loginPanel.js` |
 | the labelled inputs the form is built from | `js/ui/loginFields.js` |
+| the wooden sign both forms sit on | `js/ui/signBoard.js` |
 | the forgot-password flow | `js/ui/passwordReset.js` |
+| the menu background and logo paths | `js/config/assets.js` (`MENU_BG`, `TITLE_IMG`) |
+| the two display faces | `css/fonts.css`, the `--font-display` / `--font-ui` tokens |
 | the auth provider call (Supabase) | `js/services/authApi.js` |
 | the temporary local provider | `js/services/localAuth.js` |
 | boot step 0, the session gate | `js/main.js` (`resolveSession`) |
@@ -502,16 +588,19 @@ farm and still reported that nothing had changed.
 | how a farm is erased, and why that is behind a password too | `supabase/migrations/006_password_gated_erase.sql`, then DEC-025 |
 | the shop button and the seed list | `js/ui/shopLauncher.js`, `js/ui/shopView.js` |
 | shop page layout | `css/shop.css`, `shop.html` |
-| field drawing / click bugs | `js/ui/farmView.js`, `js/ui/plotTile.js`, `js/utils/iso.js`, `css/field.css` |
+| field drawing / click bugs | `js/ui/farmView.js`, `js/ui/plotTile.js`, `js/utils/iso.js`, `css/scene.css` |
 | page layout | `css/layout.css`, `index.html` |
-| login page layout | `css/auth.css`, `login.html` |
-| colours, radii, spacing | `css/variables.css` |
+| the game page's top bar | `css/navbar.css` — fixed `height: 60px`, owns its own padding rather than `.card`'s |
+| where the location search lives | `js/ui/locationBar.js`, in the weather panel — not the navbar |
+| login page layout — the menu and the wooden sign | `css/auth.css`, `css/menu.css`, `css/sign.css`, `login.html` |
+| colours | `css/variables.css` — except the login page, which writes its own (DEC-029) |
+| spacing and radii | hardcoded per file, in px. The ten in `variables.css` are a stopgap for `components.css` alone; delete them when that file's 41 references are gone |
 | card and button styling | `css/components.css` |
 | top bar buttons | `js/config/ui.js` |
 | API calls | `js/services/*` |
 | save / load | `js/state/store.js`, `js/state/saveFile.js` |
 | the export file format, checksum, rebase | `js/state/transfer.js` |
-| why a CSS rule exists but nothing looks different | compare the class against the stylesheets **that page** links — `settings.html` does not load `auth.css`, and that is how `.form-message` went unstyled there for a while. `tests/settingsDom.test.js` asserts it |
+| why a CSS rule exists but nothing looks different | compare the class against the stylesheets **that page** links — `settings.html` loads none of `auth.css`, `menu.css` or `sign.css`, and that is how `.form-message` went unstyled there for a while. Splitting `css/` by component makes this more likely, not less: adding a file means adding a `<link>`. `tests/settingsDom.test.js` asserts it |
 | the export / import buttons | `js/ui/savePanel.js` |
 | which provider runs | `USE_LOCAL_PROVIDER` in `js/auth-main.js` (used by both entry points) |
 | the state shape | `js/state/types.js`, `js/state/initialState.js` |
@@ -527,7 +616,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 ```
 .
 ├── index.html                  the game page — app shell, 3 grid columns
-├── login.html                  the sign-in / sign-up page
+├── login.html                  the menu, sign-in and create-account screens
 ├── shop.html                   the seed shop — its own page, its own entry script
 ├── settings.html               account details, erase progress, delete account
 ├── almanac.html                empty — placeholder page
@@ -538,14 +627,20 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │
 ├── css/
 │   ├── reset.css               baseline
-│   ├── layout.css              the 3-area CSS grid, plus the top bar
-│   ├── variables.css           all colours, radii, spacing
+│   ├── layout.css              the 3-area CSS grid — the shell, and nothing in it
+│   ├── variables.css           colours for the game pages; spacing and radii only
+│   │                           as a stopgap for components.css
 │   ├── themes.css              dark and high-contrast token overrides
 │   ├── components.css          cards, buttons, inputs, meters, toasts
-│   ├── auth.css                the login card
+│   ├── fonts.css               the two display faces, self-hosted @font-face
+│   ├── navbar.css              the game page's top bar
+│   ├── weather.css             the forecast panel
+│   ├── scene.css               the isometric stage and the plot layers
 │   ├── shop.css                the shop sign and the seed list
 │   ├── settings.css            the settings gear and the settings page
-│   └── field.css               planned — isometric stage and plot layers
+│   ├── auth.css                the login backdrop and the stage it sits on
+│   ├── menu.css                the opening menu and its buttons
+│   └── sign.css                the wooden sign, its forms and its buttons
 │
 ├── data/
 │   └── sample-forecast.json    empty — one real Open-Meteo response, for offline dev
@@ -588,21 +683,29 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── accountCard.js      the account facts card on settings
 │   │   ├── almanac.js          empty
 │   │   ├── authErrors.js       provider code → sentence, enumeration guard
+│   │   ├── authViews.js        the login page's view graph — menu, forms, reset
 │   │   ├── cropPicker.js       empty
 │   │   ├── dangerAction.js     the arm-and-confirm control, with its password gate
-│   │   ├── farmView.js         empty
+│   │   ├── farmView.js         the isometric field: plots, pump, crop layers
 │   │   ├── loadingTips.js      the boot veil and its rotating facts
-│   │   ├── loginFields.js      labelled input builders
-│   │   ├── loginPanel.js       the sign-in / sign-up form and its states
-│   │   ├── passwordReset.js    forgot-password: request, sent, set
+│   │   ├── locationBar.js      the place search in the farm top bar
+│   │   ├── loginFields.js      labelled input builders, one form per mode
+│   │   ├── loginForm.js        the sign-in / create-account form shells
+│   │   ├── loginPanel.js       the sign-in / create-account form and its states
+│   │   ├── menuPanel.js        the opening menu: logo and three ways in
+│   │   ├── passwordReset.js    forgot-password: the flow, three steps
+│   │   ├── resetRequest.js     reset step 1 — ask for the address
+│   │   ├── resetSet.js         reset step 3 — choose the new password
+│   │   ├── signBoard.js        the wooden sign the auth forms sit on
 │   │   ├── savePanel.js        export / import a farm file
 │   │   ├── settingsLauncher.js the settings gear in the farm sidebar
 │   │   ├── settingsView.js     the settings page: two destructive actions
 │   │   ├── shopLauncher.js     the shop sign in the farm sidebar
 │   │   ├── shopView.js         the seed list on shop.html
 │   │   ├── toastStack.js       transient messages
-│   │   ├── topBar.js           logo, farmer name, sign-out
-│   │   └── weatherPanel.js     empty
+│   │   ├── navbar.js          logo, farmer name, sign-out
+│   │   ├── weatherGlyph.js     the drawn condition, not an icon file
+│   │   └── weatherPanel.js     current conditions and the 24-hour strip
 │   ├── utils/
 │   │   ├── dom.js              the only whitelisted DOM access
 │   │   ├── log.js              scoped logger, `[scope] message`
@@ -621,8 +724,13 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── favicon.svg
 │   │   ├── crops/              5 SVGs — all 0 bytes, art pending
 │   │   └── weather/            9 SVGs — all 0 bytes, art pending
+│   ├── fonts/
+│   │   ├── LuckiestGuy-Regular.ttf   the logo and button face
+│   │   └── IrishGrover-Regular.ttf   labels, body text, the small links
 │   ├── images/
 │   │   ├── base.png            the slab under the field
+│   │   ├── menu_bg.png         the opening menu's painted background
+│   │   ├── title.png           the game logo on the opening menu
 │   │   ├── pump.png            moves to pump/pump.png
 │   │   ├── Shop/
 │   │   │   └── shop.png        the shop sign, used as the shop button

@@ -83,7 +83,7 @@ The first thing anyone can actually look at.
 **Tasks:** T-05, T-06
 
 - [ ] `index.html` with the three grid areas, matching the wireframe at 1280 px
-- [ ] Single column below 900 px, in order: topBar, forecast, farm, right column, sidebar
+- [ ] Single column below 900 px, in order: navbar, forecast, farm, right column, sidebar
 - [ ] `utils/iso.js` with `plotToScreen` and `diamondClipPath`, plus `iso.test.js`
 - [ ] `css/field.css`, `farmView`, `plotTile`, `pumpView`
 - [ ] Slab, 16 unwatered plots, pump, diamond hit areas
@@ -155,7 +155,7 @@ Real weather in, consequences out.
 
 **Tasks:** T-11
 
-- [ ] `topBar` search calling `geocodeApi`, first result or a short list
+- [ ] `navbar` search calling `geocodeApi`, first result or a short list
 - [ ] Empty result → "Place not found" toast, never `alert()`
 - [ ] `weatherPanel`: place, local time, temp, condition, rain %, UV
 - [ ] Hourly strip, 6 visible, scrolls to 24 h
