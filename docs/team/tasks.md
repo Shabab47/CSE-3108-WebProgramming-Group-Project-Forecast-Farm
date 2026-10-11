@@ -40,12 +40,16 @@ Weeks are in `goals.md`. Week 1 was planning; T-02 onward belong to weeks 2–5.
 | T-32 | **Settings page:** `settings.html`, `js/settings-main.js`, `ui/settingsLauncher.js`, `ui/settingsView.js`, `ui/dangerAction.js`, `ui/accountCard.js`, `css/settings.css`. Erase-progress and delete-account | Shabab | done | 1 | week 2 |
 | T-33 | **Username sign-in:** `public.usernames` (002), `email_for_username()`, `normaliseUsername`, `usernameLooksValid`, the `usernames` field on sign-up | Shabab | done | 0 | week 2 |
 | T-34 | **Account deletion:** `delete_my_account(password)` (005), `services/accountApi.js`, the password gate in `dangerAction.js`. DEC-024 | Shabab | done | 0 | week 2 |
+| T-35 | **Server-side farm storage:** `001_farm_saves.sql` (RLS "own row only"), `services/saveApi.js`, `remoteSave.js`, the injected adapter in `store.init` | Hisham | done | 0 | week 2 |
+| T-36 | **Asset registry:** `js/config/assets.js` — one entry per file plus path builders, enforced against the filesystem by `tests/assets.test.js` | Hisham | done | 0 | week 2 |
 
 ## Phase 1 — Page and field · week 2
 
 | ID | Task | Owner | Status | Phase | Updated |
 | :--- | :--- | :--- | :--- | ---: | :--- |
-| T-05 | Layout shell: `index.html`, `css/*`, panel placeholders, `main.js` boot. Shipped as part of T-31/T-32 — the shop and settings pages were built on the shell | Kafi | done | 1 | week 2 |
+| T-05 | Layout shell: `index.html`, `css/*`, panel placeholders, `main.js` boot. Shipped as part of T-31/T-32 — the shop and settings pages were built on the shell | Kafi | done | 1 | week 2 — see T-37, T-38 |
+| T-37 | **Sign-in menu UI** — the login screen: sign-in, registration, guest play, password reset | Kafi | done | 1 | week 2 — reported by the team, **not pushed**; see `members/kafi.md` |
+| T-38 | **Gameplay scene UI** — the farm screen: the grid, the plots, the panels around it | Kafi | done | 1 | week 2 — reported by the team, **not pushed**; see `members/kafi.md` |
 | T-06 | Static field: `utils/iso.js`, `farmView`, `plotTile`, `pumpView`, `css/field.css`, debug sliders, calibrate geometry | Hisham | todo | 1 | — |
 
 ## Phase 2 — Economy core · weeks 3 and 4
@@ -61,7 +65,7 @@ Weeks are in `goals.md`. Week 1 was planning; T-02 onward belong to weeks 2–5.
 
 | ID | Task | Owner | Status | Phase | Updated |
 | :--- | :--- | :--- | :--- | ---: | :--- |
-| T-11 | Weather panel: `topBar` search, `weatherPanel`, `envMetrics`, `seasonCard`, heat meter, sample fallback badge | Afif | todo | 3 | — |
+| T-11 | Weather panel: `topBar` search, `weatherPanel`, `envMetrics`, `seasonCard`, heat meter, sample fallback badge | Afif | doing | 3 | week 2 — landed: `weatherApi`, `geocodeApi`, `config/api.js`, `domain/weather.js`, `weatherPanel`, `weatherGlyph`, `locationBar`. Still open: `envMetrics`, `seasonCard`, heat meter, sample fallback badge |
 | T-12 | Classification + effects: `domain/weather.js`, matrix, simulator effects, forced-weather debug dropdown | Afif | todo | 3 | — |
 | T-13 | Notifications: `notifications.js`, `toastStack`, forecast projection per planted crop | Afif | todo | 3 | — |
 

@@ -1,5 +1,9 @@
 # Kafi (Jim) — Abdullah Hil Kafi (ID 19)
 
+**Also goes by Jim** — the Git handle is `aa-jim` / `abdullahaljim2@gmail.com` and the branch is
+`origin/jim`. **One person, not two.** The docs use **Kafi** throughout; the README team table
+carries the alias once so nobody reads it as a fifth member.
+
 UI/UX and frontend developer.
 
 **Owns:** `css/`, `js/ui/topBar.js`, `sidebar.js`, `seasonCard.js`, `shopPanel.js`,
@@ -7,6 +11,7 @@ UI/UX and frontend developer.
 **Goals:** G-02 lead, G-06 support, G-08 support
 
 **Week 1 contribution:** produced all the crop artwork for rice and the farm ground.
+**Week 2 contribution:** the sign-in menu UI and the gameplay scene UI.
 
 **Track your remaining work in [`docs/asset-checklist.md`](../../asset-checklist.md).**
 
@@ -31,6 +36,9 @@ Team decision on icons: paths are coded as specified and broken images are accep
 
 ## Week 2
 
+- [x] Sign-in menu UI — the login screen, with sign-in, registration, guest play and the
+      password-reset flow
+- [x] Gameplay scene UI — the farm screen: the grid, the plots, and the panels around it
 - [ ] `index.html` with the three grid areas per `docs/reference/layout-wireframe.jpeg`
 - [ ] `css/reset.css`, `variables.css`, `layout.css`, `themes.css`, `components.css`
 - [ ] Panel placeholders in every grid area, then `js/main.js` boot
@@ -38,6 +46,11 @@ Team decision on icons: paths are coded as specified and broken images are accep
       bottom bar
 - [ ] Style tokens from `docs/reference/style-mockup.jpeg`: white glass cards, radius 16–20 px,
       soft shadow, thin border, one accent, system font stack. All of it in `variables.css`.
+
+> **Not pushed yet.** As of this entry `origin/jim` is **0 commits ahead of `origin/main`** and
+> still holds only the two week-1 commits, so the two week-2 boxes above are recorded from the
+> team's own report rather than from the branch. Push before the next review or the README's
+> credit will not survive someone checking the history.
 
 ## Week 3
 
