@@ -17,6 +17,7 @@
     <link rel="stylesheet" href="css/scene.css" />
     <link rel="stylesheet" href="css/shop.css" />
     <link rel="stylesheet" href="css/settings.css" />
+    <link rel="stylesheet" href="css/sidebar.css" />
   </head>
 
   <body>
@@ -24,8 +25,9 @@
       <header class="app__top" id="top-bar"></header>
 
       <aside class="app__sidebar" id="sidebar">
+        <div id="season-card"></div>
         <div id="shop-launch"></div>
-        <div id="settings-launch"></div>
+        <div id="inventory-launch"></div>
       </aside>
 
       <main class="app__centre">
@@ -37,9 +39,7 @@
         <section class="card" id="farm-view"></section>
       </main>
 
-      <aside class="app__rail" id="right-rail">
-        <div id="save-panel"></div>
-      </aside>
+      <aside class="app__rail" id="right-rail"></aside>
     </div>
 
     <div class="toast-stack" id="toast-stack" aria-live="polite"></div>

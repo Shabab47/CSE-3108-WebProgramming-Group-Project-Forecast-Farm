@@ -41,8 +41,10 @@
   --shadow-pop: 0 2px 4px rgba(0, 0, 0, 0.45), 0 16px 40px rgba(0, 0, 0, 0.5);
 }
 
-/* Keep the OS preference rather than hard-coding it, so the in-game toggle in
-   the top bar stays authoritative. */
+/* Temporarily disabled — the game ships light for now, so the OS dark
+   preference must not flip the whole app. The `[data-theme="dark"]` block above
+   stays for a manual/in-game toggle. Re-enable this block to follow the OS again.
+
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #14180f;
@@ -71,8 +73,6 @@
     --success: #6cbf85;
     --success-soft: #23331f;
 
-    /* Brighter than the light theme's gold: the sign sits on a near-black sidebar,
-       where a dim glow is invisible. */
     --gold: #ffc65c;
     --gold-glow: rgba(255, 198, 92, 0.5);
 
@@ -80,3 +80,4 @@
     --shadow-pop: 0 2px 4px rgba(0, 0, 0, 0.45), 0 16px 40px rgba(0, 0, 0, 0.5);
   }
 }
+*/

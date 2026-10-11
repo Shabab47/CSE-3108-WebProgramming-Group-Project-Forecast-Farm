@@ -41,6 +41,7 @@ import { passwordGate } from './passwordGate.js';
 import { runDestructive } from './runDestructive.js';
 import { statusLine } from './statusLine.js';
 import { accountDeletionFailure, progressErasureFailure } from './dangerMessages.js';
+import { mountSavePanel } from './savePanel.js';
 
 const log = createLog('settingsView');
 
@@ -194,6 +195,14 @@ export function mountSettings(root, actions) {
         accountStatus.node,
       ]),
     ]) : null,
+    actions.canExport
+      ? el('div', { class: 'card' }, [
+          el('div', { class: 'card__head' }, [el('span', { class: 'card__title', text: 'Save data' })]),
+          el('div', { class: 'card__body' }, [
+            mountSavePanel(el('div'), actions),
+          ]),
+        ])
+      : null,
   );
 
   return { unmount() { clear(root); } };

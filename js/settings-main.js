@@ -24,7 +24,7 @@ import { loadProvider } from './auth-main.js';
 import { farmHref, resolveSession } from './main.js';
 import { buildServerSave } from './remoteSave.js';
 import { deleteAccount, eraseProgress } from './services/accountApi.js';
-import { adoptState, clearLocalSave, emit, getState, init, reset, saveNow } from './state/store.js';
+import { adoptState, clearLocalSave, emit, exportPayload, getState, init, readImport, reset, saveNow } from './state/store.js';
 import { buildInitialState } from './state/initialState.js';
 import { mountSettings } from './ui/settingsView.js';
 import { mountBootLoader } from './ui/loadingTips.js';
@@ -199,6 +199,11 @@ function settingsActions(session, provider) {
     session,
     deleteProgress: makeDeleteProgress(provider),
     requestAccountDeletion: makeDeleteAccount(provider),
+    canExport: () => getState()?.session?.status === 'authed',
+    now: () => Date.now(),
+    exportPayload,
+    readImport,
+    adoptState,
     toast(message, tone) {
       emit('toast', { message, tone });
     },

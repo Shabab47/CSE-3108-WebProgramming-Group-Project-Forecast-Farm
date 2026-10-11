@@ -3,13 +3,13 @@ import { createLog } from './utils/log.js';
 import { loadProvider } from './auth-main.js';
 import { signInAsGuest } from './services/localAuth.js';
 import { buildServerSave } from './remoteSave.js';
-import { adoptState, apply, emit, exportPayload, getState, init, readImport, reset, saveNow, subscribe } from './state/store.js';
+import { adoptState, apply, emit, getState, init, reset, saveNow, subscribe } from './state/store.js';
 import { mountBootLoader } from './ui/loadingTips.js';
 import { mountToastStack } from './ui/toastStack.js';
 import { mountNavbar } from './ui/navbar.js';
-import { mountSavePanel } from './ui/savePanel.js';
 import { mountShopLauncher } from './ui/shopLauncher.js';
-import { mountSettingsLauncher } from './ui/settingsLauncher.js';
+import { mountInventoryLauncher } from './ui/inventoryLauncher.js';
+import { mountSeasonCard } from './ui/seasonCard.js';
 import { mountWeatherPanel } from './ui/weatherPanel.js';
 import { mountFarmView } from './ui/farmView.js';
 import { mountLocationBar } from './ui/locationBar.js';
@@ -57,17 +57,15 @@ function placeholder(label, detail) {
 function mountShell(session, onSignOut) {
   mountNavbar(qsOrNull('#top-bar'), { session, onSignOut });
   mountShopLauncher(qsOrNull('#shop-launch'), { href: shopHref(session) });
-  mountSettingsLauncher(qsOrNull('#settings-launch'), { href: settingsHref(session) });
 
   mountLocationBar(qsOrNull('#location-bar'), {
     onSearch: searchFor,
     onUseDeviceLocation: useDeviceLocation,
   });
 
-  qsOrNull('#sidebar').append(
-    placeholder('Season', 'Season card — T-11'),
-    placeholder('Inventory', 'Seeds and harvest — T-08'),
-  );
+  mountSeasonCard(qsOrNull('#season-card'));
+  mountShopLauncher(qsOrNull('#shop-launch'), { href: shopHref(session) });
+  mountInventoryLauncher(qsOrNull('#inventory-launch'), { href: farmHref(session) });
 
   qsOrNull('#right-rail').append(
     el('div', { class: 'card' }, [
@@ -78,20 +76,6 @@ function mountShell(session, onSignOut) {
     placeholder('Environment', 'Humidity and wind — T-11'),
   );
 
-  mountSavePanel(qsOrNull('#save-panel'), saveActions());
-}
-
-function saveActions() {
-  return {
-    canExport: () => getState()?.session?.status === 'authed',
-    now: () => Date.now(),
-    exportPayload,
-    readImport,
-    adoptState,
-    toast(message, tone) {
-      emit('toast', { message, tone });
-    },
-  };
 }
 
 function renderPanels(state) {
