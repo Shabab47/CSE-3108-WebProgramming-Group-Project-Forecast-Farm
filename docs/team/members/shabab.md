@@ -8,6 +8,10 @@ Team leader and project manager.
 **Week 1 contribution:** started the initial project, wrote the implementation plan, designed the
 crops and the seasons, and set up the team workflow.
 
+**Week 2 contribution:** connected Supabase and built the account side of it — the credentials
+and the provider switch, the seed shop, the settings page, username sign-in, and the erase-progress
+and delete-account actions that sit behind a password check verified in the database.
+
 ---
 
 ## Week 1

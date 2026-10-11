@@ -84,7 +84,7 @@ settings.html   account details, erase progress, delete account
 css/            styling — layout, colours, components, fields, login card, shop, settings
 js/             the game code, split by responsibility
 assets/         artwork and icons
-js/config/      field geometry, crops, game balance, weather events, loading tips, **asset registry (assets.js)**
+js/config/      field geometry, crops, game balance, weather events, **asset registry (assets.js)**
 supabase/       database migrations — run these by hand, see setup.md
 docs/           all project documentation
 tests/          the test suite, run with npm test
@@ -101,7 +101,7 @@ The full annotated tree, showing what is built and what is still empty, is in
 | :--- | :---: | :--- | :--- |
 | **Tawfik Rahman Shabab** | 25 | Team lead | Project setup, game plan, crop and season design, team workflow |
 | **Mutasim Afif** | 13 | Services and testing | Weather, time and place-lookup services; testing against live data |
-| **Abdullah Hil Kafi** | 19 | Design and interface | Artwork for crops and farm tiles, screen layout, panels and controls |
+| **Abdullah Hil Kafi (Jim)** | 19 | Design and interface | Artwork for crops and farm tiles, screen layout, panels and controls |
 | **Hisham Walid** | 31 | Game systems | Project structure, data flow, art direction, land, planting, growth, saving |
 
 Per-person weekly notes are in [`docs/team/members/`](docs/team/members/).
@@ -177,18 +177,20 @@ three that would have broken the game were caught in that review before a line o
 written. Art is tracked separately in [`asset-checklist.md`](docs/asset-checklist.md), where **46
 assets are still outstanding** — including two failure sprites that rice itself still needs.
 
-Week two has since added the sign-in and save system, the seed shop, username sign-in, and
-the settings page — where a player can erase their progress or delete their account.
-**Shabab** built the login and account flow, the shop, and the settings page; **Hisham**
-added the state store, the Supabase provider, exporting and importing a farm, and the
-layering rules that hold the project together. Four weeks of building remain: the farm
-screen, then the economy, then live weather, then the finished release.
+Week two has since added the sign-in and save system, the seed shop, username sign-in, live
+weather on the game screen, and the settings page — where a player can erase their progress or
+delete their account. **Kafi** built the sign-in menu and the gameplay scene; **Shabab** connected
+Supabase, and built the shop, the settings page, and the password-gated erase and delete;
+**Afif** put the live weather API onto the game screen; **Hisham** added the Supabase
+environment, the database SQL, exporting and importing a farm, and the asset registry that every
+image now passes through. Four weeks of building remain: the economy, then live weather effects,
+then the finished release.
 
 <a id="progress"></a>
 
 ## 🛠️ Weekly Progress
 
-Week 1 is broken out per person, because "all four" tells you nothing about who to ask about what.
+Each week is broken out per person, because "all four" tells you nothing about who to ask about what.
 
 | Week | Focus | Status | Done | By |
 | :---: | :--- | :--- | :--- | :--- |
@@ -196,10 +198,14 @@ Week 1 is broken out per person, because "all four" tells you nothing about who 
 | 1 | Crop and environment artwork | ✅ Complete | Rice 5 growth stages · watered and unwatered ground · folder-per-crop structure | **Kafi** |
 | 1 | Base service connections | ✅ Complete | Weather API · time API · place lookup | **Afif** |
 | 1 | Structure, data flow and art direction | ✅ Complete | Folder and module design · layering rules · art direction · 16 doc files | **Hisham** |
-| 2 | Sign-in and save system | ✅ Complete | Login page · session-gated boot · password reset · export and import a farm | **Shabab**, **Hisham** |
-| 2 | Project foundation | 🔄 In progress | Tooling · config · state store · layering check · 264 passing tests | **Hisham** |
-| 2 | Shop, settings, username sign-in | ✅ Complete | Seed shop · settings page · password-gated erasure · `usernames` table | **Shabab**, **Hisham** |
-| 2 | Working farm screen | ⬜ Next | — | **Kafi** page shell, CSS · **Afif** reverse geocoding |
+| 2 | Sign-in menu UI | ✅ Complete | Login page · sign-in, register and guest play · password reset | **Kafi** |
+| 2 | Gameplay scene UI | ✅ Complete | Farm screen · plots · panels and controls | **Kafi** |
+| 2 | Supabase connection | ✅ Complete | Project URL and anon key · GoTrue REST provider · session-gated boot | **Shabab**, **Hisham** |
+| 2 | Farm save, export and import | ✅ Complete | `farm_saves` table with Row Level Security · `.farm` file export and import | **Hisham** |
+| 2 | Asset registry | ✅ Complete | `js/config/assets.js` — every image and sound in one place | **Hisham** |
+| 2 | Shop and username sign-in | ✅ Complete | Seed shop · `usernames` table | **Shabab** |
+| 2 | Erase progress and delete account | ✅ Complete | Both behind a password check, verified in the database | **Shabab** |
+| 2 | Weather on the game screen | ✅ Complete | Live weather for the player's location · weather panel and location bar | **Afif** |
 | 3 | Land economy, then planting and growth | ⬜ Planned | — | **Hisham** |
 | 4 | Pump, water and market, then live weather | ⬜ Planned | — | **Hisham** pump, market · **Afif** live weather |
 | 5 | Weather effects, crop alerts, then ship v0.1 | ⬜ Planned | — | **Afif** weather effects · **Kafi** polish, almanac · **Shabab** handover |
