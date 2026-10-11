@@ -1,112 +1,70 @@
-/* Auth page: the sign-in / sign-up card.
- *
- * Separate from components.css because it is the one page with its own layout.
- * No game code runs on this page -- see js/auth-main.js.
- */
-
 .auth {
-  display: grid;
-  place-items: center;
+  position: relative;
+  display: flex;
+  flex-direction: column;
   min-height: 100vh;
-  padding: var(--space-5);
-  background:
-    radial-gradient(120% 90% at 15% 0%, var(--accent-soft) 0%, transparent 55%),
-    var(--bg);
+  min-height: 100dvh;
 }
 
-.auth__card {
-  width: min(100%, 440px);
-  background: var(--surface-glass);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-pop);
-  backdrop-filter: blur(10px);
-  padding: var(--space-6);
-}
-
-.auth__brand {
+.auth__bar {
+  position: relative;
+  z-index: 2;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: var(--space-1);
-  text-align: center;
-  margin-bottom: var(--space-5);
+  justify-content: space-between;
+  gap: 16px;
+  height: 76px;
+  padding: 0 24px;
+  background: #ffffff;
+  box-shadow: 0 3px 0 rgba(43, 26, 12, 0.12);
 }
 
-.auth__mark {
-  width: 48px;
-  height: 48px;
-  display: grid;
-  place-items: center;
-  border-radius: 14px;
-  background: var(--accent-soft);
-  color: var(--accent-strong);
-  font-size: 24px;
+.auth__word {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
   line-height: 1;
+  color: #1a8f16;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
 }
 
-.auth__title {
-  font-size: var(--text-xl);
-  font-weight: 650;
-  letter-spacing: -0.01em;
+.auth__scene {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-color: #8ec9f2;
+  background-size: cover;
+  background-position: center bottom;
+  background-repeat: no-repeat;
 }
 
-.auth__subtitle {
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-}
-
-.auth__form {
+.auth__stage {
+  position: relative;
+  z-index: 1;
   display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  margin-top: var(--space-5);
-}
-
-.auth__row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-3);
-}
-
-.auth__submit {
-  margin-top: var(--space-1);
-}
-
-.auth__note {
-  font-size: var(--text-xs);
-  color: var(--text-faint);
-  text-align: center;
-  margin-top: var(--space-4);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--border);
-}
-
-/* --- announcements --------------------------------------------------------
- * The status-line styles live in `css/components.css` now, because this file is only
- * loaded by `login.html` and `settings.html` uses the same `.form-message` markup without
- * loading it. Kept as a note so the duplication is not mistaken for an oversight when
- * someone greps for `.form-message` and finds this comment. */
-
-/* --- guest ---------------------------------------------------------------- */
-
-.auth__divider {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  margin-top: var(--space-5);
-}
-
-.auth__divider::before,
-.auth__divider::after {
-  content: '';
   flex: 1;
-  height: 1px;
-  background: var(--border);
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
 }
 
-@media (max-width: 480px) {
-  .auth__card {
-    padding: var(--space-5);
+@media (max-width: 600px) {
+  .auth__bar {
+    height: 60px;
+    padding: 0 16px;
+  }
+
+  .auth__word {
+    font-size: 1.15rem;
+  }
+
+  .auth__stage {
+    padding: 16px 12px;
+  }
+}
+
+@media (max-height: 560px) {
+  .auth__stage {
+    align-items: flex-start;
   }
 }

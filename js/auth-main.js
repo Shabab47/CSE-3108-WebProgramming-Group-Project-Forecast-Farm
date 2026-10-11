@@ -1,9 +1,15 @@
 /**
- * Entry point for login.html.
+ * Entry point for login.html — the menu, the sign-in and create-account forms,
+ * and the password reset flow.
  *
  * Wiring only. This is the one module allowed to import both a UI panel and the
  * auth provider, which is exactly the arrangement `docs/architecture.md`
  * describes: callbacks go in through `mountX(root, actions)`.
+ *
+ * What lives here is the boot: resolve the provider, decide where to open,
+ * hand the callbacks over. The view graph — which button leads to which screen,
+ * and what carries focus — belongs to `ui/authViews.js`, which imports no
+ * provider and calls no service.
  *
  * ## Provider swap
  *
@@ -26,9 +32,9 @@
 
 import { qsOrNull } from './utils/dom.js';
 import { createLog } from './utils/log.js';
-import { mountLoginPanel } from './ui/loginPanel.js';
-import { mountPasswordReset } from './ui/passwordReset.js';
 import { mountBootLoader } from './ui/loadingTips.js';
+import { mountAuthViews } from './ui/authViews.js';
+import { MENU_BG } from './config/assets.js';
 import * as localAuth from './services/localAuth.js';
 
 const log = createLog('auth-main');
@@ -67,6 +73,19 @@ function goToGame(query = '') {
 }
 
 /**
+ * Paint the scene behind every view.
+ *
+ * Set from here rather than from `css/auth.css` because every image path in the
+ * project lives in `js/config/assets.js` -- see the note at the top of that file.
+ * `login.html` preloads the file so this normally lands before first paint.
+ */
+function paintScene() {
+  const scene = qsOrNull('.auth__scene');
+  if (!scene) return;
+  scene.style.backgroundImage = `url('${MENU_BG}')`;
+}
+
+/**
  * Supabase sends the recovery link back with the access token in the URL
  * fragment. Fragments never reach a server, so this is the one place the value is
  * read, and it is passed into the panel rather than used to call the provider
@@ -91,7 +110,7 @@ function readRecoveryToken() {
  * is: a flag should not sit in the address bar where it can be shared, bookmarked or
  * screenshotted and mean something different next time.
  *
- * Shown as information, not as an error — being signed out was the point, not a
+ * Shown as information, not as an error -- being signed out was the point, not a
  * failure. One wording, because both providers now delete immediately and behind the
  * same password check, so there is no longer a difference to describe.
  */
@@ -104,14 +123,34 @@ function readArrivalNotice() {
   return 'Your account, farm and username have been deleted, and you are signed out. You can register again with the same email whenever you like.';
 }
 
+/**
+ * Where to open, and why not somewhere else.
+ *
+ * Two arrivals override the menu. Both are a case of the player following a link
+ * for one specific thing, and the menu — three equally-weighted buttons — would
+ * bury the reason they are here.
+ *
+ *   a recovery token in the fragment   -> the reset form: they clicked a link in
+ *                                        their inbox to choose a password
+ *   ?deleted=1                         -> sign in, with a notice: the sentence
+ *                                        is about an account they had
+ */
+function chooseStartView({ recoveryToken, arrivalNotice }) {
+  if (recoveryToken) return 'reset';
+  if (arrivalNotice) return 'signIn';
+  return 'menu';
+}
+
 async function start() {
   const root = qsOrNull('#auth-root');
   if (!root) return;
 
-  // Before the first `await`, same as the other three entry points. `#auth-root`
-  // is empty until `showLogin()` runs, and getting here means a dynamic import
-  // plus a session restore, so the form can take a moment to appear.
+// Before the first `await`, same as the other three entry points. `#auth-root`
+  // is empty until the view is mounted, and getting here means a dynamic import
+  // plus a session restore, so the screen can take a moment to appear.
   const loader = mountBootLoader({ label: 'Loading' });
+
+  paintScene();
 
   const provider = await loadProvider();
   const recoveryToken = readRecoveryToken();
@@ -121,12 +160,12 @@ async function start() {
   // `currentSession()` is null even for a player who is genuinely signed in.
   // `restoreSession()` mints a new one from the stored refresh token, which is
   // what makes this check see a real session. Absent on the local provider, hence
-  // the optional call — there the session is in storage already.
+  // the optional call -- there the session is in storage already.
   const session = provider.currentSession() ?? (await provider.restoreSession?.());
 
-  // Already signed in, and not arriving to change a password: the form has
-  // nothing to offer. Guests are not signed in, so a guest who comes back here
-  // sees the form again rather than a dead end.
+  // Already signed in, and not arriving to change a password: there is nothing to
+  // offer. Guests are not signed in, so a guest who comes back here sees the menu
+  // again rather than a dead end.
   if (session && !recoveryToken) {
     log.trace('session already active, going to the farm');
     loader.done();
@@ -134,63 +173,43 @@ async function start() {
     return;
   }
 
-  let panel = null;
-
-  /** Swap the login panel and the reset flow inside the same root. */
-  function showLogin(notice) {
-    panel?.unmount();
-    panel = mountLoginPanel(root, {
-      currentSession: provider.currentSession,
-      signIn: provider.signIn,
-      signUp: provider.signUp,
-      // Part of the panel contract. The login page has no session to end, so
-      // this is passed and never called here; the game page is where it is used.
-      signOut: provider.signOut,
-      notice,
-
-      onAuthenticated(session) {
-        // The address and farmer name would be safe to log, but the panel hands
-        // us nothing secret and this is not the place to start.
-        if (!session) {
-          // Sign-up succeeded but issued no session: GoTrue has emailed a
-          // confirmation link. authErrors.js owns that sentence.
-          log.info('registered, awaiting confirmation');
-          showLogin('Almost there — check your inbox for the confirmation link, then sign in.');
-          return;
-        }
-        log.info('authenticated, entering the farm');
-        goToGame(session?.status === 'guest' ? '?guest=1' : '');
-      },
-
-      onGuest() {
-        const result = localAuth.signInAsGuest();
-        log.info(result.ok ? 'continuing as guest' : 'guest play failed');
-        goToGame('?guest=1');
-      },
-
-      onForgotPassword() {
-        panel?.unmount();
-        panel = mountPasswordReset(root, {
-          // Wrapped rather than passed straight through, so the redirect target
-          // is derived from the page actually being served. Without it GoTrue sends
-          // the recovery link to the project's Site URL, and this page is the only
-          // one that reads the token out of the fragment — so a Site URL pointing
-          // anywhere else means the reset silently never completes (ISS-031).
-          requestPasswordReset: (options) => provider.requestPasswordReset({
-            ...options,
-            redirectTo: new URL('login.html', location.href).href,
-          }),
-          updatePassword: provider.updatePassword,
-          recoveryToken: () => recoveryToken,
-          onBack(notice) {
-            showLogin(notice);
-          },
-        });
-      },
-    });
+  /** Guest play, from the menu or from either form. Same path both ways. */
+  function goAsGuest() {
+    const result = localAuth.signInAsGuest();
+    log.info(result.ok ? 'continuing as guest' : 'guest play failed');
+    goToGame('?guest=1');
   }
 
-  showLogin(arrivalNotice ?? undefined);
+mountAuthViews(root, {
+    startView: chooseStartView({ recoveryToken, arrivalNotice }),
+    notice: arrivalNotice ?? undefined,
+
+    signIn: provider.signIn,
+    signUp: provider.signUp,
+    signOut: provider.signOut,
+
+    // Wrapped rather than passed straight through, so the redirect target is
+    // derived from the page actually being served. Without it GoTrue sends the
+    // recovery link to the project's Site URL, and this page is the only one that
+    // reads the token out of the fragment -- so a Site URL pointing anywhere else
+    // means the reset silently never completes (ISS-031).
+    requestPasswordReset: (options) => provider.requestPasswordReset({
+      ...options,
+      redirectTo: new URL('login.html', location.href).href,
+    }),
+    updatePassword: provider.updatePassword,
+    recoveryToken: () => recoveryToken,
+
+    onAuthenticated(authenticated) {
+      // The address and farmer name would be safe to log, but the panel hands us
+      // nothing secret and this is not the place to start.
+      log.info('authenticated, entering the farm');
+      goToGame(authenticated?.status === 'guest' ? '?guest=1' : '');
+    },
+
+    onGuest: goAsGuest,
+  });
+
   loader.done();
 }
 
@@ -198,8 +217,8 @@ async function start() {
  * Only on the real page.
  *
  * `js/main.js` imports `loadProvider` from here (ISS-033), so this module is no
- * longer only ever loaded by login.html. Without the guard, importing it from the
- * game page would boot the login form and redirect the player away from their
+ * longer only ever loaded by login.html. Without the guard, importing it from
+ * the game page would boot the login form and redirect the player away from their
  * farm. `#auth-root` is on login.html and nowhere else, so it is the marker for
  * "this is the page, not an import".
  */

@@ -7,6 +7,93 @@ Format: who decided, the choice, why, and what was rejected.
 
 ---
 
+### DEC-029 The login page is split one component per file, and writes its own values
+**Decided by:** Jim · 2026-10-11
+
+`css/auth.css` was one file holding the page backdrop, the opening menu and the wooden sign. It is
+now three: `auth.css` keeps the backdrop and the stage, `menu.css` takes the menu and `.btn--menu`,
+`sign.css` takes the board, its form overrides, `.btn--go` and `.btn--back`. The 19 `--art-*`
+tokens are gone from `variables.css` — those three files write the values directly.
+
+**Why.** Two reasons, and neither is taste. First, a component split means a file owns its element
+completely: `.btn--go` now sits next to `.sign` rather than back in a shared `components.css`, so
+adding a variant does not mean editing two layers and hoping the load order cooperates. Second, the
+`--art-*` tokens bought nothing — DEC-027 established that the login page does not follow
+`data-theme`, so nothing ever overrode them. They were 19 names for values only one page ever read.
+
+`--font-display` and `--font-ui` stay tokens, because the faces they name are declared in
+`css/fonts.css` and are genuinely cross-file. `--sign-shape` stays a custom property inside
+`sign.css`, declared on `.sign` and inherited by `.sign__inner`, which is always its child.
+
+**Verified value-neutral.** Every rule was diffed against the pre-split file with tokens resolved:
+47 selectors, no computed value changed. The only intended differences are four
+`width: min(100%, Npx)` becoming `width: 100%; max-width: Npx`, and the polygon moving from `.auth`
+onto `.sign`.
+
+**Rejected:** keeping the three reads of a shared token (`--surface`, twice — a white input and a
+focus outline) because they were less effort. Following through makes the page read identically in
+light and dark, which is what the rest of it already does, and stops two surfaces from being the
+only thing on the page that answers `prefers-color-scheme`.
+
+**Also decided here, because they were the same argument:** spacing and radii are hardcoded per file
+in px, not scaled. Seven space steps (`4 8 12 16 24 32 48`) and three radii (`18px 10px 999px`)
+come off `variables.css`. Fifty-two references were converted across `layout`, `navbar`, `reset`,
+`scene`, `weather`, `shop` and `settings`, each verified value-identical. The ten definitions stay
+as a marked stopgap for the 41 references `components.css` still holds, and come out in the same
+commit that converts that file's last one.
+
+**Why.** A scale is only worth indirection if something changes the value. Nothing overrides spacing
+or radii — `themes.css` swaps colours and nothing else — so these were indirection with no other end.
+`999px` in particular reads as a number at a call site where it means "pill".
+
+**Rejected:** keeping `--radius-chip` as a permanent token. It is the one value where the name
+carries meaning the number does not, but a partial scale is worse than none, and there are four
+call sites. Revisit if the pill shape spreads.
+
+**Scope, and what is left.** One file per component is now the rule for the two pages that have
+their own identity: the login trio (`auth` / `menu` / `sign`) and the game page's `navbar.css` and
+`scene.css`. `layout.css` keeps only the grid the panels sit in, and `farm.css` is gone — it was
+`scene.css` under a name nobody remembered, and it also held the one rule `layout.css` duplicated.
+Still layered, still to move: `weather.css`, `shop.css` and `settings.css` are already one
+component each and only need restyling; `components.css` is the real work, because splitting it
+puts `.btn` and its variants together for the first time — and it needs
+`tests/settingsDom.test.js` updated, which names that file at lines 361 and 418.
+
+---
+
+### DEC-027 The login page is painted art, and does not follow the theme
+**Decided by:** Kafi · 2026-10-11
+
+The menu, sign-in and create-account screens are illustration: a full-bleed background, a wooden
+sign, chunky outlined buttons, two display faces. They do **not** read `data-theme`, and since
+DEC-029 those colours are no longer tokens at all, so the page looks identical in dark mode. The
+farm, shop and settings pages are untouched and keep the existing clean green/white chrome.
+
+**Why.** A wooden sign is brown in a dark theme too. Forcing the menu through the theme tokens would
+mean the menu stops looking like the thing the team drew, to buy consistency with a page it is not
+on. The cost is two visual systems in the repo — accepted deliberately, and the art style is
+confined to `login.html` so it cannot spread by accident.
+
+**Rejected:** restyling the whole app to match. It would collide with the farm, shop and settings
+work in progress, for no gain on the menu itself.
+
+**Also decided here, because they were the same argument:**
+
+- **Fonts are self-hosted** (`assets/fonts/*.ttf`, declared in `css/fonts.css`), not linked from a
+  font CDN. The project has no build step and no third-party runtime; a CDN link would put another
+  party between the player and the login page.
+- **Only `login.html` links `css/fonts.css`,** so `--font-display` and `--font-ui` fall through to
+  `--font-sans` on every other page and cost nothing there.
+- **The sign's outline is two stacked layers sharing one `clip-path` polygon,** not a CSS border on
+  one element: `clip-path` cuts a border away rather than shaping it.
+- **Where a mockup colour failed WCAG AA, the text colour changed, not the fill** — the dark ink the
+  mockup already used on the buttons. The one exception is the error text, which got a pale chip
+  because no shade of red clears 4.5:1 against the board's brown.
+- **The sound toggle is not built.** Sounds are out of scope (ISS-023) and no audio code exists, so
+  a mute button that mutes nothing is a lie in a control. It arrives with the sounds commit.
+
+---
+
 ### DEC-026 The loading tips may paint before the session is known
 **Decided by:** Hisham
 
@@ -32,6 +119,8 @@ screen is not a substitute for a request timeout, and this decision does not cla
 **The rule that makes it safe:** the veil paints nothing at all until `SHOW_AFTER_MS` (250 ms).
 A page that renders faster than that never shows it, so the common case is unchanged and there is
 no flash to get used to. See `js/config/tips.js` for the three thresholds and why each exists.
+
+---
 
 ### DEC-025 Erasing progress is behind a password too, not just deleting the account
 **Decided by:** Shabab47

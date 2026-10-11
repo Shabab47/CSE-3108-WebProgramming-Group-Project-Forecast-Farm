@@ -54,6 +54,8 @@ current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
 | ISS-024 | Active weather event lags by up to ~1 h 15 m | Low | Afif | open | T-12 |
 | ISS-023 | Three sound files are 0 bytes | Low | Kafi | open | — |
 | ISS-025 | Ownership split is unconfirmed | Low | Shabab | open | T-01 |
+| ISS-045 | Docs point at `css/field.css`, which does not exist | Low | Jim | **fixed** | — |
+| ISS-046 | `.btn--secondary` and four other rendered classes have no rule anywhere | Low | Hisham | open | T-11 |
 | ISS-032 | No Supabase project yet, so no real accounts or server-side signing | **High** | Shabab | partly fixed | T-29 |
 
 ---
@@ -655,3 +657,44 @@ current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
   `seedPrice` for every crop, giving the economy one rule instead of ten unrelated numbers,
   and `tests/shop.test.js` asserts the invariant. Quality (plot health) is what erodes the
   margin, so ignoring the forecast is what stops a farm compounding.
+
+### ISS-045 The docs point at `css/field.css`, which does not exist
+- Reported by Jim · 2026-10-11 · Owner: Jim · Status: fixed
+- Where: `docs/architecture.md` (the "where to change what" table and the project structure tree)
+- Problem: two places named `css/field.css` as the file holding the isometric stage and the plot
+  layers. No such file has ever existed — the stage and the plots were in `css/farm.css`. The
+  project structure tree was worse: it listed `field.css` as "planned", so it read as work still
+  to do, while `farm.css` was already on disk and already drawn.
+- Cause: the stage was renamed during T-05/T-06 and the docs did not follow. The plan documents
+  still name `css/field.css` as well, so this is not a one-line typo to correct in one file.
+- Fix: both references corrected. The file was itself renamed to `css/scene.css` in the same pass
+  (DEC-029), so the doc fix and the rename landed together and the entry above records the name it
+  had at the time. `docs/game-design/implementation-plan.md` and `docs/team/tasks.md` still say
+  `field.css`; those are the plan's record of intent rather than a description of the repo, so they
+  were left, and T-06's owner should reconcile them when the static field lands.
+
+### ISS-046 `.btn--secondary` and four other rendered classes have no rule anywhere
+- Reported by Jim · 2026-10-11 · Owner: Hisham · Status: open
+- Where: `js/ui/savePanel.js`, `js/ui/navbar.js`, `js/ui/locationBar.js`, `css/components.css`
+- Problem: a sweep of every class any panel in `js/ui/` can render, against every stylesheet, found
+  nine with no rule at all. Four matter:
+  - `.btn--secondary` — `savePanel.js:123` renders `btn btn--secondary btn--block` as the Save
+    button. `components.css` defines `--primary`, `--ghost`, `--danger` and `--block`, but no
+    `--secondary`. The button has been rendering as a plain `.btn` since T-30 landed.
+  - `.divider` — `savePanel.js:266` renders `<hr class="divider">` with no rule, so it draws as a
+    default 2px inset border.
+  - .`navbar__name` — `navbar.js:40` renders it inside the logo link; `navbar.css` styles
+    `__mark` and `__logo` but not this, so it inherits body font. Probably wanted at the logo's
+    650 weight.
+  - `.location-bar`, `__input`, `__btn`, `__btn--icon` — all four rendered by
+    `locationBar.js`. This one is expected: T-11 is still `todo`.
+  - `.farm-view` and `.card__body` are structural hooks with no rules by design — `.card` carries
+    the padding. `tests/settingsDom.test.js` explicitly carves those out.
+- Cause: no check covers a class that has no rule. `settingsDom.test.js` asserts the inverse
+  direction — *if* a class is styled somewhere, the page must load that file — and deliberately does
+  not assert that every class has a rule, because structural hooks are legitimate.
+- Risk: Low. Nothing is invisible; the Save button is simply unstyled next to its neighbours, which
+  reads as an oversight rather than a break.
+- Fix: not started. `.btn--secondary` needs a variant in `components.css` — note that whichever
+  file ends up holding `.btn` is the one to put it in, per DEC-029. `.divider` is one rule.
+  `.location-bar*` belongs to whoever lands T-11.

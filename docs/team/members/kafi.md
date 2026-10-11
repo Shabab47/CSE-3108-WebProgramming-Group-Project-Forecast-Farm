@@ -6,7 +6,7 @@ carries the alias once so nobody reads it as a fifth member.
 
 UI/UX and frontend developer.
 
-**Owns:** `css/`, `js/ui/topBar.js`, `sidebar.js`, `seasonCard.js`, `shopPanel.js`,
+**Owns:** `css/`, `js/ui/navbar.js`, `sidebar.js`, `seasonCard.js`, `shopPanel.js`,
 `inventoryPanel.js`, `hud.js`, `buttonBar.js`, `meters.js`, `assets/`
 **Goals:** G-02 lead, G-06 support, G-08 support
 
@@ -42,7 +42,7 @@ Team decision on icons: paths are coded as specified and broken images are accep
 - [ ] `index.html` with the three grid areas per `docs/reference/layout-wireframe.jpeg`
 - [ ] `css/reset.css`, `variables.css`, `layout.css`, `themes.css`, `components.css`
 - [ ] Panel placeholders in every grid area, then `js/main.js` boot
-- [ ] Single column below 900 px, order: topBar, forecast, farm, right column, sidebar as a
+- [ ] Single column below 900 px, order: navbar, forecast, farm, right column, sidebar as a
       bottom bar
 - [ ] Style tokens from `docs/reference/style-mockup.jpeg`: white glass cards, radius 16–20 px,
       soft shadow, thin border, one accent, system font stack. All of it in `variables.css`.

@@ -3,22 +3,40 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Sign in · Forecast Farm</title>
+    <title>Forecast Farm</title>
     <meta name="description" content="Sign in to your Forecast Farm, or create an account to start one." />
 
     <link rel="icon" href="assets/icons/favicon.svg" type="image/svg+xml" />
+    <link rel="preload" href="assets/fonts/LuckiestGuy-Regular.ttf" as="font" type="font/ttf" crossorigin />
+    <link rel="preload" href="assets/images/menu_bg.png" as="image" />
     <link rel="stylesheet" href="css/reset.css" />
     <link rel="stylesheet" href="css/variables.css" />
     <link rel="stylesheet" href="css/themes.css" />
     <link rel="stylesheet" href="css/components.css" />
+    <link rel="stylesheet" href="css/fonts.css" />
     <link rel="stylesheet" href="css/auth.css" />
+    <link rel="stylesheet" href="css/menu.css" />
+    <link rel="stylesheet" href="css/sign.css" />
   </head>
 
   <body>
-    <main class="auth">
-      <!-- mountAuth() renders the sign-in / sign-up card into here. -->
-      <div id="auth-root"></div>
-    </main>
+    <div class="auth">
+      <!-- The wordmark bar. Fixed at the top of every view; the sign toggle that
+           sits beside it arrives with sounds (ISS-023), which are out of scope
+           for v1, so the bar is one word and nothing else. -->
+      <header class="auth__bar">
+        <span class="auth__word">Forecast Farm</span>
+      </header>
+
+      <!-- The painted background. `hidden` from a screen reader: it is scenery,
+           and the logo on the menu names the page already. The image itself is
+           applied from js/config/assets.js -- see MENU_BG. -->
+      <div class="auth__scene" aria-hidden="true"></div>
+
+      <!-- One view at a time is mounted here by js/auth-main.js: the menu, the
+           sign-in form, the create-account form, or the password reset flow. -->
+      <main class="auth__stage" id="auth-root"></main>
+    </div>
 
     <script type="module" src="js/auth-main.js"></script>
   </body>

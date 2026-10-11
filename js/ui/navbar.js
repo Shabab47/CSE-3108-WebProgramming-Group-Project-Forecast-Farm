@@ -1,22 +1,21 @@
 /**
- * Top bar.
+ * Navbar.
  *
- * Logo, the signed-in player, and sign-out. The location search and the action
- * buttons belong here too, but they arrive with the weather work in T-11, so the
- * bar says what is missing rather than rendering a dead input.
+ * Logo, the signed-in player, and sign-out. The location search belongs to the
+ * weather panel, not here — see ui/locationBar.js and T-11.
  */
 
 import { el, clear } from '../utils/dom.js';
 import { createLog } from '../utils/log.js';
 
-const log = createLog('topBar');
+const log = createLog('navbar');
 
 /**
  * @param {HTMLElement} root
  * @param {{ session: object, onSignOut: Function }} actions
  * @returns {{ unmount: Function }}
  */
-export function mountTopBar(root, actions) {
+export function mountNavbar(root, actions) {
   const { session, onSignOut } = actions;
   clear(root);
 
@@ -34,24 +33,13 @@ export function mountTopBar(root, actions) {
     },
   });
 
-  const card = el('div', { class: 'card topbar' }, [
-    el('a', { class: 'topbar__logo', href: 'index.html', 'aria-label': 'Forecast Farm home' }, [
-      el('span', { class: 'topbar__mark', 'aria-hidden': 'true', text: '🌾' }),
-      el('span', { class: 'topbar__name', text: 'Forecast Farm' }),
+  const card = el('div', { class: 'card navbar' }, [
+    el('a', { class: 'navbar__logo', href: 'index.html', 'aria-label': 'Forecast Farm home' }, [
+      el('span', { class: 'navbar__mark', 'aria-hidden': 'true', text: '🌾' }),
+      el('span', { class: 'navbar__name', text: 'Forecast Farm' }),
     ]),
 
-    el('div', { class: 'topbar__search' }, [
-      el('label', { class: 'visually-hidden', for: 'location-search', text: 'Search for a place' }),
-      el('input', {
-        class: 'input',
-        id: 'location-search',
-        type: 'search',
-        placeholder: 'Search a place — arrives with live weather (T-11)',
-        disabled: true,
-      }),
-    ]),
-
-    el('div', { class: 'topbar__account' }, [
+    el('div', { class: 'navbar__account' }, [
       // The farmer name is visible once authed, not only on the login card, so a
       // returning player can see at a glance which farm is open.
       el('span', {

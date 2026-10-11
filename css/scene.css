@@ -5,6 +5,7 @@
 
 .field-stage {
   position: relative;
+  aspect-ratio: 1;
   width: min(100%, var(--field-max));
   margin-inline: auto;
 }
@@ -88,7 +89,7 @@
   right: 4%;
   width: 6px;
   height: 30%;
-  border-radius: var(--radius-chip);
+  border-radius: 999px;
   background: var(--surface-sunken);
   overflow: hidden;
   pointer-events: none;

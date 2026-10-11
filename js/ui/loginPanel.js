@@ -1,5 +1,5 @@
 /**
- * The sign-in / sign-up panel.
+ * The sign-in and create-account forms, drawn on the wooden sign.
  *
  * Render and events only. Every outside call arrives through `actions`, so this
  * file has no idea what the provider is — swapping Supabase for anything else
@@ -9,28 +9,38 @@
  * turns them into sentences and neutralises the ones that would otherwise let a
  * caller discover which emails have accounts.
  *
- *   mountLoginPanel(root, actions) → { unmount() }
+ * One form per mount. The panel used to hold both forms and switch between them
+ * with a tab pair; each is now its own view on the menu page, and only the one
+ * being shown is ever in the DOM.
+ *
+ *   mountLoginPanel(root, mode, actions) → { unmount() }
+ *
+ * mode:
+ *   'signIn' | 'signUp'
  *
  * actions:
- *   currentSession()                      → session | null
- *   signIn({email, password})             → Promise<{ok:true, session}|{ok:false, reason}>
- *   signUp({email, password, farmerName}) → same
- *   signOut()                             → Promise<{ok:true}>
- *   onAuthenticated(session|null)         → route onward; null means awaiting confirmation
- *   onGuest()                             → continue without an account
- *   onForgotPassword()                    → open the reset flow
- *   notice                                → optional sentence to show on arrival
+ *   signIn({identifier, password})             → Promise<{ok:true, session}|{ok:false, reason}>
+ *   signUp({email, password, farmerName, username}) → same
+ *   signOut()                                  → Promise<{ok:true}>
+ *   onAuthenticated(session|null)              → route onward; null means awaiting confirmation
+ *   onBack()                                   → return to the menu
+ *   onSwitch(mode)                             → 'signIn' | 'signUp'
+ *   onGuest()                                  → continue without an account
+ *   onForgotPassword()                         → open the reset flow
+ *   notice                                     → optional sentence to show on arrival
  */
 
 import { clear, el, setText } from '../utils/dom.js';
 import { createLog } from '../utils/log.js';
 import { validateSignIn, validateSignUp, passwordProblems } from '../domain/authRules.js';
 import { authErrorToMessage } from './authErrors.js';
-import { RULE_TEXT, buildForms, readValues } from './loginFields.js';
+import { RULE_TEXT, readValues } from './loginFields.js';
+import { buildLoginForm } from './loginForm.js';
+import { signBoard } from './signBoard.js';
 
 const log = createLog('loginPanel');
 
-export function mountLoginPanel(root, actions) {
+export function mountLoginPanel(root, mode, actions) {
   clear(root);
 
   const message = el('p', {
@@ -47,47 +57,35 @@ export function mountLoginPanel(root, actions) {
     message.hidden = !text;
   }
 
-  const { forms, strength } = buildForms();
-  let mode = 'signIn';
+  const { view, strength } = buildLoginForm(mode, actions);
   let busy = false;
 
-  const active = () => forms[mode];
-
   function paintErrors(errors) {
-    for (const part of Object.values(active().fields)) {
+    for (const part of Object.values(view.fields)) {
       const code = errors[part.name];
       setText(part.error, code ? authErrorToMessage(code, mode) : '');
       part.input.setAttribute('aria-invalid', code ? 'true' : 'false');
     }
   }
 
-  function show(next) {
-    mode = next;
-    announce(null);
-    for (const [key, view] of Object.entries(forms)) view.node.hidden = key !== next;
-    for (const button of tabs.children) {
-      button.setAttribute('aria-selected', String(button.dataset.mode === next));
-    }
-    Object.values(forms[next].fields)[0].input.focus();
-  }
-
   /**
-   * Disables every control and marks the form busy. One flag covers both forms,
-   * so a second submit cannot get through while the first is still in flight.
+   * Disables every control and marks the form busy. One flag covers the whole
+   * form, so a second submit cannot get through while the first is in flight.
    */
   function setBusy(isBusy) {
     busy = isBusy;
-    for (const view of Object.values(forms)) {
-      view.node.setAttribute('aria-busy', String(isBusy));
-      setText(view.submit, isBusy ? 'Working…' : view.label);
-    }
-    for (const node of root.querySelectorAll('input, button')) node.disabled = isBusy;
-    guest.hidden = isBusy;
-    forgot.hidden = isBusy;
+    view.node.setAttribute('aria-busy', String(isBusy));
+    setText(view.submit, isBusy ? 'Working…' : view.label);
+    for (const node of view.node.querySelectorAll('input, button')) node.disabled = isBusy;
   }
 
-  async function handleSubmit(view, validate, action) {
+  async function handleSubmit(event) {
+    event.preventDefault();
     if (busy) return;
+
+    const isSignUp = mode === 'signUp';
+    const validate = isSignUp ? validateSignUp : validateSignIn;
+    const action = isSignUp ? actions.signUp : actions.signIn;
 
     const { ok, values, errors } = validate(readValues(Object.values(view.fields)));
     paintErrors(errors);
@@ -106,7 +104,6 @@ export function mountLoginPanel(root, actions) {
     // and issues no token, which is a success state rather than a failure. The
     // panel clears the password field before handing over, so a half-finished
     // attempt does not leave a credential sitting in the DOM.
-    const isSignUp = action === actions.signUp;
 
     let result;
     try {
@@ -138,19 +135,11 @@ export function mountLoginPanel(root, actions) {
     actions.onAuthenticated(result.session ?? null);
   }
 
-  forms.signIn.node.addEventListener('submit', (event) => {
-    event.preventDefault();
-    handleSubmit(forms.signIn, validateSignIn, actions.signIn);
-  });
+  view.node.addEventListener('submit', handleSubmit);
 
-  forms.signUp.node.addEventListener('submit', (event) => {
-    event.preventDefault();
-    handleSubmit(forms.signUp, validateSignUp, actions.signUp);
-  });
-
-  // One delegated listener covers both forms: clear a field's error the moment it
-  // is being fixed, and keep the password guidance live.
-  root.addEventListener('input', (event) => {
+  // One delegated listener for the whole form: clear a field's error the moment
+  // it is being fixed, and keep the password guidance live.
+  view.node.addEventListener('input', (event) => {
     const input = event.target;
     if (!input.matches('input')) return;
 
@@ -159,9 +148,8 @@ export function mountLoginPanel(root, actions) {
       input.setAttribute('aria-invalid', 'false');
     }
 
-    // The hint belongs to sign-up only. Both forms have a field called
-    // "password", so the test has to be which form, not which name.
-    if (forms.signUp.node.contains(input) && input.name === 'password') {
+    // The hint belongs to create-account only.
+    if (mode === 'signUp' && input.name === 'password') {
       const problems = passwordProblems(input.value);
       strength.hidden = !input.value;
       setText(
@@ -173,49 +161,16 @@ export function mountLoginPanel(root, actions) {
     }
   });
 
-  const tabs = el('div', { class: 'tabs', role: 'tablist' }, [
-    el('button', { class: 'tab', type: 'button', role: 'tab', id: 'tab-signin', text: 'Sign in', dataset: { mode: 'signIn' }, 'aria-selected': 'true', 'aria-controls': 'signin-form', on: { click: () => show('signIn') } }),
-    el('button', { class: 'tab', type: 'button', role: 'tab', id: 'tab-signup', text: 'Create account', dataset: { mode: 'signUp' }, 'aria-selected': 'false', 'aria-controls': 'signup-form', on: { click: () => show('signUp') } }),
-  ]);
-
-  const guest = el('button', {
-    class: 'btn btn--ghost btn--block',
-    type: 'button',
-    text: 'Play as guest',
-    on: { click: () => actions.onGuest() },
-  });
-
-  // Inside the sign-in form, not beside the tabs: it only makes sense to someone
-  // who cannot get past that form.
-  const forgot = el('button', {
-    class: 'btn btn--ghost btn--block',
-    type: 'button',
-    text: 'Forgot your password?',
-    on: { click: () => actions.onForgotPassword() },
-  });
-  forms.signIn.node.append(forgot);
-
   // A notice is shown as information, not as an error — the most common one being
   // "check your inbox to confirm", which is a success the player did not expect.
   if (actions.notice) announce(actions.notice, 'info');
 
-  root.append(
-    el('div', { class: 'auth__card' }, [
-      el('div', { class: 'auth__brand' }, [
-        el('div', { class: 'auth__mark', 'aria-hidden': 'true', text: '🌾' }),
-        el('h1', { class: 'auth__title', text: 'Forecast Farm' }),
-        el('p', { class: 'auth__subtitle', text: 'A farm that runs on your real weather.' }),
-      ]),
-      message,
-      tabs,
-      forms.signIn.node,
-      forms.signUp.node,
-      el('div', { class: 'auth__divider' }, [guest]),
-      el('p', { class: 'auth__note', text: 'A guest farm stays in this browser and cannot be exported.' }),
-    ]),
-  );
+  // The plank title is the form's own name, so the sign reads "Sign in" or
+  // "Create account" without this file carrying a second copy of either string.
+  root.append(signBoard({ title: view.label, children: [message, view.node] }));
 
-  show(mode);
+  // The form is the point of this view, so open on its first field.
+  Object.values(view.fields)[0].input.focus();
 
   return { unmount() { clear(root); } };
 }

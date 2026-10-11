@@ -67,6 +67,15 @@ export const ASSETS = [
   // --- Global ---
   { path: 'assets/icons/favicon.svg', name: 'Favicon', size: 376, dimensions: '', status: 'done', category: 'icon', page: 'global' },
 
+  // --- Login page (the opening menu and the auth signs) ---
+  // The background is 1.6MB as a PNG on the page every visitor lands on. WebP
+  // would cut it roughly tenfold; nobody has done it yet, and the dev server
+  // sends no caching headers, so it costs every first visit.
+  { path: 'assets/images/menu_bg.png', name: 'Menu background', size: 1706006, dimensions: '1440x1024', status: 'done', category: 'background', page: 'login' },
+  { path: 'assets/images/title.png', name: 'Game logo', size: 161990, dimensions: '1188x373', status: 'done', category: 'logo', page: 'login' },
+  { path: 'assets/fonts/LuckiestGuy-Regular.ttf', name: 'Luckiest Guy — logo, buttons, plank', size: 58324, dimensions: '', status: 'done', category: 'font', page: 'login' },
+  { path: 'assets/fonts/IrishGrover-Regular.ttf', name: 'Irish Grover — labels, body, links', size: 51544, dimensions: '', status: 'done', category: 'font', page: 'login' },
+
   // --- Sounds (out of scope for v1) ---
   { path: 'assets/sounds/notification.mp3', name: 'Notification sound', size: 0, dimensions: '', status: 'empty', category: 'sound', page: 'global' },
   { path: 'assets/sounds/rain.mp3', name: 'Rain sound', size: 0, dimensions: '', status: 'empty', category: 'sound', page: 'global' },
@@ -81,6 +90,19 @@ export const ASSETS = [
 
 /** The shop sign, used as the button that opens the shop. 1254×1254. */
 export const SHOP_IMG = 'assets/images/Shop/shop.png';
+
+/**
+ * The opening menu's painted background. 1440×1024.
+ *
+ * Set from JS rather than from `css/auth.css`, because every image path in this
+ * project lives here — see the note at the top of the file. The stylesheet gives
+ * the scene a sky colour so the gap between first paint and image decode is sky
+ * rather than white.
+ */
+export const MENU_BG = 'assets/images/menu_bg.png';
+
+/** The game logo on the opening menu, cloud and straw hat included. 1188×373. */
+export const TITLE_IMG = 'assets/images/title.png';
 
 /** The settings gear, used as the button that opens settings. 1254×1254. */
 export const SETTINGS_IMG = 'assets/images/settings/settings.png';
