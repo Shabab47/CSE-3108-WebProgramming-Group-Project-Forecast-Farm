@@ -1,43 +1,150 @@
+/* The wordmark is styled to match login.html's top bar (css/auth.css
+   `.auth__bar` / `.auth__word`). Pulling in fonts.css here loads the display
+   face (Luckiest Guy) on the game page, which index.html does not link
+   directly. check-imports.mjs scans .js only, so this @import is invisible to
+   the layering check. */
+@import url("fonts.css");
+
 .navbar {
-  display: grid;
-  grid-template-columns: auto 1fr;
+  display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 16px;
-  height: 40px;
-  padding: 0 8px;
+  height: 76px;
+  padding: 0 24px;
+  background: #ffffff;
+  box-shadow: 0 3px 0 rgba(43, 26, 12, 0.12);
+
+  /* The game shell (.app) pads 16px around every panel; the bar cancels it so
+     it runs full-bleed to the top and side edges, like login.html's .auth__bar.
+     The grid's 16px gap is preserved below, between the bar and the content. */
+  margin: -16px -16px 0;
 }
 
 .navbar__logo {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
   color: inherit;
-  font-weight: 650;
-  letter-spacing: -0.01em;
   text-decoration: none;
 }
 
-.navbar__mark {
-  font-size: 20px;
+/* Mirrors `.auth__word`. Uppercased here so the source text stays title-case,
+   exactly like the login page. */
+.navbar__word {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
   line-height: 1;
+  color: #1a8f16;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+}
+
+.navbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .navbar__account {
   display: flex;
   align-items: center;
-  justify-self: end;
   gap: 8px;
 }
 
-.navbar__account .badge {
+.navbar__account-name {
   max-width: 160px;
   overflow: hidden;
-  text-overflow: ellipsis;
+  color: #5d6a61;
+  font-size: 0.875rem;
+  font-weight: 500;
   white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
-@media (max-width: 900px) {
+/* The bar is always white (it mirrors login.html's bar), so the name must use a
+   fixed dark colour, not `--text` — in dark theme `--text` is near-white and
+   would vanish against the white bar. These are the light theme's text colours,
+   which is the look the white bar already matches. */
+.navbar__actions > .navbar__account-name {
+  color: #1f2721;
+  font-weight: 600;
+}
+
+/* Inline Lucide icon wrapper inside a tile. */
+.navbar__tile-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.navbar__tile-icon svg {
+  display: block;
+  width: 20px;
+  height: 20px;
+}
+
+/* Square icon tiles: sound, settings, account. */
+.navbar__tile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 1.15rem;
+  line-height: 1;
+  text-decoration: none;
+}
+
+/* Only the settings tile is a real link, so only it reacts to hover. */
+a.navbar__tile {
+  cursor: pointer;
+  transition: background var(--speed) var(--ease);
+}
+
+a.navbar__tile:hover {
+  background: var(--surface-sunken);
+}
+
+.navbar__btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background var(--speed) var(--ease);
+}
+
+.navbar__btn:hover {
+  background: var(--surface-sunken);
+}
+
+/* Mirrors `.auth__bar`'s 600px rule. The farmer name drops out first so the
+   tiles and sign-out still fit. */
+@media (max-width: 600px) {
   .navbar {
-    grid-template-columns: minmax(0, 1fr) auto;
+    height: 60px;
+    padding: 0 16px;
+  }
+
+  .navbar__word {
+    font-size: 1.15rem;
+  }
+
+  .navbar__actions {
+    gap: 8px;
+  }
+
+  .navbar__account-name {
+    display: none;
   }
 }

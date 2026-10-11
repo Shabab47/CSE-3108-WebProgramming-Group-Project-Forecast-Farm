@@ -9,9 +9,10 @@
  * party between the player and the page. The TTF files are ~55KB and ~50KB, and
  * `swap` means text is readable in the fallback while they decode.
  *
- * Only `login.html` links this file. The farm, shop and settings pages do not,
- * so `--font-display` and `--font-ui` fall through to `--font-sans` there and
- * nothing about those pages changes.
+ * `login.html` links this file directly. The game page (`index.html`) does not
+ * link it, but `css/navbar.css` `@import`s it so the navbar wordmark uses the
+ * display face; the shop and settings pages still fall through to `--font-sans`
+ * and are unaffected.
  */
 
 @font-face {
