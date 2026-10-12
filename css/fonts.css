@@ -9,10 +9,23 @@
  * party between the player and the page. The TTF files are ~55KB and ~50KB, and
  * `swap` means text is readable in the fallback while they decode.
  *
- * `login.html` links this file directly. The game page (`index.html`) does not
- * link it, but `css/navbar.css` `@import`s it so the navbar wordmark uses the
- * display face; the shop and settings pages still fall through to `--font-sans`
- * and are unaffected.
+ * `login.html` links this file directly, and so does `settings.html` — which is what
+ * makes `--font-ui` mean anything there, since the three rules in `css/settings.css` that
+ * ask for it are otherwise silently falling through to `--font-sans`. The game page
+ * (`index.html`) does not link it, but `css/navbar.css` `@import`s it so the navbar
+ * wordmark uses the display face.
+ *
+ * **`shop.html` still loads neither**, so `--font-ui` and `--font-display` fall through to
+ * `--font-sans` there. That is the last page with this gap, and it is invisible until
+ * someone looks for it: a custom property naming a family with no `@font-face` behind it
+ * is not an error, it just quietly uses the fallback. `css/` is split per component now,
+ * so adding a rule that names a face means adding the `<link>` on every page that uses it.
+ *
+ * Both faces are declared at `font-weight: 400` only, and there is no bold cut to fall
+ * back on. Per CSS Fonts 4 font matching, a desired weight above 500 that has no near
+ * match resolves to the **nearest available face** rather than a synthesised one — so a
+ * rule asking for `700` simply renders at 400 and is not bolder. Nothing is faked, and
+ * nothing errors; the heading just quietly is not what it asked to be.
  */
 
 @font-face {

@@ -19,6 +19,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { afterEach, beforeEach, test } from 'node:test';
 
 import { closestWith, installDom, uninstallDom, visibleText } from './helpers/fakeDom.js';
+import { appendAll, el } from '../js/utils/dom.js';
 import { mountSettings } from '../js/ui/settingsView.js';
 
 const SESSION = {
@@ -48,6 +49,26 @@ function passwordField(root, id) {
   const input = root.querySelector(`#${id}`);
   assert.ok(input, `no password field #${id}`);
   return input;
+}
+
+/**
+ * The Save data card's callbacks.
+ *
+ * Every call site needs these. The card is rendered unconditionally (ISS-051) and
+ * `savePanel.js` calls `actions.canExport()` at mount time — before the player has
+ * touched anything — so a mount without them throws rather than merely rendering an empty
+ * card. That is a deliberate change from the old gating, where a missing `canExport`
+ * silently skipped the whole card and the tests never exercised a line of it.
+ */
+function saveActions(overrides = {}) {
+  return {
+    canExport: () => true,
+    now: () => 1_700_000_000_000,
+    exportPayload: () => ({ ok: true, text: 'FFARM/1\n{}', filename: 'forecast-farm.farm' }),
+    readImport: () => ({ ok: false, reason: 'file_not_a_save' }),
+    adoptState: () => ({ ok: false, reason: 'store_not_initialised' }),
+    ...overrides,
+  };
 }
 
 /**
@@ -97,6 +118,7 @@ async function runAction({ work, trigger, confirm, fieldId, password = 'rice2026
     requestAccountDeletion: watch,
     toast: () => {},
     backHref: 'index.html',
+    ...saveActions(),
   });
 
   await button(root, trigger).click();
@@ -189,6 +211,13 @@ test('a wrong password is reported under the field, in the right card', async ()
 test('the two cards do not share a status line', async () => {
   // Structural, and the thing that let the original bug in: one node reused by two
   // actions cannot report two actions at once, and arming one clears the other's words.
+  //
+  // Counted *per card*, not across the page. Counting the whole page made this a hostage
+  // to every other panel: the Save data card added a third `role="status"` node of its own
+  // when it started rendering (ISS-051), and the assertion failed on a page that was correct.
+  // A screen reader announces a change in the region it happened in, so what matters is
+  // that each destructive action reports into its own card — not how many regions the
+  // settings page ends up with.
   const root = installDom();
   mountSettings(root, {
     session: SESSION,
@@ -196,14 +225,25 @@ test('the two cards do not share a status line', async () => {
     requestAccountDeletion: async () => ({ ok: true }),
     toast: () => {},
     backHref: 'index.html',
+    ...saveActions(),
   });
 
-  const liveRegions = root.querySelectorAll('p').filter((p) => p.getAttribute('role') === 'status');
-  assert.equal(
-    liveRegions.length,
-    2,
-    'one polite live region per destructive action, not one for the page',
-  );
+  const isLiveRegion = (node) => node.getAttribute('role') === 'status';
+
+  for (const title of ['Erase progress', 'Delete account']) {
+    const card = cardTitled(root, title);
+    const regions = [...card.descendants()].filter(isLiveRegion);
+    assert.equal(
+      regions.length,
+      1,
+      `"${title}" has ${regions.length} live regions; one node cannot report two actions at once`,
+    );
+  }
+
+  // And they are genuinely different nodes, not one reached two ways.
+  const [progressRegion] = [...cardTitled(root, 'Erase progress').descendants()].filter(isLiveRegion);
+  const [accountRegion] = [...cardTitled(root, 'Delete account').descendants()].filter(isLiveRegion);
+  assert.notEqual(progressRegion, accountRegion, 'the two cards do not share one node');
 });
 
 test('arming one action does not clear the other card status', async () => {
@@ -215,6 +255,7 @@ test('arming one action does not clear the other card status', async () => {
     requestAccountDeletion: async () => ({ ok: true }),
     toast: () => {},
     backHref: 'index.html',
+    ...saveActions(),
   });
 
   await button(root, 'Erase all progress').click();
@@ -246,6 +287,7 @@ test('the password field is hidden until the action is armed', async () => {
     requestAccountDeletion: async () => ({ ok: true }),
     toast: () => {},
     backHref: 'index.html',
+    ...saveActions(),
   });
 
   assert.equal(passwordField(root, 'settings-erase-password').hidden, false, 'the field itself is built');
@@ -269,6 +311,7 @@ test('the field takes focus when armed, not the confirm button', async () => {
     requestAccountDeletion: async () => ({ ok: true }),
     toast: () => {},
     backHref: 'index.html',
+    ...saveActions(),
   });
 
   await button(root, 'Delete my account').click();
@@ -299,6 +342,7 @@ test('cancelling hides the field and empties it', async () => {
     requestAccountDeletion: async () => ({ ok: true }),
     toast: () => {},
     backHref: 'index.html',
+    ...saveActions(),
   });
 
   await button(root, 'Erase all progress').click();
@@ -319,6 +363,7 @@ test('an empty password is refused without calling the work', async () => {
     requestAccountDeletion: async () => ({ ok: true }),
     toast: () => {},
     backHref: 'index.html',
+    ...saveActions(),
   });
 
   await button(root, 'Erase all progress').click();
@@ -378,6 +423,7 @@ test('every styled class the settings page renders is styled by a file it loads'
     requestAccountDeletion: async () => ({ ok: true }),
     toast: () => {},
     backHref: 'index.html',
+    ...saveActions(),
   });
 
   // Arm both actions so the revealed gates and their error nodes exist too.
@@ -425,6 +471,134 @@ test('the status line says something in every tone the panel uses', async () => 
   }
 });
 
+/* --- no leaked values ------------------------------------------------------- */
+
+test('appendAll skips null children, and a bare append does not', async () => {
+  // The two halves of ISS-052, pinned so nobody "simplifies" the fix away. `appendAll`
+  // exists because `node.append(null)` and `el('div', {}, [null])` behave differently,
+  // and the fake DOM now reproduces that difference on purpose.
+  const root = installDom();
+
+  appendAll(root, el('p', { text: 'kept' }), null, undefined, false, 'also kept');
+
+  assert.deepEqual(
+    visibleText(root),
+    ['kept', 'also kept'],
+    'appendAll must drop null, undefined and false',
+  );
+
+  const bare = installDom();
+  bare.append(null);
+
+  assert.deepEqual(
+    visibleText(bare),
+    ['null'],
+    'precondition: the bare append still stringifies null, as the browser does',
+  );
+});
+
+test('a guest is not shown the word "null"', async () => {
+  // The regression, ISS-052. `mountSettings` ended with the *native* `root.append(...)`,
+  // whose signature is `(Node or DOMString)` — so `account ? el(...) : null`, null for
+  // every guest, was stringified into a text node and rendered between the two cards.
+  //
+  // This passed against a visibly broken page for as long as the guest existed, because
+  // `fakeDom.append()` skipped null where the browser does not. That divergence was the
+  // real defect: a test double that is laxer than the thing it stands in for hides the
+  // bug it exists to find.
+  const root = installDom();
+  mountSettings(root, {
+    session: { status: 'guest', farmerName: 'Guest' },
+    deleteProgress: async () => ({ ok: true }),
+    requestAccountDeletion: async () => ({ ok: true }),
+    toast: () => {},
+    backHref: 'index.html',
+    ...saveActions({ canExport: () => false }),
+  });
+
+  const leaked = visibleText(root).filter((text) => /^(null|undefined|false)$/.test(text.trim()));
+  assert.deepEqual(leaked, [], `a conditional child reached append(): ${leaked.join(' | ')}`);
+});
+
+test('an authed player is not shown it either', async () => {
+  // The same call with an account present, so this cannot pass by the guest branch
+  // simply not running.
+  const root = installDom();
+  mountSettings(root, {
+    session: SESSION,
+    deleteProgress: async () => ({ ok: true }),
+    requestAccountDeletion: async () => ({ ok: true }),
+    toast: () => {},
+    backHref: 'index.html',
+    ...saveActions(),
+  });
+
+  const leaked = visibleText(root).filter((text) => /^(null|undefined|false)$/.test(text.trim()));
+  assert.deepEqual(leaked, [], `a conditional child reached append(): ${leaked.join(' | ')}`);
+});
+
+/* --- the Save data card ------------------------------------------------------ */
+
+test('the Save data card mounts the import/export controls', async () => {
+  // The regression, ISS-051. `mountSavePanel` returns `{ unmount }` rather than a node, and
+  // passing that straight into `el()` stringified it: the card rendered the text
+  // `[object Object]` and the panel itself was mounted into a detached `<div>` that never
+  // reached the page. Reading the code showed a save panel wired into the settings page.
+  // Only looking at the page showed that there was nothing there to press.
+  const root = installDom();
+  mountSettings(root, {
+    session: SESSION,
+    deleteProgress: async () => ({ ok: true }),
+    requestAccountDeletion: async () => ({ ok: true }),
+    toast: () => {},
+    backHref: 'index.html',
+    ...saveActions(),
+  });
+
+  assert.ok(root.querySelector('#import-file'), 'the file input is in the page');
+  assert.ok(
+    root.querySelectorAll('button').some((b) => b.textContent === 'Export my farm'),
+    `no Export button. Present: ${root.querySelectorAll('button').map((b) => b.textContent).join(' | ')}`,
+  );
+});
+
+test('nothing on the page renders as a stringified mount result', async () => {
+  // The symptom, pinned on its own so a future refactor reports *what* broke. Any panel
+  // whose `mountX()` return value reaches `el()` as a child lands here as this string.
+  const root = installDom();
+  mountSettings(root, {
+    session: SESSION,
+    deleteProgress: async () => ({ ok: true }),
+    requestAccountDeletion: async () => ({ ok: true }),
+    toast: () => {},
+    backHref: 'index.html',
+    ...saveActions(),
+  });
+
+  const leaked = visibleText(root).filter((text) => text.includes('[object'));
+  assert.deepEqual(leaked, [], `a mount result was stringified into the page: ${leaked.join(' | ')}`);
+});
+
+test('the save card is inside the Save data card, not loose on the page', async () => {
+  // Mounting into a detached div and forgetting to embed it is a different bug with the
+  // same cause, and it is invisible unless something asserts the panel is *in* the card.
+  const root = installDom();
+  mountSettings(root, {
+    session: SESSION,
+    deleteProgress: async () => ({ ok: true }),
+    requestAccountDeletion: async () => ({ ok: true }),
+    toast: () => {},
+    backHref: 'index.html',
+    ...saveActions(),
+  });
+
+  assert.ok(root.querySelector('#import-file'), 'precondition: the file input exists');
+  assert.ok(
+    closestWith(root.querySelector('#import-file'), 'card'),
+    'the file input is not inside any card, so the Save data card did not take it',
+  );
+});
+
 /* --- guests ----------------------------------------------------------------- */
 
 test('a guest is shown no password field for either action', async () => {
@@ -435,6 +609,9 @@ test('a guest is shown no password field for either action', async () => {
     requestAccountDeletion: async () => ({ ok: true }),
     toast: () => {},
     backHref: 'index.html',
+    // A guest farm has no account to attach a file to, which is the one thing `canExport`
+    // decides. Mirrors `settingsActions()` in `js/settings-main.js`.
+    ...saveActions({ canExport: () => false }),
   });
 
   // No credential exists to collect, so no field: a field nothing reads is worse than
@@ -444,6 +621,30 @@ test('a guest is shown no password field for either action', async () => {
 
   // And no account card at all — there is no account to delete.
   assert.equal(root.querySelectorAll('span').some((n) => n.textContent === 'Delete account'), false);
+});
+
+test('a guest gets the Save data card and an explanation, not an empty space', async () => {
+  // The card is deliberately not gated on `canExport` (ISS-051). It never really was — the
+  // old check tested the function rather than calling it, so it was always truthy — but the
+  // code read as a guest gate and would have become one the moment someone "fixed" it.
+  //
+  // Shown rather than hidden is the better of the two: a guest cannot export, and
+  // `savePanel.js` says exactly why in the place where the button would have been. A
+  // missing card leaves the player wondering whether the feature exists at all.
+  const root = installDom();
+  mountSettings(root, {
+    session: { status: 'guest', farmerName: 'Guest' },
+    deleteProgress: async () => ({ ok: true }),
+    requestAccountDeletion: async () => ({ ok: true }),
+    toast: () => {},
+    backHref: 'index.html',
+    ...saveActions({ canExport: () => false }),
+  });
+
+  assert.ok(root.querySelector('#import-file'), 'the import half is still there');
+
+  const note = visibleText(root).find((text) => text.includes('cannot be exported'));
+  assert.ok(note, `a guest is told why export is unavailable. Saw: ${JSON.stringify(visibleText(root))}`);
 });
 
 /* --- success ---------------------------------------------------------------- */
@@ -457,6 +658,7 @@ test('a successful erase says so and offers a toast', async () => {
     requestAccountDeletion: async () => ({ ok: true }),
     toast: (message, tone) => toasts.push({ message, tone }),
     backHref: 'index.html',
+    ...saveActions(),
   });
 
   await button(root, 'Erase all progress').click();
@@ -480,6 +682,7 @@ test('a successful deletion hands off to the login page', async () => {
     requestAccountDeletion: async () => ({ ok: true }),
     toast: () => {},
     backHref: 'index.html',
+    ...saveActions(),
   });
 
   await button(root, 'Delete my account').click();
@@ -502,6 +705,7 @@ test('the busy label replaces the confirm label while in flight', async () => {
     requestAccountDeletion: async () => ({ ok: true }),
     toast: () => {},
     backHref: 'index.html',
+    ...saveActions(),
   });
 
   await button(root, 'Erase all progress').click();

@@ -220,8 +220,8 @@ have not signed into**, and a guest can still play without an account.
 | Sign in, register, guest play | **Email or username** and password, or play without an account |
 | The farm is kept per account | Two people on one machine do not share a farm |
 | Save and restore | Progress survives a reload and a closed tab |
-| **Export your farm** | Writes a `.farm` file you can keep or move to another computer |
-| **Import a farm** | Reads one back, with a confirmation before it replaces anything |
+| **Export your farm** | Settings page. Writes a `.farm` file you can keep or move to another computer |
+| **Import a farm** | Settings page. Reads one back, with a confirmation before it replaces anything |
 | Password reset | Live — needs the redirect URL set in the Supabase dashboard, see above |
 | Buy seeds | The shop, in its own page. Gold is deducted and the save is written immediately |
 | **Erase all progress** | Settings page. Two clicks **and** the password. Starts a brand new farm under the same account |
