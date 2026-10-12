@@ -1,14 +1,15 @@
 /**
- * The "Account" card on the settings page: who is signed in, and what that means.
+ * The "Account" card: who is signed in, and what that means.
  *
- * Split out of `settingsView.js` for the reason every file here is split out — that one
- * went over the ~200-line budget once both destructive actions landed, and this is the
- * cleanest seam in it: a card with no behaviour, which is the first thing a reader wants
- * to skim past.
+ * Lives on the profile page. It used to sit on the settings page, which put the
+ * one card that answers "whose farm am I playing" underneath two destructive
+ * actions — the account card is not a setting, and reaching it should not require
+ * walking past erase-progress and delete-account.
  *
- * It knows about the session shape and nothing else. No store, no provider, no actions —
- * the guest case is decided from the session's own status, because "is there an account
- * here" is a fact about the session rather than a question for someone else.
+ * It knows about the session shape and nothing else. No store, no provider, no
+ * actions — the guest case is decided from the session's own status, because
+ * "is there an account here" is a fact about the session rather than a question
+ * for someone else.
  */
 
 import { el } from '../utils/dom.js';
@@ -16,9 +17,9 @@ import { el } from '../utils/dom.js';
 /** One `key: value` line, or nothing when the value is empty. */
 function row(key, value) {
   if (!value) return null;
-  return el('p', { class: 'settings-accounts__row' }, [
-    el('span', { class: 'settings-accounts__key', text: `${key}:` }),
-    el('span', { class: 'settings-accounts__value', text: value }),
+  return el('p', { class: 'account-list__row' }, [
+    el('span', { class: 'account-list__key', text: `${key}:` }),
+    el('span', { class: 'account-list__value', text: value }),
   ]);
 }
 
@@ -34,7 +35,7 @@ export function accountCard(session) {
     el('div', { class: 'card__body' }, [
       // `.filter(Boolean)` drops the rows a guest cannot have, so there is never a
       // "Username:" label sitting next to nothing.
-      el('dl', { class: 'settings-accounts' }, [
+      el('dl', { class: 'account-list' }, [
         row('Farmer', session?.farmerName),
         row('Username', session?.username),
         row('Email', session?.email),

@@ -2,8 +2,26 @@
 import { describeWeatherCode, windCompass } from '../domain/weather.js';
 import { weatherGlyph } from './weatherGlyph.js';
 
+/** How many hours the strip shows. Six reads as a trend and stays short. */
+const HOURS_SHOWN = 6;
+
 /**
  * The weather panel.
+ *
+ * ## What is on the card
+ *
+ * Current conditions, the three numbers a farmer actually acts on, and the next
+ * few hours. There is no curve and no weekly row: the shell fits one screen and
+ * the field is what has to fit in it.
+ *
+ * ## Why the strip starts at index 0
+ *
+ * `weatherApi.js` sends `forecast_hours=24`, which makes Open-Meteo start the
+ * hourly series at the **current hour** — verified live across four timezones,
+ * where `hourly.time[0]` matched the current hour every time. ISS-009 claimed
+ * index 0 was local midnight and had a loop seek forward to the present hour;
+ * that premise only held before `forecast_hours` was sent, and seeking forward
+ * actually made it worse, skipping the hour in progress. Relogged as stale.
  *
  * ## Showing a paused forecast
  *
@@ -25,8 +43,7 @@ export function mountWeatherPanel(root, state, now = () => Date.now()) {
   const card = el('div', { class: 'weather' }, [
     el('div', { class: 'weather__top' }),
     el('div', { class: 'weather__stats' }),
-    el('div', { class: 'weather__graph' }),
-    el('div', { class: 'weather__forecast' }),
+    el('div', { class: 'weather__hours' }),
     el('p', { class: 'weather__updated' }),
   ]);
 
@@ -34,15 +51,13 @@ export function mountWeatherPanel(root, state, now = () => Date.now()) {
 
   const topEl = card.querySelector('.weather__top');
   const statsEl = card.querySelector('.weather__stats');
-  const graphEl = card.querySelector('.weather__graph');
-  const forecastEl = card.querySelector('.weather__forecast');
+  const hoursEl = card.querySelector('.weather__hours');
   const updatedEl = card.querySelector('.weather__updated');
 
   renderLocation(state?.location);
   renderTop(state?.weather);
   renderStats(state?.weather);
-  renderGraph(state?.weather);
-  renderForecast(state?.weather);
+  renderHours(state?.weather);
   renderUpdated(state?.weather, state);
 
   function renderLocation(location) {
@@ -70,16 +85,20 @@ export function mountWeatherPanel(root, state, now = () => Date.now()) {
 
     const left = el('div', { class: 'weather__now' }, [
       weatherGlyph(iconName, 'weather__now-icon'),
-      el('p', { class: 'weather__temp' }, [
-        el('span', { class: 'weather__temp-value', text: formatTemp(current.temperature) }),
-        el('span', { class: 'weather__temp-unit', text: '°C' }),
-      ]),
+      el('div', { class: 'weather__now-text' }, [
+        el('p', { class: 'weather__temp' }, [
+          el('span', { class: 'weather__temp-value', text: formatTemp(current.temperature) }),
+          el('span', { class: 'weather__temp-unit', text: '°C' }),
+        ]),
+        el('p', { class: 'weather__desc', text: info.label }),
+        current.feelsLike != null
+          ? el('p', { class: 'weather__feels', text: `Feels like ${formatTemp(current.feelsLike)}` })
+          : null,
+      ].filter(Boolean)),
     ]);
 
     const right = el('div', { class: 'weather__meta' }, [
-      el('span', { class: 'weather__meta-label', text: 'Weather' }),
       el('span', { class: 'weather__meta-time', text: formatDayTime(current.time) }),
-      el('span', { class: 'weather__meta-cond', text: info.label }),
     ]);
 
     topEl.append(left, right);
@@ -90,151 +109,46 @@ export function mountWeatherPanel(root, state, now = () => Date.now()) {
     if (!current) return;
 
     const compass = windCompass(current.windDirection);
+    const chance = currentRainChance(weather);
 
     statsEl.append(
-      stat('Precipitation', `${Math.round(weather.hourly?.precipitationProbability?.[0] ?? 0)}%`),
       stat('Humidity', `${Math.round(current.humidity)}%`),
       stat('Wind', `${Math.round(current.windSpeed)} km/h${compass ? ` ${compass}` : ''}`),
+      // "Rain chance", not "Precipitation": this is `precipitation_probability` —
+      // the odds it rains this hour. "Precipitation" names the amount in mm, which is
+      // a different field (`current.precipitation`) and reads 0 almost always. The
+      // probability is the number that tells a player whether to water, so the
+      // label says what it is rather than what the API field is called.
+      stat('Rain chance', chance == null ? '—' : `${Math.round(chance)}%`),
     );
   }
 
-  function renderGraph(weather) {
-    const hourly = weather?.hourly;
-    if (!hourly?.time?.length || !hourly.temperature?.length) return;
-
-    const temps = hourly.temperature;
-    const times = hourly.time;
-    const n = Math.min(temps.length, 24);
-
-    const min = Math.min(...temps.slice(0, n));
-    const max = Math.max(...temps.slice(0, n));
-    const range = max - min || 1;
-
-    const W = 600;
-    const H = 180;
-    const PAD_L = 40;
-    const PAD_R = 16;
-    const PAD_T = 16;
-    const PAD_B = 32;
-    const IW = W - PAD_L - PAD_R;
-    const IH = H - PAD_T - PAD_B;
-
-    const x = i => PAD_L + (i / (n - 1)) * IW;
-    const y = t => PAD_T + IH - ((t - min) / range) * IH;
-
-    const points = temps.slice(0, n).map((t, i) => `${x(i)},${y(t)}`).join(' ');
-
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.setAttribute('class', 'weather-graph');
-    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-    svg.setAttribute('preserveAspectRatio', 'none');
-
-    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-    defs.innerHTML = `
-      <linearGradient id="wg-fill" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#f7b733" stop-opacity="0.25"/>
-        <stop offset="100%" stop-color="#f7b733" stop-opacity="0"/>
-      </linearGradient>
-    `;
-    svg.appendChild(defs);
-
-    const area = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-    area.setAttribute('points', `${PAD_L},${PAD_T + IH} ${points} ${PAD_L + IW},${PAD_T + IH}`);
-    area.setAttribute('fill', 'url(#wg-fill)');
-    svg.appendChild(area);
-
-    const line = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
-    line.setAttribute('points', points);
-    line.setAttribute('fill', 'none');
-    line.setAttribute('stroke', '#f7b733');
-    line.setAttribute('stroke-width', '2.5');
-    line.setAttribute('stroke-linejoin', 'round');
-    line.setAttribute('stroke-linecap', 'round');
-    svg.appendChild(line);
-
-    const yMinLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    yMinLabel.setAttribute('x', PAD_L - 8);
-    yMinLabel.setAttribute('y', y(min) + 4);
-    yMinLabel.setAttribute('text-anchor', 'end');
-    yMinLabel.setAttribute('fill', '#8892a0');
-    yMinLabel.setAttribute('font-size', '11');
-    yMinLabel.textContent = `${Math.round(min)}°`;
-    svg.appendChild(yMinLabel);
-
-    const yMaxLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    yMaxLabel.setAttribute('x', PAD_L - 8);
-    yMaxLabel.setAttribute('y', y(max) + 4);
-    yMaxLabel.setAttribute('text-anchor', 'end');
-    yMaxLabel.setAttribute('fill', '#8892a0');
-    yMaxLabel.setAttribute('font-size', '11');
-    yMaxLabel.textContent = `${Math.round(max)}°`;
-    svg.appendChild(yMaxLabel);
-
-    const labelEvery = Math.ceil(n / 8);
-    for (let i = 0; i < n; i++) {
-      if (i % labelEvery !== 0 && i !== n - 1) continue;
-      const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      label.setAttribute('x', x(i));
-      label.setAttribute('y', H - 8);
-      label.setAttribute('text-anchor', 'middle');
-      label.setAttribute('fill', '#8892a0');
-      label.setAttribute('font-size', '11');
-      label.textContent = formatHourShort(times[i]);
-      svg.appendChild(label);
-
-      const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-      dot.setAttribute('cx', x(i));
-      dot.setAttribute('cy', y(temps[i]));
-      dot.setAttribute('r', '3');
-      dot.setAttribute('fill', '#f7b733');
-      svg.appendChild(dot);
-    }
-
-    graphEl.append(svg);
-  }
-
-  function renderForecast(weather) {
+  function renderHours(weather) {
     const hourly = weather?.hourly;
     if (!hourly?.time?.length) return;
 
-    const byDay = new Map();
-    for (let i = 0; i < hourly.time.length; i++) {
-      const d = new Date(hourly.time[i]);
-      if (Number.isNaN(d.getTime())) continue;
-      const key = d.toDateString();
-      if (!byDay.has(key)) byDay.set(key, []);
-      byDay.get(key).push({
-        temp: hourly.temperature[i],
-        code: hourly.weatherCode[i],
-      });
-    }
+    const strip = el('div', { class: 'hours' });
 
-    const days = [...byDay.entries()].slice(0, 7);
-    if (!days.length) return;
+    // From index 0: `forecast_hours=24` means the series starts at the current
+    // hour, so slot 0 is the hour in progress rather than midnight. See the note
+    // on `currentRainChance` and the relogged ISS-009.
+    for (let i = 0; i < Math.min(HOURS_SHOWN, hourly.time.length); i += 1) {
+      const info = describeWeatherCode(hourly.weatherCode?.[i]);
+      const chance = hourly.precipitationProbability?.[i];
 
-    const row = el('div', { class: 'weather-forecast' });
-
-    for (const [dateStr, entries] of days) {
-      const d = new Date(dateStr);
-      const temps = entries.map(e => e.temp).filter(t => t != null);
-      const tMin = temps.length ? Math.min(...temps) : null;
-      const tMax = temps.length ? Math.max(...temps) : null;
-      const midCode = entries[Math.floor(entries.length / 2)]?.code ?? 0;
-      const info = describeWeatherCode(midCode);
-
-      row.append(
-        el('div', { class: 'weather-forecast__day' }, [
-          el('span', { class: 'weather-forecast__name', text: formatDayName(d) }),
-          weatherGlyph(info.icon, 'weather-forecast__icon'),
-          el('span', { class: 'weather-forecast__temps' }, [
-            el('span', { class: 'weather-forecast__max', text: tMax != null ? `${Math.round(tMax)}°` : '—' }),
-            el('span', { class: 'weather-forecast__min', text: tMin != null ? `${Math.round(tMin)}°` : '—' }),
-          ]),
-        ]),
+      strip.append(
+        el('div', { class: 'hours__slot', title: info.label }, [
+          el('span', { class: 'hours__time', text: formatHourShort(hourly.time[i]) }),
+          weatherGlyph(info.icon, 'hours__icon'),
+          el('span', { class: 'hours__temp', text: formatTemp(hourly.temperature?.[i]) }),
+          chance >= 20
+            ? el('span', { class: 'hours__rain', text: `${Math.round(chance)}%` })
+            : null,
+        ].filter(Boolean)),
       );
     }
 
-    forecastEl.append(row);
+    hoursEl.append(strip);
   }
 
   /**
@@ -273,6 +187,24 @@ export function mountWeatherPanel(root, state, now = () => Date.now()) {
   };
 }
 
+/**
+ * Chance of rain in the current hour.
+ *
+ * Index 0, because `weatherApi.js` sends `forecast_hours=24` and that makes
+ * Open-Meteo start the hourly series at the current hour. `current.time` carries
+ * the minutes past the hour (`01:15`) and never appears in `hourly.time`, so it
+ * cannot be looked up directly — and matching it would land on the *next* hour,
+ * skipping the one the player is standing in. ISS-009 said index 0 is midnight:
+ * true only before `forecast_hours` was sent, and relogged as stale.
+ */
+function currentRainChance(weather) {
+  const hourly = weather?.hourly;
+  if (!hourly?.time?.length) return null;
+
+  const chance = hourly.precipitationProbability?.[0];
+  return typeof chance === 'number' ? chance : null;
+}
+
 function formatTemp(value) {
   return value == null || Number.isNaN(value) ? '—' : `${Math.round(value)}°`;
 }
@@ -281,10 +213,6 @@ function formatHourShort(iso) {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return '';
   return date.toLocaleTimeString([], { hour: 'numeric' });
-}
-
-function formatDayName(date) {
-  return date.toLocaleDateString([], { weekday: 'short' });
 }
 
 function formatDayTime(iso) {

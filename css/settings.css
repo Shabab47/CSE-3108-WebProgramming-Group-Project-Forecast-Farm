@@ -125,29 +125,3 @@
   flex-direction: column;
   gap: 8px;
 }
-
-/* The account lines read as a list of facts rather than as paragraphs. */
-.settings-accounts {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin: 0;
-}
-
-.settings-accounts__row {
-  display: flex;
-  gap: 8px;
-  font-family: var(--font-ui);
-  font-size: var(--text-sm);
-  margin: 0;
-}
-
-.settings-accounts__key {
-  color: var(--text-muted);
-  min-width: 90px;
-}
-
-.settings-accounts__value {
-  color: var(--text);
-  overflow-wrap: anywhere;
-}

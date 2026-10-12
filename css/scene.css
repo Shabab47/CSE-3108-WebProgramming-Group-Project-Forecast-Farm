@@ -3,10 +3,20 @@
   color: var(--text-faint);
 }
 
+/* Sized off the available HEIGHT, not the width.
+ *
+ * `width: min(100%, --field-max)` with `aspect-ratio: 1` makes the square's
+ * height follow its width, so a wide-but-short viewport produces a tall square
+ * that overflows the screen. `height: 100%` + `width: auto` inverts that: the
+ * browser derives the width from the height the farm card has left over, so the
+ * field shrinks to fit and stays square. `max-width: 100%` covers the opposite
+ * case, a narrow phone where the height-derived width is still too wide. */
 .field-stage {
   position: relative;
   aspect-ratio: 1;
-  width: min(100%, var(--field-max));
+  height: 100%;
+  width: auto;
+  max-width: 100%;
   margin-inline: auto;
 }
 
