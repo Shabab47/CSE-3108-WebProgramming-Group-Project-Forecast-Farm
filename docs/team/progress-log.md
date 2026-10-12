@@ -41,6 +41,55 @@ The per-person weekly notes that used to live in the README table are now in `me
   delete a record of merged, tested code. **Decide before the next review.**
 - **No code touched.** `npm run check` clean, `npm test` 280/280.
 
+## Losing the network no longer signs the player out — Hisham
+
+- **Did:** Fixed the hosted build logging players out at random. Three separate defects, in
+  `gotrue.js`, `authApi.js` and `main.js`, all feeding the same symptom. The farm also now tells
+  the player when it cannot reach the server, instead of failing silently.
+- **Root cause 1 (ISS-049):** `gotrue.post()` had no `AbortController`, so a hung request sat
+  there until the 15 s race in `restoreSession()` fired and reported a logout that had not
+  happened. Every other module in the project already had a deadline; this one was missed.
+- **Root cause 2 (ISS-048):** `restore()` called `writeRefreshToken(null)` on *any* failed
+  refresh, and `gotrue.post()` returns `{ok:false}` for every non-2xx. A 502 from a proxy
+  therefore **deleted the stored refresh token** and redirected to the login page — permanently,
+  because the token was gone and silent re-login could never work again. The player had to retype
+  a password for a session that was never invalid.
+- **Root cause 3:** `resolveSession()` answered `session | null`, which made "invalid token",
+  "no network" and "server broken" indistinguishable, and every caller read it as the first.
+- **Touched:** `js/services/gotrue.js`, `js/services/authApi.js`, `js/main.js`, `js/state/store.js`,
+  `js/ui/weatherPanel.js`, `js/auth-main.js`, `js/shop-main.js`, `js/settings-main.js`,
+  `js/config/game.js`, `index.html`, `shop.html`, `settings.html`, `css/components.css`.
+- **New:** `js/connection.js` (banner + retry wiring for all four pages), `js/ui/blockedScreen.js`,
+  `js/ui/connectionBanner.js`, `tests/connectionStatus.test.js`.
+- **How it behaves now:** boot with no connection shows a blocked screen with a retry, never the
+  login page. Mid-session the farm keeps playing and saving locally; a persistent banner says the
+  farm is device-only, that live weather is paused, and offers the `.farm` export. Reconnecting
+  flushes the queued write and clears the banner. The weather panel keeps the last forecast but
+  labels it *"Live weather paused — last read N minutes ago"* rather than showing a timestamp
+  that reads as live.
+- **Why a 5xx needed the HTTP status threaded through:** a proxy error body carries no
+  `error_description`, so it mapped to `auth_unknown` — indistinguishable from a refusal.
+  `gotrue.post()` now returns `status` alongside `reason`, which is what makes 401-versus-502
+  decidable at all.
+- **Also fixed while in there:** the boot and save wiring was copy-pasted across all four entry
+  points, down to the `pagehide` line. Extracted to `js/connection.js` so the fix is written once.
+- **Broke six existing tests, correctly:** `tests/mainBoot.test.js` asserted the old
+  `session | null` contract — the exact contract that caused the bug. Updated to the new shape and
+  kept their intent; added cases for offline, server_error and guest-with-no-network.
+- **Layering:** `wireSaveOnExit` initially used `document` and `check-imports.mjs` refused it,
+  which is the check working. It now takes the document as a parameter rather than widening the
+  whitelist — ISS-016 is still open, so the rule was left intact.
+- **Docs:** DEC-030 (this deliberately loosens a rule, so it needed a record), architecture.md
+  boot order + module contracts, ISS-048/049/050 logged before any fix.
+- **Tests:** `npm test` 310, 309 pass. The one failure is ISS-047 (duplicate rice sprites from
+  Kafi's merge) and is untouched by this work. `npm run check` clean.
+- **Not verified in a browser.** No desktop browser was attached to the session, so this was
+  verified by `npm run check`, `npm test`, `node --check` on all twelve changed modules, and
+  walking the import graph over HTTP from all four entry points — 67 modules, every import
+  resolved. **Nobody has watched the banner appear, or the blocked screen render.** Two things
+  want a human eye: that the retry button recovers cleanly, and that the export in the banner
+  produces a valid `.farm`.
+
 ## Login CSS split by component — Jim
 
 - **Did:** `css/auth.css` was one file holding three components. It is now three — `auth.css` (the

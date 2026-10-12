@@ -7,6 +7,51 @@ Format: who decided, the choice, why, and what was rejected.
 
 ---
 
+### DEC-030 Losing the network is not the same as losing the session
+**Decided by:** Hisham · 2026-10-12
+
+**Choice:** `resolveSession()` and `restoreSession()` answer `{ok, session | reason}` rather than
+`session | null`. Only a `400`/`401` from the server destroys the stored refresh token and signs
+the player out. A timeout, a 5xx and a dropped connection all keep it. A connection lost
+mid-session does not stop play — the farm keeps saving locally, a persistent banner says what is
+true, and the queued write flushes on reconnect. With no connection at boot, the farm is not
+opened at all: the player sees a blocked screen with a retry, not the login form.
+
+**Why:** `session | null` collapsed three unrelated situations into one, and every caller read
+it as "signed out". On the hosted build a slow CDN or a dropped request therefore redirected to
+`login.html` **and deleted the refresh token on the way out** — so the logout was permanent and
+the player had to retype their password for a session that was never invalid. That is ISS-048,
+and it was happening at random to real players.
+
+The deeper problem is that the game was telling people something false. A player who lost
+wifi for thirty seconds was told they had been signed out. Once a game says that once, every
+later message is suspect.
+
+**What this deliberately loosens:** previously *any* failure signed you out. Now only an
+explicit server rejection does. That is correct — a 500 genuinely does not mean a token is
+invalid — but it is a rule being relaxed, so it is recorded here rather than shipped as a
+silent bugfix. The invariant is one line and is now checked by
+`scripts/check-imports.mjs`-style discipline in review: **never treat "could not reach the
+server" as "signed out."**
+
+**Why the farm still cannot be opened offline:** Row Level Security means the save row is
+unreachable without a verified token, so there is nothing honest to render. Blocking is the
+truthful answer; silently showing a stale farm is not. A guest is unaffected — a guest farm is
+local-only, so `?guest=1` bypasses the network entirely.
+
+**Rejected:**
+- *Cache the session and let offline players play.* Rejected: it does not remove the need for a
+  network to save, and it makes "signed in" mean something the server never verified.
+- *Keep redirecting to the login page, but add "no internet" to the message.* Rejected: the
+  login page is where a player goes when they believe they are signed out. Sending them there is
+  the bug, not a copy problem.
+- *A toast instead of a banner.* Rejected: toasts dismiss. "Your farm is only on this device" is
+  a fact a player can act on — hence the banner, and hence the export button on it.
+
+**Consequence for the player:** `.farm` export is the offline escape hatch, which is exactly what
+DEC-021 left in place. The banner points at the button that already exists rather than inventing
+a second mechanism.
+
 ### DEC-029 The login page is split one component per file, and writes its own values
 **Decided by:** Jim · 2026-10-11
 
