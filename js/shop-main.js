@@ -25,9 +25,11 @@ import { createLog } from './utils/log.js';
 import { loadProvider } from './auth-main.js';
 import { farmHref, resolveSession } from './main.js';
 import { buildServerSave } from './remoteSave.js';
+import { mountConnectionStatus, wireSaveOnExit } from './connection.js';
 import { apply, emit, init, saveNow, subscribe } from './state/store.js';
 import { buySeeds } from './domain/shop.js';
 import { mountShop } from './ui/shopView.js';
+import { mountBlockedScreen } from './ui/blockedScreen.js';
 import { mountBootLoader } from './ui/loadingTips.js';
 import { mountToastStack } from './ui/toastStack.js';
 import { AUTOSAVE_MS } from './config/game.js';
@@ -72,13 +74,25 @@ async function start() {
   // Boot 0: no session means the shop is never mounted. A guest gets the same farm
   // as before, because a guest's save is keyed on the fixed user id `guest`.
   const provider = await loadProvider();
-  const session = await resolveSession(provider);
-  if (!session) {
-    log.info('no session, handing off to login');
+  const resolved = await resolveSession(provider);
+
+  if (!resolved.ok) {
+    // Only a genuinely invalid token is a logout. A dead connection shows the
+    // blocked screen and offers a retry — see ISS-048.
+    if (resolved.reason === 'invalid_token') {
+      log.info('no session, handing off to login');
+      loader.done();
+      location.replace(LOGIN_URL);
+      return;
+    }
+
+    log.warn('cannot open the shop -', resolved.reason);
     loader.done();
-    location.replace(LOGIN_URL);
+    mountBlockedScreen(qsOrNull('#shop-root'), { reason: resolved.reason });
     return;
   }
+
+  const session = resolved.session;
 
   // Boot 1: the same save the farm page uses, so gold and the seed bag agree
   // whichever direction the player is travelling.
@@ -87,16 +101,14 @@ async function start() {
 
   // Boot 2
   mountToastStack();
+  mountConnectionStatus(qsOrNull('#connection-banner'));
   mountShop(qsOrNull('#shop-root'), { ...shopActions(), backHref: farmHref(session) });
   loader.done();
 
   // Boot 4: autosave, identical to the farm page. The purchase above saves on its
   // own; this is the safety net for anything else that changes the state here.
   setInterval(saveNow, AUTOSAVE_MS);
-  window.addEventListener('pagehide', saveNow);
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') saveNow();
-  });
+  wireSaveOnExit();
 
   log.trace('shop ready for', session.userId);
 }
