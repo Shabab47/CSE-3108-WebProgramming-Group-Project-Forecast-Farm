@@ -10,6 +10,10 @@ Game developer and debugger.
 **Week 1 contribution:** designed the full project structure, how the parts will talk to each
 other, and the art direction every sprite follows.
 
+**Week 2 contribution:** the Supabase connection environment and the `farm_saves` migration,
+exporting and importing a farm as a `.farm` file, and the asset registry that puts every image
+and sound path in one place.
+
 ---
 
 ## Week 1

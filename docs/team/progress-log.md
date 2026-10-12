@@ -115,6 +115,41 @@ The per-person weekly notes that used to live in the README table are now in `me
 
 ---
 
+## Week-2 credit corrected, and Kafi/Jim unified — Hisham
+
+- **Did:** Rewrote the week-2 half of the README so each piece of work has one name against it
+  instead of three rows split three ways. The old `Sign-in and save system` row credited
+  `Shabab, Hisham` for things four people built; it is now eight rows. Separately, **Kafi and
+  Jim are one person** — the Git handle is `aa-jim` and the branch is `origin/jim` — and the
+  repo was at risk of reading them as a fifth member.
+- **Attribution now reads:** **Kafi** — sign-in menu UI, gameplay scene UI. **Shabab** — Supabase
+  connection, shop, username sign-in, erase-progress and delete-account behind a password check.
+  **Afif** — the weather API connected to the game interface. **Hisham** — the Supabase
+  environment, the `farm_saves` SQL, export/import a farm, the asset registry.
+- **Touched:** `README.md` (structure tree, team table, Where We Stand, Weekly Progress),
+  `docs/team/tasks.md` (added T-35, T-36, T-37, T-38; T-11 moved `todo` → `doing`),
+  `docs/team/members/{kafi,shabab,afif,hisham}.md`.
+- **Removed from the README:** the `Project foundation / In progress / … 264 passing tests` row,
+  and `loading tips` from the `js/config/` tree line.
+- **Why the row had to go rather than be edited:** it was a catch-all that mixed real deliverables
+  with a test count, and it credited a vague "foundation" instead of naming what was built. The
+  work itself is not in question — it is split across the named rows now.
+- **Not verifiable from the history:** `origin/jim` is **0 commits ahead of `origin/main`** and
+  still holds only the two week-1 commits, so T-37 and T-38 are recorded from the team's report.
+  Both are flagged in `tasks.md` and `members/kafi.md` rather than presented as shipped.
+- **Also fixed while in there:** the README said "Week 1 is broken out per person" while showing
+  week 2 too, and mixed `Kafi` and `Jim` in one table. The team table now reads
+  `Abdullah Hil Kafi (Jim)` so the alias is discoverable once without being a second person.
+- **Docs:** this entry; `tasks.md`; the four member notes; `README.md`. `AGENTS.md` §6 asks for
+  all four, so they moved together.
+- **Not done:** the loading-tips work is still credited to Hisham in this log and in
+  `decisions.md`, `issues.md`, `ownership.md` and `tasks.md`, and `5640659` is authored by
+  `Hishamwalid`. The README mention came out on request; the rest was left alone rather than
+  delete a record of merged, tested code. **Decide before the next review.**
+- **No code touched.** `npm run check` clean, `npm test` 280/280.
+
+---
+
 ## Login CSS split by component — Jim
 
 - **Did:** `css/auth.css` was one file holding three components. It is now three — `auth.css` (the
@@ -237,6 +272,7 @@ The per-person weekly notes that used to live in the README table are now in `me
   Hisham's; Kafi is the backup on all three. `js/auth-main.js` was unassigned and is now Kafi's.
 
 ---
+
 
 ## Loading tips on every page boot — Hisham
 

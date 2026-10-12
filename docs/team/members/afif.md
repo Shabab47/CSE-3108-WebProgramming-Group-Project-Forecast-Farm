@@ -9,6 +9,9 @@ Game developer and game tester.
 **Week 1 contribution:** added the base APIs — weather, time and place lookup. Reverse geocoding
 is the one still outstanding.
 
+**Week 2 contribution:** connected the weather API to the game interface — live weather for the
+player's own location, the weather panel, and the location bar.
+
 ---
 
 ## Week 1
