@@ -27,6 +27,7 @@ import {
   signUp,
   updatePassword,
 } from '../js/services/authApi.js';
+import { readRefreshToken } from '../js/services/tokenStore.js';
 import { SUPABASE_NOT_CONFIGURED, __setForTest, connection } from '../js/config/supabase.js';
 
 /** Captured requests, so a test can assert on what was actually sent. */
@@ -36,12 +37,18 @@ const TEST_URL = 'https://test.supabase.co';
 const TEST_KEY = 'anon-test-key';
 
 /**
- * @param {(url:string, init:object) => {status:number, body:object}} handler
+ * @param {(url:string, init:object) => {status?:number, body?:object, throws?:Error}} handler
+ *
+ * `throws` is how a real `fetch` fails: it rejects rather than returning a
+ * response, and the rejection carries `name: 'AbortError'` when the deadline in
+ * `gotrue.js` fired (ISS-049). Modelling it explicitly is the only way to assert
+ * that a timeout is *not* mistaken for a rejected credential.
  */
 function stubFetch(handler) {
   globalThis.fetch = async (url, init = {}) => {
     calls.push({ url, init, body: init.body ? JSON.parse(init.body) : null });
-    const { status = 200, body = {} } = handler(url, init) ?? {};
+    const { status = 200, body = {}, throws } = handler(url, init) ?? {};
+    if (throws) throw throws;
     return {
       ok: status >= 200 && status < 300,
       status,
@@ -579,15 +586,108 @@ test('signing out clears the session', async () => {
   assert.equal(currentSession(), null);
 });
 
-test('a failed restore leaves the player signed out rather than half-signed-in', async () => {
+test('a rejected refresh token leaves the player signed out', async () => {
   await signIn({ identifier: 'farmer@rice.bd', password: 'rice2026' });
-  await signOut();
 
   stubFetch(() => ({ status: 401, body: { error_description: 'Invalid Refresh Token' } }));
   const restored = await restoreSession();
 
-  assert.equal(restored, null);
-  assert.equal(currentSession(), null);
+  assert.equal(restored.ok, false);
+  assert.equal(restored.reason, 'invalid_token', 'a 401 is the server refusing the credential');
+  assert.equal(readRefreshToken(), null, 'a dead token is cleared');
+});
+
+/* --- ISS-048: only a real refusal destroys the token ------------------------
+ *
+ * The bug: `restore()` called `writeRefreshToken(null)` on *any* unsuccessful
+ * refresh, and `gotrue.post()` answers `{ok:false}` for every non-2xx response.
+ * So a 502 from a proxy, a rate limit, or a dropped connection deleted the stored
+ * refresh token and redirected to the login page — permanently, because the token
+ * was gone. That is what logged players out at random on the hosted build.
+ *
+ * These assert the opposite: the token survives everything except an explicit
+ * credential rejection.
+ */
+
+test('a dropped connection keeps the refresh token', async () => {
+  await signIn({ identifier: 'farmer@rice.bd', password: 'rice2026' });
+
+  const before = readRefreshToken();
+  assert.ok(before, 'the token must exist before the test means anything');
+
+  stubFetch(() => ({ throws: new TypeError('Failed to fetch') }));
+  const restored = await restoreSession();
+
+  assert.equal(restored.ok, false);
+  assert.equal(restored.reason, 'offline');
+  assert.equal(
+    readRefreshToken(),
+    before,
+    'a network failure must not destroy the token — that is ISS-048',
+  );
+});
+
+test('a slow connection keeps the refresh token', async () => {
+  await signIn({ identifier: 'farmer@rice.bd', password: 'rice2026' });
+
+  const before = readRefreshToken();
+
+  // What an aborted request looks like to `fetch` — ISS-049's deadline firing.
+  const aborted = new Error('The operation was aborted');
+  aborted.name = 'AbortError';
+  stubFetch(() => ({ throws: aborted }));
+
+  const restored = await restoreSession();
+
+  assert.equal(restored.ok, false);
+  assert.equal(restored.reason, 'offline');
+  assert.equal(readRefreshToken(), before, 'a timeout is not a credential rejection');
+});
+
+test('a server error keeps the refresh token', async () => {
+  await signIn({ identifier: 'farmer@rice.bd', password: 'rice2026' });
+
+  const before = readRefreshToken();
+
+  // A 5xx from a proxy. Its body carries no `error_description`, which is exactly
+  // why `gotrue` returns the status as well as the reason — without it a 5xx is
+  // indistinguishable from a refusal and the old code deleted the token.
+  stubFetch(() => ({ status: 502, body: { msg: 'Bad Gateway' } }));
+  const restored = await restoreSession();
+
+  assert.equal(restored.ok, false);
+  assert.equal(restored.reason, 'server_error');
+  assert.equal(readRefreshToken(), before, 'our outage is not the player being signed out');
+});
+
+test('a genuinely invalid token is cleared, so a retry cannot loop forever', async () => {
+  await signIn({ identifier: 'farmer@rice.bd', password: 'rice2026' });
+
+  assert.ok(readRefreshToken());
+
+  stubFetch(() => ({ status: 401, body: { error_description: 'Invalid Refresh Token' } }));
+  await restoreSession();
+
+  assert.equal(readRefreshToken(), null, 'a dead token must go, or every load retries it');
+});
+
+test('a successful restore still returns the session', async () => {
+  await signIn({ identifier: 'farmer@rice.bd', password: 'rice2026' });
+
+  stubFetch(() => ({
+    status: 200,
+    body: {
+      access_token: 'fresh-access',
+      refresh_token: 'fresh-refresh',
+      user: { id: 'uuid-rice', email: 'farmer@rice.bd', user_metadata: { farmer_name: 'Rice' } },
+    },
+  }));
+
+  const restored = await restoreSession();
+
+  assert.equal(restored.ok, true);
+  assert.equal(restored.session.userId, 'uuid-rice');
+  assert.equal(currentSession()?.userId, 'uuid-rice');
 });
 
 test('a session with no user id is treated as a failure, not a blank session', async () => {

@@ -10,9 +10,36 @@
  */
 
 import { createLog } from '../utils/log.js';
+import { AUTH_TIMEOUT_MS } from '../config/game.js';
 import { SUPABASE_NOT_CONFIGURED, connection, isSupabaseConfigured } from '../config/supabase.js';
 
 const log = createLog('gotrue');
+
+/**
+ * Arm a deadline on a request.
+ *
+ * **This was missing until ISS-049, and its absence is why players were logged out
+ * on their own.** A `fetch` with no signal hangs forever on a half-open connection.
+ * This module sits on the boot path, so a hang meant `restoreSession()`'s 15 s
+ * `Promise.race` fired, which reported "signed out" and threw away the refresh
+ * token — a slow network was indistinguishable from a dead session.
+ *
+ * `saveApi.js` and `authApi.rest()` already did this. Every request in the project
+ * now has a deadline, for the same reason: a game that cannot be played is worse
+ * than one that fails fast and says so.
+ *
+ * @returns {{signal: AbortSignal, cancel: () => void}}
+ */
+function withDeadline() {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), AUTH_TIMEOUT_MS);
+  // Do not hold the event loop open for this timer once the request settles.
+  const cancel = () => {
+    clearTimeout(timer);
+    timer.unref?.();
+  };
+  return { signal: controller.signal, cancel };
+}
 
 /**
  * GoTrue error text to our neutral reason names.
@@ -88,16 +115,26 @@ export async function post(path, body) {
   }
 
   let response;
+  const deadline = withDeadline();
   try {
     response = await fetch(`${connection().url}/auth/v1/${path}`, {
       method: 'POST',
       headers: headers(),
       body: JSON.stringify(body),
+      signal: deadline.signal,
     });
   } catch (error) {
-    // Offline, DNS failure, CORS rejection. Already player-safe.
-    log.warn('network failure -', error.message);
-    return { ok: false, reason: 'network_request_failed' };
+    // Offline, DNS failure, CORS rejection, or our own deadline. Already player-safe.
+    //
+    // `timeout` is separated from `network_request_failed` because they are not the
+    // same thing to the caller: one means we gave up waiting, the other means the
+    // request never left. Neither is a credential problem, and ISS-048 depends on
+    // both being treated as "keep the token".
+    const reason = error.name === 'AbortError' ? 'timeout' : 'network_request_failed';
+    log.warn('network failure -', reason);
+    return { ok: false, reason };
+  } finally {
+    deadline.cancel();
   }
 
   const payload = await readBody(response);
@@ -106,7 +143,12 @@ export async function post(path, body) {
     // Log the reason, never the credential that produced it.
     const reason = reasonFor(String(payload?.error_description ?? payload?.msg ?? ''));
     log.warn('auth refused -', reason, '(status', response.status + ')');
-    return { ok: false, reason };
+    // The status comes back too, and it is not decoration. ISS-048: `restore()` must
+    // clear the refresh token on a 401 and keep it on a 5xx, and a 5xx body carries no
+    // `error_description` — so it maps to `auth_unknown`, which tells the caller
+    // nothing. Without the status there is no way to make that distinction, and the
+    // default would stay "destroy the credential", which is what caused the bug.
+    return { ok: false, reason, status: response.status };
   }
 
   return { ok: true, data: payload };
@@ -124,22 +166,27 @@ export async function post(path, body) {
 export async function postAuthed(path, token, body, method = 'POST') {
   if (!isSupabaseConfigured()) return { ok: false, reason: SUPABASE_NOT_CONFIGURED };
 
+  const deadline = withDeadline();
   try {
     const response = await fetch(`${connection().url}/auth/v1/${path}`, {
       method,
       headers: headers({ Authorization: `Bearer ${token}` }),
       body: JSON.stringify(body),
+      signal: deadline.signal,
     });
 
     if (!response.ok) {
       log.warn('authed call refused, status', response.status);
-      return { ok: false, reason: reasonFor(await errorText(response)) };
+      return { ok: false, reason: reasonFor(await errorText(response)), status: response.status };
     }
 
     return { ok: true, data: await readBody(response) };
   } catch (error) {
-    log.warn('authed call failed -', error.message);
-    return { ok: false, reason: 'network_request_failed' };
+    const reason = error.name === 'AbortError' ? 'timeout' : 'network_request_failed';
+    log.warn('authed call failed -', reason);
+    return { ok: false, reason };
+  } finally {
+    deadline.cancel();
   }
 }
 
