@@ -64,6 +64,30 @@ export function clear(node) {
   return node;
 }
 
+/**
+ * Append children to an existing node, skipping null/undefined/false.
+ *
+ * **Use this instead of `node.append(...)` whenever a child might be conditional.**
+ * The native `ParentNode.append()` takes `(Node or DOMString)`, so a `null`
+ * argument is not ignored — it is stringified into a text node and the page
+ * renders the word "null". `el()` filters those before appending, which is
+ * why a conditional child inside an `el()` call is safe and the same
+ * conditional passed straight to `append` is not. That asymmetry is invisible
+ * until a guest looks at it — see ISS-048.
+ *
+ * Accepts arrays as children, exactly as `el()` does.
+ *
+ * @param {Node} node
+ * @param {...(Node|string|null|undefined|false|Array)} children
+ */
+export function appendAll(node, ...children) {
+  for (const child of [].concat(children)) {
+    if (child === null || child === undefined || child === false) continue;
+    node.append(child instanceof Node ? child : document.createTextNode(String(child)));
+  }
+  return node;
+}
+
 /** Set text only if it actually changed, to avoid needless layout work. */
 export function setText(node, value) {
   const next = String(value);

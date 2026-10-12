@@ -31,8 +31,35 @@
 
 /* --- settings page shell ---------------------------------------------------- */
 
+/* The family is set on the page rather than on each element because
+ * `css/components.css` declares no `font-family` at all: `.card__title`, `.btn`,
+ * `.field__label`, `.field__hint` and `.form-message` all inherit whatever the body
+ * has. `reset.css` sets `body { font-family: var(--font-sans) }` and this file loads
+ * after it, so one rule here reaches every string on the page.
+ *
+ * `index.html` also links this file, but its `<body>` has no class, so nothing here
+ * can leak onto the farm page. `.settings-page` is the only body class in the repo.
+ *
+ * Both faces are declared `font-weight: 400` only (see css/fonts.css), so a heavier
+ * request resolves to the nearest face rather than synthesising one — the headings
+ * below ask for 400 deliberately. */
 .settings-page {
   display: block;
+  font-family: var(--font-ui);
+}
+
+/* Card titles take the display face. Scoped under `.settings-page` rather than put on
+ * `.card__title` in components.css, so the shop and farm pages keep their own choice —
+ * `.card__title` is shared by every card in the game, this one is not.
+ *
+ * This also catches the `<h2 class="card__title">Your farm</h2>` that
+ * `js/ui/savePanel.js` renders, keeping "Save data" and "Your farm" matched.
+ *
+ * `.settings-top__title` is not listed here: it is rendered by no other page, so its own
+ * rule further down sets its family without needing the ancestor. */
+.settings-page .card__title {
+  font-family: var(--font-display);
+  font-weight: 400;
 }
 
 .settings-shell {
@@ -59,6 +86,7 @@
 }
 
 .settings-top__back {
+  font-family: var(--font-ui);
   font-size: var(--text-sm);
   color: var(--text-muted);
   text-decoration: none;
@@ -70,9 +98,10 @@
 }
 
 .settings-top__title {
+  font-family: var(--font-display);
   font-size: var(--text-xl);
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  /* The face is narrow and already tight; the inherited -0.01em made it worse. */
+  letter-spacing: 0;
 }
 
 /* --- danger zone ------------------------------------------------------------
@@ -108,6 +137,7 @@
 .settings-accounts__row {
   display: flex;
   gap: 8px;
+  font-family: var(--font-ui);
   font-size: var(--text-sm);
   margin: 0;
 }

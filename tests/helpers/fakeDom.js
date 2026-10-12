@@ -88,9 +88,17 @@ export class FakeNode {
     this._text = String(value);
   }
 
+  /**
+   * Mirrors the real `ParentNode.append`, which takes `(Node or DOMString)`.
+   *
+   * **It used to skip `null` instead, and that was a lie with consequences.** Being laxer
+   * than the browser meant `root.append(a ? b : null)` rendered nothing here and the word
+   * "null" in a real browser — which is how a guest saw it on the settings page (ISS-048).
+   * `el()` has its own null filter and still does, so every `el()` call site is unaffected;
+   * what changed is that a bare `append` now fails here the way it fails there.
+   */
   append(...children) {
     for (const child of children) {
-      if (child === null || child === undefined || child === false) continue;
       const node = child instanceof FakeNode ? child : new FakeTextNode(String(child));
       node.parentNode = this;
       this.childNodes.push(node);

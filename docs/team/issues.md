@@ -698,3 +698,45 @@ current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
 - Fix: not started. `.btn--secondary` needs a variant in `components.css` — note that whichever
   file ends up holding `.btn` is the one to put it in, per DEC-029. `.divider` is one rule.
   `.location-bar*` belongs to whoever lands T-11.
+
+### ISS-047 The Save data card rendered `[object Object]` instead of the import/export controls
+- Reported by Jim · 2026-10-12 · Owner: Hisham · Status: fixed
+- Where: `js/ui/settingsView.js`, `js/ui/savePanel.js`
+- Problem: the Save data card on the settings page showed the literal text `[object Object]`
+  where the Export and Import controls should be. No button, no file input, nothing to press.
+  Reproduce: sign in, open settings, scroll to the bottom. The card is there and it is wrong.
+- Cause: two defects, both in the block added in `d286551`.
+  1. `mountSavePanel(el('div'), actions)` returns `{ unmount }`, not a DOM node, and that
+     return value was passed straight into `el()` as a child. `el()` appends
+     `document.createTextNode(String(child))` for anything that is not a `Node`, so the card
+     body got the string `"[object Object]"` and the panel itself was mounted into a detached
+     `<div>` that never reached the page. Every other panel in `js/ui/` returns the same shape
+     and is either the last statement or is unmounted separately — this was the only call site
+     that tried to nest one inside `el()`.
+  2. The card was gated on `actions.canExport ?` — tested, not called. `canExport` is a
+     function, so the test was always truthy and the ternary never hid anything. It read as a
+     deliberate guest gate and was not one.
+- Fix: build the host element first, mount into it, then embed the host; and render the card
+  unconditionally, since `savePanel.js` already explains in place why a guest farm cannot be
+  exported. `tests/settingsDom.test.js` now asserts both the controls are present and that no
+  `[object Object]` appears anywhere on the page.
+
+### ISS-048 A guest sees the word "null" on the settings page
+- Reported by Jim · 2026-10-12 · Owner: Shabab · Status: fixed
+- Where: `js/ui/settingsView.js`, `js/utils/dom.js`, `tests/helpers/fakeDom.js`
+- Problem: a player signed in as a guest sees a bare `null` rendered between the "Erase progress"
+  card and the "Save data" card. Reproduce: play as guest, open settings, look below the erase-progress
+  card. Authed players do not see it — there is no account card to omit.
+- Cause: `mountSettings` ends with `root.append(...)`, the **native** `ParentNode.append`, which accepts
+  `(Node or DOMString)` and so stringifies a `null` argument into a text node. The last argument is
+  `account ? el(...) : null`, which is null for every guest. `el()` has an explicit null filter and does
+  not have this problem — and the comment above the line said so, describing the wrong function.
+  Pre-existing, present since the delete-account card landed; not a regression from ISS-047.
+- Fix: `appendAll()` in `utils/dom.js`, mirroring `el()`'s filter, and `mountSettings` uses it. The
+  deeper problem is the test double: `fakeDom.append()` *skipped* null rather than stringifying it, so
+  the fake DOM was laxer than the browser and `settingsDom.test.js`'s guest test passed against a page
+  that was visibly wrong. `fakeDom.append()` now matches the real behaviour — `el()` keeps its own filter,
+  so every `el()` call site is unaffected, and any future bare `append(null)` surfaces the way it would in
+  a browser.
+- Risk of the fix: low, and worth stating. `.settings-page` is the only body class in the repo, so the
+  cascade cannot leak into `index.html`, which also links `settings.css`.

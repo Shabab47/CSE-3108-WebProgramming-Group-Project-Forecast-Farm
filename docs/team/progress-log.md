@@ -7,6 +7,114 @@ The per-person weekly notes that used to live in the README table are now in `me
 
 ---
 
+## A guest saw the word "null", and the settings page got its game font — Jim
+
+- **Did, two things.** The settings page now sets its family once on `.settings-page` and gives the
+  headings the display face, so card titles, buttons, labels, hints and body text are all Irish Grover
+  and the `h1` plus every card title are Luckiest Guy. And the stray `null` a guest saw under the
+  erase-progress card is gone. ISS-048.
+- **The `null` was pre-existing and invisible to the suite.** `mountSettings` ended with the *native*
+  `root.append(...)`, whose signature is `(Node or DOMString)` — so `account ? el(...) : null`, null for
+  every guest, was stringified into a text node. The comment above that line said "`el()` skips null
+  children", which was true and irrelevant: that call was never an `el()` call. Authed players never
+  saw it, so it survived.
+- **The test double was the deeper defect.** `fakeDom.append()` *skipped* null where the browser
+  stringifies it, so the guest test passed against a visibly broken page. It now mirrors the real
+  behaviour. `el()` keeps its own filter, so every `el()` call site is untouched — what changed is that
+  a bare `append(null)` fails in the test exactly as it fails in a browser. This is the part worth
+  remembering: **a fake must not be laxer than the thing it stands in for.**
+- **Closed the trap rather than the instance.** `appendAll()` in `utils/dom.js` mirrors `el()`'s filter
+  for code appending to an existing root, and accepts arrays the same way. Otherwise the next
+  `root.append(a ? b : null)` repeats this exactly.
+- **Verified by breaking it again.** Reverting `appendAll` to `root.append` fails
+  *"a guest is not shown the word \"null\""* with `actual: [ 'null' ]`, and the authed twin still
+  passes — which is the right shape, since the bug is guest-only. `settingsDom` is 24/24, up from 21.
+- **Correction to the previous entry.** It said a `font-weight: 700` request against a 400-only face
+  produces a *synthesised faux bold*. That is wrong: CSS Fonts 4 resolves a desired weight above 500
+  with no near match to the **nearest available face**, so it renders at 400 and is simply not bolder.
+  Nothing is faked and nothing errors. Corrected in `css/fonts.css`, `architecture.md` and the entry
+  above. The visible symptom I predicted was right; the mechanism was not.
+- **Why one CSS rule reached the whole page.** `components.css` declares no `font-family` at all, so
+  `.card__title`, `.btn`, `.field__label`, `.field__hint` and `.form-message` all inherit from the body.
+  Setting it on `.settings-page` reaches every one. It cannot leak: `index.html` also loads
+  `settings.css`, but its `<body>` has no class, and `.settings-page` is the only body class in the repo.
+- **Two judgement calls worth reviewing.** `.settings-top__title`'s inherited `letter-spacing: -0.01em`
+  was dropped — the display face is narrow and already tight. And `.card__title` is `text-transform:
+  uppercase` at `--text-sm`, which may sit small in Luckiest Guy; both are one-line changes if they
+  look wrong in a browser.
+- **Also edited Hisham's shared file:** `js/utils/dom.js` gained `appendAll`. Purely additive, nothing
+  existing changed behaviour.
+
+---
+
+## `--font-ui` actually reaches the settings page — Jim
+
+- **Did:** one `<link rel="stylesheet" href="css/fonts.css" />` in `settings.html`, placed after
+  `components.css` to match `login.html`. The page now renders `.settings-top__back`,
+  `.settings-top__title` and `.settings-accounts__row` in Irish Grover instead of the system stack.
+- **Why it was doing nothing.** `--font-ui` is `"Irish Grover", var(--font-sans)`. On a page with no
+  `@font-face` for Irish Grover, that is not an error — the browser walks the stack and lands on
+  `--font-sans`. Three rules were asking for a face that was never loaded, and all three looked
+  correct, which is what made it hard to spot.
+- **The loading was implicit and had already drifted.** `login.html` links `fonts.css`; `index.html`
+  inherits it from a `@import` at the top of `navbar.css`; `settings.html` loaded neither.
+  **`shop.html` still loads neither**, so its `--font-ui` and `--font-display` fall through too. Not
+  fixed here — flagged in `architecture.md` and in the `fonts.css` header.
+- **Only three selectors.** Card titles, buttons, field labels and body text are unaffected:
+  `components.css` has no `font-family` rule at all, so they come from `reset.css`'s
+  `body { font-family: var(--font-sans) }`. Changing the whole page's face is a different job.
+- **Expect the title to be the weak part.** Both faces are declared `font-weight: 400` only, and
+  `.settings-top__title` asks for `700`. Per CSS Fonts 4 that resolves to the nearest available face,
+  so it renders at 400 and is not bolder — nothing is synthesised and nothing errors, which is why the
+  weakness is easy to miss.
+- **Corrected a comment that is now false.** `fonts.css` stated that the settings page "still falls
+  through to `--font-sans` and [is] unaffected" — it described the gap as intended. Rewritten to
+  describe which pages load it and why the shop is still out.
+- **Deliberately not touched:** the `page: 'login'` field on both font entries in `js/config/assets.js`.
+  The field is singular, has no multi-page syntax, is not validated by any test, and was already
+  inaccurate — Luckiest Guy is used by the `index.html` navbar today and still says `login`.
+  Choosing a value would mean inventing a convention in Hisham's file for a cosmetic field.
+- **Still no test for this.** `settingsDom.test.js` asserts that every *class* the page renders is
+  styled by a stylesheet the page links. It has no equivalent for `@font-face`, which is exactly how
+  this survived. Worth a test that walks each page's `font-family: var(--font-*)` rules and checks
+  the named family has a face on that page.
+
+---
+
+## Import and export actually reach the settings page — Jim
+
+- **Did:** the Save data card on `settings.html` showed the literal text `[object Object]` instead of
+  the Export and Import controls. `mountSavePanel(el('div'), actions)` returns `{ unmount }`, not a
+  node, and that return value was passed straight into `el()` as a child — so `utils/dom.js`
+  stringified it and the panel itself stayed mounted into a detached `<div>` that never reached the
+  page. The host is now made first, mounted into, and only then embedded. ISS-047.
+- **The second half of the same defect:** the card was gated on `actions.canExport ?` — tested, not
+  called. `canExport` is a function, so the test was always truthy and the ternary never hid
+  anything. It read as a deliberate guest gate and was not one. Removed: the card renders for guests
+  too, and `savePanel.js` already explains in place why a guest farm has no account to attach the
+  file to. A card that says why beats a missing one.
+- **Why no test caught it.** Every `mountSettings` call site in `settingsDom.test.js` omitted the save
+  callbacks, and survived only *because* the broken ternary skipped the whole card — so a card that
+  never rendered was indistinguishable from a card that was not supposed to. Making it unconditional
+  meant all 12 call sites threw at once, on `actions.canExport()` at mount time. They now share a
+  `saveActions()` helper.
+- **One existing test had to change, and it was the test's fault.** "The two cards do not share a
+  status line" counted `role="status"` nodes *page-wide* and asserted exactly 2. The Save card added
+  a third of its own, so it failed on a correct page. Rescoped per destructive card — which is what it
+  always meant to assert — plus a check that the two nodes are genuinely different objects.
+- **Verified by breaking it again.** All four new tests fail against the pre-fix file, the
+  stringified-mount one reporting `actual: [ '[object Object]' ]`, and pass after. `settingsDom` is
+  21/21, up from 17.
+- **Also corrected:** `architecture.md` said `main.js` mounts the save panel; it is
+  `settings-main.js`. Added the `mountX`-returns-`unmount`-not-a-node rule to the contract table,
+  since that is the generalisable half.
+- **Not touched:** `js/ui/savePanel.js` (Hisham's) and `css/`. The nested `card__body` and duplicate
+  "Your farm" title inside the Save data card are left as they are.
+- **Still red, unrelated:** `tests/assets.test.js` — the crop PNGs are on disk but not in `ASSETS`.
+  Present before this change.
+
+---
+
 ## Login CSS split by component — Jim
 
 - **Did:** `css/auth.css` was one file holding three components. It is now three — `auth.css` (the

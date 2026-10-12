@@ -388,8 +388,13 @@ server's copy before reading it.
 `state/transfer.js` owns the file format and is **pure** — no storage, no DOM, and
 `Date.now()` is passed in. `ui/savePanel.js` owns the browser half (`Blob`,
 `createObjectURL`, `<input type="file">`), because those are DOM APIs and the
-layering rules keep them in `js/ui/`. `main.js` is the only module that joins them,
-through `mountSavePanel(root, actions)`.
+layering rules keep them in `js/ui/`. `settings-main.js` is the only module that joins
+them, through `mountSavePanel(root, actions)`, and it hands the panel a set of callbacks
+so the panel never imports `store.js`.
+
+**The panel is mounted by the settings page, not by an entry point of its own.** There is
+no save page: it is a card at the bottom of `settings.html`, below the two destructive
+actions.
 
 ### The file
 
@@ -601,7 +606,8 @@ farm and still reported that nothing had changed.
 | save / load | `js/state/store.js`, `js/state/saveFile.js` |
 | the export file format, checksum, rebase | `js/state/transfer.js` |
 | why a CSS rule exists but nothing looks different | compare the class against the stylesheets **that page** links — `settings.html` loads none of `auth.css`, `menu.css` or `sign.css`, and that is how `.form-message` went unstyled there for a while. Splitting `css/` by component makes this more likely, not less: adding a file means adding a `<link>`. `tests/settingsDom.test.js` asserts it |
-| the export / import buttons | `js/ui/savePanel.js` |
+| why a rule naming a font has no effect | same cause, and quieter: `login.html` links `fonts.css`, `index.html` inherits it through `navbar.css`'s `@import`, `settings.html` links it directly, and **`shop.html` loads neither**. A `font-family: var(--font-ui)` on the shop page is not an error — the family has no `@font-face` there and it quietly falls through to `--font-sans`. Both faces ship at `font-weight: 400` only, and a weight above 500 with no near match resolves to the nearest face rather than a synthesised one, so `font-weight: 700` renders at 400 without error |
+| the export / import buttons | `js/ui/savePanel.js`, mounted as a card by `js/ui/settingsView.js` |
 | which provider runs | `USE_LOCAL_PROVIDER` in `js/auth-main.js` (used by both entry points) |
 | the state shape | `js/state/types.js`, `js/state/initialState.js` |
 | debug sliders and cheat buttons | `js/debug/debug.js` |
@@ -815,7 +821,17 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 | `services/tokenStore.js` | `readRefreshToken`, `writeRefreshToken` | the only writer of a token |
 | `utils/log.js` | `createLog(scope)` | returns `{ info, warn, error }` |
 | `utils/iso.js` | `plotToScreen`, `diamondClipPath` | all sizes are fractions of the stage |
-| `ui/*` | `mountX(rootEl, actions)` | returns `unmount()` |
+| `ui/*` | `mountX(rootEl, actions)` | returns `unmount()`. **A return value is not a node** — see below |
+
+**`mountX` returns `{ unmount }`, not a node, so it cannot be nested inside `el()`.**
+`el()` appends `document.createTextNode(String(child))` for anything that is not a `Node`,
+so passing a `mountX()` result straight in as a child renders the literal text
+`[object Object]` and leaves the panel mounted into a detached element that never reaches
+the page. To put a panel inside a card, make the host yourself, mount into it, and embed
+the host — which is what `settingsView.js` does for `mountSavePanel`. Every call site in
+the repo does this correctly except that one, and nothing in the unit tests could see it:
+the settings DOM test now asserts both that the controls are present and that no
+`[object Object]` appears on the page (ISS-047).
 | `domain/*` | pure `(state, ...args)` functions | return `{ ok, state }` or `{ ok: false, reason }` |
 
 `farm.stageOf` and `farm.isReady` are pure selectors, so UI calls them directly.

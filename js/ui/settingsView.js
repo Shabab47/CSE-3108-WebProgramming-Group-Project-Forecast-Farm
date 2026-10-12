@@ -25,6 +25,15 @@
  * they treat a wrong password — which is exactly how they drifted before, when one of
  * them erased the farm *before* checking.
  *
+ * ## The save panel is mounted before the shell
+ *
+ * Every panel here returns `{ unmount }` — a handle, not a node — so none of them can be
+ * passed to `el()` as a child. The save panel is the only one embedded rather than handed
+ * a root to own, because it lives inside a card instead of filling a page, so it gets a
+ * host `div` built here and mounted into before the tree below is assembled. Getting that
+ * wrong is invisible in a reading of the code and obvious on the page — see ISS-047, where
+ * the card rendered the text `[object Object]` and nothing to press.
+ *
  * See `js/settings-main.js` for what each actually removes, DEC-024 and DEC-025 for why
  * the password is checked in the database rather than here. The rest is split out to keep
  * this file inside its budget: `dangerAction.js` (arm and confirm), `passwordGate.js` (the
@@ -33,7 +42,7 @@
  * action — see below) and `dangerMessages.js` (the failure sentences).
  */
 
-import { clear, el } from '../utils/dom.js';
+import { appendAll, clear, el } from '../utils/dom.js';
 import { createLog } from '../utils/log.js';
 import { accountCard } from './accountCard.js';
 import { dangerAction } from './dangerAction.js';
@@ -161,9 +170,21 @@ export function mountSettings(root, actions) {
     },
   }));
 
+  /* --- save data ------------------------------------------------------------ */
+
+  // Built before the shell because it is embedded rather than given a root — see the
+  // header. Passing `mountSavePanel(...)` straight to `el()` is what put `[object Object]`
+  // on this page (ISS-047).
+  const saveHost = el('div');
+  mountSavePanel(saveHost, actions);
+
   /* --- shell ------------------------------------------------------------- */
 
-  root.append(
+  // `appendAll`, not the native `append`. The comment on the account card below used to say
+  // "`el()` skips null children", which was true and irrelevant — this is not an `el()` call,
+  // and native `append` stringifies a null into the visible word "null" (ISS-048).
+  appendAll(
+    root,
     el('div', { class: 'settings-top' }, [
       el('div', { class: 'settings-top__lead' }, [
         el('a', { class: 'settings-top__back', href: actions.backHref, text: '← Back to the farm' }),
@@ -182,7 +203,7 @@ export function mountSettings(root, actions) {
       ]),
     ]),
     // `null` for a guest: there is no account to delete, and a button saying so would
-    // be a dead end. `el()` skips null children.
+    // be a dead end. `appendAll` skips null children.
     account ? el('div', { class: 'card card--danger' }, [
       el('div', { class: 'card__head' }, [el('span', { class: 'card__title', text: 'Delete account' })]),
       el('div', { class: 'card__body' }, [
@@ -195,14 +216,15 @@ export function mountSettings(root, actions) {
         accountStatus.node,
       ]),
     ]) : null,
-    actions.canExport
-      ? el('div', { class: 'card' }, [
-          el('div', { class: 'card__head' }, [el('span', { class: 'card__title', text: 'Save data' })]),
-          el('div', { class: 'card__body' }, [
-            mountSavePanel(el('div'), actions),
-          ]),
-        ])
-      : null,
+    // Always rendered, guests included. The card used to be gated on `actions.canExport ?`,
+    // which tested the function rather than calling it — always truthy, so it never actually
+    // hid anything. Hiding it for a guest would be worse anyway: `savePanel.js` already
+    // explains in place why a guest farm has no account to attach the file to, and a card
+    // that says so beats a missing one (ISS-047).
+    el('div', { class: 'card' }, [
+      el('div', { class: 'card__head' }, [el('span', { class: 'card__title', text: 'Save data' })]),
+      el('div', { class: 'card__body' }, [saveHost]),
+    ]),
   );
 
   return { unmount() { clear(root); } };
