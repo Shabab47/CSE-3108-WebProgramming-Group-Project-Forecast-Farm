@@ -1,11 +1,42 @@
+/* Location search — one row.
+ *
+ * This had no rules at all, so the input was a full-width block and the two
+ * buttons wrapped onto lines below it: ~130px for a control that fits in 44px.
+ * That space is the difference between a field that fills the screen and one that
+ * has room for the farm. See ISS-046.
+ */
+.location-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.location-bar__input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+}
+
+.location-bar__btn {
+  flex: 0 0 auto;
+}
+
+.location-bar__btn--icon {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-md);
+  line-height: 1;
+}
+
 .season-card {
   display: flex;
   flex-direction: row;
   align-items: center;
   gap: 14px;
-  padding: 16px;
-  border-radius: 16px;
+  padding: 24px 8px;
   background: #d8ffd7;
+
+  clip-path: polygon(2% 8%, 97% 4%, 99% 88%, 1% 94%);
+  border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
 }
 
 .season-card__art {
@@ -58,7 +89,8 @@
   color: #f0c874;
   box-shadow: 0 4px 0 #6b431f;
   text-decoration: none;
-  transition: transform 160ms cubic-bezier(0.2, 0, 0.2, 1),
+  transition:
+    transform 160ms cubic-bezier(0.2, 0, 0.2, 1),
     box-shadow 160ms cubic-bezier(0.2, 0, 0.2, 1);
 }
 

@@ -21,7 +21,12 @@
     "top    top    top"
     "left   centre right";
   gap: 16px;
-  min-height: 100vh;
+  /* `height`, not `min-height`: the shell is confined to one screen, so the game
+     scene never scrolls. `dvh` so a collapsing mobile URL bar cannot clip the
+     field. Pages that need to scroll — inventory, shop, profile, settings — are
+     separate documents with their own shells and are unaffected. */
+  height: 100dvh;
+  overflow: hidden;
   padding: 16px;
 }
 
@@ -41,6 +46,23 @@
   flex-direction: column;
   gap: 16px;
   min-width: 0;
+  /* Without this a flex child refuses to shrink below its content height, and the
+     column overflows the fixed-height shell no matter what the children say. */
+  min-height: 0;
+}
+
+/* The forecast card is sized by its content — graph and 7-day strip included.
+   The farm card below takes everything left over and centres the field in it. */
+.app__centre > .card:first-child {
+  flex: 0 0 auto;
+}
+
+#farm-view {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .app__rail {
@@ -62,6 +84,10 @@
 /* Single column below 900px: navbar, forecast, farm, right column, sidebar as
    a bottom bar. Basic only, per the plan. */
 @media (max-width: 900px) {
+  /* Stacked to one column here, so the fixed height and the overflow clip are both
+     undone — a phone cannot show a 4x4 isometric field and a forecast panel in one
+     screen without either scrolling or shrinking the field to nothing. Desktop gets
+     the fit-to-viewport treatment; a phone scrolls. */
   .app {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto auto auto auto auto;
@@ -70,6 +96,24 @@
       "centre"
       "right"
       "left";
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+
+  .app__centre {
+    min-height: auto;
+  }
+
+  /* Back to sizing off width, because on a stacked column the width is the
+     constraint that matters and the height is unbounded. */
+  #farm-view {
+    display: block;
+  }
+
+  .field-stage {
+    height: auto;
+    width: min(100%, var(--field-max));
   }
 
   .app__sidebar {

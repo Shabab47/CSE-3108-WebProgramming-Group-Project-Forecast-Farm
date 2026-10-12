@@ -44,7 +44,6 @@
 
 import { appendAll, clear, el } from '../utils/dom.js';
 import { createLog } from '../utils/log.js';
-import { accountCard } from './accountCard.js';
 import { dangerAction } from './dangerAction.js';
 import { passwordGate } from './passwordGate.js';
 import { runDestructive } from './runDestructive.js';
@@ -191,7 +190,6 @@ export function mountSettings(root, actions) {
         el('h1', { class: 'settings-top__title', text: 'Settings' }),
       ]),
     ]),
-    accountCard(session),
     el('div', { class: 'card card--danger' }, [
       el('div', { class: 'card__head' }, [el('span', { class: 'card__title', text: 'Erase progress' })]),
       el('div', { class: 'card__body' }, [

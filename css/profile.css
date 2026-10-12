@@ -1,0 +1,70 @@
+/* Profile page — the account card and sign-out, moved off the settings page.
+ *
+ * Shaped like settings.css: one centred column, the display face on the heading,
+ * and a card whose title matches the settings page's so the two read as a pair.
+ * The body class keeps this file's type choices from leaking onto the farm page.
+ */
+
+.profile-page {
+  display: block;
+  font-family: var(--font-ui);
+}
+
+.profile-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+.profile-top {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.profile-top__back {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.profile-top__back:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+.profile-top__title {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 1.75rem;
+  color: var(--text);
+  text-transform: uppercase;
+}
+
+/* The account lines read as a list of facts rather than as paragraphs. */
+.account-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+}
+
+.account-list__row {
+  display: flex;
+  gap: 8px;
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.account-list__key {
+  color: var(--text-muted);
+  min-width: 90px;
+}
+
+.account-list__value {
+  color: var(--text);
+  overflow-wrap: anywhere;
+}

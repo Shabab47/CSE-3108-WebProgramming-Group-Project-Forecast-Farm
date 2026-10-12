@@ -27,6 +27,7 @@ const LOGIN_URL = 'login.html';
 const SHOP_URL = 'shop.html';
 const FARM_URL = 'index.html';
 const SETTINGS_URL = 'settings.html';
+const PROFILE_URL = 'profile.html';
 
 export function shopHref(session) {
   return session?.status === 'guest' ? `${SHOP_URL}?guest=1` : SHOP_URL;
@@ -38,6 +39,10 @@ export function farmHref(session) {
 
 export function settingsHref(session) {
   return session?.status === 'guest' ? `${SETTINGS_URL}?guest=1` : SETTINGS_URL;
+}
+
+export function profileHref(session) {
+  return session?.status === 'guest' ? `${PROFILE_URL}?guest=1` : PROFILE_URL;
 }
 
 /**
@@ -102,8 +107,8 @@ function placeholder(label, detail) {
   ]);
 }
 
-function mountShell(session, onSignOut) {
-  mountNavbar(qsOrNull('#top-bar'), { session, onSignOut });
+function mountShell(session) {
+  mountNavbar(qsOrNull('#top-bar'), { session });
   mountShopLauncher(qsOrNull('#shop-launch'), { href: shopHref(session) });
 
   mountLocationBar(qsOrNull('#location-bar'), {
@@ -228,17 +233,6 @@ async function searchFor(query) {
   emit('toast', { message: `Farm moved to ${place.name}.`, tone: 'success' });
 }
 
-async function signOut(provider) {
-  saveNow();
-  try {
-    await provider.signOut();
-  } catch (error) {
-    log.warn('sign out failed -', error.message);
-  }
-  reset();
-  location.replace(LOGIN_URL);
-}
-
 function bootWeather() {
   const saved = getState()?.location;
   const needsDeviceFix = !saved?.pinned;
@@ -295,7 +289,7 @@ async function start() {
     log.info(loaded ? 'resumed farm' : 'started a new farm');
 
     mountToastStack();
-    mountShell(session, () => signOut(provider));
+    mountShell(session);
     renderPanels(getState());
 
     subscribe((state) => {

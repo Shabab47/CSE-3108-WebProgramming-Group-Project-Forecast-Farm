@@ -10,48 +10,29 @@
 import { el, clear } from '../utils/dom.js';
 import { createLog } from '../utils/log.js';
 import { icon } from './icon.js';
-import { settingsHref } from '../main.js';
+import { profileHref, settingsHref } from '../main.js';
 
 const log = createLog('navbar');
 
 /**
  * @param {HTMLElement} root
- * @param {{ session: object, onSignOut: Function }} actions
+ * @param {{ session: object }} actions
  * @returns {{ unmount: Function }}
  */
 export function mountNavbar(root, actions) {
-  const { session, onSignOut } = actions;
+  const { session } = actions;
   clear(root);
 
-  const isGuest = session.status === 'guest';
-  // Logged-in players see their name; guests get the person icon + a label,
-  // since "Guest farmer" is not an identity worth reading as a headline.
-  const playerName = session.farmerName || session.username || session.email;
-
-  const signOut = el('button', {
-    class: 'navbar__btn',
-    type: 'button',
-    text: isGuest ? 'Leave guest farm' : 'Sign out',
-    on: {
-      click: () => {
-        log.trace('sign out requested by', session.userId);
-        onSignOut();
-      },
-    },
-  });
-
-  const account = isGuest
-    ? el('span', { class: 'navbar__account' }, [
-        el('span', { class: 'navbar__tile', 'aria-hidden': 'true' }, [
-          icon('user', 'navbar__tile-icon'),
-        ]),
-        el('span', { class: 'navbar__account-name', text: 'Guest farmer' }),
-      ])
-    : el('span', {
-        class: 'navbar__account-name',
-        title: session.username || session.email || 'Signed in',
-        text: playerName || 'Farmer',
-      });
+  // The farmer's name and the sign-out button both live on the profile page now.
+  // The bar carries only what you navigate with: the wordmark, settings and profile.
+  const account = el('a', {
+    class: 'navbar__tile',
+    href: profileHref(session),
+    'aria-label': 'Your profile',
+    title: 'Profile',
+  }, [
+    icon('user', 'navbar__tile-icon'),
+  ]);
 
   const card = el('div', { class: 'navbar' }, [
     el('a', { class: 'navbar__logo', href: 'index.html', 'aria-label': 'Forecast Farm home' }, [
@@ -79,7 +60,6 @@ export function mountNavbar(root, actions) {
       ]),
 
       account,
-      signOut,
     ]),
   ]);
 

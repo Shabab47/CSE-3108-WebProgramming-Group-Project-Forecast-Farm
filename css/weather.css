@@ -1,10 +1,14 @@
+/* Weather panel.
+ *
+ * Sized to fit beside the field in one screen: the shell is `height: 100dvh` and
+ * the centre column splits between this card and the farm, so every value here is
+ * deliberately compact. The card is ~250px; the field gets the rest.
+ */
+
 .weather {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 20px;
-  border-radius: 20px;
-  background: var(--surface-sunken);
+  gap: 10px;
   color: var(--text);
 }
 
@@ -12,13 +16,13 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
 }
 
 .weather__place {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--text-muted);
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--text-faint);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -27,13 +31,26 @@
 .weather__now {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .weather__now-icon {
-  width: 56px;
-  height: 56px;
+  width: 40px;
+  height: 40px;
   flex-shrink: 0;
+}
+
+.weather-icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.weather__now-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
 }
 
 .weather__temp {
@@ -43,60 +60,57 @@
 }
 
 .weather__temp-value {
-  font-size: 3.25rem;
+  font-size: 2.25rem;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--text);
 }
 
 .weather__temp-unit {
-  margin-top: 6px;
-  font-size: 1.25rem;
+  margin-top: 4px;
+  font-size: var(--text-md);
   font-weight: 500;
   color: var(--text-muted);
 }
 
+.weather__desc {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text);
+}
+
+.weather__feels {
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+}
+
 .weather__meta {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
   text-align: right;
   min-width: 0;
 }
 
-.weather__meta-label {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--text);
-}
-
 .weather__meta-time {
-  font-size: 0.875rem;
-  font-weight: 500;
+  display: block;
+  font-size: var(--text-xs);
   color: var(--text-muted);
-}
-
-.weather__meta-cond {
-  font-size: 0.875rem;
-  color: var(--text-faint);
+  white-space: nowrap;
 }
 
 .weather__idle {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .weather__idle .weather-icon {
-  width: 56px;
-  height: 56px;
+  width: 40px;
+  height: 40px;
   opacity: 0.55;
 }
 
 .weather__idle-text {
-  font-size: 0.9375rem;
-  color: var(--text-faint);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
 }
 
 .weather__stats {
@@ -108,15 +122,15 @@
 .weather-stat {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 10px 14px;
-  border-radius: 12px;
-  background: var(--surface);
+  gap: 1px;
+  padding: 6px 10px;
+  border-radius: var(--radius-input);
+  background: var(--surface-sunken);
   min-width: 0;
 }
 
 .weather-stat__label {
-  font-size: 0.68rem;
+  font-size: 0.62rem;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -124,7 +138,7 @@
 }
 
 .weather-stat__value {
-  font-size: 0.9375rem;
+  font-size: var(--text-sm);
   font-weight: 600;
   color: var(--text);
   white-space: nowrap;
@@ -132,104 +146,68 @@
   text-overflow: ellipsis;
 }
 
-.weather__graph {
-  width: 100%;
-}
-
-.weather-graph {
-  display: block;
-  width: 100%;
-  height: 180px;
-}
-
-.weather__forecast {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  padding-top: 12px;
+.weather__hours {
   border-top: 1px solid var(--border);
+  padding-top: 8px;
 }
 
-.weather-forecast {
+.hours {
+  display: flex;
+  gap: 6px;
+}
+
+.hours__slot {
   display: flex;
   flex: 1 1 0;
-  justify-content: space-between;
-  gap: 4px;
-  min-width: 0;
-}
-
-.weather-forecast__day {
-  display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  flex: 1 1 0;
+  gap: 2px;
   min-width: 0;
-  padding: 8px 4px;
-  border-radius: 12px;
+  padding: 6px 2px;
+  border-radius: var(--radius-input);
+  background: var(--surface-sunken);
 }
 
-.weather-forecast__day:first-child {
-  background: var(--accent-soft);
+.hours__time {
+  font-size: 0.62rem;
+  font-weight: 500;
+  color: var(--text-faint);
 }
 
-.weather-forecast__name {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--text-muted);
-  text-transform: capitalize;
+.hours__icon {
+  width: 22px;
+  height: 22px;
 }
 
-.weather-forecast__icon {
-  width: 28px;
-  height: 28px;
-}
-
-.weather-forecast__temps {
-  display: flex;
-  gap: 4px;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.weather-forecast__max {
+.hours__temp {
+  font-size: var(--text-sm);
+  font-weight: 650;
   color: var(--text);
 }
 
-.weather-forecast__min {
-  color: var(--text-faint);
+.hours__rain {
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: #4a9ede;
 }
 
 .weather__updated {
-  font-size: 0.75rem;
+  font-size: 0.68rem;
   color: var(--text-faint);
 }
 
+.weather__updated[data-paused="true"] {
+  color: var(--warning);
+  font-weight: 600;
+}
+
 @media (max-width: 900px) {
-  .weather {
-    padding: 16px;
-    border-radius: 16px;
-  }
-
-  .weather__stats {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
   .weather__temp-value {
-    font-size: 2.5rem;
+    font-size: 2rem;
   }
 }
 
 @media (max-width: 600px) {
-  .weather__top {
-    flex-direction: column;
-  }
-
-  .weather__meta {
-    align-items: flex-start;
-    text-align: left;
-  }
-
   .weather__stats {
     grid-template-columns: 1fr;
   }

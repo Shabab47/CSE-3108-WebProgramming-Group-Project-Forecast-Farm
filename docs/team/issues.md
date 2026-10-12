@@ -31,7 +31,7 @@ current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
 | ISS-006 | Dead crops permanently brick a plot | **High** | Hisham | open | T-08 |
 | ISS-007 | Pump's transparent canvas eats plot clicks | **High** | Hisham | open | T-06 |
 | ISS-008 | Pump is ~36× stronger than rain | **High** | Hisham | open | T-09 |
-| ISS-009 | `hourly[0]` is midnight, not the current hour | **High** | Afif | open | T-04 |
+| ISS-009 | ~~`hourly[0]` is midnight~~ — premise void under `forecast_hours` | ~~High~~ | Afif | **stale** | — |
 | ISS-010 | `check-imports` fails on `utils/dom.js` | **High** | Hisham | open | T-02 |
 | ISS-013 | No state field for notification dedupe | **High** | Afif | open | T-13 |
 | ISS-015 | Drought's conditional rating has no home | Medium | Afif | open | T-12 |
@@ -308,17 +308,38 @@ current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
 - Fix: _pending._ Decide before T-09. Recommended: `pumpPerSecond: 0.05`, which makes the pump a
   top-up tool and lets forecast-driven watering matter. Needs the team's call, not mine.
 
-### ISS-009 `hourly[0]` is midnight, not the current hour
-- Reported by Hisham · Owner: Afif · Status: open
-- Where: `js/domain/weather.js`
-- Problem: A live response fetched at 12:15 returns `current.time = "12:15"` and
-  `hourly.time[0] = "00:00"`, with 48 entries for `forecast_days=2`. The plan states
-  `classify()` returns "24 entries starting at the current hour" but never says how to find it,
-  and `simulator.tick` reads `hourly[0]`. Implemented naively, the simulator treats midnight as
+### ISS-009 ~~`hourly[0]` is midnight, not the current hour~~ — premise no longer holds
+- Reported by Hisham · Owner: Afif · Status: **stale — will not occur**
+- Where: `js/ui/weatherPanel.js`, `js/domain/weather.js`
+- Original problem: a live response fetched at 12:15 returned `current.time = "12:15"` and
+  `hourly.time[0] = "00:00"`, with **48 entries for `forecast_days=2`**. The plan states
+  `classify()` returns "24 entries starting at the current hour" but never says how to find it, and
+  `simulator.tick` reads `hourly[0]`. Implemented naively, the simulator would treat midnight as
   now: wrong evaporation, wrong rain, wrong health drain for up to 24 hours.
-- Cause: The raw API shape was assumed rather than checked.
-- Fix: _pending._ `classify()` computes `startIndex` by matching `current.time` against
-  `hourly.time`, then slices 24 entries from there. Add a test.
+- **Why it no longer applies.** That observation was against a request sending `forecast_days=2`.
+  `js/services/weatherApi.js` now sends **`forecast_hours=24`** instead, which makes Open-Meteo start
+  the hourly series at the **current hour**. Verified live against four timezones on 2026-10-13:
+
+  | Location | `current.time` | `hourly.time[0]` |
+  | :--- | :--- | :--- |
+  | Dhaka | `01:15` | `01:00` |
+  | London | `20:15` | `20:00` |
+  | Sydney | `06:15` | `06:00` |
+  | Reykjavik | `19:15` | `19:00` |
+
+  `hourly.time[0]` matched the current hour in every case. 24 entries, not 48.
+- **The planned fix would have introduced the bug it was meant to prevent.** `current.time` carries
+  the minutes past the hour and **never appears in `hourly.time`** (exact-match index is `-1` in all
+  four probes). A loop seeking the "first hour at or after" `current.time` therefore lands on the
+  *next* hour — at 01:15 the strip would begin at 02:00, skipping the hour in progress. One was
+  written that way, against this issue as authority, and was reverted: `weatherPanel.js` reads
+  index 0 for both the hourly strip and the precipitation stat, which is correct under
+  `forecast_hours`.
+- Fix: **not needed.** Kept as stale rather than closed as fixed, because "fixed" would leave a
+  false record that someone trusts next time — the remedy is recorded above so nobody re-derives it.
+- **Still worth doing for a different reason:** nothing asserts that `hourly.time[0]` tracks the
+  current hour, so a change back to `forecast_days` would reintroduce the original bug silently. A
+  test pinning the shape would be the real close.
 
 ### ISS-010 `check-imports` fails on `utils/dom.js`
 - Reported by Hisham · Owner: Hisham · Status: open
@@ -359,15 +380,21 @@ current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
 - Cause: Assumed an empty array rather than an absent key.
 - Fix: _pending._ Guard with `if (!Array.isArray(data.results) || data.results.length === 0)`.
 
-### ISS-011 Stale sample data breaks the current-hour lookup
+### ISS-011 Stale sample data shows weather from the day it was captured
 - Reported by Hisham · Owner: Afif · Status: open
 - Where: `js/services/weatherApi.js`, `data/sample-forecast.json`
-- Problem: `data/sample-forecast.json` is a saved response with fixed timestamps. Once its date
-  is in the past, the `startIndex` lookup from ISS-009 cannot match "now", so the offline
+- Original problem: `data/sample-forecast.json` is a saved response with fixed timestamps. Once its
+  date is in the past, the `startIndex` lookup from ISS-009 cannot match "now", so the offline
   fallback either throws or silently shows weather from the day it was captured.
+- **Revised after ISS-009 went stale.** The `startIndex` lookup no longer exists, so the original
+  failure mode is gone with it — there is nothing left to "not match". The problem underneath it is
+  real and unchanged: the panel reads index 0 as *the current hour*, which is only true for a live
+  response. On a captured sample it reads the capture hour on whatever day it was taken, which is
+  wrong in a way nothing currently flags.
 - Cause: Fallback path was not traced through the same parser as the live path.
-- Fix: _pending._ If the sample's date is not today in its timezone, use index 0, set
-  `weather.source = 'sample'`, and show the offline badge.
+- Fix: _pending._ If the sample's date is not today in its timezone, set `weather.source = 'sample'`
+  and show the offline badge, so a stale sample is labelled rather than passed off as live. The
+  already-shipped `sync: 'pending'` line ("Live weather paused — last read …") is the model.
 
 ### ISS-001 All 14 SVG icons are 0 bytes
 - Reported by Hisham · Owner: Kafi · Status: open
