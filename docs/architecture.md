@@ -48,13 +48,12 @@ services (fetch)  →  main.js  →  store.apply  →  domain (pure rules)  → 
 
 0. **Resolve the session.** `resolveSession()` asks the provider for a stored
    session, then falls back to a guest session when the URL carries `?guest=1`.
-   No session at all → `location.replace('login.html')` and **return**. The game
-   is never mounted for a signed-out visitor, so there is no flash of farm UI.
+   It answers `{ok, session|reason}`, **not** `session | null` — see below.
 1. `store.init(session)` — loads `forecastFarm.save.v1:<userId>`, or builds
    `initialState(session)`. Either way the live session goes into state.
 2. Preload images (rice stages + both ground tiles + base + pump).
 3. Mount UI: navbar, sidebar, seasonCard, weatherPanel, farmView, hud, buttonBar,
-   meters, envMetrics, toastStack.
+   meters, envMetrics, toastStack, connectionBanner.
 4. Fetch weather for `state.location`, or the sample fallback. Repeat every `REFRESH_MS`.
 5. Start the simulator interval (`TICK_MS`) and the autosave interval (`AUTOSAVE_MS`).
 6. If `?debug=1`, mount the debug panel.
@@ -64,10 +63,56 @@ than an overlay: the shell must not render before auth. `js/auth-main.js` is the
 mirror image — it redirects *to* the game when a session already exists, so
 neither page can bounce the visitor back and forth.
 
+### Step 0 branches on the reason, not on truthiness
+
+`resolveSession()` used to answer `session | null`, and `null` meant three
+unrelated things at once — an invalid token, an unreachable server, and our own
+outage. Every caller treated it as the first, so a dropped connection became a
+redirect to the login page and the refresh token was destroyed on the way out.
+That is **ISS-048**, and it is what logged players out at random on the hosted
+build.
+
+| `resolveSession()` answers | The page does |
+| :--- | :--- |
+| `{ok: true, session}` | mount the game |
+| `{ok: false, reason: 'invalid_token'}` | `location.replace('login.html')` — a real logout |
+| `{ok: false, reason: 'offline'}` | `ui/blockedScreen.js`, with a retry |
+| `{ok: false, reason: 'server_error'}` | the same screen, worded as our fault not theirs |
+
+`restoreSession()` only clears the stored refresh token for a `400`/`401`. A
+timeout, a 5xx and a dropped connection all keep it, so the next load can still
+restore silently. A guest never needs the network, so `?guest=1` wins over both.
+
+### Losing the connection mid-session
+
+A connection that drops while the farm is open **does not stop play**. The farm
+keeps saving to localStorage and syncs when the connection returns. What changes
+is that the game now says so:
+
+- `ui/connectionBanner.js` — persistent, never a toast, because "your farm is only
+  on this device" is a fact to act on. Offers the `.farm` export as the escape
+  hatch, which is the mechanism that already existed (DEC-021).
+- `ui/weatherPanel.js` — the last forecast stays on screen marked
+  *"Live weather paused — last read N minutes ago"*, rather than a timestamp that
+  reads as live.
+- `store.js` tracks `synced` / `saving` / `pending` and emits `sync`; a failed
+  write is queued and flushed on `window.online` rather than retried every 10 s.
+
+`js/connection.js` wires all of this for all four entry points, so the farm, shop,
+settings and login share one copy instead of four that drift — the boot and save
+wiring was already copy-pasted three times.
+
+**`pagehide` cannot complete a server save.** It needs an `Authorization` header
+and `navigator.sendBeacon` cannot send one. The synchronous localStorage write
+inside `saveNow()` is what actually persists on exit, and it does.
+
 ### What is on screen while boot happens
 
-Steps 0 and 1 are network, and the panels are empty until they finish — up to 15
-s on a bad connection (ISS-043). So a veil covers the gap.
+Steps 0 and 1 are network, and the panels are empty until they finish. Every
+request in the project now carries a deadline — `AUTH_TIMEOUT_MS` (10 s), with
+`RESTORE_HARD_LIMIT_MS` (15 s) as a backstop on session restore — so a bad
+connection fails in bounded time instead of hanging (ISS-049). So a veil covers
+the gap.
 
 `mountBootLoader()` is the **first statement of `start()` on all four pages**, before
 any `await`, and `done()` is called once the real UI is mounted:
@@ -111,6 +156,7 @@ login.html ──► js/auth-main.js ──► mountAuthViews(root, actions)
 
 index.html ──► js/main.js ──► boot 0: resolveSession()
                               │ no session → login.html, game never mounts
+                              │ offline/server_error → ui/blockedScreen.js
                               ▼
                         js/state/store.js ──► forecastFarm.save.v1:<userId>
 ```
@@ -805,19 +851,26 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 - Save key: `forecastFarm.save.v1:<userId>` — per user, not one global key.
 - Session lives in `state.session`; `store.js` persists it with the save.
 - Auth provider calls live in `js/services/authApi.js`. Never in `js/ui/`.
+- **Never treat "could not reach the server" as "signed out".** Only a `400`/`401`
+  clears a credential. This is ISS-048 and it is the single rule that most of
+  `js/connection.js` exists to enforce.
+- Every `fetch` carries an `AbortController` deadline.
 
 ## Module contracts
 
 | Module | Exports | Notes |
 | :--- | :--- | :--- |
-| `state/store.js` | `getState`, `apply`, `subscribe`, `on`, `emit`, `save`, `saveNow`, `load`, `init`, `reset`, `clearSave`, `adoptState`, `exportPayload`, `readImport` | `subscribe` returns an unsubscribe fn. **`init`, `saveNow` and `clearSave` are async** |
+| `state/store.js` | `getState`, `apply`, `subscribe`, `on`, `emit`, `save`, `saveNow`, `load`, `init`, `reset`, `clearSave`, `clearLocalSave`, `adoptState`, `exportPayload`, `readImport`, `getSync`, `flushPendingSave` | `subscribe` returns an unsubscribe fn. **`init`, `saveNow` and `clearSave` are async.** Emits `sync` with `synced`/`saving`/`pending` (ISS-050) |
 | `state/saveFile.js` | `saveKey`, `writeSave`, `readSave`, `deleteSave` | the local cache writer |
 | `services/saveApi.js` | `readRemoteSave`, `writeRemoteSave`, `deleteRemoteSave`, `countRemoteSaves` | the server save; takes the token per call |
 | `remoteSave.js` | `buildServerSave` | the join, at the top of `js/` beside the entry points |
+| `connection.js` | `mountConnectionStatus`, `wireSaveOnExit` | the banner + retry wiring for all four pages. Top of `js/` because it needs `ui/` and `state/` at once |
+| `ui/blockedScreen.js` | `mountBlockedScreen`, `messageFor` | replaces the page when there is no session *because there is no connection* |
+| `ui/connectionBanner.js` | `mountConnectionBanner`, `copyFor`, `describeStaleFor` | persistent, never a toast |
 | `state/transfer.js` | `exportToText`, `exportFilename`, `readExport`, `rebaseState`, `importFromText`, `verifySignature`, `SAVE_EXTENSION` | pure; the caller passes `now` |
 | `utils/checksum.js` | `checksum`, `checksumsMatch` | FNV-1a. Detects damage, **not** tampering |
-| `services/authApi.js` | `signIn`, `signUp`, `signOut`, `currentSession`, `requestPasswordReset`, `updatePassword`, `restoreSession` | same contract as `localAuth.js` |
-| `services/gotrue.js` | `post`, `postAuthed`, `bestEffort`, `reasonFor` | transport only; never throws |
+| `services/authApi.js` | `signIn`, `signUp`, `signOut`, `currentSession`, `requestPasswordReset`, `updatePassword`, `restoreSession`, `accessToken` | same contract as `localAuth.js`, except **`restoreSession()` answers `{ok, session\|reason}`, not `session\|null`** (ISS-048) |
+| `services/gotrue.js` | `post`, `postAuthed`, `bestEffort`, `reasonFor` | transport only; never throws. Every call carries `AUTH_TIMEOUT_MS`, and failures carry the HTTP `status` |
 | `services/tokenStore.js` | `readRefreshToken`, `writeRefreshToken` | the only writer of a token |
 | `utils/log.js` | `createLog(scope)` | returns `{ info, warn, error }` |
 | `utils/iso.js` | `plotToScreen`, `diamondClipPath` | all sizes are fractions of the stage |
@@ -831,7 +884,7 @@ the page. To put a panel inside a card, make the host yourself, mount into it, a
 the host — which is what `settingsView.js` does for `mountSavePanel`. Every call site in
 the repo does this correctly except that one, and nothing in the unit tests could see it:
 the settings DOM test now asserts both that the controls are present and that no
-`[object Object]` appears on the page (ISS-047).
+`[object Object]` appears on the page (ISS-051).
 | `domain/*` | pure `(state, ...args)` functions | return `{ ok, state }` or `{ ok: false, reason }` |
 
 `farm.stageOf` and `farm.isReady` are pure selectors, so UI calls them directly.

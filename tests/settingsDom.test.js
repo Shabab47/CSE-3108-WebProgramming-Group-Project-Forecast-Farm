@@ -54,7 +54,7 @@ function passwordField(root, id) {
 /**
  * The Save data card's callbacks.
  *
- * Every call site needs these. The card is rendered unconditionally (ISS-047) and
+ * Every call site needs these. The card is rendered unconditionally (ISS-051) and
  * `savePanel.js` calls `actions.canExport()` at mount time — before the player has
  * touched anything — so a mount without them throws rather than merely rendering an empty
  * card. That is a deliberate change from the old gating, where a missing `canExport`
@@ -214,7 +214,7 @@ test('the two cards do not share a status line', async () => {
   //
   // Counted *per card*, not across the page. Counting the whole page made this a hostage
   // to every other panel: the Save data card added a third `role="status"` node of its own
-  // when it started rendering (ISS-047), and the assertion failed on a page that was correct.
+  // when it started rendering (ISS-051), and the assertion failed on a page that was correct.
   // A screen reader announces a change in the region it happened in, so what matters is
   // that each destructive action reports into its own card — not how many regions the
   // settings page ends up with.
@@ -474,7 +474,7 @@ test('the status line says something in every tone the panel uses', async () => 
 /* --- no leaked values ------------------------------------------------------- */
 
 test('appendAll skips null children, and a bare append does not', async () => {
-  // The two halves of ISS-048, pinned so nobody "simplifies" the fix away. `appendAll`
+  // The two halves of ISS-052, pinned so nobody "simplifies" the fix away. `appendAll`
   // exists because `node.append(null)` and `el('div', {}, [null])` behave differently,
   // and the fake DOM now reproduces that difference on purpose.
   const root = installDom();
@@ -498,7 +498,7 @@ test('appendAll skips null children, and a bare append does not', async () => {
 });
 
 test('a guest is not shown the word "null"', async () => {
-  // The regression, ISS-048. `mountSettings` ended with the *native* `root.append(...)`,
+  // The regression, ISS-052. `mountSettings` ended with the *native* `root.append(...)`,
   // whose signature is `(Node or DOMString)` — so `account ? el(...) : null`, null for
   // every guest, was stringified into a text node and rendered between the two cards.
   //
@@ -540,7 +540,7 @@ test('an authed player is not shown it either', async () => {
 /* --- the Save data card ------------------------------------------------------ */
 
 test('the Save data card mounts the import/export controls', async () => {
-  // The regression, ISS-047. `mountSavePanel` returns `{ unmount }` rather than a node, and
+  // The regression, ISS-051. `mountSavePanel` returns `{ unmount }` rather than a node, and
   // passing that straight into `el()` stringified it: the card rendered the text
   // `[object Object]` and the panel itself was mounted into a detached `<div>` that never
   // reached the page. Reading the code showed a save panel wired into the settings page.
@@ -624,7 +624,7 @@ test('a guest is shown no password field for either action', async () => {
 });
 
 test('a guest gets the Save data card and an explanation, not an empty space', async () => {
-  // The card is deliberately not gated on `canExport` (ISS-047). It never really was — the
+  // The card is deliberately not gated on `canExport` (ISS-051). It never really was — the
   // old check tested the function rather than calling it, so it was always truthy — but the
   // code read as a guest gate and would have become one the moment someone "fixed" it.
   //

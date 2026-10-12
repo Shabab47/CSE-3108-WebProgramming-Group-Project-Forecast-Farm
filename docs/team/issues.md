@@ -57,6 +57,10 @@ current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
 | ISS-045 | Docs point at `css/field.css`, which does not exist | Low | Jim | **fixed** | — |
 | ISS-046 | `.btn--secondary` and four other rendered classes have no rule anywhere | Low | Hisham | open | T-11 |
 | ISS-032 | No Supabase project yet, so no real accounts or server-side signing | **High** | Shabab | partly fixed | T-29 |
+| ISS-048 | A transient refresh failure permanently destroys the refresh token | **High** | Hisham | **fixed** | T-39 |
+| ISS-049 | `gotrue.post()` has no request deadline | **High** | Hisham | **fixed** | T-39 |
+| ISS-050 | A failed server save is invisible, so "autosave" is not what it claims | Medium | Hisham | **fixed** | T-39 |
+| ISS-047 | Five duplicate rice sprites at the pre-refactor flat path | Low | Kafi | open | T-06 |
 
 ---
 
@@ -699,7 +703,91 @@ current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
   file ends up holding `.btn` is the one to put it in, per DEC-029. `.divider` is one rule.
   `.location-bar*` belongs to whoever lands T-11.
 
-### ISS-047 The Save data card rendered `[object Object]` instead of the import/export controls
+### ISS-047 Five duplicate rice sprites at the pre-refactor flat path
+- Reported by Hisham · 2026-10-12 · Owner: Kafi · Status: open
+- Where: `assets/images/crops/rice_1.png` … `rice_5.png`, against `js/config/assets.js`
+- Problem: `npm test` fails with `assets/images/crops/rice_1.png exists on disk but is not listed in
+  js/config/assets.js`. Five files sit at `assets/images/crops/rice_N.png` while the registry — and
+  every path builder in `assets.js` — expects `assets/images/crops/rice/rice_N.png`.
+- Cause: commit `855dc32` ("Login UI implemented", from the `jim` branch, merged by `cb7fe4c`)
+  re-added files at the old flat path. That branch was based on the pre-refactor tree, and the flat
+  copies were deleted in `59d7898` ("refactor(assets): one folder per crop"). A merge from an old
+  base reintroduced them.
+- Verified: all five are byte-identical to the nested copies (SHA256 match, identical byte sizes),
+  and `grep` finds **zero** references to the flat path in any `.js`, `.css` or `.html`. They are
+  dead weight, not a parallel set that anything loads.
+- Risk: Low, and the duplication is what makes it safe to resolve — nothing is lost by removing
+  the stray copies, since the real files remain. But `assets/` is Kafi's folder per
+  `docs/team/ownership.md`, so this is his to sign off, not Hisham's to delete silently.
+- Fix: not started. The fix is deleting the five flat files, which restores the state `59d7898`
+  intended. Not bundled with other work — AGENTS.md §8 says one step per commit, and §3 says an
+  unfamiliar change in someone else's folder gets investigated and flagged first, which is what
+  this entry is.
+
+### ISS-048 A transient refresh failure permanently destroys the refresh token
+- Reported by Hisham · 2026-10-12 · Owner: Hisham · Status: **fixed**
+- Where: `js/services/authApi.js`, `restore()`
+- Problem: players are logged out on their own, at random, on the hosted build — and the logout is
+  permanent. `restore()` treats *every* unsuccessful refresh as an invalid token:
+  ```js
+  const result = await post('token?grant_type=refresh_token', { refresh_token: refreshToken });
+  if (!result.ok) {
+    log.warn('refresh failed, signing out');
+    writeRefreshToken(null);   // ← runs for a 500, a 502, a rate limit, and a dropped connection
+    return null;
+  }
+  ```
+  `gotrue.post()` returns `{ok:false}` for **any** non-2xx response, so one transient blip deletes
+  the stored refresh token. Silent re-login can then never work again — the player has to retype
+  their password. This is the reported "auto logs out on its own".
+- Cause: `ok` from the transport conflates "the server rejected your credential" with "the server
+  was unreachable or broken". Only the first justifies deleting a credential.
+- Risk: **High** — it is a live data-adjacent defect on the deployed build, and it affects every
+  signed-in player. The fix deliberately *loosens* a rule, so it is recorded as a DEC rather than
+  shipped as a silent bugfix.
+- Fix: `68f69cc`. Only a `400`/`401` clears the token now. `restoreSession()` answers
+  `{ok, session|reason}` with `invalid_token` / `offline` / `server_error`, and the 15 s race keeps
+  the token rather than destroying it. `gotrue.post()` returns the HTTP `status` alongside the
+  reason, which is what made 401-versus-502 decidable at all. Tests assert the token survives a
+  network failure, a timeout and a 502, and is cleared by a 401. DEC-030.
+
+### ISS-049 `gotrue.post()` has no request deadline
+- Reported by Hisham · 2026-10-12 · Owner: Hisham · Status: **fixed**
+- Where: `js/services/gotrue.js`, `post()` and `postAuthed()`
+- Problem: no `AbortController`, so a request that never answers hangs indefinitely. `saveApi.js`
+  and `authApi.js`'s `rest()` both arm a 10 s timer; `gotrue.js` does not. On the hosted build —
+  CDN cold starts, a proxy, a captive portal — the boot-time refresh stalls until the 15 s
+  `Promise.race` in `restoreSession()` fires, which reports "signed out" and redirects to the login
+  page. So a slow network is indistinguishable from a logged-out account, and the player sees a
+  blank page for 15 s first.
+- Cause: the deadline was added to `saveApi.js` and to `authApi.rest()` but never carried across to
+  the GoTrue transport those were modelled on.
+- Risk: High — this is what turns a slow connection into a false logout, and it is the reason the
+  boot path is slow to fail rather than quick.
+- Fix: `ee1d02b`. `AbortController` + a 10 s timer in `post()` and `postAuthed()`, with
+  `AUTH_TIMEOUT_MS` moved into `js/config/game.js` so one number governs every wait on the server.
+  An abort reports `reason: 'timeout'` rather than `network_request_failed`, because the caller
+  needs to tell "we gave up waiting" from "the request never left".
+
+### ISS-050 A failed server save is invisible, so "autosave" is not what it claims
+- Reported by Hisham · 2026-10-12 · Owner: Hisham · Status: **fixed**
+- Where: `js/state/store.js`, `saveNow()`
+- Problem: the local write is correct and synchronous, but a failed server write is swallowed into
+  a `log.warn`. The player is never told their farm is not reaching the server, and the autosave
+  interval keeps re-firing a doomed 10 s request every 10 s. Clear site data, switch device, and
+  the farm is gone with no warning having been given at any point.
+- Cause: the save path has no health signal and no UI consumer for one. Nothing in `store.js` or
+  `state/` records *whether* the last write reached the server.
+- Risk: Medium — no data is lost while the tab stays open, but the player is given false
+  confidence, and the retry loop wastes battery and requests on a dead connection.
+- Fix: `46f9b71`. `store.js` tracks `synced` / `saving` / `pending` and emits `sync`; a failed write
+  is queued instead of retried every 10 s, and flushed on `window.online` or after
+  `SAVE_RETRY_BACKOFF_MS`. `ui/connectionBanner.js` is persistent rather than a toast, says the
+  farm is device-only and that live weather is paused, and offers the `.farm` export that already
+  existed. `ui/weatherPanel.js` labels the last forecast as paused instead of showing a timestamp
+  that reads as live. Wired for all four pages through `js/connection.js`.
+
+### ISS-051 The Save data card rendered `[object Object]` instead of the import/export controls
 - Reported by Jim · 2026-10-12 · Owner: Hisham · Status: fixed
 - Where: `js/ui/settingsView.js`, `js/ui/savePanel.js`
 - Problem: the Save data card on the settings page showed the literal text `[object Object]`
@@ -721,7 +809,7 @@ current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
   exported. `tests/settingsDom.test.js` now asserts both the controls are present and that no
   `[object Object]` appears anywhere on the page.
 
-### ISS-048 A guest sees the word "null" on the settings page
+### ISS-052 A guest sees the word "null" on the settings page
 - Reported by Jim · 2026-10-12 · Owner: Shabab · Status: fixed
 - Where: `js/ui/settingsView.js`, `js/utils/dom.js`, `tests/helpers/fakeDom.js`
 - Problem: a player signed in as a guest sees a bare `null` rendered between the "Erase progress"
@@ -731,7 +819,7 @@ current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
   `(Node or DOMString)` and so stringifies a `null` argument into a text node. The last argument is
   `account ? el(...) : null`, which is null for every guest. `el()` has an explicit null filter and does
   not have this problem — and the comment above the line said so, describing the wrong function.
-  Pre-existing, present since the delete-account card landed; not a regression from ISS-047.
+  Pre-existing, present since the delete-account card landed; not a regression from ISS-051.
 - Fix: `appendAll()` in `utils/dom.js`, mirroring `el()`'s filter, and `mountSettings` uses it. The
   deeper problem is the test double: `fakeDom.append()` *skipped* null rather than stringifying it, so
   the fake DOM was laxer than the browser and `settingsDom.test.js`'s guest test passed against a page
@@ -740,3 +828,4 @@ current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
   a browser.
 - Risk of the fix: low, and worth stating. `.settings-page` is the only body class in the repo, so the
   cascade cannot leak into `index.html`, which also links `settings.css`.
+

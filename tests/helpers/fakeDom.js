@@ -93,7 +93,7 @@ export class FakeNode {
    *
    * **It used to skip `null` instead, and that was a lie with consequences.** Being laxer
    * than the browser meant `root.append(a ? b : null)` rendered nothing here and the word
-   * "null" in a real browser — which is how a guest saw it on the settings page (ISS-048).
+   * "null" in a real browser — which is how a guest saw it on the settings page (ISS-052).
    * `el()` has its own null filter and still does, so every `el()` call site is unaffected;
    * what changed is that a bare `append` now fails here the way it fails there.
    */

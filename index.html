@@ -21,7 +21,13 @@
   </head>
 
   <body>
-    <div class="app">
+    <!-- Connection banner mount point. Empty until a save actually fails, so it
+         costs nothing on a healthy connection — see js/connection.js. -->
+    <div id="connection-banner"></div>
+
+    <!-- The farm itself. Replaced wholesale by the blocked screen when there is no
+         connection and no session, because RLS means there is no farm to show. -->
+    <div class="app" id="app">
       <header class="app__top" id="top-bar"></header>
 
       <aside class="app__sidebar" id="sidebar">

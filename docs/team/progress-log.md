@@ -7,12 +7,98 @@ The per-person weekly notes that used to live in the README table are now in `me
 
 ---
 
+## Losing the network no longer signs the player out — Hisham
+
+- **Did:** Fixed the hosted build logging players out at random. Three separate defects, in
+  `gotrue.js`, `authApi.js` and `main.js`, all feeding the same symptom. The farm also now tells
+  the player when it cannot reach the server, instead of failing silently.
+- **Root cause 1 (ISS-049):** `gotrue.post()` had no `AbortController`, so a hung request sat
+  there until the 15 s race in `restoreSession()` fired and reported a logout that had not
+  happened. Every other module in the project already had a deadline; this one was missed.
+- **Root cause 2 (ISS-048):** `restore()` called `writeRefreshToken(null)` on *any* failed
+  refresh, and `gotrue.post()` returns `{ok:false}` for every non-2xx. A 502 from a proxy
+  therefore **deleted the stored refresh token** and redirected to the login page — permanently,
+  because the token was gone and silent re-login could never work again. The player had to retype
+  a password for a session that was never invalid.
+- **Root cause 3:** `resolveSession()` answered `session | null`, which made "invalid token",
+  "no network" and "server broken" indistinguishable, and every caller read it as the first.
+- **Touched:** `js/services/gotrue.js`, `js/services/authApi.js`, `js/main.js`, `js/state/store.js`,
+  `js/ui/weatherPanel.js`, `js/auth-main.js`, `js/shop-main.js`, `js/settings-main.js`,
+  `js/config/game.js`, `index.html`, `shop.html`, `settings.html`, `css/components.css`.
+- **New:** `js/connection.js` (banner + retry wiring for all four pages), `js/ui/blockedScreen.js`,
+  `js/ui/connectionBanner.js`, `tests/connectionStatus.test.js`.
+- **How it behaves now:** boot with no connection shows a blocked screen with a retry, never the
+  login page. Mid-session the farm keeps playing and saving locally; a persistent banner says the
+  farm is device-only, that live weather is paused, and offers the `.farm` export. Reconnecting
+  flushes the queued write and clears the banner. The weather panel keeps the last forecast but
+  labels it *"Live weather paused — last read N minutes ago"* rather than showing a timestamp
+  that reads as live.
+- **Why a 5xx needed the HTTP status threaded through:** a proxy error body carries no
+  `error_description`, so it mapped to `auth_unknown` — indistinguishable from a refusal.
+  `gotrue.post()` now returns `status` alongside `reason`, which is what makes 401-versus-502
+  decidable at all.
+- **Also fixed while in there:** the boot and save wiring was copy-pasted across all four entry
+  points, down to the `pagehide` line. Extracted to `js/connection.js` so the fix is written once.
+- **Broke six existing tests, correctly:** `tests/mainBoot.test.js` asserted the old
+  `session | null` contract — the exact contract that caused the bug. Updated to the new shape and
+  kept their intent; added cases for offline, server_error and guest-with-no-network.
+- **Layering:** `wireSaveOnExit` initially used `document` and `check-imports.mjs` refused it,
+  which is the check working. It now takes the document as a parameter rather than widening the
+  whitelist — ISS-016 is still open, so the rule was left intact.
+- **Docs:** DEC-030 (this deliberately loosens a rule, so it needed a record), architecture.md
+  boot order + module contracts, ISS-048/049/050 logged before any fix.
+- **Tests:** `npm test` 310, 309 pass. The one failure is ISS-047 (duplicate rice sprites from
+  Kafi's merge) and is untouched by this work. `npm run check` clean.
+- **Not verified in a browser.** No desktop browser was attached to the session, so this was
+  verified by `npm run check`, `npm test`, `node --check` on all twelve changed modules, and
+  walking the import graph over HTTP from all four entry points — 67 modules, every import
+  resolved. **Nobody has watched the banner appear, or the blocked screen render.** Two things
+  want a human eye: that the retry button recovers cleanly, and that the export in the banner
+  produces a valid `.farm`.
+
+---
+
+## Week-2 credit corrected, and Kafi/Jim unified — Hisham
+
+- **Did:** Rewrote the week-2 half of the README so each piece of work has one name against it
+  instead of three rows split three ways. The old `Sign-in and save system` row credited
+  `Shabab, Hisham` for things four people built; it is now eight rows. Separately, **Kafi and
+  Jim are one person** — the Git handle is `aa-jim` and the branch is `origin/jim` — and the
+  repo was at risk of reading them as a fifth member.
+- **Attribution now reads:** **Kafi** — sign-in menu UI, gameplay scene UI. **Shabab** — Supabase
+  connection, shop, username sign-in, erase-progress and delete-account behind a password check.
+  **Afif** — the weather API connected to the game interface. **Hisham** — the Supabase
+  environment, the `farm_saves` SQL, export/import a farm, the asset registry.
+- **Touched:** `README.md` (structure tree, team table, Where We Stand, Weekly Progress),
+  `docs/team/tasks.md` (added T-35, T-36, T-37, T-38; T-11 moved `todo` → `doing`),
+  `docs/team/members/{kafi,shabab,afif,hisham}.md`.
+- **Removed from the README:** the `Project foundation / In progress / … 264 passing tests` row,
+  and `loading tips` from the `js/config/` tree line.
+- **Why the row had to go rather than be edited:** it was a catch-all that mixed real deliverables
+  with a test count, and it credited a vague "foundation" instead of naming what was built. The
+  work itself is not in question — it is split across the named rows now.
+- **Not verifiable from the history:** `origin/jim` is **0 commits ahead of `origin/main`** and
+  still holds only the two week-1 commits, so T-37 and T-38 are recorded from the team's report.
+  Both are flagged in `tasks.md` and `members/kafi.md` rather than presented as shipped.
+- **Also fixed while in there:** the README said "Week 1 is broken out per person" while showing
+  week 2 too, and mixed `Kafi` and `Jim` in one table. The team table now reads
+  `Abdullah Hil Kafi (Jim)` so the alias is discoverable once without being a second person.
+- **Docs:** this entry; `tasks.md`; the four member notes; `README.md`. `AGENTS.md` §6 asks for
+  all four, so they moved together.
+- **Not done:** the loading-tips work is still credited to Hisham in this log and in
+  `decisions.md`, `issues.md`, `ownership.md` and `tasks.md`, and `5640659` is authored by
+  `Hishamwalid`. The README mention came out on request; the rest was left alone rather than
+  delete a record of merged, tested code. **Decide before the next review.**
+- **No code touched.** `npm run check` clean, `npm test` 280/280.
+
+---
+
 ## A guest saw the word "null", and the settings page got its game font — Jim
 
 - **Did, two things.** The settings page now sets its family once on `.settings-page` and gives the
   headings the display face, so card titles, buttons, labels, hints and body text are all Irish Grover
   and the `h1` plus every card title are Luckiest Guy. And the stray `null` a guest saw under the
-  erase-progress card is gone. ISS-048.
+  erase-progress card is gone. ISS-052.
 - **The `null` was pre-existing and invisible to the suite.** `mountSettings` ended with the *native*
   `root.append(...)`, whose signature is `(Node or DOMString)` — so `account ? el(...) : null`, null for
   every guest, was stringified into a text node. The comment above that line said "`el()` skips null
@@ -87,7 +173,7 @@ The per-person weekly notes that used to live in the README table are now in `me
   the Export and Import controls. `mountSavePanel(el('div'), actions)` returns `{ unmount }`, not a
   node, and that return value was passed straight into `el()` as a child — so `utils/dom.js`
   stringified it and the panel itself stayed mounted into a detached `<div>` that never reached the
-  page. The host is now made first, mounted into, and only then embedded. ISS-047.
+  page. The host is now made first, mounted into, and only then embedded. ISS-051.
 - **The second half of the same defect:** the card was gated on `actions.canExport ?` — tested, not
   called. `canExport` is a function, so the test was always truthy and the ternary never hid
   anything. It read as a deliberate guest gate and was not one. Removed: the card renders for guests
@@ -111,42 +197,8 @@ The per-person weekly notes that used to live in the README table are now in `me
 - **Not touched:** `js/ui/savePanel.js` (Hisham's) and `css/`. The nested `card__body` and duplicate
   "Your farm" title inside the Save data card are left as they are.
 - **Still red, unrelated:** `tests/assets.test.js` — the crop PNGs are on disk but not in `ASSETS`.
-  Present before this change.
-
----
-
-## Week-2 credit corrected, and Kafi/Jim unified — Hisham
-
-- **Did:** Rewrote the week-2 half of the README so each piece of work has one name against it
-  instead of three rows split three ways. The old `Sign-in and save system` row credited
-  `Shabab, Hisham` for things four people built; it is now eight rows. Separately, **Kafi and
-  Jim are one person** — the Git handle is `aa-jim` and the branch is `origin/jim` — and the
-  repo was at risk of reading them as a fifth member.
-- **Attribution now reads:** **Kafi** — sign-in menu UI, gameplay scene UI. **Shabab** — Supabase
-  connection, shop, username sign-in, erase-progress and delete-account behind a password check.
-  **Afif** — the weather API connected to the game interface. **Hisham** — the Supabase
-  environment, the `farm_saves` SQL, export/import a farm, the asset registry.
-- **Touched:** `README.md` (structure tree, team table, Where We Stand, Weekly Progress),
-  `docs/team/tasks.md` (added T-35, T-36, T-37, T-38; T-11 moved `todo` → `doing`),
-  `docs/team/members/{kafi,shabab,afif,hisham}.md`.
-- **Removed from the README:** the `Project foundation / In progress / … 264 passing tests` row,
-  and `loading tips` from the `js/config/` tree line.
-- **Why the row had to go rather than be edited:** it was a catch-all that mixed real deliverables
-  with a test count, and it credited a vague "foundation" instead of naming what was built. The
-  work itself is not in question — it is split across the named rows now.
-- **Not verifiable from the history:** `origin/jim` is **0 commits ahead of `origin/main`** and
-  still holds only the two week-1 commits, so T-37 and T-38 are recorded from the team's report.
-  Both are flagged in `tasks.md` and `members/kafi.md` rather than presented as shipped.
-- **Also fixed while in there:** the README said "Week 1 is broken out per person" while showing
-  week 2 too, and mixed `Kafi` and `Jim` in one table. The team table now reads
-  `Abdullah Hil Kafi (Jim)` so the alias is discoverable once without being a second person.
-- **Docs:** this entry; `tasks.md`; the four member notes; `README.md`. `AGENTS.md` §6 asks for
-  all four, so they moved together.
-- **Not done:** the loading-tips work is still credited to Hisham in this log and in
-  `decisions.md`, `issues.md`, `ownership.md` and `tasks.md`, and `5640659` is authored by
-  `Hishamwalid`. The README mention came out on request; the rest was left alone rather than
-  delete a record of merged, tested code. **Decide before the next review.**
-- **No code touched.** `npm run check` clean, `npm test` 280/280.
+  Present before this change. That failure is Hisham's **ISS-047**, the five duplicate flat-path rice
+  sprites; the two ISS-047s collided across branches and this entry is the one that became ISS-051.
 
 ---
 

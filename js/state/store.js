@@ -8,7 +8,7 @@
  */
 
 import { createLog } from '../utils/log.js';
-import { SAVE_DEBOUNCE_MS } from '../config/game.js';
+import { SAVE_DEBOUNCE_MS, SAVE_RETRY_BACKOFF_MS } from '../config/game.js';
 import { importFromText } from './transfer.js';
 import { buildInitialState, normaliseSession } from './initialState.js';
 import { deleteSave, readSave, writeSave } from './saveFile.js';
@@ -36,6 +36,28 @@ let saveTimer = null;
  * `supabase/migrations/001_farm_saves.sql`.
  */
 let remote = null;
+
+/**
+ * Whether the last server write actually landed.
+ *
+ * ISS-050. Before this, a failed write went into a `log.warn` and nothing else:
+ * the player had no way to know their farm was not reaching the server, and the
+ * autosave interval kept re-firing a request certain to fail. Clearing site data
+ * after an hour of that loses the farm with no warning ever having been given.
+ *
+ *   synced   the server has the state we hold
+ *   saving   a write is in flight
+ *   pending  the write failed; the local copy is correct and a retry is queued
+ *
+ * `pending` is deliberately not `error`. Nothing is lost and the game is fully
+ * playable — localStorage already holds the state — so the honest thing to tell
+ * the player is "saved on this device", not "error".
+ */
+let sync = 'synced';
+let retryTimer = null;
+
+/** A write queued while the connection was down, to go out when it returns. */
+let pendingWrite = false;
 
 const subscribers = new Set();
 const busListeners = new Map();
@@ -188,6 +210,10 @@ export function reset() {
   remote = null;
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = null;
+  if (retryTimer) clearTimeout(retryTimer);
+  retryTimer = null;
+  pendingWrite = false;
+  sync = 'synced';
   subscribers.clear();
   busListeners.clear();
 }
@@ -219,16 +245,89 @@ export async function saveNow() {
   }
   if (!state || !userId) return false;
 
+  // Local first, always: `writeSave` is synchronous, so the save is durable the
+  // moment this returns even if the tab is closing and the network request will
+  // not finish. Everything below is best-effort on top of that.
   const written = writeSave(userId, state);
-  if (remote) {
-    try {
-      await remote.write(state);
-    } catch (error) {
-      // Never thrown out of a save. A dropped connection must not stop the game.
-      log.warn('server save failed, local copy kept -', error.message);
+
+  if (!remote) return written;
+
+  setSync('saving');
+
+  try {
+    const result = await remote.write(state);
+    if (result?.ok === false) {
+      // An adapter that reports failure rather than throwing is the common case
+      // (`saveApi` resolves `{ok:false}` on every refusal), so both have to be
+      // handled or a refusal reads as success.
+      queueRetry(result.reason ?? 'server refused the save');
+      return written;
     }
+
+    clearRetry();
+    setSync('synced');
+  } catch (error) {
+    // Never thrown out of a save. A dropped connection must not stop the game.
+    queueRetry(error.message);
   }
+
   return written;
+}
+
+/**
+ * Record that the server does not have the state, and queue it to go out later.
+ *
+ * The backoff matters: without it the 10 s autosave interval keeps re-firing a
+ * request that is certain to fail for as long as the connection is down. It also
+ * stops the farm hammering a server that is merely slow.
+ */
+function queueRetry(reason) {
+  pendingWrite = true;
+  log.warn('server save failed, local copy kept -', reason);
+  setSync('pending');
+
+  if (retryTimer || typeof setTimeout !== 'function') return;
+
+  retryTimer = setTimeout(() => {
+    retryTimer = null;
+    // Only retry if the connection has come back. Otherwise wait for `online`,
+    // which fires sooner and costs nothing.
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+    void saveNow();
+  }, SAVE_RETRY_BACKOFF_MS);
+
+  retryTimer.unref?.();
+}
+
+function clearRetry() {
+  pendingWrite = false;
+  if (retryTimer) {
+    clearTimeout(retryTimer);
+    retryTimer = null;
+  }
+}
+
+/**
+ * Tell the UI the connection is back and flush whatever is queued.
+ *
+ * Called from the `online` listener in `main.js`. Safe to call when nothing is
+ * pending — it then costs one no-op read of `sync`.
+ */
+export function flushPendingSave() {
+  if (!pendingWrite) return false;
+  void saveNow();
+  return true;
+}
+
+/** `synced` | `saving` | `pending` — see the note on `sync` above. */
+export function getSync() {
+  return sync;
+}
+
+function setSync(next) {
+  if (sync === next) return;
+  sync = next;
+  emit('sync', next);
 }
 
 /** This user's save, or null when there is none worth using. */

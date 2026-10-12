@@ -38,3 +38,37 @@ export const SAVE_DEBOUNCE_MS = 800;
 
 /** Save payload version. */
 export const STATE_VERSION = 1;
+
+/* --- network ---------------------------------------------------------------- */
+
+/**
+ * Deadline for every auth request.
+ *
+ * Added with ISS-049. A `fetch` with no signal hangs forever on a half-open
+ * connection, and `gotrue.js` sits on the boot path — so a hang meant the 15 s
+ * race in `restoreSession()` fired and reported a logout that had not happened.
+ *
+ * Matches the deadline `saveApi.js` and `authApi.rest()` already use, so one
+ * number governs how long the game waits on the server anywhere.
+ */
+export const AUTH_TIMEOUT_MS = 10_000;
+
+/**
+ * Last-resort ceiling on session restore, deliberately above `AUTH_TIMEOUT_MS`.
+ *
+ * A backstop, not the primary defence: `authApi.rest()` and `gotrue.post()` each
+ * have their own deadline, so this only fires if a future change breaks that
+ * assumption. Never delete it — without it a hang means `restoreSession()` never
+ * settles, `start()` never reaches `location.replace(LOGIN_URL)`, and the player
+ * is left on a permanently blank page.
+ */
+export const RESTORE_HARD_LIMIT_MS = 15_000;
+
+/**
+ * How long to wait before retrying a queued server save after a failure.
+ *
+ * Without this the 10 s autosave interval re-fires a request that is certain to
+ * fail for as long as the connection is down, which wastes requests and tells the
+ * player nothing. See ISS-050.
+ */
+export const SAVE_RETRY_BACKOFF_MS = 30_000;

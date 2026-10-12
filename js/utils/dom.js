@@ -73,7 +73,7 @@ export function clear(node) {
  * renders the word "null". `el()` filters those before appending, which is
  * why a conditional child inside an `el()` call is safe and the same
  * conditional passed straight to `append` is not. That asymmetry is invisible
- * until a guest looks at it — see ISS-048.
+ * until a guest looks at it — see ISS-052.
  *
  * Accepts arrays as children, exactly as `el()` does.
  *

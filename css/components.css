@@ -462,3 +462,155 @@
   white-space: nowrap;
   border: 0;
 }
+/* --- connection banner ---------------------------------------------------
+ *
+ * Persistent, full width, and above everything: `js/ui/connectionBanner.js`.
+ *
+ * Deliberately not a toast. A toast dismisses itself, and the fact this carries
+ * -- "your farm is only on this device" -- is one a player can act on but cannot
+ * afford to miss.
+ *
+ * Amber rather than red. Nothing has failed and nothing is lost; the farm is
+ * still saving locally, so this is a notice, not an alarm.
+ */
+
+.connection-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  background: var(--warning-soft);
+  border-bottom: 1px solid var(--warning);
+  color: var(--text);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}
+
+.connection-banner[hidden] {
+  display: none;
+}
+
+/* A plain dot rather than an icon: it needs no asset, and the icons in this
+ * project are all 0 bytes on purpose (DEC-014). */
+.connection-banner__dot {
+  flex: 0 0 auto;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-top: 0.4rem;
+  border-radius: 50%;
+  background: var(--warning);
+}
+
+.connection-banner__body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.connection-banner__title {
+  margin: 0 0 2px;
+  font-weight: 600;
+}
+
+.connection-banner__detail {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.connection-banner__actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: var(--space-2);
+}
+
+.connection-banner__actions:empty,
+.connection-banner__btn[hidden] {
+  display: none;
+}
+
+.connection-banner__btn {
+  padding: var(--space-2) var(--space-3);
+  font: inherit;
+  font-size: var(--text-xs);
+  color: var(--warning);
+  background: transparent;
+  border: 1px solid var(--warning);
+  border-radius: var(--radius-sm, 8px);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.connection-banner__btn:hover {
+  background: var(--surface);
+}
+
+.connection-banner__btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* `saving` is a moment rather than a condition, so it reads as activity rather
+ * than as the same amber warning the player just saw. */
+.connection-banner[data-sync='saving'] {
+  background: var(--surface-glass);
+  border-bottom-color: var(--border);
+}
+
+.connection-banner[data-sync='saving'] .connection-banner__dot {
+  background: var(--accent);
+}
+
+@media (max-width: 640px) {
+  .connection-banner {
+    flex-wrap: wrap;
+  }
+
+  .connection-banner__actions {
+    width: 100%;
+  }
+}
+
+/* --- blocked screen ------------------------------------------------------
+ *
+ * `js/ui/blockedScreen.js`, shown instead of the farm when there is no session
+ * *because there is no connection*. The farm cannot be opened without a server
+ * session -- RLS means the row is unreachable without a verified token -- so
+ * this replaces the page rather than overlaying it.
+ */
+
+.blocked {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: var(--space-4);
+  background: var(--surface);
+}
+
+.blocked__card {
+  width: 100%;
+  max-width: 30rem;
+  padding: var(--space-5);
+  text-align: center;
+  background: var(--surface-glass);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+
+.blocked__title {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-xl);
+  line-height: 1.25;
+}
+
+.blocked__body {
+  margin: 0 0 var(--space-4);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: 1.55;
+}
+
+.blocked__body:last-child {
+  margin-bottom: 0;
+}

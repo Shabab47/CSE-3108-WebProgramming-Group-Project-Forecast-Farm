@@ -33,6 +33,7 @@
 import { qsOrNull } from './utils/dom.js';
 import { createLog } from './utils/log.js';
 import { mountBootLoader } from './ui/loadingTips.js';
+import { mountBlockedScreen } from './ui/blockedScreen.js';
 import { mountAuthViews } from './ui/authViews.js';
 import { MENU_BG } from './config/assets.js';
 import * as localAuth from './services/localAuth.js';
@@ -161,7 +162,36 @@ async function start() {
   // `restoreSession()` mints a new one from the stored refresh token, which is
   // what makes this check see a real session. Absent on the local provider, hence
   // the optional call -- there the session is in storage already.
-  const session = provider.currentSession() ?? (await provider.restoreSession?.());
+  //
+  // It answers `{ok, session|reason}` rather than `session | null`, so an
+  // unreachable server is not mistaken for a signed-out one. That distinction is
+  // ISS-048, and it matters most *here*: this page is where someone lands after
+  // being wrongly logged out, so treating "offline" as "signed out" is what turned
+  // one dropped connection into a password prompt. `localAuth` still returns a
+  // bare session, so both shapes are handled.
+  const restored = await provider.restoreSession?.();
+  const session =
+    provider.currentSession() ??
+    (restored && typeof restored === 'object' && 'ok' in restored
+      ? (restored.ok ? restored.session : null)
+      : (restored ?? null));
+
+  // A stored token we could not use, because we could not reach the server. Show
+  // the blocked screen rather than the sign-in form: the player is not signed out,
+  // and showing them a password box implies they are. The token is untouched, so a
+  // retry works.
+  const offlineReason =
+    restored && typeof restored === 'object' && 'ok' in restored && !restored.ok &&
+    restored.reason !== 'invalid_token'
+      ? restored.reason
+      : null;
+
+  if (offlineReason && !session && !recoveryToken) {
+    log.warn('cannot reach the server; showing the connection screen -', offlineReason);
+    loader.done();
+    mountBlockedScreen(root, { reason: offlineReason, onRetry: () => location.reload() });
+    return;
+  }
 
   // Already signed in, and not arriving to change a password: there is nothing to
   // offer. Guests are not signed in, so a guest who comes back here sees the menu

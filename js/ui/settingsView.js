@@ -31,7 +31,7 @@
  * passed to `el()` as a child. The save panel is the only one embedded rather than handed
  * a root to own, because it lives inside a card instead of filling a page, so it gets a
  * host `div` built here and mounted into before the tree below is assembled. Getting that
- * wrong is invisible in a reading of the code and obvious on the page — see ISS-047, where
+ * wrong is invisible in a reading of the code and obvious on the page — see ISS-051, where
  * the card rendered the text `[object Object]` and nothing to press.
  *
  * See `js/settings-main.js` for what each actually removes, DEC-024 and DEC-025 for why
@@ -174,7 +174,7 @@ export function mountSettings(root, actions) {
 
   // Built before the shell because it is embedded rather than given a root — see the
   // header. Passing `mountSavePanel(...)` straight to `el()` is what put `[object Object]`
-  // on this page (ISS-047).
+  // on this page (ISS-051).
   const saveHost = el('div');
   mountSavePanel(saveHost, actions);
 
@@ -182,7 +182,7 @@ export function mountSettings(root, actions) {
 
   // `appendAll`, not the native `append`. The comment on the account card below used to say
   // "`el()` skips null children", which was true and irrelevant — this is not an `el()` call,
-  // and native `append` stringifies a null into the visible word "null" (ISS-048).
+  // and native `append` stringifies a null into the visible word "null" (ISS-052).
   appendAll(
     root,
     el('div', { class: 'settings-top' }, [
@@ -220,7 +220,7 @@ export function mountSettings(root, actions) {
     // which tested the function rather than calling it — always truthy, so it never actually
     // hid anything. Hiding it for a guest would be worse anyway: `savePanel.js` already
     // explains in place why a guest farm has no account to attach the file to, and a card
-    // that says so beats a missing one (ISS-047).
+    // that says so beats a missing one (ISS-051).
     el('div', { class: 'card' }, [
       el('div', { class: 'card__head' }, [el('span', { class: 'card__title', text: 'Save data' })]),
       el('div', { class: 'card__body' }, [saveHost]),
