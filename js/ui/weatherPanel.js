@@ -2,7 +2,24 @@
 import { describeWeatherCode, windCompass } from '../domain/weather.js';
 import { weatherGlyph } from './weatherGlyph.js';
 
-export function mountWeatherPanel(root, state) {
+/**
+ * The weather panel.
+ *
+ * ## Showing a paused forecast
+ *
+ * When the connection drops, live weather cannot refresh. The last forecast is
+ * still on screen — it is the information the player was making their decision
+ * with, and blanking it would remove the only thing they can still act on — but
+ * it is labelled with how long ago it was fetched rather than left reading as
+ * live. `fetchedAt` comes from `state.weather`; without it the panel shows the
+ * "paused" line immediately, which is the honest state for a response we cannot
+ * vouch for the age of.
+ *
+ * @param {HTMLElement} root
+ * @param {{location?:object, weather?:object, sync?: 'synced'|'saving'|'pending'}} state
+ * @param {() => number} [now] injected so the ageing text is testable
+ */
+export function mountWeatherPanel(root, state, now = () => Date.now()) {
   clear(root);
 
   const card = el('div', { class: 'weather' }, [
@@ -26,7 +43,7 @@ export function mountWeatherPanel(root, state) {
   renderStats(state?.weather);
   renderGraph(state?.weather);
   renderForecast(state?.weather);
-  renderUpdated(state?.weather);
+  renderUpdated(state?.weather, state);
 
   function renderLocation(location) {
     if (!location) return;
@@ -220,9 +237,26 @@ export function mountWeatherPanel(root, state) {
     forecastEl.append(row);
   }
 
-  function renderUpdated(weather) {
+  /**
+   * The freshness line: either when the forecast was read, or that it is paused.
+   *
+   * Paused takes priority over a timestamp. A player seeing "Updated 14:05" while
+   * their connection is down would reasonably read it as current, which is the
+   * exact misreading that leads to planting the wrong crop.
+   */
+  function renderUpdated(weather, state) {
+    const paused = state?.sync === 'pending';
+
+    if (paused) {
+      const since = describeAge(now() - (weather?.fetchedAt ?? Number.NaN));
+      updatedEl.textContent = `Live weather paused — last read ${since}`;
+      updatedEl.dataset.paused = 'true';
+      return;
+    }
+
     const stamp = weather?.current?.time;
     updatedEl.textContent = stamp ? `Updated ${formatClock(stamp)}` : '';
+    delete updatedEl.dataset.paused;
   }
 
   function stat(label, value) {
@@ -264,4 +298,20 @@ function formatClock(iso) {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return '';
   return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
+/**
+ * How long ago something was read, for the paused line.
+ *
+ * An unknown age reads as "a moment ago" rather than a bare dash: the panel is
+ * saying the forecast cannot be refreshed, and that is true whatever the age is.
+ */
+function describeAge(ms) {
+  if (!Number.isFinite(ms) || ms < 0) return 'a moment ago';
+  const minutes = Math.floor(ms / 60000);
+  if (minutes < 1) return 'a moment ago';
+  if (minutes === 1) return '1 minute ago';
+  if (minutes < 60) return `${minutes} minutes ago`;
+  const hours = Math.floor(minutes / 60);
+  return hours === 1 ? '1 hour ago' : `${hours} hours ago`;
 }

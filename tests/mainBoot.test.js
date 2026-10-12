@@ -138,7 +138,7 @@ test('neither provider exposes a deletion that skips the password', async () => 
 function fakeProvider(overrides = {}) {
   return {
     currentSession: () => null,
-    restoreSession: async () => null,
+    restoreSession: async () => ({ ok: false, reason: 'invalid_token' }),
     ...overrides,
   };
 }
@@ -149,17 +149,23 @@ test('a live session wins, and the network is never touched', async () => {
 
   const result = await resolveSession(fakeProvider({
     currentSession: () => session,
-    restoreSession: async () => { restored = true; return null; },
+    restoreSession: async () => { restored = true; return { ok: false, reason: 'invalid_token' }; },
   }));
 
-  assert.equal(result, session);
+  assert.equal(result.ok, true);
+  assert.equal(result.session, session);
   assert.equal(restored, false, 'an in-memory session needs no refresh');
 });
 
 test('with no live session it restores, so a reload is not a sign-out', async () => {
   const restored = { status: 'authed', userId: 'uuid-2', email: 'a@b.co', farmerName: 'A' };
 
-  assert.equal(await resolveSession(fakeProvider({ restoreSession: async () => restored })), restored);
+  const result = await resolveSession(fakeProvider({
+    restoreSession: async () => ({ ok: true, session: restored }),
+  }));
+
+  assert.equal(result.ok, true);
+  assert.equal(result.session, restored);
 });
 
 test('a provider with no restoreSession still resolves', async () => {
@@ -167,24 +173,106 @@ test('a provider with no restoreSession still resolves', async () => {
   // throws a TypeError on boot.
   const provider = { currentSession: () => null };
 
-  assert.equal(await resolveSession(provider), null);
+  const result = await resolveSession(provider);
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'invalid_token');
 });
 
 test('no session and no guest query means sign in', async () => {
-  assert.equal(await resolveSession(fakeProvider()), null);
+  const result = await resolveSession(fakeProvider());
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'invalid_token');
 });
 
 test('?guest=1 starts a guest farm even with no session', async () => {
   globalThis.location.search = '?guest=1';
 
-  assert.equal((await resolveSession(fakeProvider())).status, 'guest');
+  const result = await resolveSession(fakeProvider());
+  assert.equal(result.ok, true);
+  assert.equal(result.session.status, 'guest');
 });
 
 test('a signed-in player arriving with ?guest=1 keeps their session', async () => {
   globalThis.location.search = '?guest=1';
   const session = { status: 'authed', userId: 'uuid-3', email: 'a@b.co', farmerName: 'A' };
 
-  assert.equal(await resolveSession(fakeProvider({ currentSession: () => session })), session);
+  const result = await resolveSession(fakeProvider({ currentSession: () => session }));
+  assert.equal(result.ok, true);
+  assert.equal(result.session, session);
+});
+
+/* --- ISS-048: "no session" is not one thing -------------------------------- */
+
+/*
+ * These are the tests that pin the fix for the bug that logged players out at
+ * random on the hosted build. Before it, `resolveSession` answered `session | null`
+ * and every falsy answer was treated as "signed out" — so a dropped connection,
+ * a slow CDN and a genuinely dead token all produced the same redirect, and the
+ * refresh token was destroyed on the way out.
+ *
+ * The distinction the callers now branch on:
+ *
+ *   invalid_token  genuinely signed out → redirect to the login page
+ *   offline        the server was never reached → do NOT sign the player out
+ *   server_error   the server answered and it was not a 401 → do NOT sign out
+ */
+
+test('an unreachable server is reported as offline, not as signed out', async () => {
+  const result = await resolveSession(fakeProvider({
+    restoreSession: async () => ({ ok: false, reason: 'offline' }),
+  }));
+
+  assert.equal(result.ok, false);
+  assert.equal(
+    result.reason,
+    'offline',
+    'a dead connection must never be reported as a logout — that is ISS-048',
+  );
+});
+
+test('a server-side failure is reported separately from being offline', async () => {
+  const result = await resolveSession(fakeProvider({
+    restoreSession: async () => ({ ok: false, reason: 'server_error' }),
+  }));
+
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'server_error');
+});
+
+test('only an invalid token is reported as signed out', async () => {
+  const result = await resolveSession(fakeProvider({
+    restoreSession: async () => ({ ok: false, reason: 'invalid_token' }),
+  }));
+
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'invalid_token');
+});
+
+test('a guest still gets a farm when the server is unreachable', async () => {
+  // A guest farm is local-only, so there is nothing to reach the server *for*.
+  // Blocking guest play on a connection would be a regression, not a fix.
+  globalThis.location.search = '?guest=1';
+
+  const result = await resolveSession(fakeProvider({
+    restoreSession: async () => ({ ok: false, reason: 'offline' }),
+  }));
+
+  assert.equal(result.ok, true, 'guest play must not require a network');
+  assert.equal(result.session.status, 'guest');
+});
+
+test('the local provider still works, because it answers with a bare session', async () => {
+  // `localAuth` has no network in it at all and keeps the old `session | null`
+  // shape. `resolveSession` handles both, or the local fallback breaks on boot.
+  const session = { status: 'authed', userId: 'uuid-local', email: 'a@b.co', farmerName: 'A' };
+  const provider = {
+    currentSession: () => null,
+    restoreSession: async () => session,
+  };
+
+  const result = await resolveSession(provider);
+  assert.equal(result.ok, true);
+  assert.equal(result.session, session);
 });
 
 /* --- the two links between the farm and the shop -------------------------------- */

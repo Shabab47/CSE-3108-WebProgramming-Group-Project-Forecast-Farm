@@ -3,8 +3,11 @@ import { createLog } from './utils/log.js';
 import { loadProvider } from './auth-main.js';
 import { signInAsGuest } from './services/localAuth.js';
 import { buildServerSave } from './remoteSave.js';
-import { adoptState, apply, emit, getState, init, reset, saveNow, subscribe } from './state/store.js';
+import { mountConnectionStatus, wireSaveOnExit } from './connection.js';
+import { adoptState, apply, emit, exportPayload, flushPendingSave, getState, getSync, init, on, reset, saveNow, subscribe } from './state/store.js';
 import { mountBootLoader } from './ui/loadingTips.js';
+import { mountBlockedScreen } from './ui/blockedScreen.js';
+import { mountConnectionBanner } from './ui/connectionBanner.js';
 import { mountToastStack } from './ui/toastStack.js';
 import { mountNavbar } from './ui/navbar.js';
 import { mountShopLauncher } from './ui/shopLauncher.js';
@@ -37,14 +40,59 @@ export function settingsHref(session) {
   return session?.status === 'guest' ? `${SETTINGS_URL}?guest=1` : SETTINGS_URL;
 }
 
+/**
+ * The session for this page load, or the reason there isn't one.
+ *
+ * **This is the function ISS-048 turned upside down.** It used to answer
+ * `session | null`, and `null` meant three unrelated things at once: the refresh
+ * token is invalid, the network is down, or Supabase is having a bad day. The
+ * callers all treated it as the first one, which is why a dropped connection
+ * became a logout.
+ *
+ * So a falsy session is no longer enough to act on. Callers branch on `reason`:
+ *
+ *   `{ ok: true, session }`                 play
+ *   `{ ok: false, reason: 'offline' }`      no network — show it, do not sign out
+ *   `{ ok: false, reason: 'server_error' }` our problem, not the player's
+ *   `{ ok: false, reason: 'invalid_token' }` genuinely signed out — redirect
+ *
+ * `null` is still returned for a guest, which is a real session with `status:
+ * 'guest'`, so it never reaches the branch below.
+ *
+ * @returns {Promise<{ok:true, session:object}|{ok:false, reason:string}>}
+ */
 export async function resolveSession(provider) {
-  const live = provider.currentSession() ?? (await provider.restoreSession?.());
-  if (live) return live;
+  const current = provider.currentSession();
+  if (current) return { ok: true, session: current };
 
-  const guest = new URLSearchParams(location.search).get('guest') === '1';
-  if (guest) return signInAsGuest().session;
+  // `restoreSession()` answers an object (ISS-048). `localAuth` keeps the old
+  // `session | null` shape and has no network in it at all — a local account is
+  // already in storage, so a null there really does mean signed out.
+  const restored = await provider.restoreSession?.();
+  if (restored && typeof restored === 'object' && 'ok' in restored) {
+    if (restored.ok) return { ok: true, session: restored.session };
+    // A guest query still wins over an offline failure: the farm is local, so
+    // there is nothing to reach the server for.
+    if (isGuestRequest()) {
+      const guest = signInAsGuest().session;
+      if (guest) return { ok: true, session: guest };
+    }
+    return { ok: false, reason: restored.reason ?? 'invalid_token' };
+  }
 
-  return null;
+  if (restored) return { ok: true, session: restored };
+
+  if (isGuestRequest()) {
+    const guest = signInAsGuest().session;
+    if (guest) return { ok: true, session: guest };
+  }
+
+  return { ok: false, reason: 'invalid_token' };
+}
+
+/** `?guest=1`, read the same way on every page. */
+function isGuestRequest() {
+  return new URLSearchParams(location.search).get('guest') === '1';
 }
 
 function placeholder(label, detail) {
@@ -82,6 +130,7 @@ function renderPanels(state) {
   mountWeatherPanel(qsOrNull('#forecast-card'), {
     location: state?.location,
     weather: state?.weather,
+    sync: getSync(),
   });
 
   mountFarmView(qsOrNull('#farm-view'), {
@@ -203,50 +252,122 @@ function bootWeather() {
 }
 
 async function start() {
+  const root = qsOrNull('#app') ?? document.body;
+
   // Mounted before the first `await` on purpose. Everything below is network:
   // the session restore and the remote save read. Without this the player
-  // stares at an empty page for as long as those take — up to 15 s, since
-  // `gotrue.js` has no request deadline. It paints nothing until
+  // stares at an empty page for as long as those take — up to `AUTH_TIMEOUT_MS`,
+  // now that `gotrue.js` has a deadline (ISS-049). It paints nothing until
   // `SHOW_AFTER_MS`, so a warm load still shows no loader at all.
   const loader = mountBootLoader({ label: 'Loading your farm' });
 
   const provider = await loadProvider();
-  const session = await resolveSession(provider);
 
-  if (!session) {
-    log.info('no session, handing off to login');
-    // Closed before the redirect, or the veil is still on screen when the
-    // browser swaps documents.
+  /** Where the boot actually goes, so a retry can re-run exactly this. */
+  async function openFarm() {
+    const resolved = await resolveSession(provider);
+
+    if (!resolved.ok) {
+      // **The branch that is not a redirect — ISS-048.** A dead connection used to
+      // land here too, and answering it with `location.replace(LOGIN_URL)` is what
+      // logged players out at random on the hosted build. Only a genuinely invalid
+      // token goes to the login page; anything else says so and offers a retry,
+      // because the player is disconnected, not signed out.
+      if (resolved.reason === 'invalid_token') {
+        log.info('no session, handing off to login');
+        loader.done();
+        location.replace(LOGIN_URL);
+        return;
+      }
+
+      log.warn(`cannot open the farm -`, resolved.reason);
+      loader.done();
+      mountBlocked(root, resolved.reason, openFarm);
+      return;
+    }
+
+    await play(resolved.session);
+  }
+
+  /** The farm, once there is a session to open it with. */
+  async function play(session) {
+    const { loaded } = await init(session, undefined, buildServerSave(provider, session));
+    log.info(loaded ? 'resumed farm' : 'started a new farm');
+
+    mountToastStack();
+    mountShell(session, () => signOut(provider));
+    renderPanels(getState());
+
+    subscribe((state) => {
+      if (state) renderPanels(state);
+    });
+
+    // Before `bootWeather()`, and before the veil lifts: the banner has to be on
+    // screen before the first save can fail, or the player never learns their farm
+    // stopped syncing.
+    mountConnectionStatus(qsOrNull('#connection-banner'), {
+      onExport: exportFromBanner,
+    });
+
+    bootWeather();
+
+    // The sync state changes over time, and the weather panel is the one place a
+  // paused forecast is visible, so re-render on it rather than only on state
+  // changes — a dropped connection produces no state change to hang off.
+  on('sync', () => renderPanels(getState()));
+
+  // The shell is up and playable now, so the veil goes. Deliberately *not*
+    // waiting for `bootWeather()` — that fetch is fire-and-forget and the farm
+    // works without it; the forecast panel fills itself in when the response
+    // lands. Holding the veil until then would mean a weather timeout keeps a
+    // perfectly good farm hidden behind a veil.
     loader.done();
-    location.replace(LOGIN_URL);
+
+    setInterval(saveNow, AUTOSAVE_MS);
+    wireSaveOnExit();
+  }
+
+  await openFarm();
+}
+
+/**
+ * The "no internet" screen, and the retry that replaces it.
+ *
+ * Kept out of `start()` so a retry re-runs the session resolution rather than
+ * reloading the document — a reload throws away the local save's read and makes
+ * the player wait through the whole boot again for a result we already expect to
+ * be the same.
+ */
+function mountBlocked(root, reason, retry) {
+  const blocked = mountBlockedScreen(root, {
+    reason,
+    onRetry: () => {
+      void retry().catch((error) => {
+        log.error('retry failed -', error.message);
+        blocked.setBusy(false);
+      });
+    },
+  });
+  return blocked;
+}
+
+/** Download the farm from the banner. See `state/transfer.js` for the format. */
+function exportFromBanner() {
+  const result = exportPayload(Date.now());
+  if (!result?.ok) {
+    emit('toast', { message: 'Your farm could not be exported. Try again in a moment.', tone: 'error' });
     return;
   }
 
-  const { loaded } = await init(session, undefined, buildServerSave(provider, session));
-  log.info(loaded ? 'resumed farm' : 'started a new farm');
-
-  mountToastStack();
-  mountShell(session, () => signOut(provider));
-  renderPanels(getState());
-
-  subscribe((state) => {
-    if (state) renderPanels(state);
-  });
-
-  bootWeather();
-
-  // The shell is up and playable now, so the veil goes. Deliberately *not*
-  // waiting for `bootWeather()` — that fetch is fire-and-forget and the farm
-  // works without it; the forecast panel fills itself in when the response
-  // lands. Holding the veil until then would mean a weather timeout keeps a
-  // perfectly good farm hidden behind a veil.
-  loader.done();
-
-  setInterval(saveNow, AUTOSAVE_MS);
-  window.addEventListener('pagehide', saveNow);
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') saveNow();
-  });
+  const url = URL.createObjectURL(new Blob([result.text], { type: 'application/octet-stream' }));
+  const anchor = el('a', { href: url, download: result.filename });
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  // Revoked on the next tick, not inline: revoking in the same statement races the
+  // download in some browsers and the file arrives empty.
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  emit('toast', { message: `Saved ${result.filename}`, tone: 'success' });
 }
 
 if (qsOrNull('#top-bar')) {

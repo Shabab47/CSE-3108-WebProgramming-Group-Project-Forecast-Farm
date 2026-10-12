@@ -43,6 +43,7 @@ Weeks are in `goals.md`. Week 1 was planning; T-02 onward belong to weeks 2–5.
 
 | T-35 | **Server-side farm storage:** `001_farm_saves.sql` (RLS "own row only"), `services/saveApi.js`, `remoteSave.js`, the injected adapter in `store.init` | Hisham | done | 0 | week 2 |
 | T-36 | **Asset registry:** `js/config/assets.js` — one entry per file plus path builders, enforced against the filesystem by `tests/assets.test.js` | Hisham | done | 0 | week 2 |
+| T-39 | **Connection handling and honest autosave.** `gotrue` request deadline; refresh token preserved unless the server rejects it; `resolveSession`/`restoreSession` answer a reason; `js/connection.js`, `ui/blockedScreen.js`, `ui/connectionBanner.js`; `sync` state and a queued retry; paused-weather marker. DEC-030, closes ISS-048/049/050 | Hisham | done | 0 | week 3 |
 
 | T-35 | **Opening menu + auth redesign:** `menuPanel`, `signBoard`, `authViews`, `css/fonts.css`, the `login.html` scene and top bar, one view per form instead of a tab pair. No auth behaviour change | Kafi | done | 0 | week 2 |
 | T-36 | **Login CSS split by component:** `css/auth.css` into `auth` / `menu` / `sign`, `--art-*` retired, literal values throughout. DEC-029. Value-neutral, verified by rule diff | Jim | done | 0 | 2026-10-11 |

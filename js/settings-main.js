@@ -23,10 +23,12 @@ import { createLog } from './utils/log.js';
 import { loadProvider } from './auth-main.js';
 import { farmHref, resolveSession } from './main.js';
 import { buildServerSave } from './remoteSave.js';
+import { mountConnectionStatus, wireSaveOnExit } from './connection.js';
 import { deleteAccount, eraseProgress } from './services/accountApi.js';
 import { adoptState, clearLocalSave, emit, exportPayload, getState, init, readImport, reset, saveNow } from './state/store.js';
 import { buildInitialState } from './state/initialState.js';
 import { mountSettings } from './ui/settingsView.js';
+import { mountBlockedScreen } from './ui/blockedScreen.js';
 import { mountBootLoader } from './ui/loadingTips.js';
 import { mountToastStack } from './ui/toastStack.js';
 import { AUTOSAVE_MS } from './config/game.js';
@@ -221,13 +223,24 @@ async function start() {
 
   // Boot 0: no session means settings is never mounted, exactly as on the farm.
   const provider = await loadProvider();
-  const session = await resolveSession(provider);
-  if (!session) {
-    log.info('no session, handing off to login');
+  const resolved = await resolveSession(provider);
+
+  if (!resolved.ok) {
+    // A dead connection is not a logout — ISS-048.
+    if (resolved.reason === 'invalid_token') {
+      log.info('no session, handing off to login');
+      loader.done();
+      location.replace(LOGIN_URL);
+      return;
+    }
+
+    log.warn('cannot open settings -', resolved.reason);
     loader.done();
-    location.replace(LOGIN_URL);
+    mountBlockedScreen(root, { reason: resolved.reason });
     return;
   }
+
+  const session = resolved.session;
 
   // Boot 1: the same save the farm page uses, so the erase below acts on the farm
   // the player is actually playing rather than starting from a blank one.
@@ -237,16 +250,14 @@ async function start() {
 
   // Boot 2
   mountToastStack();
+  mountConnectionStatus(qsOrNull('#connection-banner'));
   mountSettings(root, settingsActions(session, provider));
   loader.done();
 
   // Boot 4: autosave, identical to the farm and shop pages. Both destructive actions
   // write through immediately, so this is only the safety net for anything else.
   setInterval(saveNow, AUTOSAVE_MS);
-  window.addEventListener('pagehide', saveNow);
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') saveNow();
-  });
+  wireSaveOnExit();
 
   log.trace('settings ready for', session.userId);
 }

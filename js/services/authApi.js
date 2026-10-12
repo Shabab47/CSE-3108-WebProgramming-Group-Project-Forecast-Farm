@@ -32,6 +32,7 @@
 
 import { createLog } from '../utils/log.js';
 import { normaliseEmail, normaliseName, normaliseUsername } from '../utils/normalize.js';
+import { RESTORE_HARD_LIMIT_MS } from '../config/game.js';
 import { SUPABASE_NOT_CONFIGURED, connection, isSupabaseConfigured } from '../config/supabase.js';
 import { bestEffort, post, postAuthed } from './gotrue.js';
 import { readRefreshToken, writeRefreshToken } from './tokenStore.js';
@@ -488,19 +489,47 @@ export async function updatePassword({ accessToken, password }) {
  * way to reach the login form. A game that cannot be played is worse than one that asks
  * to sign in again.
  */
-const RESTORE_HARD_LIMIT_MS = 15_000;
-
+/**
+ * Restore a session on boot from the stored refresh token.
+ *
+ * **The returned reason is the whole point of this function, and ISS-048 is why.**
+ *
+ * It used to answer `session | null`, which made three different situations
+ * indistinguishable to the caller — "your token is invalid", "the network is
+ * down", and "the server is broken" — and every one of them ended in
+ * `writeRefreshToken(null)` plus a redirect to the login page. On the hosted
+ * build that logged players out at random and permanently: the token was gone,
+ * so silent re-login could never work again and the password had to be retyped.
+ *
+ * Now only an explicit rejection from the server destroys the token:
+ *
+ *   invalid_token  the server said the token is no longer valid — clear it and
+ *                  hand back `null`. Signing out is correct here, and it is the
+ *                  only path that still does it.
+ *   offline        the request never reached the server. Keep the token. The
+ *                  player is not signed out; they are disconnected.
+ *   server_error   the server answered, and not with 401. Keep the token.
+ *
+ * A caller that only checked for "falsy" would still log the player out, which is
+ * why `main.js` and friends branch on `reason`.
+ *
+ * @returns {Promise<{ok:true, session:object}|{ok:false, reason:'invalid_token'|'offline'|'server_error'}>}
+ */
 export async function restoreSession() {
   const refreshToken = readRefreshToken();
-  if (!refreshToken || !isSupabaseConfigured()) return null;
+  if (!refreshToken || !isSupabaseConfigured()) {
+    return { ok: false, reason: 'invalid_token' };
+  }
 
   return Promise.race([
     restore(refreshToken),
     new Promise((resolve) => {
       const timer = setTimeout(() => {
-        log.warn('restore did not settle in time, treating as signed out');
-        writeRefreshToken(null);
-        resolve(null);
+        // The token is deliberately NOT cleared here. We never reached a verdict, so
+        // we have no evidence the credential is bad — and destroying it on a timeout
+        // is precisely the bug this replaced. The next load tries again with it.
+        log.warn('restore did not settle in time; treating as offline, not signed out');
+        resolve({ ok: false, reason: 'offline' });
       }, RESTORE_HARD_LIMIT_MS);
       // Do not hold the event loop open for this timer once the race is decided.
       timer.unref?.();
@@ -508,17 +537,49 @@ export async function restoreSession() {
   ]);
 }
 
+/**
+ * Whether a refused refresh means the credential is actually dead.
+ *
+ * A `401` is the server saying no. Anything else — a 5xx, a timeout, a dropped
+ * connection — is us failing to ask, and destroying a credential because we could
+ * not reach the server is how ISS-048 happened.
+ *
+ * @param {{reason?:string, status?:number}} result
+ */
+function tokenIsDead(result) {
+  // GoTrue answers a bad refresh with 400 + `invalid_grant`, and an expired or
+  // revoked session with 401. Both are the server refusing the credential.
+  if (result.status === 401 || result.status === 400) return true;
+  return result.reason === 'invalid_grant' || result.reason === 'invalid_token';
+}
+
 async function restore(refreshToken) {
   const result = await post('token?grant_type=refresh_token', { refresh_token: refreshToken });
   if (!result.ok) {
-    log.warn('refresh failed, signing out');
-    writeRefreshToken(null);
-    return null;
+    if (tokenIsDead(result)) {
+      log.warn('refresh token rejected; signing out');
+      writeRefreshToken(null);
+      return { ok: false, reason: 'invalid_token' };
+    }
+
+    // Keep the token. The next page load, or the next `online` event, tries again.
+    const reason = result.status >= 500 ? 'server_error' : 'offline';
+    log.warn(`refresh failed but the token is kept -`, reason);
+    return { ok: false, reason };
   }
 
   const adopted = await adopt(result.data);
   // Keep the old token if the response carried none, so a refresh that omits it
   // does not sign the player out on the next reload.
   if (!result.data?.refresh_token) writeRefreshToken(refreshToken);
-  return adopted.ok ? adopted.session : null;
+
+  if (!adopted.ok) {
+    // GoTrue answered with tokens we could not turn into a session. That is a
+    // broken response, not a rejected credential — so the token stays and the
+    // player is treated as disconnected rather than signed out.
+    log.warn('refresh answered but the session could not be built; treating as offline');
+    return { ok: false, reason: 'server_error' };
+  }
+
+  return { ok: true, session: adopted.session };
 }
