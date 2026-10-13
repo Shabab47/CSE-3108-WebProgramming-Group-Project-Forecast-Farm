@@ -7,6 +7,38 @@ The per-person weekly notes that used to live in the README table are now in `me
 
 ---
 
+## The forecast panel is now a wooden board — Jim
+
+- **Did:** Restyled the top of the game page to the design: a wooden notice board carrying a
+  search pill, one large sticky note for right now, three meter pills, and a row of six sticky
+  notes for the coming hours. The board is drawn entirely in CSS — frame, posts, paper, pin,
+  folded corner — because no artwork ships for it.
+- **The split is a ratio, not content.** `.board` is `flex: 0 0 33.333%` of `.app__centre` with
+  `min-height: 306px`; the field takes the rest. Before this the panel sized itself and on 16:9
+  reached ~700px, leaving the field a 220px sliver. The floor is there for short screens, where
+  a third is not enough to hold the notes legibly.
+- **Two of the three meters get a bar, one does not.** Humidity and rain chance are 0–100%, so a
+  fill bar beside them carries meaning. Wind has no ceiling — a bar would need an invented maximum
+  and a half-full wind bar would mean nothing — so it shows the number only.
+- **The current-location button became the pin inside the search pill.** As a third control beside
+  the field it made the row wrap (ISS-046); as a leading action on the field it reads as part of
+  searching. `onUseDeviceLocation` is unchanged. The place *name* now sits above the condition on
+  the big note, where the design marked it.
+- **Touched:** `js/ui/weatherPanel.js`, `js/ui/locationBar.js`, `js/ui/icon.js` (droplet, wind,
+  umbrella, map-pin, search), `js/main.js` untouched — no API call, fetch or parser was changed,
+  `index.html`, `css/weather.css`, `css/layout.css`, `css/sidebar.css`.
+- **Convention (DEC-029 extended):** `css/weather.css` writes `#6b431f` literally and uses flat
+  class names (`board-meter-value`, not `board__meter__value`). A wooden board is brown in a dark
+  theme too, so a token has nothing to switch. `.card`/`.btn`/`.input` stay tokenised — they are
+  app chrome and do follow `data-theme`.
+- **Broken:** nothing. `npm run check` clean; `npm test` 316/317, the one failure being the
+  pre-existing `assets.test.js` case for `assets/images/crops/rice_1.png`.
+- **Next:** look at it at 1920×1080 and tune the board's proportions live. Two duplicate icon
+  helpers still exist — `ui/icon.js` and `ui/icons.js` — and `components.css` still owns an
+  unused generic `.meter`.
+
+---
+
 ## Losing the network no longer signs the player out — Hisham
 
 - **Did:** Fixed the hosted build logging players out at random. Three separate defects, in
