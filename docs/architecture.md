@@ -642,7 +642,8 @@ farm and still reported that nothing had changed.
 | field drawing / click bugs | `js/ui/farmView.js`, `js/ui/plotTile.js`, `js/utils/iso.js`, `css/scene.css` |
 | page layout | `css/layout.css`, `index.html` |
 | the game page's top bar | `css/navbar.css` — fixed `height: 60px`, owns its own padding rather than `.card`'s |
-| where the location search lives | `js/ui/locationBar.js`, in the weather panel — not the navbar |
+| where the location search lives | `js/ui/locationBar.js`, in the wooden board — not the navbar |
+| the forecast board: frame, notes, meters | `js/ui/weatherPanel.js`, `css/weather.css` — the board is `flex: 0 0 33.333%` of `.app__centre` with `min-height: 306px`, the field takes the rest (`css/layout.css`) |
 | login page layout — the menu and the wooden sign | `css/auth.css`, `css/menu.css`, `css/sign.css`, `login.html` |
 | colours | `css/variables.css` — except the login page, which writes its own (DEC-029) |
 | spacing and radii | hardcoded per file, in px. The ten in `variables.css` are a stopgap for `components.css` alone; delete them when that file's 41 references are gone |
@@ -686,7 +687,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   ├── components.css          cards, buttons, inputs, meters, toasts
 │   ├── fonts.css               the two display faces, self-hosted @font-face
 │   ├── navbar.css              the game page's top bar
-│   ├── weather.css             the forecast panel
+│   ├── weather.css             the wooden forecast board and its sticky notes
 │   ├── scene.css               the isometric stage and the plot layers
 │   ├── shop.css                the shop sign and the seed list
 │   ├── settings.css            the settings gear and the settings page
@@ -757,7 +758,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── toastStack.js       transient messages
 │   │   ├── navbar.js          logo, farmer name, sign-out
 │   │   ├── weatherGlyph.js     the drawn condition, not an icon file
-│   │   └── weatherPanel.js     current conditions and the 24-hour strip
+│   │   └── weatherPanel.js     the wooden board: now, three meters, six hours
 │   ├── utils/
 │   │   ├── dom.js              the only whitelisted DOM access
 │   │   ├── log.js              scoped logger, `[scope] message`
@@ -855,6 +856,14 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
   clears a credential. This is ISS-048 and it is the single rule that most of
   `js/connection.js` exists to enforce.
 - Every `fetch` carries an `AbortController` deadline.
+- **Painted components carry their colours literally, and their class names flat.**
+  `css/weather.css` and the three login stylesheets write `#6b431f` rather than a
+  token, because a wooden board is brown in a dark theme too — a token would have
+  nothing to switch (DEC-029). They also use `board-meter-value`, not
+  `board__meter__value`: the token indirection and the BEM separator cost more than
+  they save in files this size. `.card`, `.btn` and `.input` in `components.css` are
+  the opposite case and stay tokenised, because they are app chrome that does follow
+  `data-theme`.
 
 ## Module contracts
 

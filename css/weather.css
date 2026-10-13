@@ -1,214 +1,654 @@
-/* Weather panel.
- *
- * Sized to fit beside the field in one screen: the shell is `height: 100dvh` and
- * the centre column splits between this card and the farm, so every value here is
- * deliberately compact. The card is ~250px; the field gets the rest.
- */
-
-.weather {
+.board {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  color: var(--text);
+  gap: 6px;
+  /* A centered billboard narrower than the field below it — the design board is
+     335px against a 612px field (55%), so the board scales with the column rather
+     than spanning it. align-self:center keeps it centred over the field. */
+  width: 50%;
+  max-width: 760px;
+  align-self: center;
+  padding: 10px 14px 10px;
+  border: 5px solid #6b431f;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #b3794f 0%, #a4683f 46%, #96613c 100%);
+  box-shadow: 0 8px 18px rgba(35, 20, 8, 0.32), inset 0 2px 0 rgba(255, 226, 190, 0.28), inset 0 -3px 0 rgba(61, 34, 13, 0.35);
 }
 
-.weather__top {
+/* Two hanging pegs above the board, matching the design: short vertical posts
+   that drop onto the top edge, not a horizontal rail. Positions mirror the
+   design's two posts at ~28% and ~72% across the board. */
+.board::before,
+.board::after {
+  content: "";
+  position: absolute;
+  top: -14px;
+  width: 10px;
+  height: 16px;
+  background: linear-gradient(180deg, #9b6539 0%, #6b431f 100%);
+  border-radius: 2px 2px 0 0;
+}
+
+.board::before {
+  left: 28%;
+}
+
+.board::after {
+  left: 71%;
+}
+
+.board-body {
+  display: grid;
+  /* Fractional split so both columns scale with the board width. The design is
+     note ≈178px : meters ≈112px ≈ 61:39; the 1.6fr/1fr tracks that. A fixed px
+     meters column dominated the narrower board and squeezed the sticky note. */
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  /* The row fills the cell rather than the content, and the body clips, so a
+     tall note can never spill past the short board onto the hourly strip. */
+  grid-template-rows: minmax(0, 1fr);
+  overflow: hidden;
+  gap: 14px;
+  flex: 1;
+  min-height: 0;
+}
+
+/* The weatherPanel mount point. It had no rules, so as a plain block it let
+   .board-body grow to its content and the note spilled past the board frame.
+   Making it a bounded flex column completes the height chain down to .board-body,
+   whose overflow:hidden then clips the note inside the board. */
+#forecast-card {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
 }
 
-.weather__place {
+/* Explicit placement: the WIDE sticky note goes in column 1 (LEFT), the NARROW
+   meters in column 2 (RIGHT) - matching the design. Done by grid-column rather
+   than DOM order because the meters are appended to the grid before the note
+   (see weatherPanel.js), which would otherwise put them in the wide left slot. */
+.board-body > .note-current {
+  grid-column: 1;
+}
+
+.board-body > .board-meters {
+  grid-column: 2;
+}
+
+.note {
+  position: relative;
+  padding: 8px 10px;
+  background: linear-gradient(160deg, #f7f1bd 0%, #f2eab0 55%, #ece29c 100%);
+  color: #4a3418;
+  border-radius: 3px;
+  clip-path: polygon(0 0, calc(100% - 17px) 0, 100% 17px, 100% 100%, 0 100%);
+  filter: drop-shadow(0 4px 6px rgba(40, 24, 8, 0.38));
+}
+
+.note::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 17px;
+  height: 17px;
+  background: linear-gradient(225deg, #b9b455 0%, #a3a046 100%);
+  clip-path: polygon(0 0, 100% 100%, 0 100%);
+}
+
+.note-pin {
+  position: absolute;
+  top: 5px;
+  left: 50%;
+  width: 11px;
+  height: 11px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: #d94a3a;
+  box-shadow: inset 0 0 0 2px #a82f22, 0 1px 2px rgba(40, 24, 8, 0.45);
+}
+
+.note-current {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 10px 12px 4px;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.note-loc {
   display: block;
-  font-size: var(--text-xs);
-  color: var(--text-faint);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #6d5426;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.weather__now {
+.note-label {
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #7a5f28;
+}
+
+.note-main {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+  margin-top: 2px;
 }
 
-.weather__now-icon {
-  width: 40px;
-  height: 40px;
-  flex-shrink: 0;
+.note-glyph {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
 }
 
-.weather-icon svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
-.weather__now-text {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 0;
-}
-
-.weather__temp {
+.note-temp {
   display: flex;
   align-items: flex-start;
+  margin: 0;
   line-height: 1;
 }
 
-.weather__temp-value {
-  font-size: 2.25rem;
+.note-temp-value {
+  font-family: "Luckiest Guy", var(--font-sans);
+  font-size: 44px;
+  color: #3f2c12;
+}
+
+.note-temp-unit {
+  margin-top: 5px;
+  font-size: 16px;
   font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--text);
+  color: #6d5426;
 }
 
-.weather__temp-unit {
-  margin-top: 4px;
-  font-size: var(--text-md);
-  font-weight: 500;
-  color: var(--text-muted);
-}
-
-.weather__desc {
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--text);
-}
-
-.weather__feels {
-  font-size: var(--text-xs);
-  color: var(--text-faint);
-}
-
-.weather__meta {
-  text-align: right;
-  min-width: 0;
-}
-
-.weather__meta-time {
-  display: block;
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  white-space: nowrap;
-}
-
-.weather__idle {
+.note-foot {
   display: flex;
+  gap: 9px;
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #6d5426;
+}
+
+.note-feels {
+  margin-top: 1px;
+  font-size: 10px;
+  color: #8a6f38;
+}
+
+.note-idle {
+  display: flex;
+  flex: 1;
   align-items: center;
   gap: 10px;
+  font-size: 13px;
+  color: #6d5426;
 }
 
-.weather__idle .weather-icon {
+.note-idle .weather-icon {
   width: 40px;
   height: 40px;
   opacity: 0.55;
 }
 
-.weather__idle-text {
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-}
-
-.weather__stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+.board-meters {
+  display: flex;
+  flex-direction: column;
   gap: 8px;
 }
 
-.weather-stat {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  padding: 6px 10px;
-  border-radius: var(--radius-input);
-  background: var(--surface-sunken);
-  min-width: 0;
+.board-meter {
+  position: relative;
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  /* flex:1 1 0 makes the three pills share the note's height evenly, so the stack
+     lines up with the sticky note top-to-bottom — the design's three thin bars. */
+  flex: 1 1 0;
+  min-height: 0;
+  padding: 6px 12px;
+  border: 3px solid #6b431f;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #e2b662 0%, #d3a24e 100%);
+  box-shadow: 0 3px 0 #6b431f;
+  color: #3d2711;
 }
 
-.weather-stat__label {
-  font-size: 0.62rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--text-faint);
+.board-meter-icon {
+  display: block;
+  width: 16px;
+  height: 16px;
 }
 
-.weather-stat__value {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--text);
+.board-meter-icon svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+
+.board-meter-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.weather__hours {
-  border-top: 1px solid var(--border);
-  padding-top: 8px;
+.board-meter-value {
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
-.hours {
-  display: flex;
-  gap: 6px;
+.board-meter-track {
+  display: none;
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 4px;
+  height: 4px;
+  border-radius: 2px;
+  background: #8f6634;
 }
 
-.hours__slot {
+.board-meter-fill {
+  display: block;
+  height: 4px;
+  border-radius: 2px;
+  background: #2f6fae;
+}
+
+.board-notes {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+  /* Design tiles are ~44x42; height tracks that so the strip reads as a short row
+     of notes under the note/meters, not a tall block. */
+  height: 52px;
+}
+
+.note-hour {
   display: flex;
-  flex: 1 1 0;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  min-width: 0;
-  padding: 6px 2px;
-  border-radius: var(--radius-input);
-  background: var(--surface-sunken);
+  gap: 1px;
+  padding: 17px 4px 5px;
+  overflow: hidden;
 }
 
-.hours__time {
-  font-size: 0.62rem;
-  font-weight: 500;
-  color: var(--text-faint);
+.note-hour-time {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #6d5426;
 }
 
-.hours__icon {
+.note-hour-glyph {
   width: 22px;
   height: 22px;
 }
 
-.hours__temp {
-  font-size: var(--text-sm);
-  font-weight: 650;
-  color: var(--text);
+.note-hour-temp {
+  font-size: 13px;
+  font-weight: 700;
+  color: #3f2c12;
 }
 
-.hours__rain {
-  font-size: 0.6rem;
-  font-weight: 600;
-  color: #4a9ede;
+.note-hour-rain {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  padding: 0 3px;
+  border-radius: 6px;
+  background: #2f6fae;
+  color: #eaf4ff;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 13px;
 }
 
-.weather__updated {
-  font-size: 0.68rem;
-  color: var(--text-faint);
+.location-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  /* Thin bar — the design search row is ~27px against a 189px board, so it stays
+     a slim strip at the top rather than a chunky pill. */
+  height: 28px;
+  padding: 0 5px 0 7px;
+  border: 3px solid #6b431f;
+  border-radius: 22px;
+  background: #fffaef;
+  box-shadow: 0 3px 0 #6b431f;
 }
 
-.weather__updated[data-paused="true"] {
-  color: var(--warning);
-  font-weight: 600;
+.location-bar-locate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  color: #7a5f28;
+}
+
+.location-bar-locate:hover {
+  background: #f0e6c4;
+  color: #5c4718;
+}
+
+.location-bar-locate-icon svg {
+  display: block;
+  width: 15px;
+  height: 15px;
+}
+
+.location-bar-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: #3f2c12;
+  font-size: 13px;
+}
+
+.location-bar-input::placeholder {
+  color: #9a8248;
+}
+
+.location-bar-input:focus-visible {
+  outline: none;
+}
+
+.location-bar-input:focus-visible::placeholder {
+  color: transparent;
+}
+
+.location-bar-go {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #3f8f4f;
+  color: #f2ffe9;
+  box-shadow: 0 2px 0 #2a6135;
+}
+
+.location-bar-go:hover {
+  background: #4aa35c;
+}
+
+.location-bar-go-icon svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+}
+
+.board-updated {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 4px;
+  margin: 0;
+  text-align: center;
+  font-size: 10px;
+  color: #f0d7b4;
+}
+
+.board-updated[data-paused="true"] {
+  color: #ffd45e;
+  font-weight: 700;
+}
+
+@media (max-width: 1180px) {
+  .board-body {
+    /* Keep the fractional split at narrower widths — a fixed meters column was
+       what squeezed the sticky note on the centered board. */
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  }
+
+  .note-temp-value {
+    font-size: 38px;
+  }
 }
 
 @media (max-width: 900px) {
-  .weather__temp-value {
-    font-size: 2rem;
+  .board {
+    width: 100%;
+    min-height: 0;
+  }
+
+  .board::before,
+  .board::after {
+    display: none;
+  }
+
+  .board-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .board-meters {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .board-meter {
+    min-height: 46px;
+  }
+
+  .board-notes {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    height: auto;
   }
 }
 
 @media (max-width: 600px) {
-  .weather__stats {
-    grid-template-columns: 1fr;
+  .board-meters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Short windows. The board is `flex: 0 0 33.333%`, so its height falls with the
+ * window: at 730px tall the centre column is 606px and a third of that is 202px.
+ * The sizes above were fitted to ~1080p and want ~270px of inner space, so
+ * everything here is cut to fit 202. Breakpoint 820px because that is roughly
+ * where 33% drops under what the full-size board needs.
+
+ * The failure mode is graceful by design, which is why this can be aggressive:
+ * `.note-current` and `.note-hour` are `overflow: hidden`, so a few px of excess
+ * clips the least important line rather than spilling over the wood, and
+ * `.board-meter` is `flex: 1 1 0`, so the pills compress instead of overflowing.
+ *
+ * At 1142x730 this gives the field 606 - 202 - 16 = 388px, against 284px before. */
+@media (max-height: 820px) {
+  .board {
+    gap: 5px;
+    padding: 7px 12px 12px;
+    border-width: 3px;
+    border-radius: 8px;
+  }
+
+  .board::before {
+    top: -12px;
+    height: 15px;
+    background:
+      linear-gradient(180deg, #9b6539 0%, #7d4f2a 100%) 0 0 / 20px 15px no-repeat,
+      linear-gradient(180deg, #9b6539 0%, #7d4f2a 100%) 170px 0 / 20px 15px no-repeat;
+  }
+
+  .board::after {
+    top: -12px;
+    height: 4px;
+    background:
+      linear-gradient(180deg, #6b431f 0%, #4a2c13 100%) 0 0 / 23px 4px no-repeat,
+      linear-gradient(180deg, #6b431f 0%, #4a2c13 100%) 167px 0 / 23px 4px no-repeat;
+  }
+
+  .note-pin {
+    top: 4px;
+    width: 8px;
+    height: 8px;
+    box-shadow: inset 0 0 0 1.5px #a82f22, 0 1px 1px rgba(40, 24, 8, 0.45);
+  }
+
+  .note-current {
+    padding: 8px 10px 3px;
+  }
+
+  .note-loc {
+    font-size: 9px;
+  }
+
+  .note-label {
+    font-size: 10px;
+  }
+
+  .note-main {
+    gap: 8px;
+  }
+
+  .note-glyph {
+    width: 28px;
+    height: 28px;
+  }
+
+  .note-temp-value {
+    font-size: 28px;
+  }
+
+  .note-temp-unit {
+    margin-top: 3px;
+    font-size: 12px;
+  }
+
+  .note-foot {
+    font-size: 9px;
+  }
+
+  .note-feels {
+    font-size: 9px;
+  }
+
+  .board-body {
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .board-meters {
+    gap: 5px;
+  }
+
+  .board-meter {
+    min-height: 0;
+    padding: 3px 10px 7px;
+    border-width: 2px;
+    border-radius: 16px;
+    box-shadow: 0 3px 0 #6b431f;
+  }
+
+  .board-meter-icon,
+  .board-meter-icon svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .board-meter-label,
+  .board-meter-value {
+    font-size: 11px;
+  }
+
+  .board-meter-track {
+    left: 11px;
+    right: 11px;
+    bottom: 3px;
+    height: 3px;
+  }
+
+  .board-meter-fill {
+    height: 3px;
+  }
+
+  .board-notes {
+    height: 42px;
+    gap: 5px;
+  }
+
+  .note-hour {
+    gap: 0;
+    padding: 12px 3px 3px;
+  }
+
+  .note-hour-time {
+    font-size: 9px;
+  }
+
+  .note-hour-glyph {
+    width: 16px;
+    height: 16px;
+  }
+
+  .note-hour-temp {
+    font-size: 11px;
+  }
+
+  .note-hour-rain {
+    right: 2px;
+    bottom: 2px;
+    font-size: 8px;
+    line-height: 11px;
+  }
+
+  .location-bar {
+    height: 26px;
+    gap: 4px;
+    padding: 0 4px 0 6px;
+    border-width: 2px;
+    box-shadow: 0 2px 0 #6b431f;
+  }
+
+  .location-bar-input {
+    font-size: 12px;
+  }
+
+  .location-bar-locate {
+    width: 22px;
+    height: 22px;
+  }
+
+  .location-bar-locate-icon svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  .location-bar-go {
+    width: 24px;
+    height: 24px;
+  }
+
+  .location-bar-go-icon svg {
+    width: 13px;
+    height: 13px;
+  }
+
+  .board-updated {
+    bottom: 2px;
+    font-size: 9px;
   }
 }

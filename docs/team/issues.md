@@ -55,12 +55,14 @@ current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
 | ISS-023 | Three sound files are 0 bytes | Low | Kafi | open | — |
 | ISS-025 | Ownership split is unconfirmed | Low | Shabab | open | T-01 |
 | ISS-045 | Docs point at `css/field.css`, which does not exist | Low | Jim | **fixed** | — |
-| ISS-046 | `.btn--secondary` and four other rendered classes have no rule anywhere | Low | Hisham | open | T-11 |
+| ISS-046 | `.btn--secondary` and four other rendered classes have no rule anywhere | Low | Hisham | **partly fixed** — the `.location-bar*` half closed by T-48 | — |
 | ISS-032 | No Supabase project yet, so no real accounts or server-side signing | **High** | Shabab | partly fixed | T-29 |
 | ISS-048 | A transient refresh failure permanently destroys the refresh token | **High** | Hisham | **fixed** | T-39 |
 | ISS-049 | `gotrue.post()` has no request deadline | **High** | Hisham | **fixed** | T-39 |
 | ISS-050 | A failed server save is invisible, so "autosave" is not what it claims | Medium | Hisham | **fixed** | T-39 |
 | ISS-047 | Five duplicate rice sprites at the pre-refactor flat path | Low | Kafi | open | T-06 |
+| ISS-053 | The board's meters were appended outside `.board-body`, so the grid had one child | Medium | Jim | **fixed** | T-48 |
+| ISS-054 | `min-height: 306px` on the board silently overrode the 1/3 split | Medium | Jim | **fixed** | T-48 |
 
 ---
 
@@ -718,7 +720,11 @@ current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
     `__mark` and `__logo` but not this, so it inherits body font. Probably wanted at the logo's
     650 weight.
   - `.location-bar`, `__input`, `__btn`, `__btn--icon` — all four rendered by
-    `locationBar.js`. This one is expected: T-11 is still `todo`.
+    `locationBar.js`. **Fixed 2026-10-13, and the class names changed with it.** The search moved
+    onto the wooden forecast board and is now styled in `css/weather.css` as `.location-bar`,
+    `.location-bar-input`, `.location-bar-locate` and `.location-bar-go` — see T-48. The current-
+    location button did not survive as its own control: it is the pin inside the field now, because
+    a third control beside the field was what made the row wrap in the first place (ISS-046 proper).
   - `.farm-view` and `.card__body` are structural hooks with no rules by design — `.card` carries
     the padding. `tests/settingsDom.test.js` explicitly carves those out.
 - Cause: no check covers a class that has no rule. `settingsDom.test.js` asserts the inverse
@@ -726,9 +732,9 @@ current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
   not assert that every class has a rule, because structural hooks are legitimate.
 - Risk: Low. Nothing is invisible; the Save button is simply unstyled next to its neighbours, which
   reads as an oversight rather than a break.
-- Fix: not started. `.btn--secondary` needs a variant in `components.css` — note that whichever
-  file ends up holding `.btn` is the one to put it in, per DEC-029. `.divider` is one rule.
-  `.location-bar*` belongs to whoever lands T-11.
+- Fix: partially done — the `.location-bar*` half is closed above. Not started for the rest.
+  `.btn--secondary` needs a variant in `components.css` — note that whichever file ends up holding
+  `.btn` is the one to put it in, per DEC-029. `.divider` is one rule.
 
 ### ISS-047 Five duplicate rice sprites at the pre-refactor flat path
 - Reported by Hisham · 2026-10-12 · Owner: Kafi · Status: open

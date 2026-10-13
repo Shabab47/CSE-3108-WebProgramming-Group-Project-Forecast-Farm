@@ -10,7 +10,10 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  height: 76px;
+  /* 64px bar + the shell's 16px row-gap below it = an 80px header region, matching
+     the design. This is the whole header (bar + gap), not just the bar — the bar
+     element itself is 64px; the 16px is `.app`'s gap in css/layout.css. */
+  height: 64px;
   padding: 0 24px;
   background: #ffffff;
   box-shadow: 0 3px 0 rgba(43, 26, 12, 0.12);
