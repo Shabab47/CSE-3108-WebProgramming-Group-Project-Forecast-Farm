@@ -643,7 +643,7 @@ farm and still reported that nothing had changed.
 | page layout | `css/layout.css`, `index.html` |
 | the game page's top bar | `css/navbar.css` — fixed `height: 60px`, owns its own padding rather than `.card`'s |
 | where the location search lives | `js/ui/locationBar.js`, in the wooden board — not the navbar |
-| the forecast board: frame, notes, meters | `js/ui/weatherPanel.js`, `css/weather.css` — the board is `flex: 0 0 33.333%` of `.app__centre` with `min-height: 306px`, the field takes the rest (`css/layout.css`) |
+| the forecast board: frame, notes, meters | `js/ui/weatherPanel.js`, `css/weather.css` — the board is `flex: 0 0 33.333%` of `.app__centre` with `min-height: 150px`, the field takes the rest (`css/layout.css`). Its width is `clamp(420px, 38%, 520px)`, centred over the field. Inside, `.board-body` is a two-column grid at `1.6fr / 1fr` with **both children pinned to `grid-row: 1`** (ISS-056); the meters column is three pills at `flex: 1 1 0`, so they divide the note's height rather than asking for a height of their own; the hour strip is a fixed `72px` (ISS-057); the freshness line is **in the flow**, not absolute (ISS-058). No meter has a fill bar (ISS-055). Sizes are plain literals, with one short-window block at `@media (max-height: 960px) and (min-width: 901px)` that trims them — DEC-031 has the reasoning |
 | login page layout — the menu and the wooden sign | `css/auth.css`, `css/menu.css`, `css/sign.css`, `login.html` |
 | colours | `css/variables.css` — except the login page, which writes its own (DEC-029) |
 | spacing and radii | hardcoded per file, in px. The ten in `variables.css` are a stopgap for `components.css` alone; delete them when that file's 41 references are gone |
@@ -687,7 +687,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   ├── components.css          cards, buttons, inputs, meters, toasts
 │   ├── fonts.css               the two display faces, self-hosted @font-face
 │   ├── navbar.css              the game page's top bar
-│   ├── weather.css             the wooden forecast board and its sticky notes
+│   ├── weather.css             the wooden forecast board and its sticky notes — plain literals plus one short-window block
 │   ├── scene.css               the isometric stage and the plot layers
 │   ├── shop.css                the shop sign and the seed list
 │   ├── settings.css            the settings gear and the settings page

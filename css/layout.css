@@ -52,20 +52,17 @@
 }
 
 /* The forecast board takes one third of the column and the field the other two
-   thirds. Deliberately a ratio rather than content-sized: the panel used to grow
-   to fit whatever it was given, and on a 16:9 screen it reached ~700px, leaving
-   the field a 220px sliver.
+   thirds. A ratio rather than content-sized, on purpose: the board must not grow
+   with its content and squeeze the field.
 
-   `min-height` is a floor against collapse, nothing more. It was 306px — which
-   was the board's honest content height at the sizes it shipped with, and the
-   reason the ratio appeared not to work at all: at a 730px viewport the centre
-   column is 606px, a third is 202px, and the floor won, so the board took 50% and
-   the field was squeezed to 284px. The floor has to sit BELOW a third at every
-   realistic height, and the board's internals shrink instead — see the
-   `max-height: 820px` block in css/weather.css. See ISS-054. */
+   The earlier overlap that made this look too small was not the ratio. The meters
+   and the note were both placed in `.board-body` without a grid row, so the note
+   fell into an implicit second row and the content looked twice as tall as it was.
+   With both pinned to row 1 in css/weather.css the content fits a third, and
+   `@media (max-height: 960px)` there compresses it on shorter screens. See ISS-055. */
 .app__centre > .board {
   flex: 0 0 33.333%;
-  min-height: 150px;
+  min-height: 0;
 }
 
 #farm-view {

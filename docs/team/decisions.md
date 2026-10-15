@@ -7,6 +7,52 @@ Format: who decided, the choice, why, and what was rejected.
 
 ---
 
+### DEC-031 The board is plain literals plus one short-window block
+**Decided by:** Jim · 2026-10-15
+
+**Choice:** every padding, gap, border, radius, icon size and font size in `css/weather.css` is a
+plain px literal written in the rule that uses it. No custom properties. For short windows, **one**
+media block — `@media (max-height: 960px) and (min-width: 901px)` — restates the values smaller. The
+three structural breakpoints (`1180px`, `900px`, `600px`) carry layout only. The meter pill is
+`flex: 1 1 0`: the three pills divide the note's height rather than asking for a height, which is
+what makes the stack line up with the sticky note top to bottom at every window size.
+
+**Why:** two failed attempts first, which is the reason this entry is worth having.
+1. **A knob block** — 39 custom properties and two scale variables. Tidy as an abstraction, poor as a
+   working surface: every size became a lookup, and **a size you cannot read without finding the knob
+   block is not a size you can tune.** The board's proportions are meant to be tuned by eye at 1080p
+   (AGENTS.md §5), which is precisely what indirection is worst at.
+2. **Inline `min(Npx, N*factor*vh)` caps** — the same sizes with no variables, shrinking continuously
+   instead of jumping at a breakpoint. Also rejected. Correct, but it replaced a number you could edit
+   with a number you had to *derive*: `min(14px, 1.19vh)` tells you nothing directly about 14px, and
+   the two factors (`0.085vh` boxes, `0.11vh` text) are implicit in the coefficients where nobody will
+   look for them. It reads as clever and tunes worse than either alternative.
+3. **Plain literals won** because the failure mode of the media block is mild and its cost is visible.
+   The block is a second copy of the sizes, and yes, a value that changes has to change in two places.
+   But the copy is *readable*, and when it drifts the symptom is a slightly wrong number at one window
+   size — visible in one glance — rather than a whole board that cannot be adjusted at all.
+
+**The one structural change that earned its keep:** the short-window block is scoped
+`and (min-width: 901px)`. Below that the layout is stacked and content-sized, so there is no viewport
+height to fit and trimming the board is simply wrong. Its breakpoint is **960px**, not the 820px it
+started at, because the board's contents grew — the hour strip went 52px → 72px (ISS-057) and the
+freshness line moved into the flow (ISS-058) — so the height at which it stops fitting rose with them.
+
+**Also rejected:**
+- **Container queries** (`container-type: size` + `cqmin`) would measure the board rather than the
+  viewport. Rejected because `container-type: size` implies paint containment, and the board's two
+  pegs sit above its top edge — they would be clipped. Taking the pegs out of the board would fix
+  that and is a reasonable follow-up if the board is ever rebuilt.
+- **Giving the meter pill a settable height** (`flex: 0 1 60px`) was tried and dropped. It reads like
+  more control and is less: the pills dividing the note's height is what keeps them aligned with it,
+  and a fixed basis fights that on every board size rather than one.
+
+**What was rejected, separately:** the **fill bars** on the humidity and rain-chance meters. Wind never
+had a plausible bar — it has no natural ceiling, so a level would need an invented maximum — and
+looking at the board with neither, the 4px bar was clutter next to a value already spelled out in
+full. ISS-055, closed as `wontfix` in the sense that removing the bar is the answer, not restoring a
+rule.
+
 ### DEC-030 Losing the network is not the same as losing the session
 **Decided by:** Hisham · 2026-10-12
 

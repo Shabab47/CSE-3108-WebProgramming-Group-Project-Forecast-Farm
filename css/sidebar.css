@@ -54,32 +54,33 @@
   color: #1f2721;
 }
 
+/* The design's two big tan tiles with a thick dark-brown outline. The outline is
+   the border rather than a shadow: the design has no drop shadow, so hover and
+   press move the tile instead. */
 .sidebar-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 88px;
-  height: 88px;
-  border: 3px solid #6b431f;
-  border-radius: 12px;
-  background: #a9714a;
-  color: #f0c874;
-  box-shadow: 0 4px 0 #6b431f;
+  width: 122px;
+  height: 122px;
+  border: 6px solid #3d2208;
+  border-radius: 18px;
+  background: #c99a4c;
+  color: #1a1005;
+  box-shadow: none;
   text-decoration: none;
   transition:
     transform 160ms cubic-bezier(0.2, 0, 0.2, 1),
-    box-shadow 160ms cubic-bezier(0.2, 0, 0.2, 1);
+    background 160ms cubic-bezier(0.2, 0, 0.2, 1);
 }
 
 .sidebar-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 0 #6b431f;
-  background: #b87f54;
+  background: #d6a85a;
 }
 
 .sidebar-btn:active {
-  transform: translateY(2px);
-  box-shadow: 0 2px 0 #6b431f;
+  transform: translateY(1px);
 }
 
 .sidebar-btn:focus-visible {
@@ -89,8 +90,8 @@
 
 .sidebar-btn__icon {
   display: block;
-  width: 40px;
-  height: 40px;
+  width: 64px;
+  height: 64px;
 }
 
 .sidebar-btn__icon svg {

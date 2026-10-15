@@ -3,17 +3,21 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  /* A centered billboard narrower than the field below it — the design board is
-     335px against a 612px field (55%), so the board scales with the column rather
-     than spanning it. align-self:center keeps it centred over the field. */
-  width: 50%;
+  /* A centered billboard narrower than the field below it. The design board is
+     ~435px, so it clamps between 420 and 520px and scales a little with the
+     column rather than spanning it. align-self:center keeps it centred over the
+     field. */
+  width: clamp(420px, 38%, 520px);
   max-width: 760px;
   align-self: center;
   padding: 10px 14px 10px;
   border: 5px solid #6b431f;
   border-radius: 10px;
   background: linear-gradient(180deg, #b3794f 0%, #a4683f 46%, #96613c 100%);
-  box-shadow: 0 8px 18px rgba(35, 20, 8, 0.32), inset 0 2px 0 rgba(255, 226, 190, 0.28), inset 0 -3px 0 rgba(61, 34, 13, 0.35);
+  box-shadow:
+    0 8px 18px rgba(35, 20, 8, 0.32),
+    inset 0 2px 0 rgba(255, 226, 190, 0.28),
+    inset 0 -3px 0 rgba(61, 34, 13, 0.35);
 }
 
 /* Two hanging pegs above the board, matching the design: short vertical posts
@@ -44,22 +48,25 @@
      note ≈178px : meters ≈112px ≈ 61:39; the 1.6fr/1fr tracks that. A fixed px
      meters column dominated the narrower board and squeezed the sticky note. */
   grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
-  /* The row fills the cell rather than the content, and the body clips, so a
-     tall note can never spill past the short board onto the hourly strip. */
   grid-template-rows: minmax(0, 1fr);
-  overflow: hidden;
   gap: 14px;
-  flex: 1;
+  /* Fills whatever the one-third board has left after the search row, the hour
+     notes and the freshness line. Both items are pinned to row 1 below: without
+     that, the meters (appended first) took row 1 and the note was auto-placed
+     into an implicit row 2, which is what made the board look too tall and the
+     meters too short. See ISS-056. */
+  flex: 1 1 0;
   min-height: 0;
+  overflow: hidden;
 }
 
-/* The weatherPanel mount point. It had no rules, so as a plain block it let
-   .board-body grow to its content and the note spilled past the board frame.
-   Making it a bounded flex column completes the height chain down to .board-body,
-   whose overflow:hidden then clips the note inside the board. */
+/* The weatherPanel mount point. It holds three children — the body, the hour
+   notes and the freshness line — so it is a bounded column of its own, which
+   completes the height chain down to .board-body. */
 #forecast-card {
   display: flex;
   flex-direction: column;
+  gap: 6px;
   flex: 1 1 0;
   min-height: 0;
 }
@@ -70,10 +77,12 @@
    (see weatherPanel.js), which would otherwise put them in the wide left slot. */
 .board-body > .note-current {
   grid-column: 1;
+  grid-row: 1;
 }
 
 .board-body > .board-meters {
   grid-column: 2;
+  grid-row: 1;
 }
 
 .note {
@@ -106,7 +115,9 @@
   transform: translateX(-50%);
   border-radius: 50%;
   background: #d94a3a;
-  box-shadow: inset 0 0 0 2px #a82f22, 0 1px 2px rgba(40, 24, 8, 0.45);
+  box-shadow:
+    inset 0 0 0 2px #a82f22,
+    0 1px 2px rgba(40, 24, 8, 0.45);
 }
 
 .note-current {
@@ -252,31 +263,14 @@
   white-space: nowrap;
 }
 
-.board-meter-track {
-  display: none;
-  position: absolute;
-  left: 14px;
-  right: 14px;
-  bottom: 4px;
-  height: 4px;
-  border-radius: 2px;
-  background: #8f6634;
-}
-
-.board-meter-fill {
-  display: block;
-  height: 4px;
-  border-radius: 2px;
-  background: #2f6fae;
-}
-
 .board-notes {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 8px;
-  /* Design tiles are ~44x42; height tracks that so the strip reads as a short row
-     of notes under the note/meters, not a tall block. */
-  height: 52px;
+  /* 72px is what a note needs: 17 top padding, time, 22px glyph, temperature.
+     The old 52px clipped the temperature on every note. */
+  flex: 0 0 72px;
+  height: 72px;
 }
 
 .note-hour {
@@ -401,15 +395,18 @@
   height: 14px;
 }
 
+/* In the flow, under the notes. It was `position: absolute; bottom: 4px`, which
+   laid it on top of the hour notes once the board stopped having spare room. */
 .board-updated {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 4px;
-  margin: 0;
+  position: static;
+  margin: 2px 0 0;
   text-align: center;
   font-size: 10px;
   color: #f0d7b4;
+}
+
+.board-updated:empty {
+  display: none;
 }
 
 .board-updated[data-paused="true"] {
@@ -440,8 +437,27 @@
     display: none;
   }
 
+  /* Stacked and scrollable: there is no fixed third to fill, so everything goes
+     back to its content height. */
+  #forecast-card,
+  .board-body,
+  .board-notes {
+    flex: 0 0 auto;
+  }
+
   .board-body {
     grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto;
+    overflow: visible;
+  }
+
+  .board-body > .note-current,
+  .board-body > .board-meters {
+    grid-column: 1;
+  }
+
+  .board-body > .board-meters {
+    grid-row: 2;
   }
 
   .board-meters {
@@ -465,19 +481,18 @@
   }
 }
 
-/* Short windows. The board is `flex: 0 0 33.333%`, so its height falls with the
- * window: at 730px tall the centre column is 606px and a third of that is 202px.
- * The sizes above were fitted to ~1080p and want ~270px of inner space, so
- * everything here is cut to fit 202. Breakpoint 820px because that is roughly
- * where 33% drops under what the full-size board needs.
-
+/* Short windows. The board is one third of the column, so its height falls with
+ * the window: at ~910px tall a third is ~270px, which is about what the full-size
+ * board needs, and below that the content would clip. Everything here trims it to
+ * fit. Breakpoint 960px for that reason.
+ * Desktop layout only (min-width 901px): the stacked phone layout is content-sized
+ * and keeps the normal sizes.
+ *
  * The failure mode is graceful by design, which is why this can be aggressive:
  * `.note-current` and `.note-hour` are `overflow: hidden`, so a few px of excess
  * clips the least important line rather than spilling over the wood, and
- * `.board-meter` is `flex: 1 1 0`, so the pills compress instead of overflowing.
- *
- * At 1142x730 this gives the field 606 - 202 - 16 = 388px, against 284px before. */
-@media (max-height: 820px) {
+ * `.board-meter` is `flex: 1 1 0`, so the pills compress instead of overflowing. */
+@media (max-height: 960px) and (min-width: 901px) {
   .board {
     gap: 5px;
     padding: 7px 12px 12px;
@@ -489,8 +504,10 @@
     top: -12px;
     height: 15px;
     background:
-      linear-gradient(180deg, #9b6539 0%, #7d4f2a 100%) 0 0 / 20px 15px no-repeat,
-      linear-gradient(180deg, #9b6539 0%, #7d4f2a 100%) 170px 0 / 20px 15px no-repeat;
+      linear-gradient(180deg, #9b6539 0%, #7d4f2a 100%) 0 0 / 20px 15px
+        no-repeat,
+      linear-gradient(180deg, #9b6539 0%, #7d4f2a 100%) 170px 0 / 20px 15px
+        no-repeat;
   }
 
   .board::after {
@@ -498,14 +515,17 @@
     height: 4px;
     background:
       linear-gradient(180deg, #6b431f 0%, #4a2c13 100%) 0 0 / 23px 4px no-repeat,
-      linear-gradient(180deg, #6b431f 0%, #4a2c13 100%) 167px 0 / 23px 4px no-repeat;
+      linear-gradient(180deg, #6b431f 0%, #4a2c13 100%) 167px 0 / 23px 4px
+        no-repeat;
   }
 
   .note-pin {
     top: 4px;
     width: 8px;
     height: 8px;
-    box-shadow: inset 0 0 0 1.5px #a82f22, 0 1px 1px rgba(40, 24, 8, 0.45);
+    box-shadow:
+      inset 0 0 0 1.5px #a82f22,
+      0 1px 1px rgba(40, 24, 8, 0.45);
   }
 
   .note-current {
@@ -557,7 +577,7 @@
 
   .board-meter {
     min-height: 0;
-    padding: 3px 10px 7px;
+    padding: 3px 10px;
     border-width: 2px;
     border-radius: 16px;
     box-shadow: 0 3px 0 #6b431f;
@@ -574,19 +594,9 @@
     font-size: 11px;
   }
 
-  .board-meter-track {
-    left: 11px;
-    right: 11px;
-    bottom: 3px;
-    height: 3px;
-  }
-
-  .board-meter-fill {
-    height: 3px;
-  }
-
   .board-notes {
-    height: 42px;
+    flex: 0 0 56px;
+    height: 56px;
     gap: 5px;
   }
 
@@ -648,7 +658,8 @@
   }
 
   .board-updated {
-    bottom: 2px;
+    margin-top: 0;
     font-size: 9px;
+    line-height: 1.2;
   }
 }
