@@ -39,12 +39,19 @@ const HOURS_SHOWN = 6;
  * that premise only held before `forecast_hours` was sent, and seeking forward
  * actually made it worse, skipping the hour in progress. Relogged as stale.
  *
- * ## Why wind gets no bar
+ * ## Why no meter carries a bar
  *
- * Humidity and rain chance are 0–100%, so a fill bar beside them carries
- * information at a glance. Wind has no natural ceiling — a bar would need an
- * invented maximum, and a half-full wind bar would mean nothing — so it shows
- * the number only.
+ * Humidity and rain chance are 0–100%, so a fill bar beside them once carried
+ * information at a glance. Wind never could — it has no natural ceiling, so a
+ * level would need an invented maximum — and in the end **none** of them has
+ * one. The pills are narrow, and a 4px bar under the number read as clutter
+ * rather than information. So all three are icon, label and number, and the
+ * `board-meter-track` / `board-meter-fill` rules are gone from `css/weather.css`.
+ *
+ * A bar was hidden rather than removed for a while — `display: none` on the
+ * track — which meant the DOM kept building an element nothing styled, and the
+ * prose above kept describing bars nobody could see. That is ISS-055, closed as
+ * `wontfix` in the sense that the *removal* is the answer, not a missing rule.
  *
  * ## Showing a paused forecast
  *
@@ -149,25 +156,18 @@ export function mountWeatherPanel(root, state, now = () => Date.now()) {
     const chance = currentRainChance(weather);
 
     target.append(
-      meter('droplet', 'Humidity', humidity == null ? '—' : `${humidity}%`, humidity),
-      // No bar: wind has no natural ceiling, so a fill level would need an
-      // invented maximum and would not mean anything to read.
-      meter('wind', 'Wind', `${Math.round(current.windSpeed)} km/h${compass ? ` ${compass}` : ''}`, null),
-      meter('umbrella', 'Rain Chance', chance == null ? '—' : `${clamp(chance)}%`, chance),
+      meter('droplet', 'Humidity', humidity == null ? '—' : `${humidity}%`),
+      meter('wind', 'Wind', `${Math.round(current.windSpeed)} km/h${compass ? ` ${compass}` : ''}`),
+      meter('umbrella', 'Rain Chance', chance == null ? '—' : `${clamp(chance)}%`),
     );
   }
 
-  function meter(iconName, label, value, percent) {
+  function meter(iconName, label, value) {
     return el('div', { class: 'board-meter' }, [
       icon(iconName, 'board-meter-icon'),
       el('span', { class: 'board-meter-label', text: label }),
       el('span', { class: 'board-meter-value', text: value }),
-      percent == null
-        ? null
-        : el('span', { class: 'board-meter-track' }, [
-            el('span', { class: 'board-meter-fill', style: `width:${clamp(percent)}%` }),
-          ]),
-    ].filter(Boolean));
+    ]);
   }
 
   /* --- the six small notes: the coming hours ------------------------------ */

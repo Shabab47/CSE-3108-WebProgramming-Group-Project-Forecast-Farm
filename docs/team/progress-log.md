@@ -7,6 +7,59 @@ The per-person weekly notes that used to live in the README table are now in `me
 
 ---
 
+## The board got tuned by eye, and lost its meter bars — Jim
+
+- **Did:** went through the board's proportions by eye and fixed four things that were quietly wrong.
+  The sizes are plain px literals with a single short-window block, which is where this landed after
+  two other approaches failed — see DEC-031.
+- **Three real bugs, all visible on every screen and none of them explained by any one rule.**
+  - **ISS-056** — `.board-body`'s two children both carry an explicit `grid-column`, needed because
+    `renderMeters()` appends the meters *before* the note. With a definite column and an automatic
+    row, auto-placement is free to pick different rows, and it did: the meters took row 1, the note
+    landed in an implicit row 2. One row too tall, and the meters squashed to half. Both are now
+    pinned to `grid-row: 1`. The board's height never changed — the content inside it was wrong.
+  - **ISS-057** — the hour notes showed a time and an icon and **no temperature, on every note**. The
+    strip was 52px, chosen when it held two items; the temperature is the third and fell below
+    `overflow: hidden`. Now 72px, which is 67px of content plus the gap.
+  - **ISS-058** — "Updated 14:05" was `position: absolute; bottom: 4px`, which was fine while the
+    board had spare wood at the bottom and stopped being fine the moment it was sized to a third of
+    the column: it left the flow, reserved nothing, and lay across the hour notes. It is back in the
+    flow, and hidden when there is no timestamp so the board carries no blank line.
+- **ISS-055 closed `wontfix` — the bars are gone, not restored.** Humidity and rain chance are 0–100%
+  and were supposed to get a fill bar; the stylesheet had `display: none` on the track, so they had
+  never been visible. The real answer turned out to be that neither should have one: the pills are
+  narrow and the value is already spelled out, so a 4px bar was clutter. `.board-meter-track` and
+  `.board-meter-fill` are deleted, `meter()` no longer takes a percentage or builds the track, and
+  `weatherPanel.js`'s "Why wind gets no bar" section is rewritten — wind was never an exception to
+  bars, because there are no bars.
+- **Two approaches built and rejected before this one.** A knob block of 39 custom properties and two
+  scale variables, then inline `min(Npx, N*vh)` caps. Both were tidier than literals and both tuned
+  worse: the first turned every size into a lookup, the second into a number you have to derive. The
+  lesson is in DEC-031 because it is reusable — **a size you cannot read where it is used is not a
+  size you can tune**, and tuning this board by eye is the whole point of it.
+- **The short-window block moved from 820px to 960px and gained `min-width: 901px`.** It had to rise
+  because the board's contents grew — the strip went to 72px and the freshness line joined the flow.
+  The scope is new and deliberate: below 900px the layout is stacked and content-sized, so there is
+  no viewport height to fit and trimming is simply wrong.
+- **Also:** `.board` width `50%` → `clamp(420px, 38%, 520px)`. A comment in `.board-body` cited the
+  grid-row bug as ISS-055, which is the meter-bar issue; corrected to ISS-056. A mis-cite sends the
+  next reader to an entry that cannot explain the bug in front of them.
+- **Touched:** `css/weather.css`, `js/ui/weatherPanel.js`, and docs. **The JS is Afif's file** (T-11,
+  still `doing`) — the change is confined to `meter()` losing its percentage argument and the two
+  call sites in `renderMeters()`; `clamp()` stays, it is still used for the humidity and rain-chance
+  strings. `index.html`, `css/layout.css` and the markup are untouched.
+- **Broken:** nothing. `npm run check` clean, `weatherPanel.js` parses, em dashes intact. `npm test`
+  is **316/317** and the one failure is pre-existing and unrelated — `assets.test.js` on
+  `assets/images/crops/rice_1.png`, which is ISS-047, five duplicate sprites at the old flat path
+  reintroduced by a merge into this branch. Not committing red.
+- **Next:** the 420–520px width band and the 960px breakpoint are estimates against a design image,
+  not measurements — check them at 1920×1080 and 1280×720. ISS-047 needs five files deleted, by
+  Kafi or by Jim, before anything commits. Still open from T-48: `ui/icon.js` and `ui/icons.js` are
+  duplicate helpers, and `components.css` owns an unused generic `.meter`. `weather.css` is ~660 lines
+  and over the ~200 guidance; splitting it is worth a separate commit.
+
+---
+
 ## The forecast panel is now a wooden board — Jim
 
 - **Did:** Restyled the top of the game page to the design: a wooden notice board carrying a
@@ -17,9 +70,14 @@ The per-person weekly notes that used to live in the README table are now in `me
   `min-height: 306px`; the field takes the rest. Before this the panel sized itself and on 16:9
   reached ~700px, leaving the field a 220px sliver. The floor is there for short screens, where
   a third is not enough to hold the notes legibly.
+  > **Superseded.** That floor was itself the bug — ISS-054 — because 306px is taller than a third at
+  > any ordinary window, so the ratio never applied. It is 150px now.
 - **Two of the three meters get a bar, one does not.** Humidity and rain chance are 0–100%, so a
   fill bar beside them carries meaning. Wind has no ceiling — a bar would need an invented maximum
   and a half-full wind bar would mean nothing — so it shows the number only.
+  > **Never true, and now moot.** The bar was `display: none` from the start (ISS-055), so two meters
+  > carried a bar in the DOM and in this log and in `weatherPanel.js` while the stylesheet showed
+  > nothing. All three meters are number-only as of T-50.
 - **The current-location button became the pin inside the search pill.** As a third control beside
   the field it made the row wrap (ISS-046); as a leading action on the field it reads as part of
   searching. `onUseDeviceLocation` is unchanged. The place *name* now sits above the condition on

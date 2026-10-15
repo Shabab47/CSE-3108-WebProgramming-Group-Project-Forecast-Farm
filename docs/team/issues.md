@@ -63,6 +63,10 @@ current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
 | ISS-047 | Five duplicate rice sprites at the pre-refactor flat path | Low | Kafi | open | T-06 |
 | ISS-053 | The board's meters were appended outside `.board-body`, so the grid had one child | Medium | Jim | **fixed** | T-48 |
 | ISS-054 | `min-height: 306px` on the board silently overrode the 1/3 split | Medium | Jim | **fixed** | T-48 |
+| ISS-055 | The humidity and rain fill bars are rendered but never visible | Medium | Jim | **wontfix** — bars removed instead | T-50 |
+| ISS-056 | The note landed in an implicit grid row, making the board too tall | Medium | Jim | **fixed** | T-50 |
+| ISS-057 | The hour notes clipped their own temperature | Medium | Jim | **fixed** | T-50 |
+| ISS-058 | The freshness line was drawn on top of the hour notes | Medium | Jim | **fixed** | T-50 |
 
 ---
 
@@ -861,4 +865,81 @@ current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
   a browser.
 - Risk of the fix: low, and worth stating. `.settings-page` is the only body class in the repo, so the
   cascade cannot leak into `index.html`, which also links `settings.css`.
+
+### ISS-055 The humidity and rain fill bars are rendered but never visible
+- Reported by Jim · 2026-10-15 · Owner: Jim · Status: **wontfix** — superseded by removal, T-50
+- Where: `css/weather.css` (`.board-meter-track`), `js/ui/weatherPanel.js`
+- Problem: two of the three meter pills on the forecast board — humidity and rain chance — were
+  supposed to carry a fill bar under the number, and wind deliberately did not, because it has no
+  natural ceiling. The bars were never seen. Reproduce: open the game at any window size, look at the
+  meters column on the right of the board, and there is no bar under Humidity or Rain Chance.
+- Cause: `.board-meter-track` carried `display: none` and nothing anywhere set it back. The markup
+  was correct — `renderMeters()` built the track and the fill and `meter()` set the fill's width to
+  the clamped percentage — so the DOM was right and the stylesheet hid it. The reason two meters
+  had bars and one did not was written up in `weatherPanel.js` under "Why wind gets no bar", and the
+  progress log for T-48 repeats it, so the intent was carried by prose while the CSS said the
+  opposite. Almost certainly left over from an earlier layout where the track overlapped the label.
+- Why wontfix: the honest answer was never to restore the rule but to **remove the bar**. Looking at
+  the board with the numbers alone, the 4px bar was clutter rather than information — the pills are
+  narrow, and the value is already spelled out in full ("68%", "40%") rather than encoded as a
+  length to be decoded. So the bars are gone from both layers: `.board-meter-track` and
+  `.board-meter-fill` are deleted from `css/weather.css`, and `meter()` no longer takes a percentage
+  or builds the track, so the DOM is smaller too. `weatherPanel.js`'s "Why wind gets no bar" section
+  was rewritten, since wind is no longer an exception to bars — nothing has one.
+- The part worth keeping: the bug was never the missing rule. It was **prose describing a feature the
+  stylesheet had switched off**, in three places (this entry, `weatherPanel.js` and the T-48 log
+  entry), which is how it survived. When a rendering is deliberately dropped, the argument for it has
+  to be deleted too, not just the declaration.
+- Not committed, and the reason is not this issue. `npm test` is red on `HEAD` for ISS-047 (five
+  duplicate sprites at the pre-refactor flat path) and AGENTS.md §7 says both checks pass before a
+  commit. The change sits in the working tree until ISS-047 is resolved.
+
+### ISS-056 The note landed in an implicit grid row, so the board was too tall and the meters too short
+- Reported by Jim · 2026-10-15 · Owner: Jim · Status: fixed
+- Where: `css/weather.css` (`.board-body`, and the `grid-row` on its two children)
+- Problem: the board looked wrong in a way no single rule explained — too much wood, and three squat
+  meter pills instead of three thin bars. Reproduce: on a normal desktop window, compare the height
+  of the meters column against the sticky note beside it.
+- Cause: `.board-body` is a two-column grid and both children carry an explicit `grid-column`, set
+  because `renderMeters()` appends the meters **before** the note and DOM order would otherwise put
+  them in the wide left slot. With a definite column and an automatic row, the auto-placement
+  algorithm is free to put each item in whichever row it likes, and it did not put them in the same
+  one: the meters took row 1 and the note was auto-placed into an implicit row 2. One row too tall,
+  and the meters left sharing half the space they should have had.
+- Fix: pin both children to `grid-row: 1` explicitly. The `grid-column` rules stay — they are still
+  load-bearing for the same DOM-order reason.
+- Note: a comment in `.board-body` cited this as ISS-055, which is the meter-bar issue and something
+  else entirely. Corrected to ISS-056. Worth flagging because a mis-cite sends the next reader to an
+  entry that cannot explain the bug they are looking at.
+
+### ISS-057 The hour notes clipped their own temperature
+- Reported by Jim · 2026-10-15 · Owner: Jim · Status: fixed
+- Where: `css/weather.css` (`.board-notes`)
+- Problem: none of the six hour notes showed its temperature. The strip was a short row of times and
+  icons with the most useful number on each note cut off. Reproduce: look at the bottom strip of the
+  board; every note reads time, glyph, then nothing.
+- Cause: `.board-notes` was `height: 52px`, chosen when it held only a time and an icon. Each note is
+  a column of `padding 17px 4px 5px`, a 10px time, a 22px glyph and a 13px temperature, and the glyph
+  is the tallest of the three — so the temperature fell below the clip that `overflow: hidden` on
+  `.note-hour` puts at the bottom.
+- Fix: `height: 72px`, and `flex: 0 0 72px` with it so the strip claims that height in the board's
+  flex column instead of being a suggestion. 17 + 10 + 22 + 13 + 5 is 67px of content plus the 1px
+  gap, so 72px is the first whole number that fits.
+- Note: the same short-window block that trims the strip to 56px carries its own copy of the rule, so
+  the two must be changed together — which is the cost this file has for keeping a media block.
+
+### ISS-058 The freshness line was drawn on top of the hour notes
+- Reported by Jim · 2026-10-15 · Owner: Jim · Status: fixed
+- Where: `css/weather.css` (`.board-updated`)
+- Problem: the "Updated 14:05" line sat across the bottom of the hour notes, overlapping them.
+  Reproduce: on a window short enough that the board has no spare room, the freshness text lands on
+  the hour strip.
+- Cause: `.board-updated` was `position: absolute; bottom: 4px`, which was fine while the board was
+  taller than its content and had empty wood at the bottom for the line to occupy. Once the board was
+  sized to a third of the column the absolute positioning took it out of the flow, so it no longer
+  reserved any space and simply overlaid whatever was at the bottom.
+- Fix: back into the flow (`position: static`, `margin: 2px 0 0`), which is where a freshness line
+  belongs once the board has no spare room — `#forecast-card` is already a flex column and takes it as
+  a third child. `.board-updated:empty` hides it when there is no timestamp, so the board does not
+  carry a blank line before the first reading.
 

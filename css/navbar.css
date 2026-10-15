@@ -86,30 +86,34 @@
   height: 20px;
 }
 
-/* Square icon tiles: sound, settings, account. */
+/* Square icon tiles: sound, settings, account.
+   Pale green fill with no outline, as in the design. The bar is always white, so
+   the fill and the icon colour are fixed values rather than theme tokens — in the
+   dark theme `--surface` and `--text` would turn the tile dark with a near-white
+   icon on a white bar. */
 .navbar__tile {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 40px;
   height: 40px;
-  border: 1px solid var(--border-strong);
+  border: 1px solid transparent;
   border-radius: 10px;
-  background: var(--surface);
-  color: var(--text);
+  background: #e6efe6;
+  color: #1f2721;
   font-size: 1.15rem;
   line-height: 1;
   text-decoration: none;
 }
 
-/* Only the settings tile is a real link, so only it reacts to hover. */
+/* Only the settings and profile tiles are real links, so only they react to hover. */
 a.navbar__tile {
   cursor: pointer;
   transition: background var(--speed) var(--ease);
 }
 
 a.navbar__tile:hover {
-  background: var(--surface-sunken);
+  background: #d3e3d3;
 }
 
 .navbar__btn {

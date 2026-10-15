@@ -59,7 +59,7 @@
 }
 
 .plot--selected::after {
-  content: '';
+  content: "";
   position: absolute;
   inset: -4px;
   border: 2px solid var(--accent);
@@ -145,4 +145,44 @@
 
 .plot--unowned:hover .plot__lock {
   background: rgba(0, 0, 0, 0.4);
+}
+
+/* --- the farm is the scene, not a card ------------------------------------
+ *
+ * index.html gives #farm-view the `.card` class and farmView.js renders a second
+ * `.card.farm-view` inside it, so the field sat in a card inside a card. The inner
+ * one had no definite height, which collapsed `.field-stage`'s `height: 100%` and
+ * left a tiny field under a "YOUR FARM" header. The design has no card at all:
+ * the field sits straight on the page. See ISS-055. */
+
+#farm-view,
+#farm-view .card.farm-view {
+  background: none;
+  border: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  padding: 0;
+}
+
+#farm-view .card.farm-view {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* A definite height, so .field-stage's `height: 100%` has something to resolve
+     against. */
+  align-self: stretch;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* The header text stays in the DOM for screen readers and is gone visually, as in
+ * the design. */
+.farm-view .card__head {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
