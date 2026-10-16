@@ -637,8 +637,8 @@ farm and still reported that nothing had changed.
 | how a username becomes an email | `supabase/migrations/002_usernames.sql` (`email_for_username`) |
 | how an account is deleted, and why the password is checked in SQL | `supabase/migrations/005_immediate_account_deletion.sql`, then DEC-024 |
 | how a farm is erased, and why that is behind a password too | `supabase/migrations/006_password_gated_erase.sql`, then DEC-025 |
-| the shop button and the seed list | `js/ui/shopLauncher.js`, `js/ui/shopView.js` |
-| shop page layout | `css/shop.css`, `shop.html` |
+| the shop button and the seed list | `js/ui/shopLauncher.js`, `js/ui/shopView.js` — the card markup is built here; the coin and sprout are inline in `js/ui/shopArt.js` |
+| shop page layout | `css/shop.css` (the stall: grass, log frame, sign, board) and `css/shop-card.css` (the cards and buy buttons), `shop.html` — painted art, theme-independent, four columns at a 1400px shell |
 | field drawing / click bugs | `js/ui/farmView.js`, `js/ui/plotTile.js`, `js/utils/iso.js`, `css/scene.css` |
 | page layout | `css/layout.css`, `index.html` |
 | the game page's top bar | `css/navbar.css` — fixed `height: 60px`, owns its own padding rather than `.card`'s |

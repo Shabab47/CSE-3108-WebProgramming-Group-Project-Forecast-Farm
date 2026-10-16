@@ -1,9 +1,14 @@
-/* The shop: the sidebar button on the farm, and the seed list on shop.html.
+/* The shop: the sidebar button on the farm, and the stall scene on shop.html.
  *
- * Two separate surfaces, so they are kept apart below — the launcher is sized by
- * the 200px sidebar, the cards are sized by the page. Every value comes from
- * css/variables.css, and both follow the theme tokens so the shop looks the same
- * in dark mode as the rest of the game.
+ * Two surfaces, kept apart below — the launcher is sized by the 200px sidebar,
+ * the stall by the page. The page is **painted art**: grass, a log frame, a
+ * wooden sign and a dark board, in fixed colours. It does not read `data-theme`,
+ * like `login.html` (DEC-027) — a wooden sign is brown in a dark theme too.
+ * The wood tones are shared with `css/weather.css` so the two boards look like
+ * they came from the same workshop.
+ *
+ * The seed cards are in `css/shop-card.css`, because the stall and the cards are
+ * sized by different things and were one file only because they were small.
  */
 
 /* --- launcher: the shop sign in the farm sidebar ---------------------------
@@ -28,196 +33,268 @@
  * `drop-shadow` follows the image's alpha channel, and shop.png is transparent
  * (Format32bppArgb, nothing in the corners), so the glow traces the drawing rather
  * than the bounding box — which is exactly what a frameless control needs, and
- * would not have worked behind a card.
- *
- * Two shadows rather than one: a tight core so the sign reads as lit from within,
- * and a wide soft bloom around it. Focus gets the same treatment, because a
- * keyboard user should not have to hover to find out where they are. */
+ * would not have worked behind a card. */
 .shop-launch:hover .shop-launch__art,
 .shop-launch:focus-visible .shop-launch__art {
   filter: drop-shadow(0 0 5px var(--gold)) drop-shadow(0 0 16px var(--gold-glow));
   transform: translateY(-2px);
 }
 
-/* --- shop page shell -------------------------------------------------------- */
+/* --- the painted scene ------------------------------------------------------
+ *
+ * The body carries the grass and the two log columns; `#shop-root` (`.shop-shell`)
+ * centres the stall between them. The columns are fixed so they run the full
+ * viewport, and sit at `z-index: 0` behind the scene, which is `z-index: 1`. */
 
-.shop-page {
-  /* No app grid here: the shop is one column of cards, so it does not borrow the
-     farm layout it has no use for. */
-  display: block;
+body.shop-page {
+  background:
+    radial-gradient(circle at 24px -8px, #4c8f3e 26px, transparent 27px) 0 0 / 48px 30px repeat-x,
+    linear-gradient(180deg, #3f7d33 0%, #356b2a 100%);
+  background-color: #356b2a;
 }
+
+body.shop-page::before,
+body.shop-page::after {
+  content: "";
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  width: 34px;
+  z-index: 0;
+  background:
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.14) 0 2px, transparent 2px 26px),
+    linear-gradient(90deg, #8a5a2c 0%, #a06a35 50%, #7a4a22 100%);
+}
+
+body.shop-page::before {
+  left: 0;
+  border-radius: 0 10px 10px 0;
+  box-shadow: inset -4px 0 6px rgba(0, 0, 0, 0.25);
+}
+
+body.shop-page::after {
+  right: 0;
+  border-radius: 10px 0 0 10px;
+  box-shadow: inset 4px 0 6px rgba(0, 0, 0, 0.25);
+}
+
+/* The connection banner is a full-width bar above the stall; it has to paint over
+   the log columns rather than under them. */
+body.shop-page > #connection-banner {
+  position: relative;
+  z-index: 1;
+}
+
+/* --- the stall -------------------------------------------------------------- */
 
 .shop-shell {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  max-width: 960px;
+  display: block;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 24px 16px;
+  /* 44px, not 16: the log columns are 34px wide, and the shell must clear them
+     even on a screen narrow enough that it reaches the edge. */
+  padding: 20px 44px 32px;
 }
 
-/* --- shop header ----------------------------------------------------------- */
+.shop-scene {
+  position: relative;
+  z-index: 1;
+}
+
+/* --- header: back pill, sign, purse ---------------------------------------- */
 
 .shop-top {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.shop-top__lead {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.shop-top__back {
-  align-self: flex-start;
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-  text-decoration: none;
-}
-
-.shop-top__back:hover {
-  color: var(--text);
-  text-decoration: underline;
-}
-
-.shop-top__title {
-  font-size: var(--text-xl);
-  font-weight: 700;
-  letter-spacing: -0.01em;
-}
-
-.shop-top__wallet {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  padding: 8px 16px;
-  background: var(--surface-glass);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  box-shadow: var(--shadow-card);
-}
-
-.shop-top__wallet-label {
-  font-size: var(--text-xs);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
-}
-
-/* The number a purchase changes, so it is the largest thing in the header. */
-.shop-top__gold {
-  font-size: var(--text-lg);
-  font-weight: 700;
-  color: var(--accent-strong);
-  font-variant-numeric: tabular-nums;
-}
-
-.shop-top__intro {
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-}
-
-/* --- seed cards ------------------------------------------------------------- */
-
-.shop-grid {
   display: grid;
-  /* Two columns on a desktop, one on a phone, with no breakpoint of its own: the
-     cards reflow to whatever width the page has. */
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: 1fr auto 1fr;
+  align-items: start;
   gap: 16px;
+  padding-top: 6px;
 }
 
-.shop-card {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 12px;
-  background: var(--surface-glass);
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  box-shadow: var(--shadow-card);
-  min-width: 0;
+/* A white pill with a green outline, the mockup's top-left control. */
+.shop-back {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  border: 3px solid #2f7d4f;
+  border-radius: 999px;
+  background: #f4f8ee;
+  color: #2f7d4f;
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 0.9rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  text-decoration: none;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.15);
 }
 
-/* Listed, priced, and explicitly not for sale — so the border goes quiet rather
-   than the card disappearing, which would look like a bug. */
-.shop-card--locked {
-  border-style: dashed;
+.shop-back:hover {
+  background: #ffffff;
 }
 
-.shop-card--locked .shop-card__art {
-  opacity: 0.55;
-}
-
-.shop-card__art {
+/* The hanging plank. Two short posts rise above it, as on the weather board. */
+.shop-sign {
+  position: relative;
+  justify-self: center;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 8px;
-  background: var(--surface-sunken);
-  border-radius: 10px;
+  min-width: 300px;
+  padding: 14px 40px;
+  border: 4px solid #6b431f;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #c08a56 0%, #a4683f 55%, #8a5a2c 100%);
+  box-shadow: 0 6px 14px rgba(35, 20, 8, 0.35), inset 0 2px 0 rgba(255, 226, 190, 0.3);
 }
 
-.shop-card__art img {
-  width: 100%;
-  max-height: 160px;
-  object-fit: contain;
+.shop-sign::before,
+.shop-sign::after {
+  content: "";
+  position: absolute;
+  top: -18px;
+  width: 12px;
+  height: 20px;
+  background: linear-gradient(180deg, #9b6539 0%, #6b431f 100%);
+  border-radius: 3px 3px 0 0;
 }
 
-.shop-card__body {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+.shop-sign::before {
+  left: 18%;
 }
 
-.shop-card__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+.shop-sign::after {
+  right: 18%;
 }
 
-.shop-card__name {
-  font-size: var(--text-md);
-  font-weight: 600;
-}
-
-.shop-card__meta,
-.shop-card__note,
-.shop-card__owned {
-  font-size: var(--text-xs);
-  color: var(--text-faint);
-}
-
-.shop-card__owned {
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.shop-card__actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 4px;
-}
-
-.shop-card__actions-label {
-  margin-right: auto;
-  font-size: var(--text-xs);
-  font-weight: 600;
+.shop-sign__plank {
+  font-family: var(--font-display);
+  font-size: 1.9rem;
+  letter-spacing: 0.03em;
+  color: #fff3c4;
+  text-shadow: 0 2px 0 #6b431f, 0 3px 4px rgba(0, 0, 0, 0.4);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
 }
 
-/* Fixed width so the three buttons line up down the column whatever the price. */
-.shop-card__buy {
-  min-width: 52px;
-  padding: 8px;
+.shop-purse {
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border: 3px solid #6b431f;
+  border-radius: 999px;
+  background: #fbf3dd;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.15);
+}
+
+.shop-purse__label {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #8a5a2c;
+}
+
+.shop-purse__gold {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #4a3418;
   font-variant-numeric: tabular-nums;
+}
+
+/* --- the board --------------------------------------------------------------
+ *
+ * Dark green, framed in wood, with a fence of vertical planks along its top edge.
+ * The fence is a background layer so no extra DOM is needed. */
+
+.shop-board {
+  margin-top: 24px;
+  padding: 22px 24px 24px;
+  border: 5px solid #6b431f;
+  border-radius: 14px;
+  background:
+    repeating-linear-gradient(90deg, #8a5a2c 0 18px, #7a4a22 18px 22px) top / 100% 16px no-repeat,
+    linear-gradient(180deg, #2f6b2f 0%, #245a24 100%);
+  box-shadow: 0 10px 24px rgba(20, 40, 15, 0.4), inset 0 2px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* --- the hint bar ----------------------------------------------------------- */
+
+.shop-hint {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 18px 4px 0;
+  padding: 10px 18px;
+  border: 2px dashed rgba(255, 255, 255, 0.5);
+  border-radius: 999px;
+  color: #eaf5e4;
+  font-size: 0.85rem;
+}
+
+/* --- the inline glyphs ------------------------------------------------------
+ *
+ * Sized here because both are drawn by `js/ui/shopArt.js` and used on this page —
+ * the coin beside the purse and the price, the sprout beside the hint. */
+
+.shop-coin,
+.shop-hint__sprout {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.shop-coin {
+  width: 1.15em;
+  height: 1.15em;
+}
+
+.shop-hint__sprout {
+  width: 1.3em;
+  height: 1.3em;
+  color: #bfe6b0;
+}
+
+.shop-coin svg,
+.shop-hint__sprout svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* --- responsive: the scene -------------------------------------------------- */
+
+@media (max-width: 900px) {
+  body.shop-page::before,
+  body.shop-page::after {
+    display: none;
+  }
+
+  .shop-shell {
+    padding: 16px 18px 24px;
+  }
+
+  .shop-sign {
+    min-width: 0;
+    padding: 10px 20px;
+  }
+
+  .shop-sign__plank {
+    font-size: 1.4rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .shop-top {
+    grid-template-columns: 1fr;
+    justify-items: start;
+  }
+
+  .shop-sign {
+    justify-self: stretch;
+  }
 }
