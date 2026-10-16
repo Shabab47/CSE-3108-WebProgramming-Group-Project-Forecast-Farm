@@ -53,6 +53,18 @@ const HOURS_SHOWN = 6;
  * prose above kept describing bars nobody could see. That is ISS-055, closed as
  * `wontfix` in the sense that the *removal* is the answer, not a missing rule.
  *
+ * ## Where the place name goes, and why it is never blank
+ *
+ * The farm's place is printed in the big note's right-hand column, beside the
+ * temperature; the note's grid is what puts it there (`css/weather.css`, DEC-033).
+ * It was above the condition until then, ellipsised to one line, while the right
+ * side of the paper was empty at every window size (ISS-062).
+ *
+ * `locationLine()` answers a name for every input, including none at all. It used
+ * to return `''` for a farm with no location, which rendered as an invisible empty
+ * span and said nothing in the console; the panel this replaced printed "Unknown
+ * location" and the refactor dropped it (ISS-063).
+ *
  * ## Showing a paused forecast
  *
  * When the connection drops, live weather cannot refresh. The last forecast is
@@ -62,6 +74,13 @@ const HOURS_SHOWN = 6;
  * live. `fetchedAt` comes from `state.weather`; without it the board shows the
  * "paused" line immediately, which is the honest state for a response we cannot
  * vouch for the age of.
+ *
+ * That label lives **inside** the big sticky note, not under the hour strip. It
+ * used to print `Updated 6:45 PM` while the note's own foot row printed
+ * `FRI 6:45 PM` — both read from `current.time`, so the board stated one instant
+ * twice, twenty pixels apart. In the note, the line renders only while the
+ * forecast is stale, which is the one thing it was ever adding: the note already
+ * says when the reading is from.
  *
  * @param {HTMLElement} root
  * @param {{location?:object, weather?:object, sync?: 'synced'|'saving'|'pending'}} state
@@ -73,23 +92,21 @@ export function mountWeatherPanel(root, state, now = () => Date.now()) {
   const bodyEl = el('div', { class: 'board-body' });
   const metersEl = el('div', { class: 'board-meters' });
   const hoursEl = el('div', { class: 'board-notes' });
-  const updatedEl = el('p', { class: 'board-updated' });
 
-  root.append(bodyEl, hoursEl, updatedEl);
+  root.append(bodyEl, hoursEl);
   // The meters live INSIDE `.board-body`, which is the two-column grid (note left,
   // meters right). Appending them as siblings of `bodyEl` leaves the grid with one
   // child: the note occupies column 1, column 2 renders as empty wood, and the
   // meters stretch full-width below instead. See ISS-053.
   bodyEl.append(metersEl);
 
-  renderNow(bodyEl, state?.location, state?.weather);
+  renderNow(bodyEl, state?.location, state?.weather, state);
   renderMeters(metersEl, state?.weather);
   renderHours(hoursEl, state?.weather);
-  renderUpdated(updatedEl, state?.weather, state);
 
   /* --- the large note: right now ----------------------------------------- */
 
-  function renderNow(target, location, weather) {
+  function renderNow(target, location, weather, state) {
     const current = weather?.current;
 
     if (!current) {
@@ -100,6 +117,11 @@ export function mountWeatherPanel(root, state, now = () => Date.now()) {
             weatherGlyph('cloud'),
             el('span', { text: 'Reading the sky…' }),
           ]),
+          // The paused label is not conditional on having a reading: `sync:
+          // 'pending'` with no `weather` at all is a first fetch that has never
+          // succeeded, which is exactly when the player most needs to be told the
+          // forecast is not coming. `el()` skips null children.
+          statusLine(state, weather),
         ]),
       );
       return;
@@ -120,8 +142,10 @@ export function mountWeatherPanel(root, state, now = () => Date.now()) {
       el('div', { class: 'note note-current' }, [
         pin(),
 
-        // Above the condition, in the spot the design marked for it: the place the
-        // numbers describe. Empty when the farm has no location yet.
+        // The place the numbers describe, in the note's right-hand column beside
+        // the temperature. It used to sit above the condition, where it was
+        // squeezed into one ellipsised line while the paper's right side sat
+        // empty. See DEC-033.
         el('span', { class: 'note-loc', text: locationLine(location) }),
         el('span', { class: 'note-label', text: info.short.toUpperCase() }),
 
@@ -141,6 +165,9 @@ export function mountWeatherPanel(root, state, now = () => Date.now()) {
         current.feelsLike != null
           ? el('span', { class: 'note-feels', text: `Feels like ${formatTemp(current.feelsLike)}` })
           : null,
+
+        // Absent unless the forecast is stale — see statusLine().
+        statusLine(state, weather),
       ].filter(Boolean)),
     );
   }
@@ -157,13 +184,24 @@ export function mountWeatherPanel(root, state, now = () => Date.now()) {
 
     target.append(
       meter('droplet', 'Humidity', humidity == null ? '—' : `${humidity}%`),
-      meter('wind', 'Wind', `${Math.round(current.windSpeed)} km/h${compass ? ` ${compass}` : ''}`),
+      // The compass rides in the pill's title rather than in the value. The value
+      // column is `auto` and takes what it asks for, so "5 km/h NNW" left "Wind"
+      // about 19px at the board's width and it rendered as "W…". The speed is the
+      // number the player plants by; the bearing is a hover detail. Same pattern
+      // as `.note-hour`'s condition label. See ISS-061.
+      meter(
+        'wind',
+        'Wind',
+        `${Math.round(current.windSpeed)} km/h`,
+        compass ? `Wind from ${compass}` : undefined,
+      ),
       meter('umbrella', 'Rain Chance', chance == null ? '—' : `${clamp(chance)}%`),
     );
   }
 
-  function meter(iconName, label, value) {
-    return el('div', { class: 'board-meter' }, [
+  /** One meter pill. `title` carries detail too long to print — see renderMeters. */
+  function meter(iconName, label, value, title) {
+    return el('div', { class: 'board-meter', title }, [
       icon(iconName, 'board-meter-icon'),
       el('span', { class: 'board-meter-label', text: label }),
       el('span', { class: 'board-meter-value', text: value }),
@@ -197,28 +235,29 @@ export function mountWeatherPanel(root, state, now = () => Date.now()) {
     }
   }
 
-  /* --- the freshness line ------------------------------------------------- */
+  /* --- the freshness label ------------------------------------------------ */
 
   /**
-   * The freshness line: either when the forecast was read, or that it is paused.
+   * The freshness label, rendered as the sticky note's own last line.
    *
-   * Paused takes priority over a timestamp. A player seeing "Updated 14:05" while
-   * their connection is down would reasonably read it as current, which is the
-   * exact misreading that leads to planting the wrong crop.
+   * It renders nothing at all while the forecast is live, so the element's
+   * presence *is* the state — no `data-paused` attribute to keep in step.
+   *
+   * Paused takes priority over a timestamp, and now there is only one case left
+   * to render. The old line spent most of its life printing `Updated 14:05`,
+   * which was `current.time` — the very value the note's foot row already shows.
+   * The one reading a player could misread as live was that same stamp shown
+   * after the connection dropped, so the stale case is the whole job.
    */
-  function renderUpdated(target, weather, state) {
-    const paused = state?.sync === 'pending';
+  function statusLine(state, weather) {
+    if (state?.sync !== 'pending') return null;
 
-    if (paused) {
-      const since = describeAge(now() - (weather?.fetchedAt ?? Number.NaN));
-      target.textContent = `Live weather paused — last read ${since}`;
-      target.dataset.paused = 'true';
-      return;
-    }
-
-    const stamp = weather?.current?.time;
-    target.textContent = stamp ? `Updated ${formatClock(stamp)}` : '';
-    delete target.dataset.paused;
+    const since = describeAge(now() - (weather?.fetchedAt ?? Number.NaN));
+    return el('span', {
+      class: 'note-status',
+      text: `Paused · ${since}`,
+      title: `Live weather paused — last read ${since}`,
+    });
   }
 
   return {
@@ -234,8 +273,8 @@ function pin() {
 }
 
 function locationLine(location) {
-  if (!location) return '';
-  return [location.name, location.country].filter(Boolean).join(', ');
+  const parts = [location?.name, location?.country].filter(Boolean).join(', ');
+  return parts || 'Unknown location';
 }
 
 /** Clamp to 0–100 for a bar width, or null when the value is not a number. */
@@ -272,17 +311,14 @@ function formatHourShort(iso) {
   return date.toLocaleTimeString([], { hour: 'numeric' });
 }
 
-function formatClock(iso) {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-}
-
 /**
- * How long ago something was read, for the paused line.
+ * How long ago something was read, for the paused label.
  *
  * An unknown age reads as "a moment ago" rather than a bare dash: the board is
  * saying the forecast cannot be refreshed, and that is true whatever the age is.
+ *
+ * The label prints this straight, so it is written to stay short — the longest
+ * form is "59 minutes ago", which fits the note on one line at 10px.
  */
 function describeAge(ms) {
   if (!Number.isFinite(ms) || ms < 0) return 'a moment ago';

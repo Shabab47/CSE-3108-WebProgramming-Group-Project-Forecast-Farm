@@ -4,10 +4,13 @@
   flex-direction: column;
   gap: 6px;
   /* A centered billboard narrower than the field below it. The design board is
-     ~435px, so it clamps between 420 and 520px and scales a little with the
+     ~435px, so it clamps between 450 and 520px and scales a little with the
      column rather than spanning it. align-self:center keeps it centred over the
-     field. */
-  width: clamp(420px, 38%, 520px);
+     field.
+
+     The floor was 420px, which left the meters column ~111px of inner width and
+     ellipsised the wind label to "W…". See ISS-061. */
+  width: clamp(450px, 38%, 520px);
   max-width: 760px;
   align-self: center;
   padding: 10px 14px 10px;
@@ -50,23 +53,29 @@
   grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
   gap: 14px;
-  /* Fills whatever the one-third board has left after the search row, the hour
-     notes and the freshness line. Both items are pinned to row 1 below: without
-     that, the meters (appended first) took row 1 and the note was auto-placed
-     into an implicit row 2, which is what made the board look too tall and the
-     meters too short. See ISS-056. */
+  /* Fills whatever the one-third board has left after the search row and the
+     hour notes. Both items are pinned to row 1 below: without that, the meters
+     (appended first) took row 1 and the note was auto-placed into an implicit
+     row 2, which is what made the board look too tall and the meters too short.
+     See ISS-056.
+
+     `overflow: hidden` keeps a tall note from spilling past the wood, and it
+     also clips the last pill's `box-shadow: 0 3px 0`. `.board-meters` carries a
+     3px bottom padding so that edge has room inside the clip. See ISS-060. */
   flex: 1 1 0;
   min-height: 0;
   overflow: hidden;
 }
 
-/* The weatherPanel mount point. It holds three children — the body, the hour
-   notes and the freshness line — so it is a bounded column of its own, which
-   completes the height chain down to .board-body. */
+/* The weatherPanel mount point. It holds two children — the body and the hour
+   notes — so it is a bounded column of its own, which completes the height chain
+   down to .board-body. */
 #forecast-card {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  /* 10px, not 6px: the hour notes sit clear of the last pill's 3px bottom edge
+     instead of touching it. */
+  gap: 10px;
   flex: 1 1 0;
   min-height: 0;
 }
@@ -120,27 +129,66 @@
     0 1px 2px rgba(40, 24, 8, 0.45);
 }
 
+/* The big note is a grid, because the place name sits in the paper's right-hand
+ * side rather than above the condition. That side was empty at every width — the
+ * temperature row is the widest thing on the note and it stops well short of the
+ * right edge — while the name was squeezed into a single ellipsised line at the
+ * top. See DEC-033 and ISS-062.
+ *
+ * The condition keeps a row of its own, spanning both columns: at 15px with 0.1em
+ * of letter-spacing, "Freezing drizzle" is wider than one column at the board's
+ * 450px floor, so squeezing it into the left column would have clipped the one
+ * word that says what the weather is doing.
+ *
+ * `auto minmax(0, 1fr)` rather than two percentages: the temperature asks for the
+ * width it needs and the place takes what is left, so no window size can make the
+ * two overlap. The left track keeps an explicit 0 minimum so it can still shrink
+ * on a narrow board instead of overflowing the note.
+ *
+ * `align-content: center` is the old vertical centring, and the rows for the two
+ * conditional lines (`.note-feels`, `.note-status`) collapse to nothing when
+ * their elements are absent. */
 .note-current {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+  grid-template-areas:
+    "label label"
+    "main  loc"
+    "foot  foot"
+    "feels feels"
+    "status status";
+  column-gap: 10px;
+  align-content: center;
   padding: 10px 12px 4px;
   overflow: hidden;
   min-height: 0;
 }
 
+/* The place the numbers describe, in the note's right-hand column beside the
+   temperature. Right-aligned against the paper's edge, so a long name grows
+   inwards towards the reading rather than out of the note.
+
+   It **wraps** — `nowrap` and an ellipsis used to turn "Kuala Lumpur, Malaysia"
+   into "Kuala L…", and there is room for two lines beside the temperature. At the
+   450px board floor "Dhaka, Bangladesh" needs both of them; at the 520px ceiling
+   it fits on one. `overflow-wrap: anywhere` is for the single-word places that are
+   wider than the column on their own. */
 .note-loc {
-  display: block;
+  grid-area: loc;
+  align-self: center;
+  min-width: 0;
   font-size: 11px;
   font-weight: 600;
+  line-height: 1.3;
   letter-spacing: 0.02em;
+  text-align: right;
   color: #6d5426;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .note-label {
+  grid-area: label;
   display: block;
   font-size: 15px;
   font-weight: 700;
@@ -149,6 +197,7 @@
 }
 
 .note-main {
+  grid-area: main;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -182,6 +231,7 @@
 }
 
 .note-foot {
+  grid-area: foot;
   display: flex;
   gap: 9px;
   margin-top: 2px;
@@ -192,14 +242,46 @@
 }
 
 .note-feels {
+  grid-area: feels;
   margin-top: 1px;
   font-size: 10px;
   color: #8a6f38;
 }
 
+/* The freshness label, inside the big sticky note and right-aligned. The note's
+   own foot row already prints the reading's timestamp, so the label's only job is
+   to say the reading is stale: weatherPanel.js renders it only while the forecast
+   is paused, and the element's presence *is* the state — hence no `[data-paused]`
+   to keep in step.
+
+   The wood amber #ffd45e that the old line used under the notes is illegible on
+   cream paper, where it measures 1.2:1. #7a4f0a measures 5.8:1 on the paper's mid
+   tone and 5.4:1 on its darkest, so it still reads as a warning without shouting
+   at the player like a failure. */
+.note-status {
+  grid-area: status;
+  /* In a grid, `align-self` is the block axis and this line's row is exactly its
+     own height, so right-aligning it is `justify-self` — the old `align-self:
+     flex-end` was a flex-column idiom that would have left this row's text sitting
+     at the left edge under DEC-033's grid. */
+  justify-self: end;
+  max-width: 100%;
+  margin-top: 2px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #7a4f0a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The empty board: no reading yet. It spans every cell of `.note-current`'s grid,
+   so the idle note fills the paper the way it did as a stretched flex child. The
+   old `flex: 1` was what did that and is inert in a grid container. */
 .note-idle {
+  grid-area: 1 / 1 / -1 / -1;
   display: flex;
-  flex: 1;
   align-items: center;
   gap: 10px;
   font-size: 13px;
@@ -216,14 +298,27 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  /* Room for the last pill's `box-shadow: 0 3px 0` inside `.board-body`'s
+     `overflow: hidden`, which otherwise cuts the edge off flush with the grid
+     row. The pills share the shorter content box, so nothing else moves.
+     See ISS-060. */
+  padding-bottom: 3px;
 }
 
 .board-meter {
   position: relative;
   display: grid;
-  grid-template-columns: 16px minmax(0, 1fr) auto;
+  /* The label track is a bare `1fr`, whose automatic minimum is `min-content`,
+     so "Wind" can never be ellipsised. `minmax(0, 1fr)` explicitly allowed
+     shrinking below that, and the label rendered as "W…". See ISS-061. */
+  grid-template-columns: 16px 1fr auto;
   align-items: center;
   gap: 8px;
+  /* The `min-content` floor above means the row can now exceed the pill rather
+     than ellipsising. This clips that at the rounded border instead of letting
+     text land on the bare wood. It does not clip the pill's own `box-shadow`,
+     which is drawn outside the border box. */
+  overflow: hidden;
   /* flex:1 1 0 makes the three pills share the note's height evenly, so the stack
      lines up with the sticky note top-to-bottom — the design's three thin bars. */
   flex: 1 1 0;
@@ -395,25 +490,6 @@
   height: 14px;
 }
 
-/* In the flow, under the notes. It was `position: absolute; bottom: 4px`, which
-   laid it on top of the hour notes once the board stopped having spare room. */
-.board-updated {
-  position: static;
-  margin: 2px 0 0;
-  text-align: center;
-  font-size: 10px;
-  color: #f0d7b4;
-}
-
-.board-updated:empty {
-  display: none;
-}
-
-.board-updated[data-paused="true"] {
-  color: #ffd45e;
-  font-weight: 700;
-}
-
 @media (max-width: 1180px) {
   .board-body {
     /* Keep the fractional split at narrower widths — a fixed meters column was
@@ -500,24 +576,12 @@
     border-radius: 8px;
   }
 
-  .board::before {
-    top: -12px;
-    height: 15px;
-    background:
-      linear-gradient(180deg, #9b6539 0%, #7d4f2a 100%) 0 0 / 20px 15px
-        no-repeat,
-      linear-gradient(180deg, #9b6539 0%, #7d4f2a 100%) 170px 0 / 20px 15px
-        no-repeat;
-  }
-
-  .board::after {
-    top: -12px;
-    height: 4px;
-    background:
-      linear-gradient(180deg, #6b431f 0%, #4a2c13 100%) 0 0 / 23px 4px no-repeat,
-      linear-gradient(180deg, #6b431f 0%, #4a2c13 100%) 167px 0 / 23px 4px
-        no-repeat;
-  }
+  /* The two pegs are deliberately NOT redrawn here. A block used to live at this
+     spot that turned `.board::before` into two 20px planks and `.board::after`
+     into two flat 4px bars, so on a short window the left peg stayed a post and
+     the right one became a dark sliver — the board read as though a piece of it
+     had gone missing. Both pegs now keep the base rule at every height.
+     See ISS-059. */
 
   .note-pin {
     top: 4px;
@@ -562,7 +626,8 @@
     font-size: 9px;
   }
 
-  .note-feels {
+  .note-feels,
+  .note-status {
     font-size: 9px;
   }
 
@@ -573,6 +638,7 @@
 
   .board-meters {
     gap: 5px;
+    padding-bottom: 3px;
   }
 
   .board-meter {
@@ -655,11 +721,5 @@
   .location-bar-go-icon svg {
     width: 13px;
     height: 13px;
-  }
-
-  .board-updated {
-    margin-top: 0;
-    font-size: 9px;
-    line-height: 1.2;
   }
 }

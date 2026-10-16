@@ -45,11 +45,16 @@ and sound path in one place.
 
 Alpha bounding boxes, measured during the pre-build audit. Every PNG is 1000×1000 with the art inside it.
 
+**Corrected 2026-10-16 (T-54):** the `base.png` row and the `tileScale` bullet below were both wrong.
+`base.png` is an extruded slab, so it needs two rows, and the rim solve they described measured the
+wrong box. Details in ISS-069 and ISS-071.
+
 | Asset | Content | h/w | Centre |
 | :--- | :--- | ---: | :--- |
 | `ground_unwatered.png` | 991 × 533 | **0.538** | (0.503, 0.490) |
 | `ground_watered.png` | 987 × 537 | 0.544 | (0.503, 0.492) |
-| `base.png` | 991 × 595 | 0.600 | (0.503, 0.499) |
+| `base.png` top face | 992 × 520 | **0.524** | (0.503, 0.462) |
+| `base.png` bounding box | 992 × 596 | 0.601 | (0.503, 0.500) |
 | `crops/rice/rice_3.png` | 997 × 587 | 0.589 | (0.498, 0.499) |
 | `pump.png` | 279 × 237 | — | (0.499, 0.500) |
 
@@ -57,10 +62,18 @@ Alpha bounding boxes, measured during the pre-build audit. Every PNG is 1000×10
   canvas, not the file. A 3% error compounds over three row steps (ISS-003).
 - Diamond runs y 22.4%–75.6%, so `clip-path` is `polygon(50% 22.4%, 100% 50%, 50% 75.6%, 0 50%)`
   (ISS-004).
-- `tileScale: 0.204` gives an even rim. The 4×4 cluster is 4.21 × tileScale wide and
-  2.266 × tileScale tall; solving `4.21t + 2r = 0.991` against `2.266t + 2r = 0.595` gives
-  `t ≈ 0.204`, `r ≈ 0.067`. At the plan's 0.22 the rim is 0.033 at the sides and 0.048 front to
-  back, which reads as a bug (ISS-005).
+- `base.png`'s row widths plateau over y `462..533` — a 72px vertical skirt — so the plots stand on
+  its **top face**, centred at y `0.462`, and not on the bounding box centre at `0.4995`. A flat
+  diamond's widest row is one row tall; a 72-row plateau is the tell (ISS-069).
+- `tileScale: 0.2296` is a **chosen fit, not a solved value**, because an even rim does not exist. The
+  4×4 cluster is 4.21 × tileScale wide and 2.265 × tileScale tall; against the top face
+  `4.21t + 2r = 0.992` and `2.265t + 2r = 0.520` give `r = -0.015` — the cluster is 2.7% too tall for
+  the slab, since 0.538-aspect tiles cannot tile a 0.524 surface. `0.2296` fills the face
+  front-to-back and leaves ~1.3% at the sides (ISS-005, ISS-071, DEC-034). The old `0.204` solved
+  against the bounding box, skirt included, which is why it never looked right.
+- The plot box is **square**: `tileScale` on `width` and on `padding-top`. `ground_*.png` is a square
+  canvas, so a box of `tileScale * tileAspect` tall makes `object-fit: contain` fit the canvas to the
+  box's height and draws every plot at half size (ISS-070).
 - Crop sprites are taller than the ground tile (0.589 vs 0.538) on purpose. Plants stand proud of
   the soil. Do not scale crop layers to match the ground.
 - The pump's art is 27.9% of its canvas, so its button box is ~7× the visible pump. Clip the

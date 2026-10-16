@@ -643,7 +643,7 @@ farm and still reported that nothing had changed.
 | page layout | `css/layout.css`, `index.html` |
 | the game page's top bar | `css/navbar.css` — fixed `height: 60px`, owns its own padding rather than `.card`'s |
 | where the location search lives | `js/ui/locationBar.js`, in the wooden board — not the navbar |
-| the forecast board: frame, notes, meters | `js/ui/weatherPanel.js`, `css/weather.css` — the board is `flex: 0 0 33.333%` of `.app__centre` with `min-height: 150px`, the field takes the rest (`css/layout.css`). Its width is `clamp(420px, 38%, 520px)`, centred over the field. Inside, `.board-body` is a two-column grid at `1.6fr / 1fr` with **both children pinned to `grid-row: 1`** (ISS-056); the meters column is three pills at `flex: 1 1 0`, so they divide the note's height rather than asking for a height of their own; the hour strip is a fixed `72px` (ISS-057); the freshness line is **in the flow**, not absolute (ISS-058). No meter has a fill bar (ISS-055). Sizes are plain literals, with one short-window block at `@media (max-height: 960px) and (min-width: 901px)` that trims them — DEC-031 has the reasoning |
+| the forecast board: frame, notes, meters | `js/ui/weatherPanel.js`, `css/weather.css` — the board is `flex: 0 0 33.333%` of `.app__centre` with `min-height: 150px`, the field takes the rest (`css/layout.css`). Its width is `clamp(450px, 38%, 520px)`, centred over the field. Inside, `.board-body` is a two-column grid at `1.6fr / 1fr` with **both children pinned to `grid-row: 1`** (ISS-056); the meters column is three pills at `flex: 1 1 0`, so they divide the note's height rather than asking for a height of their own, and carries a `3px` bottom padding so the last pill's `box-shadow` survives `.board-body`'s `overflow: hidden` (ISS-060); a meter's label track is a bare `1fr`, whose `min-content` floor is what stops "Wind" ellipsising (ISS-061); the big note is **itself a two-column grid** — the condition spans both columns, the temperature takes `minmax(0, auto)`, and the place name takes `minmax(0, 1fr)` beside it, right-aligned and wrapping instead of ellipsising, with the day and time and the two conditional lines on full-width rows of their own (DEC-033, ISS-062); `locationLine()` answers `'Unknown location'` rather than an empty string, so a farm with no place never renders a blank line (ISS-063); the hour strip is a fixed `72px` (ISS-057); the freshness label is **inside the big note**, right-aligned and rendered only while the forecast is paused, so the board prints its reading time once (DEC-032); both hanging pegs are posts at every height (ISS-059). No meter has a fill bar (ISS-055). Sizes are plain literals, with one short-window block at `@media (max-height: 960px) and (min-width: 901px)` that trims them — DEC-031 has the reasoning |
 | login page layout — the menu and the wooden sign | `css/auth.css`, `css/menu.css`, `css/sign.css`, `login.html` |
 | colours | `css/variables.css` — except the login page, which writes its own (DEC-029) |
 | spacing and radii | hardcoded per file, in px. The ten in `variables.css` are a stopgap for `components.css` alone; delete them when that file's 41 references are gone |
@@ -763,6 +763,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── dom.js              the only whitelisted DOM access
 │   │   ├── log.js              scoped logger, `[scope] message`
 │   │   ├── normalize.js        email, username and display-name normalisation
+│   │   ├── iso.js              plot and pump placement + `frameY()` — the only reader of FIELD geometry
 │   │   ├── date.js             empty
 │   │   └── season.js           empty
 │   ├── state/
@@ -882,7 +883,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 | `services/gotrue.js` | `post`, `postAuthed`, `bestEffort`, `reasonFor` | transport only; never throws. Every call carries `AUTH_TIMEOUT_MS`, and failures carry the HTTP `status` |
 | `services/tokenStore.js` | `readRefreshToken`, `writeRefreshToken` | the only writer of a token |
 | `utils/log.js` | `createLog(scope)` | returns `{ info, warn, error }` |
-| `utils/iso.js` | `plotToScreen`, `diamondClipPath` | all sizes are fractions of the stage |
+| `utils/iso.js` | `plotToScreen`, `pumpBox`, `frameY` | plot and pump placement. Both axes come back as fractions of the **frame's width** and every number is read from `FIELD`; `frameY` is the single conversion to a height fraction, for `top`. `diamondClipPath` is promised by this row and still unwritten (ISS-004) |
 | `ui/*` | `mountX(rootEl, actions)` | returns `unmount()`. **A return value is not a node** — see below |
 
 **`mountX` returns `{ unmount }`, not a node, so it cannot be nested inside `el()`.**
@@ -904,27 +905,101 @@ save, which is not a domain function and gets its own `adoptState`.
 
 ## Field geometry
 
-The stage is `.field-stage { position: relative; aspect-ratio: 1; width: min(100%, 720px) }`.
-Every layer inside it is absolutely positioned and sized in `%` of the stage, so the whole
-field scales with the container and needs no resize handling.
+`js/utils/iso.js` is the only module that turns a `(col, row)` into a position, and
+`js/config/field.js` holds the only numbers it reads. Nothing else may compute a plot position:
+an inline copy in `farmView.js` is what ISS-065 was.
+
+### The frame, and why there are two boxes
+
+`.field-stage` is `{ position: relative; aspect-ratio: 1000 / 596; height: 100%; width: auto;
+max-width: 100% }` — sized off the available **height**, so a wide-but-short viewport cannot make a
+stage that overflows the screen. Inside it `.field-stage__mount` is `{ width: 100%;
+aspect-ratio: 1000 / 596 }`, centred. **Everything that is part of the farm, `base.png` included,
+lives inside the mount**, and `farmView.js` positions all of it in `%` of the mount.
+
+Two boxes because `max-width` can clamp the stage in a narrow column: at a 1024px window the centre
+column is 480 wide and the stage becomes 480 × 512, taller than it is wide. A plot sized in `%` of
+*that* stage would be wider than the base it is standing on. The mount holds the base's shape at
+every window size, so the field only ever gets smaller. It cannot end up taller than the stage
+either: the stage's width is capped at `1000/596` of its own height, so `width / (1000/596)` always
+fits inside the height it has.
+
+`1000 / 596` is `base.png` — a 1000×1000 canvas whose slab occupies the middle 596 rows. A **square**
+stage wasted about 40% of its height on the base's empty top and bottom and left 43% of the centre
+column unused: at 1440×900 it was 509×509 inside an 896px column. The same height now buys a 68%
+wider base, and every plot scales with it. The ratio is written twice — `FIELD.frameAspect` and
+`aspect-ratio` in `css/scene.css` — and `tests/iso.test.js` asserts the two agree.
+
+### Units
+
+`iso.js` returns both axes as fractions of the frame's **width**. Not of its height, and not of the
+stage.
+
+Width is the natural unit because CSS agrees on it: a plot's `width` and its `padding-top` are both
+percentages of the containing block's **width**, so in that unit a plot box is `tileScale` wide and
+`tileScale * tileAspect` tall with no aspect term anywhere. `top` is the exception — it resolves
+against the height. `iso.js`'s `frameY()` is the one conversion, and `farmView.js` applies it to
+`top` and to nothing else.
+
+`frameY(y) = (y - 0.202) / 0.596`. Those are `base.png`'s numbers: `object-fit: cover` on a
+`1000/596` frame crops the canvas's middle 596 rows, so the visible band is canvas y `0.202..0.798`.
+On a square field a width fraction **was** a height fraction and the conversion did nothing — which
+is exactly why it can be left out by accident. Skipping it shears the field 68% vertically: every
+plot correct in x, every row too far down.
+
+Under `cover` the base maps to the mount 1:1, so one sentence holds for everything below: **a
+fraction of the mount's width is a fraction of `base.png`'s width.**
 
 ```
 n = FIELD.size
 shift(i)  = (i - (n-1)/2) * (1 + gap) + (i >= n/2 ? crossGap/2 : -crossGap/2)
 u = shift(col);  v = shift(row)
 
-centerX = originX + (u - v) * tileScale / 2
+centerX = originX + (u - v) * tileScale / 2                  (frame-width fractions)
 centerY = originY + (u + v) * tileScale * tileAspect / 2
 
-img left = centerX - tileScale/2      (fractions of stage)
-img top  = centerY - tileScale/2
-img width = tileScale
-z-index  = col + row
+left        = centerX
+top         = frameY(centerY)
+box width   = tileScale       (a % of the frame's width)
+box height  = tileScale       (also a % of the frame's width — written as `padding-top`)
+z-index     = col + row
 ```
 
-`col` increases toward the lower right, `row` toward the lower left, so plot `(0,0)` is the
-top vertex. `base.png` fills the stage at `z-index: 0`. The pump uses the same centre formula
-at `u = v = 0`.
+The code writes `centerX` into `left` and `frameY(centerY)` into `top`, and lets
+`translate(-50%, -50%)` do both subtractions — same result, one fewer place to get the aspect wrong.
+
+**The box is square: `tileScale` on `width` and the same number on `padding-top`.** `ground_*.png`
+is a square 1000×1000 canvas whose diamond is only 53.8% of its height, so a box of
+`tileScale * tileAspect` tall makes `object-fit: contain` fit the whole canvas to the box's *height*
+and draw every plot at half size, spaced as though it were twice as large (ISS-070). That is what
+shipped until T-54 and it is why the plots looked too small for the base. `tileAspect` now appears
+in exactly one place, the vertical step above, which is what it is for.
+
+`col` increases toward the lower right, `row` toward the lower left, so plot `(0,0)` is the top
+vertex and `(n-1, n-1)` the bottom. `base.png` fills the mount at `z-index: 0`.
+
+Both terms in `shift()` earn their place:
+
+- `(i - (n-1)/2)` centres the axis. The indices run `0..n-1`, so their mean is `(n-1)/2`, not
+  0. Drop it and the cluster lands up to `(n-1)` steps off centre. The two screen axes are
+  **not** interchangeable here: `col - row` averages 0 over a square grid and hides the
+  omission, while `col + row` averages `n - 1` and shows it as a field sitting 15.3% of the
+  frame too low (ISS-065).
+- The `crossGap` term moves the far indices out and the near ones in by the same amount, which
+  opens the dirt cross **without** moving the cluster's centre.
+
+At the defaults the cluster is 4.21 × 2.265 tile-widths — 0.9666 × 0.5200 of the frame. Measured
+against `base.png`'s top face that **fills it front-to-back** and leaves a 0.013 border at the left
+and right, about 1.3% of the frame. An **even** rim does not exist at any `tileScale`: the cluster is
+2.7% too tall for the slab, and ISS-071 has the arithmetic.
+
+The pump uses the same centre formula at `u = v = 0`, i.e. `originX, originY`, the middle of
+the cross. `pumpBox()` returns that centre plus `pumpScale` as a **box** width; `translate(-50%,
+-50%)` in `css/scene.css` anchors it, and `pointer-events: none` keeps the oversized box from
+stealing plot clicks (ISS-007). It sits at `z-index: 20`, above every plot, because the four
+central plots would otherwise paint over it — and selection and hover stack above *that*,
+`.plot--selected` at `100` and `.plot:hover` at `200`, since a plot's own `z-index` runs
+`0..2(n-1)` and any smaller number loses to the bottom two rows.
 
 ### Measured constants
 
@@ -935,34 +1010,83 @@ box. These were measured from the alpha bounding boxes, not guessed:
 | :--- | :--- | :--- | :--- |
 | `ground_unwatered.png` | 991 × 533 | **0.538** | (0.503, 0.490) |
 | `ground_watered.png` | 987 × 537 | 0.544 | (0.503, 0.492) |
-| `base.png` | 991 × 595 | 0.600 | (0.503, 0.499) |
+| `base.png` top face | 992 × 520 | **0.524** | (0.503, 0.462) |
+| `base.png` bounding box | 992 × 596 | 0.601 | (0.503, 0.500) |
 | `crops/rice/rice_3.png` | 997 × 587 | 0.589 | (0.498, 0.499) |
 | `pump.png` | 279 × 237 | — | (0.499, 0.500) |
 
 Consequences, all already applied to `js/config/field.js`:
 
-- `tileAspect: 0.538`, not a rounded guess. A 3% error compounds across three row steps and
-  visibly pulls the bottom row out of alignment with the top.
 - `diamondClipPath()` uses `polygon(50% 22.4%, 100% 50%, 50% 75.6%, 0 50%)`. The real diamond
   runs 22.4%–75.6% vertically; rounding the bottom tip out to 78% inflates the click target
-  past the visible art.
-- `tileScale: 0.204` is the value that gives an even rim between the 4×4 cluster and
-  `base.png`. The cluster's outer diamond is 4.21 × tileScale wide and 2.266 × tileScale tall
-  at the default `gap`/`crossGap`; solving `4.21t + 2r = 0.991` against `2.266t + 2r = 0.595`
-  gives `t ≈ 0.204`, `r ≈ 0.067`.
+  past the visible art. **Implemented in T-55 as the `.plot__hit` rule in `css/scene.css`**,
+  with the constant `FIELD.DIAMOND_CLIP` and a test asserting the two agree — see Click
+  targets below, and ISS-004.
+- `tileScale: 0.2296` is a **chosen fit, not a solved value**, and the difference from the old
+  `0.204` is the whole story. The cluster is 4.21 × `tileScale` wide and 2.265 × `tileScale` tall
+  at the default `gap`/`crossGap`; solving `4.21t + 2r = 0.992` against `2.265t + 2r = 0.520` — the
+  top face, not the bounding box — gives `t = 0.243`, **`r = -0.015`**. A negative rim: the cluster
+  is 2.7% too tall for the slab, because `ground_*.png`'s `0.538` aspect does not tile a `0.524`
+  surface, so an even border does not exist and no constant can produce one. `0.2296` fills the
+  face front-to-back instead, which is the fit that reads closest to the reference render. ISS-071,
+  DEC-034.
+- `tileAspect: 0.538`, not a rounded guess. A 3% error compounds across three row steps and
+  visibly pulls the bottom row out of alignment with the top. Re-measured 2026-10-16 at
+  991 × **535** → 0.5399 against the 991 × 533 above; that two-row spread is the alpha
+  threshold, not a defect, and `0.538` is left alone (ISS-003, now stale).
+- `originX: 0.503`, `originY: 0.462` — the centre of `base.png`'s **top face**, the surface the
+  plots stand on, and *not* the bounding box centre at y `0.4995`. `base.png` is an extruded slab:
+  its row widths plateau over y `462..533`, which is the vertical skirt, and the slab's bounding
+  box runs `202..797`. Reading "widest rows at mid-height, therefore flat" is the trap — for an
+  extruded slab the plateau centre lands at the bounding box centre too, and the tell is that the
+  plateau is 72 rows tall rather than 1. Using the bounding box centre put the field 3.7% of the
+  frame too low with the front row hanging onto the bevel. ISS-069.
 - `pump.png` art occupies 27.9% of its 1000×1000 canvas, so `pumpScale: 0.25` renders a pump
-  about 32% of a plot's width. See `ui/pumpView.js` for the click-target consequence.
+  about **30%** of a plot's width. See ISS-007 for the consequence: the box is nearly four times
+  wider than the pump drawn inside it.
+
+`baseArtTop: 0.202`, `baseArtHeight: 0.596` and `frameAspect: 1/0.596` are the same measurement
+taken one level out — where the art sits inside the canvas, which is what `object-fit: cover` crops
+to. The stage, the mount and `iso.js`'s `frameY()` all derive from them, so the art is never scaled
+and never shifted: the pad is the only thing removed.
 
 Reference renders: `docs/reference/field-reference.jpeg`.
 
 ## Click targets
 
-Plot rectangles overlap, because the PNGs are square with transparent corners. So each plot is
-a `<button class="plot">` carrying the diamond `clip-path`, and the `<img>` layers inside it are
-`pointer-events: none; draggable: false`. Only the button receives clicks.
+Each plot is a `<button class="plot">`, and the button's box is **not** its hit area. `css/scene.css`
+puts `pointer-events: none` on the button — the property inherits, so the whole square canvas box is
+inert and every `<img>` layer inside it comes along — and the one thing that answers a pointer is an
+empty `.plot__hit` layer, which turns it back on with `pointer-events: auto` and carries the diamond
+`clip-path`. Clicks, focus and keyboard activation all land on the button; the diamond layer decides
+*where* it can be hit.
 
-Plots are real buttons, so they get keyboard focus and keyboard activation for free. Do not
-replace them with divs.
+```
+pointer-events: none  .plot        every child inherits it, square box inert
+pointer-events: auto   .plot__hit   the diamond, and only the diamond, is live
+clip-path             .plot__hit   polygon(50% 22.4%, 100% 50%, 50% 75.6%, 0 50%)
+```
+
+The clip lives on `.plot__hit` and **not** on the button for a reason worth keeping: `clip-path` clips
+everything an element paints, including its `outline`. A clipped button would have no visible
+`:focus-visible` ring — `reset.css` draws that outside the border box, so outside a diamond clip
+entirely — and no visible `.plot--selected::after` ring, which is at `inset: -4px` for the same
+reason. Both would stop rendering with nothing to say so. That is ISS-074.
+
+The box is square (see Units above), which is the canvas's shape, and the diamond covers only the middle
+53.8% of its height. Nothing got worse by squaring it — the plots drawn in it are more than twice the size
+they were — but it does mean a neighbour's box overlaps by a whole half-box vertically, so hit testing
+the box answers **66.2%** of each tile's visible surface as a different plot. Measured, not estimated:
+60×60 samples per diamond against all sixteen plot boxes. With the clip the same measurement returns
+0%, which is exact rather than approximate because the `gap` leaves the diamonds genuinely disjoint.
+
+The layers inside the button are `<span>`s rather than `<div>`s, because a button's content model is
+phrasing content. They are absolutely positioned, so the element name is free either way. The images get
+`draggable="false"` as well as the inherited `pointer-events: none`: a square PNG is draggable by
+default, and a drag started on a plot is a click the player never meant.
+
+Plots are real buttons, so they get keyboard focus and keyboard activation for free. Do not replace them
+with divs.
 
 ## Known simplifications
 
