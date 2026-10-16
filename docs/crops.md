@@ -13,6 +13,10 @@ numbers mean and why they are what they are.
 | `wheat` | Wheat | 5 | 400 | 80 | 10 | Medium (0.5) | no |
 | `corn` | Corn | 8 | 500 | 100 | 10 | High (0.7) | no |
 
+Each crop also carries `shopUnit` — the short label shown in the shop card's top-left pill
+("5 SEEDS", "1 TOOL", etc.). It is display copy, not balance, and lives in `js/config/crops.js`
+next to `seedPrice`.
+
 All balance values are placeholders for a first playable build. Tune them in
 `js/config/crops.js`; nothing else needs to change.
 

@@ -7,6 +7,13 @@
  * That keeps the file to what it is — markup and a re-render on every state
  * change.
  *
+ * **The look is painted art, not theme chrome.** The reference mockup is a farm
+ * stall — grass, a wooden sign, a dark board, golden cards — and the shop now
+ * draws itself that way with CSS and the two inline glyphs in `shopArt.js`. It
+ * deliberately does not read `data-theme`, like `login.html` (DEC-027): a
+ * wooden sign is brown in a dark theme too. The trade-off is stated in
+ * `docs/team/decisions.md`.
+ *
  * Two decisions worth stating:
  *
  *  1. **Every crop is listed, not just the playable ones.** A shop that silently
@@ -29,6 +36,7 @@ import { createLog } from '../utils/log.js';
 import { cropSeedImg } from '../config/assets.js';
 import { shopCrops } from '../config/crops.js';
 import { BUY_STEPS, canAfford } from '../domain/shop.js';
+import { coinEl, sproutEl } from './shopArt.js';
 
 const log = createLog('shopView');
 
@@ -42,39 +50,48 @@ function pluralSeeds(n) {
 }
 
 /**
- * One crop: the packet, the price, what it does, and how many the player already
- * has. Returns an `update` so the page is built once and then kept in step with
- * the state.
+ * One crop: the packet on its shelf, the name and price, what it does, and how
+ * many the player already has. Returns an `update` so the page is built once and
+ * then kept in step with the state.
+ *
+ * The three buttons are one primary `BUY +` and two compact step buttons. The
+ * purchase rule is unchanged — `BUY_STEPS` still reads `[1, 5, 10]` — so the
+ * domain and its tests do not move; only the labels and the markup do.
  */
 function buildCard(crop, actions) {
-  // Quantity is kept alongside the button rather than parsed back off its label.
   const buyButtons = BUY_STEPS.map((quantity) => {
     const cost = crop.seedPrice * quantity;
+    const isPrimary = quantity === 1;
 
     return {
       quantity,
-      node: el('button', {
-        class: 'btn btn--primary shop-card__buy',
-        type: 'button',
-        // The step is the button; the total it costs is what makes it a decision.
-        text: `×${quantity}`,
-        'aria-label': `Buy ${pluralSeeds(quantity)} of ${crop.name} for ${format(cost)} gold`,
-        title: `${format(cost)} gold`,
-        on: {
-          click: () => {
-            const result = actions.buy(crop.id, quantity);
-            if (result?.ok) {
-              // The cost is worked out from the table rather than read back off
-              // the result: `store.apply` returns `{ok: true}` and nothing else, so
-              // there is no `cost` on it to trust.
-              log.info(`bought ${quantity} ${crop.id} seeds for ${cost}`);
-              actions.toast?.(`Bought ${pluralSeeds(quantity)} of ${crop.name}.`, 'success');
-            }
-            // On refusal `store.apply` has already emitted the reason as a toast,
-            // so there is nothing to report here.
+      node: el(
+        'button',
+        {
+          class: isPrimary ? 'shop-buy shop-buy--primary' : 'shop-buy shop-buy--step',
+          type: 'button',
+          // The step is the button; the total it costs is what makes it a decision.
+          'aria-label': `Buy ${pluralSeeds(quantity)} of ${crop.name} for ${format(cost)} gold`,
+          title: `${format(cost)} gold`,
+          on: {
+            click: () => {
+              const result = actions.buy(crop.id, quantity);
+              if (result?.ok) {
+                // The cost is worked out from the table rather than read back off
+                // the result: `store.apply` returns `{ok: true}` and nothing else, so
+                // there is no `cost` on it to trust.
+                log.info(`bought ${quantity} ${crop.id} seeds for ${cost}`);
+                actions.toast?.(`Bought ${pluralSeeds(quantity)} of ${crop.name}.`, 'success');
+              }
+              // On refusal `store.apply` has already emitted the reason as a toast,
+              // so there is nothing to report here.
+            },
           },
         },
-      }),
+        isPrimary
+          ? ['Buy', el('span', { class: 'shop-buy__plus', text: '+' })]
+          : `×${quantity}`,
+      ),
     };
   });
 
@@ -82,6 +99,8 @@ function buildCard(crop, actions) {
 
   const node = el('article', { class: crop.available ? 'shop-card' : 'shop-card shop-card--locked' }, [
     el('div', { class: 'shop-card__art' }, [
+      // The per-crop unit lands in the top-left pill: "5 SEEDS", "1 TOOL", etc.
+      el('span', { class: 'shop-card__pill', text: crop.shopUnit ?? 'Seed packet' }),
       el('img', {
         src: cropSeedImg(crop.id),
         // The packet already says "rice"; the alt is for anyone who cannot see it.
@@ -90,15 +109,15 @@ function buildCard(crop, actions) {
         height: 1199,
         loading: 'lazy',
       }),
+      // The bar the packet stands on. Decorative, so it stays out of the tab order
+      // and the accessibility tree.
+      el('span', { class: 'shop-card__shelf', 'aria-hidden': 'true' }),
     ]),
 
     el('div', { class: 'shop-card__body' }, [
-      el('div', { class: 'shop-card__head' }, [
-        el('h2', { class: 'shop-card__name', text: crop.name }),
-        el('span', { class: 'badge badge--accent', text: `${format(crop.seedPrice)} gold` }),
-      ]),
-
-      el('p', { class: 'shop-card__meta', text: `Ready in ${crop.growHours} hours · ${crop.yield} per packet` }),
+      // "Rice seeds", not "Rice": the mockup names every packet by its contents, and
+      // the whole shop is seeds, so the suffix is always true.
+      el('h2', { class: 'shop-card__name', text: `${crop.name} seeds` }),
 
       // A locked crop says so in place of its own description, so the reason its
       // buttons are dead is on the card rather than only in the toast.
@@ -111,9 +130,12 @@ function buildCard(crop, actions) {
 
       owned,
 
-      el('div', { class: 'shop-card__actions' }, [
-        el('span', { class: 'shop-card__actions-label', text: 'Buy' }),
-        ...buyButtons.map((entry) => entry.node),
+      el('div', { class: 'shop-card__buy-row' }, [
+        el('span', { class: 'shop-card__price' }, [
+          coinEl(),
+          el('span', { class: 'shop-card__price-num', text: format(crop.seedPrice) }),
+        ]),
+        el('span', { class: 'shop-card__actions' }, buyButtons.map((entry) => entry.node)),
       ]),
     ]),
   ]);
@@ -143,40 +165,46 @@ function buildCard(crop, actions) {
 export function mountShop(root, actions) {
   clear(root);
 
-  const gold = el('span', { class: 'shop-top__gold', text: '—' });
+  const gold = el('span', { class: 'shop-purse__gold', text: '—' });
 
   const cards = shopCrops().map((crop) => buildCard(crop, actions));
 
   root.append(
-    el('header', { class: 'shop-top' }, [
-      el('div', { class: 'shop-top__lead' }, [
-        el('a', { class: 'shop-top__back', href: actions.backHref, text: '← Back to the farm' }),
-        el('h1', { class: 'shop-top__title', text: 'Seed shop' }),
+    el('div', { class: 'shop-scene' }, [
+      el('header', { class: 'shop-top' }, [
+        el('a', { class: 'shop-back', href: actions.backHref }, [
+          el('span', { class: 'shop-back__arrow', text: '←', 'aria-hidden': 'true' }),
+          'Back to farm',
+        ]),
+
+        // The sign is the page's only heading, so it carries the heading role.
+        el('div', { class: 'shop-sign', role: 'heading', 'aria-level': '1' }, [
+          el('span', { class: 'shop-sign__plank', text: 'Farm Shop' }),
+        ]),
+
+        el('p', { class: 'shop-purse' }, [
+          el('span', { class: 'shop-purse__label', text: 'Purse' }),
+          coinEl('shop-coin shop-purse__coin'),
+          gold,
+        ]),
       ]),
-      el('p', { class: 'shop-top__wallet' }, [
-        el('span', { class: 'shop-top__wallet-label', text: 'Purse' }),
-        gold,
+
+      el('div', { class: 'shop-board' }, [
+        el('div', { class: 'shop-grid' }, cards.map((card) => card.node)),
+
+        el('p', { class: 'shop-hint' }, [
+          sproutEl(),
+          'Real weather. Real growing time. Check your forecast before planting.',
+        ]),
       ]),
     ]),
-
-    el('p', {
-      class: 'shop-top__intro',
-      text: 'Seeds go straight into your bag. Gold is taken the moment you buy, and the farm saves itself.',
-    }),
-
-    el('div', { class: 'shop-grid' }, cards.map((card) => card.node)),
-
-    el('p', {
-      class: 'field__hint',
-      text: 'A packet holds enough seed for one plot. Plant it, keep it watered, and sell the harvest to buy more land.',
-    }),
   );
 
   // `subscribe` calls its listener immediately, so the first render happens here
   // without a separate call — and every later change lands in the same place.
   const off = actions.onState((state) => {
     if (!state) return;
-    setText(gold, `${format(state.gold)} gold`);
+    setText(gold, format(state.gold));
     for (const card of cards) card.update(state);
   });
 

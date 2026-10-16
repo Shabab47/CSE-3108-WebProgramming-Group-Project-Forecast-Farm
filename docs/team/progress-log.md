@@ -7,6 +7,20 @@ The per-person weekly notes that used to live in the README table are now in `me
 
 ---
 
+## Shop polish: per-crop unit pill and BUY + button — Jim
+
+- **Did:** brought the seed cards closer to the reference mockup. Each crop now carries a
+  `shopUnit` label ("5 SEEDS" for all five today) that renders in the card's top-left pill
+  instead of a generic "Seed packet", and the primary "BUY +" button is now a rounded green pill
+  matching the mockup. `js/config/crops.js` (new `shopUnit` field), `js/ui/shopView.js`
+  (pill reads `crop.shopUnit`), `css/shop-card.css` (primary button border-radius). `docs/crops.md`
+  documents the new field.
+- **Tests:** `tests/shop.test.js` 16 pass; `npm run check` passes; the single pre-existing failure
+  in `tests/assets.test.js` (unregistered `rice_1.png`) is untouched and unrelated.
+- **Next:** nothing — shop polish is done.
+
+---
+
 ## Two thirds of every tile was answering as a different plot, and the "Buy" was clipped — Jim
 
 - **Did:** the hover complaint turned out to be a defect with a number attached, and a decision the

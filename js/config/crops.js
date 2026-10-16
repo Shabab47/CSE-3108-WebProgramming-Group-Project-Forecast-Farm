@@ -27,6 +27,7 @@ export const CROPS = {
   rice: {
     id: 'rice',
     name: 'Rice',
+    shopUnit: '5 SEEDS',
     seedPrice: 100,
     sellPrice: 20, // 10 × 20 = 200, twice the seed
     growHours: 6,
@@ -38,6 +39,7 @@ export const CROPS = {
   potato: {
     id: 'potato',
     name: 'Potato',
+    shopUnit: '5 SEEDS',
     seedPrice: 200,
     sellPrice: 40, // 10 × 40 = 400, twice the seed
     growHours: 4,
@@ -49,6 +51,7 @@ export const CROPS = {
   tomato: {
     id: 'tomato',
     name: 'Tomato',
+    shopUnit: '5 SEEDS',
     seedPrice: 300,
     sellPrice: 60, // 10 × 60 = 600, twice the seed
     growHours: 6,
@@ -60,6 +63,7 @@ export const CROPS = {
   wheat: {
     id: 'wheat',
     name: 'Wheat',
+    shopUnit: '5 SEEDS',
     seedPrice: 400,
     sellPrice: 80, // 10 × 80 = 800, twice the seed
     growHours: 5,
@@ -71,6 +75,7 @@ export const CROPS = {
   corn: {
     id: 'corn',
     name: 'Corn',
+    shopUnit: '5 SEEDS',
     seedPrice: 500,
     sellPrice: 100, // 10 × 100 = 1,000, twice the seed
     growHours: 8,
