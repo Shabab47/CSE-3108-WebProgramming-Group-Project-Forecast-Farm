@@ -194,12 +194,16 @@ compute new state → `ui` re-renders from state.
 export const FIELD = {
   size: 4,           // 4x4
   zoneSize: 2,       // 2x2 plots per zone
-  tileScale: 0.204,  // plot image width as fraction of stage -- MEASURED, see 6.2
+  // base.png is a 1000x1000 canvas whose slab is 596 tall at (8, 202). -- MEASURED, see 6.2
+  baseArtTop: 0.202,    // canvas y where the art starts -- `object-fit: cover` crops to it
+  baseArtHeight: 0.596, // and how tall it is, so the visible band is 0.202..0.798
+  frameAspect: 1 / 0.596, // 1000/596; repeated as `aspect-ratio` in css/scene.css
+  tileScale: 0.2296, // plot BOX side, as a fraction of the frame's width -- CHOSEN, see 6.2
   tileAspect: 0.538, // diamond height / width -- MEASURED from ground_unwatered.png
   gap: 0.03,         // gap between plots, in tile units
   crossGap: 0.12,    // extra gap at the centre cross, in tile units
-  originX: 0.5,      // diamond centre, fraction of stage
-  originY: 0.5,      // tune with the debug sliders against field-reference.jpeg
+  originX: 0.503,    // base.png TOP FACE centre -- the surface the plots stand on
+  originY: 0.462,    // ...not the bounding box centre at 0.4995; it is an extruded slab
   pumpScale: 0.25,   // pump.png is 1000x1000 with the pump art 27.9% wide
 };
 export const ZONES = { A: 'top', B: 'right', C: 'left', D: 'bottom' };
@@ -216,31 +220,50 @@ export const PLOT_PRICES = [0, 100, 200, 400, 800, 1600, 3200, 6400,
 
 ### 6.2 Stage and geometry (`utils/iso.js`)
 
-All sizes are fractions of the stage, so the field scales responsively with no resize handling.
+All sizes are fractions of the field **frame**, so the field scales responsively with no resize handling.
 
 ```
-.field-stage { position: relative; aspect-ratio: 1; width: min(100%, 720px); }
+.field-stage { position: relative; aspect-ratio: 1000 / 596; height: 100%; width: auto; max-width: 100%; }
+.field-stage__mount { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+                      width: 100%; aspect-ratio: 1000 / 596; }
 ```
 
-Layers inside it are `position: absolute`, sized and placed with `%`.
+Layers inside the mount are `position: absolute`, sized and placed with `%`. The stage is sized off the
+available **height** so a wide-but-short viewport cannot overflow, and the mount holds the base's own
+shape inside it: `max-width` can clamp the stage in a narrow column, and a plot sized in `%` of that
+stage would then be wider than the base it is standing on. Everything that is part of the farm —
+`base.png` included — lives in the mount.
 
 ```
 n = FIELD.size
 shift(i)  = (i - (n-1)/2) * (1 + gap) + (i >= n/2 ? crossGap/2 : -crossGap/2)
 u = shift(col); v = shift(row)
 
-centerX = originX + (u - v) * tileScale / 2
+centerX = originX + (u - v) * tileScale / 2                  (frame-width fractions)
 centerY = originY + (u + v) * tileScale * tileAspect / 2
 
-img left  = centerX - tileScale/2      (fractions of stage)
-img top   = centerY - tileScale/2
-img width = tileScale
-z-index   = col + row
+left        = centerX
+top         = frameY(centerY)          where frameY(y) = (y - 0.202) / 0.596
+box width   = tileScale                (a % of the frame's width)
+box height  = tileScale                (also a % of the frame's width — written as `padding-top`)
+z-index     = col + row
 ```
 
+Both axes come back as fractions of the frame's **width**, because a plot's `width` and its
+`padding-top` are both percentages of the containing block's width — so in that unit the box needs no
+aspect term anywhere. `top` is the exception: it resolves against the height, and `frameY()` is the
+one conversion. On a square field a width fraction was a height fraction and the conversion did
+nothing, which is why it can be left out by accident; skipping it shears the field 68% vertically.
+
+**The box is square.** `ground_*.png` is a square 1000×1000 canvas whose diamond is only 53.8% of its
+height, so a box of `tileScale * tileAspect` tall makes `object-fit: contain` fit the canvas to the
+box's *height* and draw every plot at half size. `tileAspect` appears once, in the vertical step above.
+
 `col` increases toward the lower right, `row` toward the lower left, so plot `(0,0)` is the top
-vertex. `base.png` fills the whole stage at `z-index: 0`. The pump uses the same centre formula
-at `u = v = 0`, width `pumpScale`, `z-index: 100`.
+vertex. `base.png` fills the whole mount at `z-index: 0`. The pump uses the same centre formula
+at `u = v = 0`, width `pumpScale`, `z-index: 20` -- above every plot but below selection (100)
+and hover (200). A plot's own `z-index` is `col + row`, so it runs `0..2(n-1)`; anything in that
+range wins against some plots and loses to others.
 
 **Measured, not guessed.** Every PNG is 1000×1000 with the art inside it. Alpha bounding boxes:
 
@@ -248,18 +271,30 @@ at `u = v = 0`, width `pumpScale`, `z-index: 100`.
 | :--- | :--- | ---: | :--- |
 | `ground_unwatered.png` | 991 × 533 | **0.538** | (0.503, 0.490) |
 | `ground_watered.png` | 987 × 537 | 0.544 | (0.503, 0.492) |
-| `base.png` | 991 × 595 | 0.600 | (0.503, 0.499) |
+| `base.png` top face | 992 × 520 | **0.524** | (0.503, 0.462) |
+| `base.png` bounding box | 992 × 596 | 0.601 | (0.503, 0.500) |
 | `crops/rice/rice_3.png` | 997 × 587 | 0.589 | (0.498, 0.499) |
 | `pump.png` | 279 × 237 | — | (0.499, 0.500) |
 
 The original plan guessed `tileAspect: 0.553` from a "1000 × 553" ground PNG that does not exist.
 The real value is 0.538, and a 3% error compounds across three row steps.
 
-`tileScale: 0.204` is the value that gives an even rim. The 4×4 cluster's outer diamond is
-4.21 × tileScale wide and 2.266 × tileScale tall at the default gaps; solving
-`4.21t + 2r = 0.991` against `2.266t + 2r = 0.595` gives `t ≈ 0.204` and `r ≈ 0.067`. At 0.22
-the rim is 0.033 at the sides and 0.048 front to back, which reads as a bug. `base.png` cannot
-nest perfectly because its diamond is h/w 0.600 while the tile cluster is 0.538.
+`base.png` is an **extruded slab**, not a flat diamond: its row widths plateau over y `462..533`,
+which is a 72px vertical skirt, and the top face the plots stand on is 992 × 520 centred at y `0.462`.
+The origin is that face's centre, *not* the bounding box centre at `0.4995` — taking the box centre
+puts the field 3.7% of the frame too low with the front row hanging on the bevel.
+
+`tileScale: 0.2296` is a **chosen fit, not a solved value**, because an even rim does not exist. The
+4×4 cluster's outer diamond is 4.21 × tileScale wide and 2.265 × tileScale tall at the default gaps;
+solving `4.21t + 2r = 0.992` against `2.265t + 2r = 0.520` — the top face — gives `t ≈ 0.243` and
+**`r ≈ -0.015`**. The cluster is 2.7% too tall for the slab, because `ground_*.png`'s 0.538 does not
+tile a 0.524 surface, and no constant reconciles two shapes. `0.2296` fills the face front-to-back and
+leaves about 1.3% at the sides instead; filling the width instead overhangs the front and back rows
+onto the bevel, and an overhang reads as a bug where a border reads as design. See DEC-034.
+
+`base.png` also carries 202px of empty canvas above and below the slab, which is why the frame is
+`1000 / 596` rather than `1000 / 1000`: `object-fit: cover` crops that padding, so the stage's height
+buys a 68% wider base than a square stage did, and no file needed editing.
 
 Crop sprites are taller than the ground tile on purpose — plants stand proud of the soil. Do not
 scale crop layers to match the ground.
@@ -808,3 +843,10 @@ Each links to the issue that tracks it.
 | 19 | Logged all 14 empty SVGs and accepted broken images per DEC-014 | ISS-001 |
 | 20 | Recorded the pump balance problem instead of shipping 0.5 silently | ISS-008 |
 | 21 | Documented the ~1 h 15 m weather lag as a deliberate MVP simplification | ISS-024 |
+| 22 | `img top` → **`centerY - tileScale * tileAspect / 2`**. The line above it was copied from `img left`, where the box is `tileScale` wide; a plot's box is `tileScale * tileAspect` tall, so following it literally gives a cluster 2.727 tile-widths tall, not the 2.266 this section solves `tileScale` from | ISS-068 |
+| 23 | `originX`/`originY` 0.5 → **0.503 / 0.499**, `base.png`'s measured content centre, and phrased as a measurement rather than a slider value: the debug sliders do not exist yet, so nothing was ever tuned against `field-reference.jpeg` | ISS-065 |
+| 24 | Pump `z-index` 100 → **20**, with selection at 100 and hover at 200. A plot's own `z-index` is `col + row` (0–6), so the old numbers put selection inside the field's own range, where it painted under plots 4, 5 and 6 | ISS-066 |
+| 25 | `originY` 0.499 → **0.462**, and `base.png` split into top face and bounding box in the table. The image is an extruded slab, so the surface the plots stand on is its top face, not its content centre; 0.499 put the field 3.7% of the frame low with the front row on the bevel | ISS-069 |
+| 26 | Stage `aspect-ratio: 1` → **`1000 / 596`** with `object-fit: cover` on `base.png`, and a new `.field-stage__mount` to hold the base's shape. The square stage wasted ~40% of its own height on the base's empty canvas band and left 43% of the centre column unused; plus `plotToScreen`'s y now passes through `frameY()` because `top` resolves against a box's height while every other value is a fraction of its width | ISS-070 |
+| 27 | `tileScale` 0.204 → **0.2296**, a chosen fit rather than a solve. Against the top face the documented even-rim equations return `r = -0.015` — the cluster is 2.7% too tall for the slab, so no constant can give a border on all four sides. `0.2296` fills the face front-to-back, border at the sides; DEC-034 has the rejected alternatives | ISS-071 |
+| 28 | The plot becomes a `<button>` and its square box stops being a hit area. `.plot` takes `pointer-events: none` (it inherits, so the box and all its layers are inert) and a new empty `.plot__hit` layer turns it back on, clipped to the diamond by `DIAMOND_CLIP`. Hit testing the box answered **66.2%** of each tile's visible surface as a different plot — the ones in front, which win on `z-index`; the clip answers 0%. The clip is on the inner layer and not the button because `clip-path` clips an element's `outline` too, which would delete the `:focus-visible` ring and the selection ring | ISS-004, ISS-074 |

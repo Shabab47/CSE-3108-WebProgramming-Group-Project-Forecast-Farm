@@ -5,59 +5,152 @@
 
 /* Sized off the available HEIGHT, not the width.
  *
- * `width: min(100%, --field-max)` with `aspect-ratio: 1` makes the square's
- * height follow its width, so a wide-but-short viewport produces a tall square
- * that overflows the screen. `height: 100%` + `width: auto` inverts that: the
- * browser derives the width from the height the farm card has left over, so the
- * field shrinks to fit and stays square. `max-width: 100%` covers the opposite
- * case, a narrow phone where the height-derived width is still too wide. */
+ * `width: min(100%, --field-max)` with a fixed aspect makes the stage's height
+ * follow its width, so a wide-but-short viewport produces a tall stage that
+ * overflows the screen. `height: 100%` + `width: auto` inverts that: the browser
+ * derives the width from the height the farm card has left over, so the field
+ * shrinks to fit. `max-width: 100%` covers the opposite case, a narrow column that
+ * cannot hold the height-derived width — the stage then loses this ratio rather than
+ * its height, which is what `.field-stage__mount` below is for.
+ *
+ * `1000 / 596` is `base.png`: a 1000x1000 canvas whose slab occupies the middle 596
+ * rows of it. A **square** stage wasted about 40% of its own height on the base's
+ * empty top and bottom, and left 43% of the centre column unused, because the stage
+ * is height-driven — at 1440x900 it was 509x509 inside an 896px column. Matching the
+ * base's shape lets the same height buy a 68% wider field, and every plot scales with
+ * it. ISS-069. Repeated as `FIELD.frameAspect`; `tests/iso.test.js` asserts they agree. */
 .field-stage {
   position: relative;
-  aspect-ratio: 1;
+  aspect-ratio: 1000 / 596;
   height: 100%;
   width: auto;
   max-width: 100%;
   margin-inline: auto;
 }
 
+/* The field frame: the base at its own shape, and the largest one that fits the stage.
+ *
+ * Everything that is part of the farm — base, plots, pump — lives in here, and
+ * `farmView.js` positions all of it in fractions of **this** box rather than of the
+ * stage. That distinction is the point of the extra element: `max-width` above can
+ * clamp the stage to 480 x 512 in a narrow column, and a plot sized off the stage's
+ * width would then be wider than the base it is standing on. Same class of desync as
+ * ISS-065, arriving below about 1050px of window width.
+ *
+ * `width: 100%` is the stage's width and `aspect-ratio` derives the height from it, so
+ * the frame holds the base's shape at every window size and the field merely gets
+ * smaller. It can never be *taller* than the stage either: the stage's own width is
+ * capped at `1000 / 596` of its height just above, so `width / (1000 / 596)` always
+ * fits inside the height it has. */
+.field-stage__mount {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  aspect-ratio: 1000 / 596;
+}
+
+/* `cover`, not `contain`.
+ *
+ * `base.png` is a square canvas with the slab in the middle 596 rows of it, so against
+ * this frame's shape `contain` would fit the whole canvas to the frame's *height* and
+ * leave the field living in a small square in the middle of its own frame, with the
+ * plots — which are sized off the frame's width — twice as wide as the base beneath
+ * them. Cover scales the canvas until it fills the frame and crops the empty band above
+ * and below, which is exactly the padding. `object-fit` centres that crop, so the
+ * visible band is canvas y `0.202..0.798` and the frame's top edge is canvas y 0.202 —
+ * the numbers in `FIELD.baseArtTop` / `baseArtHeight`. */
 .field-stage__base {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
   pointer-events: none;
 }
 
+/* Fills the frame, so a percentage here is a percentage of `base.png`. */
 .field-stage__plots {
   position: absolute;
   inset: 0;
 }
 
+/* The pump stands on the dirt cross at the centre of the base, not in a corner.
+ * `farmView.js` writes `left`/`top`/`width` from `iso.js` `pumpBox()`, the same way
+ * it places the plots, so the only numbers are `FIELD` constants. All this rule
+ * owns is the anchor: `translate(-50%, -50%)` turns the written centre into the box
+ * centre, and the art is centred in its box, so the pump's art lands on the cross.
+ *
+ * `z-index: 20` is above every plot — they run `0..2*(size-1)`, from `col + row`.
+ * It has to be, or the four plots it stands between would paint over it. */
 .field-stage__pump {
   position: absolute;
-  width: 18%;
-  bottom: 4%;
-  left: 4%;
+  transform: translate(-50%, -50%);
+  z-index: 20;
   pointer-events: none;
 }
 
+/* `farmView.js` writes `width` and `padding-top` from `tileScale` (ISS-070). The box
+ * is **square**, matching the square `ground_*.png` canvas, so `.plot__ground`'s
+ * `contain` is an exact fit. A box of `tileScale * tileAspect` fits the image to its
+ * *height* instead and draws the diamond at half size — that is what shipped up to
+ * T-54 and it is why the 16 plots looked too small for the base.
+ *
+ * `pointer-events: none` — **`pointer-events` inherits**, so this makes the whole
+ * square box inert and takes every child with it. `.plot__hit` below turns it back on
+ * for the diamond only, which is the only thing that should answer a pointer. The
+ * alternative — the `clip-path` on this element instead — also works, and it is
+ * rejected: `clip-path` clips everything the element paints, including the
+ * `:focus-visible` outline from `reset.css` and the `.plot--selected::after` ring,
+ * both of which sit outside the diamond and would vanish. ISS-074.
+ *
+ * `container-type` is for `.plot__lock-icon`, which sizes itself off this plot's width
+ * rather than the root font size. It changes nothing else: `.plot` is already
+ * `position: absolute`, so it is already the containing block for its absolutely
+ * positioned children. `cursor: pointer` comes from `reset.css`'s `button` rule. */
 .plot {
   position: absolute;
   transform: translate(-50%, -50%);
-  cursor: pointer;
   transition: transform var(--speed) var(--ease);
+  container-type: inline-size;
+  pointer-events: none;
+}
+
+/* The plot's one hit target, clipped to the diamond the art actually occupies.
+ *
+ * The polygon is `DIAMOND_CLIP` in `js/config/field.js`, measured at y 22.4%..75.6% of
+ * the canvas, and `tests/iso.test.js` asserts the two agree. It is written here rather
+ * than inline from JS because it is the same for all sixteen plots and never moves.
+ *
+ * Why it is needed at all: the box is square, so it is 46% empty above and below the
+ * art, and a neighbour's box overlaps it by half a box vertically. Hit testing the box
+ * means 66% of each tile's visible surface answers as some other plot — specifically
+ * the plots in front, which win on `z-index`. Measured, not estimated. ISS-004. */
+.plot__hit {
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(50% 22.4%, 100% 50%, 50% 75.6%, 0 50%);
+  pointer-events: auto;
 }
 
 .plot:hover {
   transform: translate(-50%, -50%) scale(1.06);
-  z-index: 10;
+  z-index: 200;
 }
 
+/* The plot's own `z-index` is `col + row`, so it runs 0..2*(size-1). Selection and
+   hover have to clear that whole range rather than pick a number inside it —
+   `z-index: 5` on a selected plot loses to every plot below it in the bottom two
+   rows. Hover stays above selection so a neighbouring plot can still be inspected. */
 .plot--selected {
-  z-index: 5;
+  z-index: 100;
 }
 
+/* The ring is drawn *outside* the box on purpose, and it survives because the
+   `clip-path` lives on `.plot__hit` rather than on `.plot`. Move the clip onto `.plot`
+   and this rule — like `reset.css`'s `:focus-visible` outline — is clipped away
+   entirely, because it sits almost wholly outside the diamond. ISS-074. */
 .plot--selected::after {
   content: "";
   position: absolute;
@@ -67,6 +160,8 @@
   pointer-events: none;
 }
 
+/* `inset: 0` is the whole box, and the box is square (see `.plot`) — the same shape
+   as this image's canvas — so `contain` neither letterboxes nor scales it. */
 .plot__ground {
   position: absolute;
   inset: 0;
@@ -115,37 +210,45 @@
   transition: height var(--speed) var(--ease);
 }
 
+/* No scrim. The unowned ground stays visible and the padlock sits on it, the way
+ * `docs/reference` renders it. The old `rgba(0, 0, 0, 0.25)` wash hid the very thing
+ * it was labelling and, at the plot sizes this field now uses, read as "disabled"
+ * rather than "for sale".
+ *
+ * A plain centred box, not a column: the "Buy" caption that used to sit under the
+ * padlock is gone. It landed in the half of the diamond the plot in front paints over,
+ * so it read "BU.." or "..UY" depending on the row. */
 .plot__lock {
   position: absolute;
   inset: 0;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.25);
-  border-radius: 8px;
-  gap: 2px;
 }
 
+/* Sized off the plot, not off the root font size.
+ *
+ * `.plot` is a container (`container-type: inline-size` above), so `cqi` is a
+ * percentage of the plot's own width and the padlock holds its proportion at every
+ * stage size. 34% of a plot is about the padlock in the reference render. The `rem`
+ * value is the fallback for browsers without container queries, and is the size that
+ * was here before.
+ *
+ * `line-height: 1` is load-bearing, not tidying. The default for an emoji at this size is
+ * about 1.3em, so the span's box was ~20% taller than the glyph it holds and `34cqi` was
+ * sizing the line box rather than the art. With the caption gone the icon is 34cqi = 66.6px
+ * in a 196px box at 1440×900, and its bottom corners clear the diamond's edge by about 3px
+ * — tight enough that if it ever looks nibbled, `30cqi` is the number. */
 .plot__lock-icon {
   font-size: 1.2rem;
+  font-size: 34cqi;
+  line-height: 1;
 }
 
-.plot__lock-text {
-  font-size: 0.65rem;
-  font-weight: 600;
-  color: #fff;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.plot--unowned {
-  cursor: pointer;
-}
-
-.plot--unowned:hover .plot__lock {
-  background: rgba(0, 0, 0, 0.4);
-}
+/* The scrim's hover rule (`.plot--unowned:hover .plot__lock`) went with the scrim, and
+   so did `.plot--unowned { cursor: pointer }`: every plot is a `<button>` now, and
+   `reset.css` gives buttons the pointer. Hover feedback is the `.plot:hover` scale,
+   which every plot already has. */
 
 /* --- the farm is the scene, not a card ------------------------------------
  *

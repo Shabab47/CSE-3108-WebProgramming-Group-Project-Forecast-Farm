@@ -7,6 +7,198 @@ Format: who decided, the choice, why, and what was rejected.
 
 ---
 
+### DEC-036 Land unlocks one plot at a time, in a fixed order, and "greyed" means "not yet"
+**Decided by:** Jim · 2026-10-16 · **decided, not built — this is T-56**
+
+**Choice:** Sixteen plots unlock one at a time in a fixed order, and at every moment exactly one is
+buyable. Three visual states: `owned` (plain ground), `next` (plain ground, padlock, clickable), and
+`locked` (greyed ground, dim padlock, `disabled`). The order is a literal array of plot ids in
+`js/config/field.js`: zone **A → B → C → D**, and within a zone col-then-row, so the farm fills from the
+back edge to the front and each new plot touches the ones already bought.
+
+**Why.** The user's words: "only the next portion is unlockable and the rest are unclickable (greyed),
+after unlocking that the next portion will be available for unlock." A portion had to be defined, and the
+field's four 2×2 zones are the obvious unit — but at 4×4 sixteen individual plots is the smaller,
+honest granularity, and it keeps the price model intact: `PLOT_PRICES[ownedCount]` survives, and
+**DEC-009 is superseded only in its "whichever plot you click" clause**, never in its economics. No price
+table has to be invented and no existing test breaks.
+
+**Rejected:**
+- **Unlock a whole 2×2 zone at a time (4 steps).** Closer to "a portion" as written, and it would make
+  the field fill in four obvious blocks. It also needs a four-entry price table — or a sum over four plot
+  prices — and the "next" state would cover four plots at once, so the greyed field would jump from 15
+  grey to 11. Fewer, bigger unlocks read better on screen; this is the one place the user's wording and
+  the implementation cost disagreed, and the wording won on cost.
+- **Store the state per plot (`state: 'next' | 'locked' | 'owned'`).** One field per plot, no derivation,
+  and it makes a wrong order a save-migration problem. `owned` is already there and is the only thing the
+  data needs: next is `UNLOCK_ORDER[ownedCount]`, locked is everything else that is unowned. **No save
+  migration, and no second source of truth.**
+- **Keep the current model (any plot buyable).** DEC-009 as written. There is nothing to grey out, so the
+  far plots would look identical to the next one for the whole game.
+
+**Still open when this is built:** the visual split between `next` and `locked` — proposal is the full
+padlock on `next`, a ~0.35 opacity padlock on `locked`, ground greyed by reusing `css/shop.css`'s
+`--locked` language (dashed, dim) rather than inventing one. And ISS-006's `clearPlot` + the fifth click
+case land in this same handler, which is the argument for doing both in one pass.
+
+---
+
+### DEC-035 The shop and inventory keep their own headers; the navbar is the game page's
+**Decided by:** Jim · 2026-10-16
+
+**Choice:** `shop.html`, and a future inventory page, keep the headers they already render —
+`← Back to the farm`, the page title, the purse — and do **not** carry the game page's `#top-bar`
+navbar. No change was needed: nothing was ever added.
+
+**Why.** The navbar's own stylesheet calls it "the game page's top bar", and `main.js`'s `start()` is
+guarded on `#top-bar`, which only `index.html` has. On the shop page its logo link and `shopView.js`'s
+"back to the farm" link point at the same place, so mounting the navbar buys a duplicate header and loses
+the purse. Getting it there also costs `navbar.css` **and** `fonts.css` on `shop.html`, a second mount in
+`shop-main.js`, and either a third guard or a copied `#top-bar` — and `fonts.css` is needed only because
+of the font fallthrough already recorded in `docs/architecture.md`.
+
+**Rejected:**
+- **The full navbar on every page.** The most familiar option, and it is two stylesheets, a second mount
+  and a header the shop does not need, for a logo link the shop already has. The shop's header shows the
+  purse, which the navbar does not show at all.
+- **No navigation at all from the shop.** Cheapest, and it leaves the player with no route to settings or
+  the profile except through the farm. Not taken — but those two icon tiles are a one-line change to
+  `shop-top`, and they are the only two things the navbar would add. Raised again later, that is the fix.
+- **Inventory as its own page, like the shop.** It would inherit this. It is a launcher only today
+  (`js/ui/inventoryLauncher.js`), so wherever it lands, this applies to it.
+
+---
+
+### DEC-034 The field fills the slab's top face front-to-back, since an even rim is impossible
+**Decided by:** Jim · 2026-10-16
+
+**Choice:** `tileScale: 0.2296`. The 4×4 cluster fills `base.png`'s top face front-to-back and keeps a
+border of about 1.3% of the frame at the left and right. ISS-071, and the close of ISS-005.
+
+**Why.** There is no even rim to aim at, so it had to be a choice rather than a solve. `base.png` is
+an extruded slab whose top face is 992 × 520; the cluster is 4.21 × 2.265 tile-widths at the default
+`gap`/`crossGap`. Solving for one border `r` on all four sides:
+
+```
+4.21t  + 2r = 0.992        t = 0.243
+2.265t + 2r = 0.520        r = -0.015
+```
+
+Negative, which is not a rim. The cluster is 2.7% too tall for the surface, because `ground_*.png`'s
+diamond is h/w 0.538 and the top face is 0.524 — four rows of those tiles cannot tile that face at any
+width. Before T-54 the same solve ran against the slab's whole bounding box instead: 596 rather than
+520 in the second equation, which folded 76px of skirt into it and hid the mismatch. That is ISS-069,
+and it is why a "solved" `tileScale` was never the value on screen.
+
+So the decision is which way to be out. Filling the height puts the back and front rows exactly on the
+face's edges and absorbs the remainder at the sides, where at 1440×900 it reads as ~11px of bare slab
+left and right and 0 front-to-back. Against `docs/reference/field-reference.jpeg`, a side border is
+the one the reference has.
+
+**Rejected:**
+- **Fill the width (`t = 0.2356`).** Plots touch the left and right tips of the face, and the front and
+  back rows overhang by 0.7% each — a row of diamond tips sitting on the skirt's bevel. An overhang
+  reads as a bug where a border reads as design, so this was the worse error to make.
+- **Inset as far as it will go, flush at the sides and short front-to-back (`t ≈ 0.2286`).** The same
+  picture with the border moved to the front and back, where it is more visible rather than less: the
+  skirt's edge is directly below the front row.
+- **Rescale `tileAspect` to 0.524 so the tiles match the face and an even rim becomes solvable.** The
+  one change that fixes the mismatch at its source, and it squashes every ground diamond by 2.7% —
+  visible distortion of art that AGENTS.md section 5 records as measured. Wrong end of the problem:
+  the art is the input and the fit is the output.
+
+---
+
+### DEC-033 The big note is a two-column grid, and the place name sits in the right column
+**Decided by:** Jim · 2026-10-16
+
+**Choice:** `.note-current` is a grid. The condition spans both columns, the temperature takes the
+left, and the place name takes `minmax(0, 1fr)` on the right, right-aligned and wrapping instead of
+ellipsising. The day and time keep their own row under both columns, the red pin stays centred, and
+the note's other lines span the full width. ISS-062.
+
+**Why.** The measured dead space was the whole argument: the temperature row is the note's widest
+content and it stops about 84px short of the right edge at the board's 450px floor, 127px at its
+520px ceiling. That space was unused at *every* window size, because the widest row is the thing that
+sets the note's content width — nothing else could ever grow into it. Meanwhile the place name had
+one line at the top, `nowrap` and ellipsised, so the one string that changes most often between
+players — the town — was the one string that got cut. Moving it into the dead space fixes both at
+once and needs no new element.
+
+**Why `auto minmax(0, 1fr)` and not `42% / 58%`.** The first draft split the note by percentage.
+That is a collision waiting to happen: `.note-temp-value` is 44px type, and a 42% right column at the
+450px floor measured 93px against a temperature row of roughly 137px, so the place name would have
+overlapped the number it describes on the narrowest board. With `auto` the temperature asks for what
+it needs and the place gets the remainder, so no window size can overlap them — and no media query
+needs a second copy of the split, which is the cost this file pays at every other breakpoint.
+
+**Why the condition keeps a full-width row.** At 15px with 0.1em of letter-spacing, "Freezing drizzle"
+is about 168px — wider than one column at the floor (~128px). Putting it beside the place name would
+have clipped the single word that says what the weather is doing, so `label` spans both columns and
+the place sits beside the temperature instead.
+
+**Rejected:**
+- **`position: absolute` in the note's top-right corner.** Three lines of CSS instead of a grid, but
+  ISS-058 was exactly this: an absolutely positioned line that stopped reserving space and drew over
+  its neighbours. It also needs `top`/`right` restated in both media blocks, which are kept in step by
+  hand (DEC-031).
+- **Wrapping the note's left-hand content in a new `<div>`.** The DOM order stays as it is and grid
+  areas do not care about it; a wrapper would be a JS change to fix a CSS problem.
+- **Splitting the place into town and country on two lines by design.** Predictable, and it is what a
+  weather app does — but it costs a second element, and the country alone is not what a player scans
+  the board for.
+- **Moving the day and time into the right column as well.** That is what the design mockup draws, and
+  it would balance the note properly — the left column would become one clean block. Held back
+  because it is a bigger change than the report asked for, and the footnote row is the one row a
+  player reads at a glance.
+
+**The cost, stated plainly:** the place name is now on the same row as the temperature, so at the
+450px floor "Dhaka, Bangladesh" wraps to two lines. That is intended, and it is the reason `nowrap`
+and the ellipsis are gone — but it means the name is no longer a single line at every size, and a
+note that clips (`.note-current` is `overflow: hidden`) drops the name before it drops the
+temperature. The pin left at `left: 50%` was checked against the right column's text and clears it by
+9–15px at the two board widths; if the name ever grows a third line, that is the first thing to
+re-measure.
+
+---
+
+### DEC-032 The board prints its freshness once, and it lives inside the note
+**Decided by:** Jim · 2026-10-16
+
+**Choice:** the freshness label is a child of the big sticky note, right-aligned under "Feels like",
+and renders **only** while the forecast is paused — `Paused · 3 minutes ago`, full sentence in
+`title`. There is no separate "Updated 6:45 PM" line on the board. The wind pill's compass bearing is
+no longer part of its value; it is the pill's `title`, and nowhere else.
+
+**Why the label moved.** `.board-updated` printed `Updated 6:45 PM` from `weather.current.time`, and
+the note's foot row already printed `FRI 6:45 PM` from the *same* field. The board stated one instant
+twice, twenty pixels apart — worse than redundant, because a repeated value reads as two facts being
+confirmed. The note already says when the reading is from, so the only thing the line still had to
+say was that the reading is **stale**. That is the paused case, and it is now the only case that
+renders anything: the element's presence *is* the state, so there is no `data-paused` attribute to
+keep in step.
+
+**Why the compass went to `title`.** The pill's value track is `auto`, so it takes what it asks for,
+and `5 km/h NNW` left the label track about 19px at the board's width — "Wind" rendered as "W…". Only
+one of the three could be shortened, and the number is what the player plants by while the bearing is
+a detail. It follows `.note-hour`, which already carries its weather condition in `title` and nowhere
+else. ISS-061.
+
+**Rejected:**
+- **Keeping "Updated …" and dropping the note's own time.** Throws away the more readable of the two
+  to save the less readable one.
+- **Printing both.** They are the same value; printing it twice invites the reading that they differ.
+- **Carrying the board's warning amber, `#ffd45e`, into the note.** It was chosen against dark wood.
+  On cream paper it measures **1.2:1** and is effectively invisible. `#7a4f0a` measures **5.8:1** on
+  the paper's mid tone and **5.4:1** on its darkest, and still reads as a warning rather than as a
+  failure.
+- **Letting the bearing drop to a second line in the pill.** It fixes the width by making the three
+  pills different heights, which is exactly what `flex: 1 1 0` is there to prevent (DEC-031).
+
+**The cost, stated plainly:** the bearing is invisible on touch and to keyboard users, and a paused
+forecast's full sentence lives in `title` too. If the compass is ever needed as always-visible
+information, the answer is a third row in the pill or a wider meters column — not a smaller font.
+
 ### DEC-031 The board is plain literals plus one short-window block
 **Decided by:** Jim · 2026-10-15
 
@@ -37,6 +229,13 @@ what makes the stack line up with the sticky note top to bottom at every window 
 height to fit and trimming the board is simply wrong. Its breakpoint is **960px**, not the 820px it
 started at, because the board's contents grew — the hour strip went 52px → 72px (ISS-057) and the
 freshness line moved into the flow (ISS-058) — so the height at which it stops fitting rose with them.
+That budget has since come down a little: the freshness line left the board's flow entirely and now
+lives inside the note (DEC-032), so `#forecast-card` takes two children rather than three.
+
+**The block restates sizes only.** It does not redraw shapes. It used to override `.board::before`
+and `.board::after` as well, giving the two pegs different bodies at short heights so that the left
+one stayed a post and the right one became a flat bar — see ISS-059. Any future shape that needs a
+second definition belongs in the base rule, not here.
 
 **Also rejected:**
 - **Container queries** (`container-type: size` + `cqmin`) would measure the board rather than the
@@ -683,6 +882,11 @@ whichever plot you click, and the 100-gold plot is whichever one you click secon
 
 **Rejected:** price per plot id, which needs a per-plot price table and can put the cheap plots
 in awkward corners.
+
+**Superseded in part by DEC-036 (2026-10-16).** The price rule is untouched, and so is the doubling. What
+changes is *which* plot is on offer: DEC-036 fixes an order over the sixteen, so "whichever plot you click"
+becomes "the next one in the order". The 100-gold plot is still the one you buy second, and still one
+plot at a time.
 
 ---
 

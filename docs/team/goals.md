@@ -84,13 +84,20 @@ The first thing anyone can actually look at.
 
 - [ ] `index.html` with the three grid areas, matching the wireframe at 1280 px
 - [ ] Single column below 900 px, in order: navbar, forecast, farm, right column, sidebar
-- [ ] `utils/iso.js` with `plotToScreen` and `diamondClipPath`, plus `iso.test.js`
-- [ ] `css/field.css`, `farmView`, `plotTile`, `pumpView`
-- [ ] Slab, 16 unwatered plots, pump, diamond hit areas
+- [x] `utils/iso.js` with `plotToScreen`, `pumpBox` and `frameY`, plus `iso.test.js` — landed in
+      T-53/T-54
+- [x] The diamond clip is real and asserted — though not where this line said it would be. It is the
+      `.plot__hit` rule in `css/scene.css`, not `iso.js`'s `diamondClipPath()`: same number in two
+      homes, so `tests/iso.test.js` asserts they agree. ISS-004.
+- [ ] `css/field.css`, `farmView`, `plotTile`, `pumpView` — `farmView` landed; `plotTile` and `pumpView`
+      are still T-06
+- [x] Slab, 16 unwatered plots, pump, diamond hit areas — landed in T-55. "Against the reference render"
+      below still means a person looking at it
 - [ ] Debug sliders live-recalculate `tileScale`, `gap`, `crossGap`, `originX`, `originY`,
       `pumpScale`
 - [ ] Geometry calibrated against `docs/reference/field-reference.jpeg` and the final numbers
-      written into `config/field.js`
+      written into `config/field.js` — the numbers are in as of T-54 and are the measured ones,
+      but "against the reference render" still means a person looking at it
 - [ ] Pump click target tight to its art (ISS-007)
 
 **Done when:** the field matches the reference render, hovering one plot highlights only that

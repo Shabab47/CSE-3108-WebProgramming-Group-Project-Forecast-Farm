@@ -7,6 +7,240 @@ The per-person weekly notes that used to live in the README table are now in `me
 
 ---
 
+## Two thirds of every tile was answering as a different plot, and the "Buy" was clipped — Jim
+
+- **Did:** the hover complaint turned out to be a defect with a number attached, and a decision the
+  docs had already made turned out to be code nobody had written. **ISS-004 closed**, **ISS-074 found
+  and avoided**, **DEC-035** recorded. T-55. `tests/iso.test.js` 15 → 16, `tests/farmView.test.js`
+  added with 6.
+- **The hover was the hit box, not the art.** The plot was a `<div>` and its hit area was the square
+  1000×1000 PNG canvas. That box is 46% empty above and below the art, and a neighbour's box overlaps
+  it by half a box vertically — which is a consequence of T-54 making the plot box square (ISS-070).
+  Hit testing it means **66.2%** of each tile's visible diamond answers as a *different* plot, and not a
+  random one: the plots in front, which win on `z-index`. That is what "a little hard to hover on them"
+  was. I measured it before describing it rather than guessing — 60×60 samples per diamond against all
+  sixteen plot boxes — and the clip returns **0.0%**, exact rather than approximate, because the `gap`
+  leaves the diamonds genuinely disjoint.
+  Worth admitting plainly: **T-54 made this worse.** Before it, the plot box was the diamond's own
+  aspect ratio, so box ≈ art and hover was precise.
+- **DEC-010 said plots are `<button>` elements; they were divs.** The decision record had always said
+  so, `architecture.md` spelled out the click targets, `DIAMOND_CLIP` was already exported from
+  `js/config/field.js`, and `reset.css` clears button chrome with a comment about plots being tabbable.
+  The code just never did it. Now: a button, with `pointer-events: none` on the button itself (it
+  inherits, so the whole square box is inert) and one empty `.plot__hit` layer turning it back on for
+  the diamond only.
+- **ISS-074 was found by asking "and then what breaks?"** The obvious implementation — the polygon on
+  the button — deletes two focus indicators, because `clip-path` clips everything an element paints,
+  *including its outline*. `reset.css` draws the `:focus-visible` ring outside the border box, so a
+  clipped button shows no focus at all; `.plot--selected::after` is a ring at `inset: -4px` and for the
+  same reason nearly all of it is outside the diamond. Neither throws, neither renders wrong — they
+  just stop rendering. The clip went on an inner layer instead, which is also why a *diamond-shaped*
+  ring is not expressible as clip-path-plus-border, and the box ring stays.
+- **The "Buy" caption was the other half of the same screenshot.** It sat under the padlock, in the half
+  of the diamond the plot in front paints over, so it rendered as "BU.." or "..UY" depending on the row.
+  Deleted — the reference render has the padlock alone, and it says the same thing. `.plot__lock-icon`
+  also gained `line-height: 1`: at the default ~1.3em the emoji's line box is taller than its glyph, so
+  the group overhung the diamond. At `1` the glyph's own box is centred and clears the diamond's edge by
+  about 3px.
+- **The shop and inventory do not get the navbar (DEC-035).** `navbar.css` calls itself "the game page's
+  top bar", `main.js` is guarded on `#top-bar` which only `index.html` has, and on the shop page the
+  navbar's logo link and `shopView.js`'s "back to the farm" link point at the same place. Mounting it
+  there would cost two stylesheets and a second mount to buy a duplicate header. Recorded, not changed.
+- **Next:** look at the field and confirm hover; then **T-56** (DEC-036 — unlock order, three states, the
+  grey-out). **ISS-006** (`clearPlot`, the fifth click case) should ride along with it, because both
+  land in the same click handler.
+
+---
+
+## The plots were half size, on a slab that is not flat, at a rim that cannot exist — Jim
+
+- **Did:** the reported "it doesn't fit properly" was three defects stacked, and the geometry fix from
+  the previous session was only the first one. ISS-069 the extruded slab, ISS-070 the half-size plots,
+  ISS-071 the impossible rim; ISS-005 closed properly this time; ISS-072 opened. T-54.
+- **What the art actually is.** `base.png` is not a flat diamond: its row widths plateau over
+  y `462..533`, which is a 72px vertical skirt, and the top face the plots stand on is 992 × 520
+  centred at y `0.462`. I set `originY: 0.499` last session — the *bounding box* centre — and wrote
+  "base.png has no 3D extrusion" into `field.js` and `architecture.md`. The observation behind that
+  was right (the widest rows are at mid-height) and the inference was not: an extruded slab's
+  plateau centre lands at the bounding box centre too, because the box grows downward by exactly as
+  much as the plateau's own half-height. The tell was that the plateau is 72 rows tall where a flat
+  diamond's widest row is one row, and 21 rows got read as noise. That is my error, corrected in
+  place rather than amended.
+- **The rim the docs solved for does not exist.** The documented calibration runs
+  `4.21t + 2r = 0.991` against `2.266t + 2r = 0.595` — and 0.595 is the slab's whole bounding box.
+  Against the top face it is `2.265t + 2r = 0.520`, and the pair gives **`r = -0.015`**: the cluster
+  is 2.7% too tall for the slab, because `ground_*.png` is h/w 0.538 and the face is 0.524. No
+  `tileScale` reconciles two shapes, so this became a choice instead of a solve — fill the face
+  front-to-back, border at the sides, DEC-034.
+- **The half-size plots, which is what was actually visible on screen.** `.plot`'s box was
+  `tileScale × tileScale * tileAspect` tall while `ground_*.png` is a **square** canvas, so
+  `object-fit: contain` fitted the image to the box's *height*. Every diamond drew at 0.109 of the
+  frame against a geometry built for 0.203 — sixteen plots spaced for tiles twice their size, which is
+  the gap the screenshot showed. `padding-top: tileScale` makes the box square, and it is a one-token
+  fix.
+- **Then the base could grow.** `.field-stage` was `aspect-ratio: 1` and height-driven, so at
+  1440×900 it was 509×509 inside an 896px column: 43% of the width unused and 40% of its own height
+  empty above and below the slab. At `aspect-ratio: 1000/596` with `object-fit: cover` on the base —
+  no cropping of any file, since the empty band *is* what cover removes — the same height gives an
+  ≈848px base against ≈505px, and ≈195px plots against ≈55px.
+- **The two things that made a wider stage safe, both found while wiring it up.** `top` resolves
+  against a box's *height* while `width` and `padding-top` are percentages of its *width*; on a square
+  stage those were the same number and the distinction did not exist. `iso.js`'s new `frameY()` is the
+  single conversion. And a new `.field-stage__mount` holds the base's shape, so a stage whose width is
+  clamped by a narrow column cannot end up with plots wider than the base beneath them.
+- **Docs:** `architecture.md` Field geometry rewritten for the frame, the units and the two new
+  defects; its measured-constants table split into top face and bounding box; `decisions.md` DEC-034;
+  `issues.md` ISS-069…072 and a corrected ISS-005 closure; AGENTS.md section 5's table, which is
+  gitignored and so local-only.
+- **Broke:** nothing new. `npm test` still fails only on ISS-047, the five flat-path rice sprites.
+- **Next:** look at it. Everything above is arithmetic and tests — there is no browser in this
+  environment, so nothing here has been seen rendered. `.plot__crop` is known to be wrong the moment a
+  crop is planted (ISS-072) and is deliberately left alone rather than guessed at.
+
+---
+
+## The field was never centred on the base, and the pump was in a corner — Jim
+
+- **Did:** the reported screenshot was two bugs wearing one coat, and both were the same root cause.
+  Fixes are ISS-065 to ISS-068; T-53. `js/utils/iso.js` now exists, which is the file
+  `architecture.md` had been documenting as existing since before it was written.
+- **The measurement that decided it.** `renderPlot` placed plots with
+  `xPct = 50 + (col - row) * tileScale * 50` and `yPct = 50 + (col + row) * tileScale * 25`.
+  **Those two axes are not symmetric.** Over a 4×4 grid `col - row` has mean 0, so x was centred by
+  luck; `col + row` has mean **3**, so the cluster sat `3 × 0.204 × 25` = 15.3% of the stage below
+  the middle. The centring term `(i - (n-1)/2)` was simply absent. `base.png`'s diamond centre is
+  y = 49.9%, so the cluster's centre sat at 65.3% — 15.4 points low. The one axis that was right
+  was the accident, not the evidence.
+- **The documented formula was right all along.** `architecture.md` "Field geometry" already
+  specified `shift()`, `centerX/centerY` and `z-index = col + row`, and named `js/utils/iso.js` as
+  their home — the file just did not exist, and `farmView.js` had grown a substitute. Five `FIELD`
+  constants (`gap`, `crossGap`, `originX`, `originY`, `pumpScale`) and `DIAMOND_CLIP` had no reader
+  anywhere in `js/`, and the pump sat on `bottom: 4%; left: 4%` — a corner, nothing to do with the
+  base. So this was not a re-derivation: it was writing down the contract that was already there.
+- **Verified before adopting, not after.** `shift` = −1.605, −0.575, +0.575, +1.605, giving a
+  cluster 4.21 × tileScale wide and 2.265 tall against the doc's 4.21 / 2.266; solving
+  `4.21t + 2r = 0.991` against `2.266t + 2r = 0.595` returns `t = 0.2037` ≈ the configured 0.204
+  and `r = 0.0661` ≈ the documented 0.067. It reproduced on the first run, which is what makes the
+  doc's numbers worth trusting rather than re-measuring.
+- **One typo, and it mattered.** `architecture.md:920` said `img top = centerY - tileScale/2`. The
+  box is `tileScale × tileScale * tileAspect` tall, so the half-height is
+  `tileScale * tileAspect / 2`. Following the line literally gives a cluster **2.727** tile-widths
+  tall while the same section, nine lines later, states **2.266** — and 2.266 is the figure the
+  whole `tileScale: 0.204` calibration is solved from. ISS-068.
+- **`tileAspect` deliberately not touched.** Re-measured `ground_unwatered.png` at 991 × 535 →
+  0.5399 against the documented 991 × 533 → 0.538. That is the alpha threshold (this pass cut at
+  `A > 8`), not a defect, and `AGENTS.md` §5 is explicit that the measured geometry is not to be
+  re-derived. ISS-003 is relogged **stale** with the reasoning rather than quietly closed.
+- **`.plot--selected` had to be renumbered.** Now that a plot carries `z-index: col + row` (0–6),
+  the old `z-index: 5` on a selected plot would paint it *under* plots 4, 5 and 6. Selection is now
+  100 and hover 200 — above the field's own range, hover still above selection so a neighbouring
+  plot can be inspected. The pump is 20: above every plot, below both.
+- **Touched:** `js/utils/iso.js` (new), `js/ui/farmView.js`, `js/config/field.js`, `css/scene.css`,
+  `tests/iso.test.js` (new, 12 cases), `docs/architecture.md`, `docs/team/issues.md`,
+  `docs/team/tasks.md`. `farmView.js`, `iso.js` and `field.js` are **Hisham | Kafi co-owned** and
+  `scene.css` is Kafi's — all four edited, all flagged to them. Hisham's T-06 row gained one
+  clarifying line and nothing else.
+- **Not in this change:** the `<button class="plot">` + `diamondClipPath` click targets (ISS-004,
+  ISS-007). `DIAMOND_CLIP` is still unread, deliberately — a layout fix and an interaction fix do
+  not belong in one commit. Also still absent: `js/debug/`, so the documented "tune the sliders
+  live" workflow does not exist and the constants went in as measured.
+- **Verified:** `npm run check` clean; `npm test` 333/334, the one failure being the pre-existing
+  ISS-047 rice-sprite path; `node --check` on the three changed JS files; em dashes intact in every
+  edited file; `git diff --stat` shows only these files.
+- **Next:** ISS-047, then commit.
+
+## The place name moved into the note's empty right-hand side — Jim
+
+- **Did:** the reported blank space on the right of the big sticky note was real and measurable, and
+  the place name was already being cut to fit the wrong place. Fixes are ISS-062 and ISS-063, plus
+  `tests/weatherPanel.test.js` — the panel had no test at all, which is why both bugs survived T-50 and
+  T-51. DEC-033.
+- **The measurement that decided it.** The note's widest row is the temperature — glyph, gap, `24°` and
+  the unit — and it stops ~84px short of the paper's right edge at the board's 450px floor, ~127px at
+  its 520px ceiling. Nothing else could ever grow into that space, because the widest row is what sets
+  the note's content width. So the space was dead at **every** window size, while the one string that
+  changes most between players was running along the top on a single `nowrap` line with an ellipsis.
+  Moving it into the dead space fixes both at once and adds no element.
+- **Why not percentages.** The first draft split the note `42% / 58%`. At the 450px floor that is 93px
+  for the place against a ~137px temperature row — the name would have overlapped the number it
+  describes. `minmax(0, auto)` for the temperature and `minmax(0, 1fr)` for the place means the number
+  asks for what it needs and the name takes the remainder, so no window size can collide them, and no
+  media block needs a second copy of the split.
+- **The catch that would have bitten:** the condition cannot share a row with the place. "Freezing
+  drizzle" is ~168px at 15px with 0.1em of letter-spacing — wider than one column at the floor. So
+  `label` spans both columns and the place sits beside the temperature. Three words in `weather.js`
+  ("Freezing drizzle", "Snow showers", "Light showers") are what make this true.
+- **Two side effects of the container changing type, both silent:** `.note-status`'s
+  `align-self: flex-end` was a flex idiom for right-alignment, and in a grid `align-self` is the block
+  axis — the paused line would have jumped to the left edge. It is `justify-self: end` now.
+  `.note-idle`'s `flex: 1` is inert in a grid container, so the idle note would have shrunk into the
+  left column alone; it is an explicit full span instead.
+- **ISS-063 — the place line could be empty.** `locationLine()` answered `''` for a location with
+  neither name nor country, rendering an invisible empty span with nothing in the console. The old
+  panel printed `parts || 'Unknown location'` and the board rewrite dropped the fallback — this is the
+  most likely explanation of the original "the current location is missing" report, and it is now
+  impossible: four empty shapes are pinned in the new test file. A blank column made it conspicuous
+  rather than invisible, which is the one good thing about moving it.
+- **Found while measuring, logged not fixed — ISS-064:** the big temperature renders as **"24°°C"**.
+  `formatTemp()` answers `24°` and the unit span follows it with `°C`. It costs the row the place name
+  now shares about 15px of width, so fixing it gives that width back. Deliberately left out of T-52 so
+  the layout change and the unit fix stay separate commits.
+- **Verified:** `npm run check` clean. `npm test` is **321/322** — my 5 new tests pass, and the one
+  failure is **ISS-047** again (Kafi's duplicate rice sprites at the pre-refactor flat path), which is
+  why nothing here is committed. Not verified in a browser: worth an eye at 1920px and at the 900px
+  stacked layout, and a search for "Kuala Lumpur" to see the two-line wrap.
+- **Still open:** ISS-047 blocks the commit. **ISS-064** is logged and unfixed.
+- **Touching someone else's file:** `js/ui/weatherPanel.js` is Afif's — third session running (T-11 is
+  still `doing`). He needs telling, and the fallback in `locationLine()` is the part he should look at
+  first.
+
+---
+
+## The freshness label found its real home, and three layout bugs came with it — Jim
+
+- **Did:** four fixes on the weather board, all from one screenshot. Three of them were bugs my own
+  guess about the cause would have got wrong, so they are logged as ISS-059/060/061.
+- **The finding that unlocked the first one:** `.board-updated` printed `Updated 6:45 PM` and the note's
+  foot row printed `FRI 6:45 PM`, and **both read `weather.current.time`** — the same field. The board
+  was stating one instant twice, twenty pixels apart, and the request to "move it into the note" would
+  have printed it a third time had I just obeyed it. The line's actual job was to say the reading is
+  **stale**, which is the paused case. So the label is now a right-aligned `.note-status` inside the
+  note, renders only while paused, and the element's presence is the state — no `data-paused` to keep
+  in step. `renderUpdated()` became `statusLine()`, `#forecast-card` went back to two children, and
+  `formatClock()` became dead code and went with it. DEC-032.
+  - **The colour question was real, not cosmetic.** The old line's amber `#ffd45e` was picked against
+    dark wood; on the note's cream paper it measures **1.2:1** — invisible. `#7a4f0a` measures 5.8:1 on
+    the paper's mid tone and 5.4:1 on its darkest, and still reads as a warning rather than a failure.
+- **ISS-061 — the wind pill identified itself as "W…".** Two causes stacked. `.board` is
+  `clamp(420px, 38%, 520px)` and 38% of the centre column is under 420px on a normal desktop, so the
+  board was **always** at its floor, leaving the meters column ~111px of inner width. In that space the
+  value track is `auto` and takes what it asks for ("5 km/h NNW" ≈ 60px), leaving the label ~19px — and
+  the label track was `minmax(0, 1fr)`, whose explicit `0` minimum licenses shrinking past the track's
+  own `min-content` width. So the label ellipsised rather than the row admitting it did not fit. Three
+  changes were needed: bare `1fr` on the label track, the compass moved out of the value into the
+  pill's `title`, and the board's floor 420px → 450px.
+- **ISS-060 — the rain-chance pill had no bottom edge.** Reported as the hour notes "blocking the
+  shadow", and the notes were not involved: they are outside `.board-body`. The edge is
+  `box-shadow: 0 3px 0` and `.board-body` is `overflow: hidden`, so the last pill's shadow fell past the
+  grid row and was cut off **inside its own container**. `.board-meters` gained `padding-bottom: 3px`
+  (the pills share the shorter content box, so nothing else moved) and `#forecast-card`'s gap went
+  6px → 10px, which is the breathing room that was actually being asked for.
+- **ISS-059 — "the right side board piece is missing".** It was the right peg. The short-window block
+  overrode `::before` and `::after` as if they were two different things: `::before` became two 20×15px
+  planks, `::after` two 23×4px dark bars. Both are pegs, so under 960px tall the left one stayed a post
+  and the right one rendered as a dark sliver. Both overrides deleted; the block now restates sizes and
+  never shapes — recorded in DEC-031 so the next person does not re-add them.
+- **Verified:** `npm run check` clean, `node --check js/ui/weatherPanel.js` clean, no dead
+  `board-updated` / `formatClock` / `board-meter-track` references left. **`npm test` is 316/317**,
+  failing only on **ISS-047** (Kafi's five duplicate rice sprites at the pre-refactor flat path) — so
+  this work is deliberately **left uncommitted** rather than committing over a red suite.
+- **Still open:** ISS-047 blocks the commit. `css/weather.css` is now ~670 lines, well past the ~200
+  guidance — worth splitting as its own commit, after the suite is green.
+- **Touching someone else's file:** `js/ui/weatherPanel.js` is Afif's, second time in two sessions
+  (T-11 is still `doing`). Both touches need telling him.
+
+---
+
 ## The board got tuned by eye, and lost its meter bars — Jim
 
 - **Did:** went through the board's proportions by eye and fixed four things that were quietly wrong.
