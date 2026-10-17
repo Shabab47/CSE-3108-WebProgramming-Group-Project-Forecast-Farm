@@ -12,6 +12,9 @@ import { mountNavbar } from './ui/navbar.js';
 import { mountShopLauncher } from './ui/shopLauncher.js';
 import { mountInventoryLauncher } from './ui/inventoryLauncher.js';
 import { mountSeasonCard } from './ui/seasonCard.js';
+import { mountPumpPanel } from './ui/pumpPanel.js';
+import { setPump, tick } from './domain/water.js';
+import { alertsToRaise, currentTrouble } from './domain/notifications.js';
 import { mountWeatherPanel } from './ui/weatherPanel.js';
 import { mountFarmView } from './ui/farmView.js';
 import { mountLocationBar } from './ui/locationBar.js';
@@ -128,10 +131,22 @@ function mountShell(session) {
       el('div', { class: 'card__head' }, [el('span', { class: 'card__title', text: 'Gold' })]),
       el('p', { id: 'gold-value', text: '—' }),
     ]),
-    placeholder('Meters', 'Water and heat — T-09'),
     placeholder('Environment', 'Humidity and wind — T-11'),
   );
 
+  // The pump panel replaces the `Meters` placeholder, which is what it was reserved
+  // for. It is the one panel whose read-out has to keep up with a per-second tick,
+  // so it is the one that gets a `refresh()` rather than being rebuilt.
+  pumpPanel = mountPumpPanel(el('div'), {
+    getState,
+    onToggle: (on) => {
+      apply((s) => ({ ok: true, state: setPump(s, on) }));
+      emit('toast', {
+        message: on ? 'Pump on. Click one of your plots to water it.' : 'Pump off.',
+        tone: on ? 'info' : 'success',
+      });
+    },
+  });
 }
 
 /**
@@ -148,8 +163,35 @@ function mountShell(session) {
  * `mountFarmView()` clears `#farm-view` wholesale, so nothing that is not the field may
  * be mounted inside it — the seed picker's host is a sibling for exactly that reason.
  */
-function repaintFarm(state) {
-  const offer = nextUnlockable(state);
+/** The pump panel, mounted once and refreshed thereafter. See `renderPanels`. */
+let pumpPanel = null;
+
+/**
+ * Raise a toast for each crop that has bad weather in the next 6–24 hours.
+ *
+ * Checked on the weather refresh rather than on the 1 Hz tick, because this is about
+ * the **forecast** and the forecast only changes when it is refetched — checking it
+ * every second would compute the same answer sixty times a minute. The standing-
+ * condition warning ("this plot is running dry") is the other half and lives in
+ * `tickFarm`, where it belongs.
+ *
+ * Dedupe is `cropId:event` keyed on the **start of the event window**, so a six-hour
+ * run of heavy rain warns once rather than six times.
+ */
+function announceForecast() {
+  const state = getState();
+  if (!state) return;
+
+  const { alerts, notified } = alertsToRaise(state, Date.now());
+  if (alerts.length === 0) return;
+
+  apply((s) => ({ ok: true, state: { ...s, notified } }));
+  for (const alert of alerts) {
+    emit('toast', { message: alert.message, tone: 'warning' });
+  }
+}
+
+function repaintFarm(state) {  const offer = nextUnlockable(state);
 
   mountFarmView(qsOrNull('#farm-view'), {
     plots: state?.plots ?? [],
@@ -177,9 +219,49 @@ function renderPanels(state) {
   });
 
   repaintFarm(state);
+  pumpPanel?.refresh();
 
   const goldEl = qsOrNull('#gold-value');
   if (goldEl && state) goldEl.textContent = `${state.gold} gold`;
+}
+
+/**
+ * Advance water, bill the pump, and raise any weather warning.
+ *
+ * Every second, and computed from **elapsed** time rather than a fixed step — see
+ * `domain/water.js`. That is what makes a closed tab catch up: six hours away dries
+ * and waters exactly as six hours of ticking would have.
+ *
+ * The notifications are checked here rather than on the 15-minute weather refresh
+ * because the interesting one — a plot actually running dry — is a condition, not a
+ * forecast, and a player who plants into a heatwave should not wait a quarter of an
+ * hour to be told.
+ */
+function tickFarm() {
+  const before = getState();
+  if (!before) return;
+
+  const result = tick(before, Date.now());
+  const moved = result.spent > 0
+    || result.state.plots.some((plot, i) => plot.waterLevel !== before.plots[i].waterLevel);
+
+  if (moved) apply(() => ({ ok: true, state: result.state }));
+
+  if (result.autoOff === 'gold') {
+    emit('toast', { message: 'Pump stopped — you are out of gold.', tone: 'error' });
+  }
+
+  const now = getState();
+  if (!now) return;
+
+  const trouble = currentTrouble(now, Date.now());
+  if (trouble && now.notified[trouble.key] !== trouble.message) {
+    apply((s) => ({
+      ok: true,
+      state: { ...s, notified: { ...s.notified, [trouble.key]: trouble.message } },
+    }));
+    emit('toast', { message: trouble.message, tone: 'error' });
+  }
 }
 
 function setLocation(next) {
@@ -203,6 +285,7 @@ async function refreshWeather({ quiet = false } = {}) {
   }
 
   setWeather(result);
+  announceForecast();
 }
 
 function useDeviceLocation({ announce = true } = {}) {
@@ -529,6 +612,15 @@ async function start() {
       if (document.hidden) return;
       repaintFarm(getState());
     }, TICK_MS);
+
+    // Water, the pump bill, and the weather warnings.
+    //
+    // **This one is not skipped when the tab is hidden**, unlike the repaint above,
+    // and the difference matters. A repaint has nothing to show a backgrounded tab.
+    // Elapsed time is *not* skipped when it is skipped — `tick()` derives everything
+    // from `lastTickAt`, so a tab left closed overnight catches up in one step when it
+    // comes back rather than silently skipping six hours of evaporation.
+    setInterval(tickFarm, TICK_MS);
 
     setInterval(saveNow, AUTOSAVE_MS);
     wireSaveOnExit();
