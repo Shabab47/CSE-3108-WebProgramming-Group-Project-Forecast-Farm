@@ -7,7 +7,6 @@ import { mountConnectionStatus, wireSaveOnExit } from './connection.js';
 import { adoptState, apply, emit, exportPayload, flushPendingSave, getState, getSync, init, on, reset, saveNow, subscribe } from './state/store.js';
 import { mountBootLoader } from './ui/loadingTips.js';
 import { mountBlockedScreen } from './ui/blockedScreen.js';
-import { mountConnectionBanner } from './ui/connectionBanner.js';
 import { mountToastStack } from './ui/toastStack.js';
 import { mountNavbar } from './ui/navbar.js';
 import { mountShopLauncher } from './ui/shopLauncher.js';
