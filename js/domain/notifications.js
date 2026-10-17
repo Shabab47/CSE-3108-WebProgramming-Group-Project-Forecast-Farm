@@ -23,6 +23,7 @@
  */
 
 import { cropOf } from '../config/crops.js';
+import { DRY_WATER } from '../config/weatherEvents.js';
 import { weatherRating } from '../config/cropWeatherMatrix.js';
 import { classifyHour } from '../config/weatherEvents.js';
 import { indexOfHour } from './weather.js';
@@ -211,7 +212,9 @@ export function currentTrouble(state, now = Date.now()) {
     ? classifyHour(readHour(state.weather.hourly, indexOfHour(state.weather.hourly.time, now)))
     : 'cloudy';
 
-  const dry = state.plots.filter((p) => p.owned && p.cropId && !p.dead && (p.waterLevel ?? 0) < 30);
+  const dry = state.plots.filter(
+    (p) => p.owned && p.cropId && !p.dead && (p.waterLevel ?? 0) < DRY_WATER,
+  );
   const thirsty = dry.map((p) => p.cropId);
   const crop = cropOf(thirsty[0]);
 

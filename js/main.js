@@ -251,6 +251,19 @@ function tickFarm() {
     emit('toast', { message: 'Pump stopped — you are out of gold.', tone: 'error' });
   }
 
+  // A crop that died of thirst is the most consequential thing this tick can do, and
+  // `domain/water.js` is the only thing in the codebase that can do it. Say so, or the
+  // player finds greyed-out ground and works out why on their own.
+  if (result.deaths.length > 0) {
+    const n = result.deaths.length;
+    emit('toast', {
+      message: n === 1
+        ? 'A crop died of thirst. The pump would have saved it.'
+        : `${n} crops died of thirst. The pump would have saved them.`,
+      tone: 'error',
+    });
+  }
+
   const now = getState();
   if (!now) return;
 

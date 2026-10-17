@@ -400,14 +400,25 @@ function farmWith({ cropId = 'rice', count = 2, hoursAgo = 0, weather = null, go
   return state;
 }
 
-test('evaporation scales with how thirsty the crop is', () => {
+test('evaporation scales with how thirsty the crop is, and bare soil is thirstiest', () => {
   // `waterNeed` exists as a number precisely so this is true. Rice at 0.9 must dry
   // faster than wheat at 0.5, or it is a word and not a rule.
   const rice = ratesFor({ cropId: 'rice' }, 'sunny').dry;
   const wheat = ratesFor({ cropId: 'wheat' }, 'sunny').dry;
+  const bare = ratesFor({ cropId: null }, 'sunny').dry;
 
   assert.ok(rice > wheat, `rice (${rice}) must dry faster than wheat (${wheat})`);
-  assert.equal(rice, EVAPORATION_PER_HOUR.sunny * 0.9);
+  assert.ok(bare > rice, `bare soil (${bare}) must dry fastest, per docs/crops.md`);
+
+  // The table's Evaporation column is a **multiplier** on baseDecayPerHour, not an
+  // absolute rate. Read as an absolute rate a plot takes 133 hours to dry in sun, which
+  // is longer than a save and would make watering a non-decision.
+  assert.equal(rice, WATER.baseDecayPerHour * 0.9 * EVAPORATION_PER_HOUR.sunny);
+  assert.equal(bare, WATER.baseDecayPerHour * EVAPORATION_PER_HOUR.sunny);
+  assert.ok(
+    WATER.baseDecayPerHour * EVAPORATION_PER_HOUR.sunny >= 10,
+    'bare soil must dry in roughly one crop life, or the pump never matters',
+  );
 });
 
 test('a sunny hour dries an empty plot to nothing and a planted one slower', () => {
@@ -508,17 +519,66 @@ test('a clock that jumped backwards does not dry the farm', () => {
   assert.equal(elapsedHours(state, Date.now()), 0);
 });
 
-test('standing below the dry line costs health, which is what makes drought matter', () => {
+test('standing at zero costs health, which is what makes drought matter', () => {
   // `HEALTH.dryDrainPerHour` was defined from the start and read by nothing.
+  // docs/weather-events.md specifies `waterLevel == 0` — **not** "below the dry line".
+  // The `< 30` conditional in that document belongs to the drought *matrix row*, which
+  // is applied at sowing; draining health at 30 would punish a merely thirsty plot.
   const state = farmWith({ cropId: 'rice', weather: sky({ code: 0, temp: 40 }), count: 1 });
-  state.plots[0].waterLevel = 5; // below the dry line
+  state.plots[0].waterLevel = 0;
   state.lastTickAt = Date.now() - HOUR;
 
   const result = tick(state, Date.now());
-  assert.ok(
-    result.state.plots[0].health < HEALTH.max,
-    'a dry plot in the heat loses health, which is what a harvest is paid on',
+  assert.equal(
+    result.state.plots[0].health,
+    HEALTH.max - HEALTH.dryDrainPerHour,
+    'an hour at zero costs exactly dryDrainPerHour',
   );
+
+  // A plot that is dry but not bone dry keeps its health. At 40 °C rice loses
+  // 8 * 0.9 * 3 = 21.6/h, so 25 ends the hour at ~3.4 and is spared.
+  const damp = farmWith({ cropId: 'rice', weather: sky({ code: 0, temp: 40 }), count: 1 });
+  damp.plots[0].waterLevel = 25;
+  damp.lastTickAt = Date.now() - HOUR;
+  const damped = tick(damp, Date.now());
+  assert.ok(damped.state.plots[0].waterLevel > 0, 'it ends the hour wet enough to be spared');
+  assert.equal(damped.state.plots[0].health, HEALTH.max);
+});
+
+test('health reaching zero kills the crop, and bare soil never does', () => {
+  // Nothing in the codebase ever set `dead: true` before this. The dead sprite, the
+  // `plot--dead` class and the fifth click case were all wired with no writer.
+  const dying = farmWith({ cropId: 'rice', weather: sky({ code: 0, temp: 40 }), count: 1 });
+  dying.plots[0].waterLevel = 0;
+  dying.plots[0].health = HEALTH.dryDrainPerHour; // one hour from gone
+  dying.lastTickAt = Date.now() - HOUR;
+
+  const result = tick(dying, Date.now());
+  assert.equal(result.state.plots[0].health, 0);
+  assert.equal(result.state.plots[0].dead, true, 'a crop that dries out dies');
+  assert.equal(result.deaths.length, 1, 'and the caller is told, rather than finding grey ground');
+
+  const bare = farmWith({ cropId: null, weather: sky({ code: 0, temp: 40 }), count: 1 });
+  bare.plots[0].waterLevel = 0;
+  bare.plots[0].health = 1;
+  bare.lastTickAt = Date.now() - 10 * HOUR;
+  const dried = tick(bare, Date.now());
+  assert.equal(dried.state.plots[0].dead, false, 'there is no crop on bare soil to kill');
+  assert.deepEqual(dried.deaths, [], 'so nothing is announced');
+});
+
+test('a dead crop is not killed twice, because a dead crop is already dead', () => {
+  // The tick runs every second for the life of the save. A `deaths` list that re-reports
+  // on every tick would emit the same toast sixty times a minute, forever.
+  const dying = farmWith({ cropId: 'rice', weather: sky({ code: 0, temp: 40 }), count: 1 });
+  dying.plots[0].waterLevel = 0;
+  dying.plots[0].health = 0;
+  dying.plots[0].dead = true;
+  dying.lastTickAt = Date.now() - HOUR;
+
+  const result = tick(dying, Date.now());
+  assert.equal(result.state.plots[0].dead, true, 'it stays dead');
+  assert.deepEqual(result.deaths, [], 'but is not announced a second time');
 });
 
 test('the pump will not be aimed at land the player does not own', () => {
