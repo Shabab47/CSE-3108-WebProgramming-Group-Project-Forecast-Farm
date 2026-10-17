@@ -1,31 +1,36 @@
 /**
- * The seed shop page.
+ * The seed shop page — painted to match the Figma reference (frame 114:2002,
+ * "Forecast Farm · Shop").
  *
- * Lists every crop with its price and a row of buy buttons, and nothing else. The
- * shop owns no rules: prices come from `config/crops.js`, whether a button is
- * enabled comes from `domain/shop.js`, and the purchase itself is `actions.buy`.
- * That keeps the file to what it is — markup and a re-render on every state
+ * The shop owns no rules: prices come from `config/crops.js`, whether a button
+ * is enabled comes from `domain/shop.js`, and the purchase itself is
+ * `actions.buy`. That keeps this file to markup and a re-render on every state
  * change.
  *
- * **The look is painted art, not theme chrome.** The reference mockup is a farm
- * stall — grass, a wooden sign, a dark board, golden cards — and the shop now
- * draws itself that way with CSS and the two inline glyphs in `shopArt.js`. It
- * deliberately does not read `data-theme`, like `login.html` (DEC-027): a
- * wooden sign is brown in a dark theme too. The trade-off is stated in
- * `docs/team/decisions.md`.
+ * The look is painted art, not theme chrome. The reference mockup is a farm
+ * stall — grass floor, wood posts and beams, a scalloped awning, a stone base,
+ * a hanging "FARM SHOP" sign, golden seed cards on a dark-green board, and a
+ * footer hint bar. It is all CSS and inline SVG (shopArt.js). It deliberately
+ * does not read `data-theme`, like `login.html` (DEC-027): a wooden sign is
+ * brown in a dark theme too.
  *
  * Two decisions worth stating:
  *
- *  1. **Every crop is listed, not just the playable ones.** A shop that silently
- *     omits four of its five seeds looks broken. Unavailable crops show their
- *     price and say why they cannot be bought yet — see `available` in
- *     `config/crops.js`.
+ *  1. **Every crop is listed, not just the playable ones.** A shop that
+ *     silently omits four of its five seeds looks broken. Unavailable crops
+ *     show their price and say why they cannot be bought yet — see `available`
+ *     in `config/crops.js`.
  *
  *  2. **The buttons disable themselves.** A button that cannot be afforded is
- *     `disabled` rather than "click and get told off", which is why the price and
- *     the gold are both on screen: the player can see the arithmetic before
- *     spending anything. The gold readout updates on every state change, so after
- *     a purchase the affordable options change with it.
+ *     `disabled` rather than "click and get told off", which is why the price
+ *     and the gold are both on screen: the player can see the arithmetic before
+ *     spending anything. The gold readout updates on every state change, so
+ *     after a purchase the affordable options change with it.
+ *
+ * The three buy buttons are one primary `BUY +` and two compact step buttons
+ * (`×5`, `×10`). The purchase rule is unchanged — `BUY_STEPS` still reads
+ * `[1, 5, 10]` — so the domain and its tests do not move; only the labels and
+ * the markup do.
  *
  * Rendered once, then updated. Rebuilding the cards on every keystroke of game
  * time would drop focus off a button the player is about to press.
@@ -36,7 +41,12 @@ import { createLog } from '../utils/log.js';
 import { cropSeedImg } from '../config/assets.js';
 import { shopCrops } from '../config/crops.js';
 import { BUY_STEPS, canAfford } from '../domain/shop.js';
-import { coinEl, sproutEl } from './shopArt.js';
+import {
+  coinEl,
+  sproutEl,
+  arrowLeftEl,
+  plusEl,
+} from './shopArt.js';
 
 const log = createLog('shopView');
 
@@ -51,12 +61,8 @@ function pluralSeeds(n) {
 
 /**
  * One crop: the packet on its shelf, the name and price, what it does, and how
- * many the player already has. Returns an `update` so the page is built once and
- * then kept in step with the state.
- *
- * The three buttons are one primary `BUY +` and two compact step buttons. The
- * purchase rule is unchanged — `BUY_STEPS` still reads `[1, 5, 10]` — so the
- * domain and its tests do not move; only the labels and the markup do.
+ * many the player already has. Returns an `update` so the page is built once
+ * and then kept in step with the state.
  */
 function buildCard(crop, actions) {
   const buyButtons = BUY_STEPS.map((quantity) => {
@@ -70,16 +76,12 @@ function buildCard(crop, actions) {
         {
           class: isPrimary ? 'shop-buy shop-buy--primary' : 'shop-buy shop-buy--step',
           type: 'button',
-          // The step is the button; the total it costs is what makes it a decision.
           'aria-label': `Buy ${pluralSeeds(quantity)} of ${crop.name} for ${format(cost)} gold`,
           title: `${format(cost)} gold`,
           on: {
             click: () => {
               const result = actions.buy(crop.id, quantity);
               if (result?.ok) {
-                // The cost is worked out from the table rather than read back off
-                // the result: `store.apply` returns `{ok: true}` and nothing else, so
-                // there is no `cost` on it to trust.
                 log.info(`bought ${quantity} ${crop.id} seeds for ${cost}`);
                 actions.toast?.(`Bought ${pluralSeeds(quantity)} of ${crop.name}.`, 'success');
               }
@@ -89,7 +91,7 @@ function buildCard(crop, actions) {
           },
         },
         isPrimary
-          ? ['Buy', el('span', { class: 'shop-buy__plus', text: '+' })]
+          ? ['BUY ', plusEl()]
           : `×${quantity}`,
       ),
     };
@@ -97,48 +99,53 @@ function buildCard(crop, actions) {
 
   const owned = el('p', { class: 'shop-card__owned', text: 'None in your bag' });
 
-  const node = el('article', { class: crop.available ? 'shop-card' : 'shop-card shop-card--locked' }, [
-    el('div', { class: 'shop-card__art' }, [
-      // The per-crop unit lands in the top-left pill: "5 SEEDS", "1 TOOL", etc.
-      el('span', { class: 'shop-card__pill', text: crop.shopUnit ?? 'Seed packet' }),
-      el('img', {
-        src: cropSeedImg(crop.id),
-        // The packet already says "rice"; the alt is for anyone who cannot see it.
-        alt: `${crop.name} seed packet`,
-        width: 1312,
-        height: 1199,
-        loading: 'lazy',
-      }),
-      // The bar the packet stands on. Decorative, so it stays out of the tab order
-      // and the accessibility tree.
-      el('span', { class: 'shop-card__shelf', 'aria-hidden': 'true' }),
-    ]),
-
-    el('div', { class: 'shop-card__body' }, [
-      // "Rice seeds", not "Rice": the mockup names every packet by its contents, and
-      // the whole shop is seeds, so the suffix is always true.
-      el('h2', { class: 'shop-card__name', text: `${crop.name} seeds` }),
-
-      // A locked crop says so in place of its own description, so the reason its
-      // buttons are dead is on the card rather than only in the toast.
-      el('p', {
-        class: 'shop-card__note',
-        text: crop.available
-          ? crop.growNote
-          : 'Not available yet — this crop needs its growth art drawn before it can be planted.',
-      }),
-
-      owned,
-
-      el('div', { class: 'shop-card__buy-row' }, [
-        el('span', { class: 'shop-card__price' }, [
-          coinEl(),
-          el('span', { class: 'shop-card__price-num', text: format(crop.seedPrice) }),
-        ]),
-        el('span', { class: 'shop-card__actions' }, buyButtons.map((entry) => entry.node)),
+  const node = el(
+    'article',
+    { class: crop.available ? 'shop-card' : 'shop-card shop-card--locked' },
+    [
+      el('div', { class: 'shop-card__art' }, [
+        // The per-crop unit lands in the top-left pill: "5 SEEDS", "1 TOOL", etc.
+        el('span', { class: 'shop-card__pill', text: crop.shopUnit ?? 'Seed packet' }),
+        el('img', {
+          src: cropSeedImg(crop.id),
+          // The packet already says the crop name; the alt is for anyone who
+          // cannot see it.
+          alt: `${crop.name} seed packet`,
+          width: 1312,
+          height: 1199,
+          loading: 'lazy',
+        }),
+        // The bar the packet stands on. Decorative, so it stays out of the tab
+        // order and the accessibility tree.
+        el('span', { class: 'shop-card__shadow', 'aria-hidden': 'true' }),
       ]),
-    ]),
-  ]);
+
+      el('div', { class: 'shop-card__body' }, [
+        // "Rice seeds", not "Rice": the mockup names every packet by its
+        // contents, and the whole shop is seeds, so the suffix is always true.
+        el('h2', { class: 'shop-card__name', text: `${crop.name} seeds` }),
+
+        // A locked crop says so in place of its own description, so the reason
+        // its buttons are dead is on the card rather than only in the toast.
+        el('p', {
+          class: 'shop-card__note',
+          text: crop.available
+            ? crop.growNote
+            : 'Not available yet.',
+        }),
+
+        owned,
+
+        el('div', { class: 'shop-card__buy-row' }, [
+          el('span', { class: 'shop-card__price' }, [
+            coinEl(),
+            el('span', { class: 'shop-card__price-num', text: format(crop.seedPrice) }),
+          ]),
+          el('span', { class: 'shop-card__actions' }, buyButtons.map((entry) => entry.node)),
+        ]),
+      ]),
+    ],
+  );
 
   return {
     node,
@@ -171,9 +178,27 @@ export function mountShop(root, actions) {
 
   root.append(
     el('div', { class: 'shop-scene' }, [
+      // The painted stall frame: posts, beam, awning, base, interior wall.
+      el('div', { class: 'shop-stall' }, [
+        el('div', { class: 'shop-stall__beam' }),
+        el('div', { class: 'shop-stall__awning' }),
+        el('div', { class: 'shop-stall__base' }, [
+          // Eight stones along the base (Figma's stone1..stone8).
+          ...Array.from({ length: 8 }, (_, i) =>
+            el('div', { class: 'shop-stall__stone', 'aria-hidden': 'true' }),
+          ),
+        ]),
+        el('div', { class: 'shop-stall__wall' }, [
+          // Ten vertical wood-grain lines (Figma's wg1..wg10).
+          ...Array.from({ length: 10 }, (_, i) =>
+            el('div', { class: 'shop-stall__grain', 'aria-hidden': 'true' }),
+          ),
+        ]),
+      ]),
+
       el('header', { class: 'shop-top' }, [
         el('a', { class: 'shop-back', href: actions.backHref }, [
-          el('span', { class: 'shop-back__arrow', text: '←', 'aria-hidden': 'true' }),
+          arrowLeftEl(),
           'Back to farm',
         ]),
 

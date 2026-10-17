@@ -82,9 +82,13 @@ current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
 | ISS-071 | An even rim between the cluster and `base.png` is geometrically impossible | Medium | Jim | **fixed** | T-54 |
 | ISS-072 | The crop layer is still sized for the old, half-height plot box | Low | Kafi | open | T-06 |
 | ISS-073 | Two replacement characters survive in `issues.md` itself | Low | Jim | **fixed** | — |
+<<<<<<< HEAD
+| ISS-075 | The shop does not match the agreed art direction | Low | Jim | fixed | T-57 |
+=======
 | ISS-075 | The shop does not match the agreed art direction | Low | Jim | fixing | T-57 |
 | ISS-076 | The connection banner is in flow above a 100dvh shell, so it jumps the whole page every autosave | Medium | Hisham | **fixed** | T-58 |
 | ISS-077 | `reverseGeocode` posted lat/lon to Open-Meteo's forward-search endpoint, so every farm was named "Current location" | **High** | Hisham | **fixed** | T-59 |
+>>>>>>> origin/main
 
 ---
 
@@ -1286,8 +1290,8 @@ current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
   stays, deliberately, because it is the one shape that survives a free clip.
 
 ### ISS-075 The shop does not match the agreed art direction
-- Reported by Jim · 2026-10-17 · Owner: Jim · Status: fixing
-- Where: `shop.html`, `js/ui/shopView.js`, `css/shop.css`
+- Reported by Jim · 2026-10-17 · Owner: Jim · Status: fixed
+- Where: `shop.html`, `js/ui/shopView.js`, `js/ui/shopArt.js`, `css/shop.css`, `css/shop-card.css`, `css/fonts.css`, `js/config/assets.js`
 - Problem: the seed shop renders as a plain white "glass card" list on a flat grey background — a
   generic SaaS panel, not a farm shop. The reference mockup (`FARM SHOP`, wooden sign, golden card top
   with the packet on a shelf, cream card body, coin + price, one chunky green `BUY +`) is not represented
@@ -1296,13 +1300,17 @@ current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
   is set in falls through to the system sans with no error.
 - Cause: the shop shipped as T-31 with the token-based chrome the rest of the app had at the time; no
   visual pass has ever been made against the reference. Not a crash — a look that was never applied.
-- Fix: **in progress (T-57).** Repaint the shop in CSS + inline SVG (no new assets, so
-  `js/config/assets.js` and `tests/assets.test.js` are untouched): grass/log-frame scene, wooden
-  `FARM SHOP` sign, dark-green board with a fence strip, golden/cream cards, coin and sprout icons.
-  `shop.html` gains the `css/fonts.css` link. The three `×1 / ×5 / ×10` buttons are kept (the purchase
-  model and its tests are unchanged); only their labels and markup change. The page widens to ~1400px for
-  four columns, the purse stays as a small top-right pill, and unavailable crops stay listed in the same
-  card shape, dimmed. The shop becomes painted art like `login.html` and does not read `data-theme`.
+- Fix: **fixed (T-57).** Repainted the shop in CSS + inline SVG (no new image assets, so
+  `js/config/assets.js` gained only the four Nunito font files and `tests/assets.test.js` is unaffected
+  by them): grass floor, wood posts and beams, scalloped awning, stone base, hanging `FARM SHOP` sign
+  (Luckiest Guy `#b2e557`), dark-green board with a wood-fence top strip, golden radial-gradient card
+  tops over cream bodies, pack-size pill, Nunito name/description/price, coin + price, three green buy
+  buttons (`BUY +`, `×5`, `×10`), purse pill, and a footer hint bar with sprout SVG. `shop.html` already
+  loaded `css/fonts.css`, which now declares Nunito Regular/SemiBold/ExtraBold/Black self-hosted.
+  The three `×1 / ×5 / ×10` buttons are kept (the purchase model and `tests/shop.test.js` are unchanged);
+  only their labels and markup changed. The page is max-width ~1400px with four columns, the purse stays
+  as a small top-right pill, and unavailable crops stay listed in the same card shape, dimmed. The shop
+  is painted art like `login.html` and does not read `data-theme`.
 
 ### ISS-076 The connection banner is in flow above a 100dvh shell, so it jumps the page every autosave
 - Reported by Hisham · 2026-10-17 · Owner: Hisham · Status: fixed

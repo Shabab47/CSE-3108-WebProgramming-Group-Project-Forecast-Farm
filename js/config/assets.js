@@ -75,6 +75,10 @@ export const ASSETS = [
   { path: 'assets/images/title.png', name: 'Game logo', size: 161990, dimensions: '1188x373', status: 'done', category: 'logo', page: 'login' },
   { path: 'assets/fonts/LuckiestGuy-Regular.ttf', name: 'Luckiest Guy — logo, buttons, plank', size: 58324, dimensions: '', status: 'done', category: 'font', page: 'login' },
   { path: 'assets/fonts/IrishGrover-Regular.ttf', name: 'Irish Grover — labels, body, links', size: 51544, dimensions: '', status: 'done', category: 'font', page: 'login' },
+  { path: 'assets/fonts/Nunito-Regular.ttf', name: 'Nunito Regular — shop body text', size: 125528, dimensions: '', status: 'done', category: 'font', page: 'shop' },
+  { path: 'assets/fonts/Nunito-SemiBold.ttf', name: 'Nunito SemiBold — shop descriptions', size: 125536, dimensions: '', status: 'done', category: 'font', page: 'shop' },
+  { path: 'assets/fonts/Nunito-ExtraBold.ttf', name: 'Nunito ExtraBold — shop footer hint', size: 125416, dimensions: '', status: 'done', category: 'font', page: 'shop' },
+  { path: 'assets/fonts/Nunito-Black.ttf', name: 'Nunito Black — shop item names', size: 125376, dimensions: '', status: 'done', category: 'font', page: 'shop' },
 
   // --- Sounds (out of scope for v1) ---
   { path: 'assets/sounds/notification.mp3', name: 'Notification sound', size: 0, dimensions: '', status: 'empty', category: 'sound', page: 'global' },

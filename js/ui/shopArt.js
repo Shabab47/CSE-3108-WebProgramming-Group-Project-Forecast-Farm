@@ -1,12 +1,14 @@
 /**
- * The shop's two small drawings, as inline SVG.
+ * The shop's inline drawings, as inline SVG.
  *
- * The reference mockup marks a price with a gold coin and the footer hint with a
- * sprout. Neither exists in `assets/` — the icons there are all 0 bytes on
- * purpose (DEC-014) — and adding them as files would mean registering them in
- * `js/config/assets.js` and satisfying `tests/assets.test.js`. An inline string
- * is cheaper and keeps the asset registry honest: these are two glyphs, not
- * artwork.
+ * None of these exist as files in `assets/` — the icons there are all 0 bytes
+ * on purpose (DEC-014) — and adding them would mean registering them in
+ * `js/config/assets.js` and satisfying `tests/assets.test.js`. Inline strings
+ * are cheaper and keep the asset registry honest: these are glyphs, not art.
+ *
+ * The coin matches the Figma's price marker: a rim disc, a lighter inner face
+ * and a "G" gold mark. The sprout marks the footer hint. The arrow-left marks
+ * the back button. The plus marks the "BUY +" button.
  *
  * They are filled shapes rather than the stroke paths in `js/ui/icons.js`,
  * because a stroked disc does not read as a coin.
@@ -14,14 +16,13 @@
 
 import { el } from '../utils/dom.js';
 
-/** A gold coin: disc, rim and a wheat stalk, the shop's price marker. */
+/** A gold coin: rim disc, lighter face, and a "G" mark — the shop's price marker. */
 const COIN_SVG = `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-  <circle cx="12" cy="12" r="11" fill="#f6c445" stroke="#b57d12" stroke-width="1.6" />
+  <ellipse cx="12" cy="12" rx="12" ry="12" fill="#f6c445" />
+  <ellipse cx="12" cy="12" rx="10" ry="10" fill="#eab32c" />
   <circle cx="12" cy="12" r="7.6" fill="none" stroke="#d9a421" stroke-width="1.2" />
-  <path d="M12 6.4v11.2" stroke="#a96f14" stroke-width="1.6" stroke-linecap="round" />
-  <path d="M14.6 9.4c-.6-.7-1.5-1.1-2.6-1.1-1.5 0-2.7.8-2.7 2 0 2.8 5.4 1.5 5.4 4.1 0 1.2-1.2 2-2.7 2-1.1 0-2-.4-2.6-1.1"
-        fill="none" stroke="#a96f14" stroke-width="1.5" stroke-linecap="round" />
+  <text x="12" y="15" text-anchor="middle" fill="#a96b16" font-size="11" font-weight="bold">G</text>
 </svg>`;
 
 /** Two leaves on a stem, for the footer hint. */
@@ -32,8 +33,21 @@ const SPROUT_SVG = `
   <path d="M12 11c0-3.6 2.9-6.2 6.8-6.2C18.8 8.4 15.9 11 12 11z" fill="#66bb6a" />
 </svg>`;
 
+/** A left-pointing arrow for the back button. */
+const ARROW_LEFT_SVG = `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18">
+  <path d="M11 6 7 9l4 3" fill="none" stroke="#2f7d4f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+</svg>`;
+
+/** A small plus mark for the "BUY +" button. */
+const PLUS_SVG = `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 15 15">
+  <rect x="6.5" y="1" width="2" height="13" fill="#14532a" rx="1" />
+  <rect x="1" y="6.5" width="13" height="2" fill="#14532a" rx="1" />
+</svg>`;
+
 /**
- * A decorative SVG in a span. `aria-hidden` because the label beside it carries
+ * An inline SVG in a span. `aria-hidden` because the label beside it carries
  * the meaning — the coin is next to a number, the sprout next to a sentence.
  * @param {string} svg
  * @param {string} [className]
@@ -50,4 +64,14 @@ export function coinEl(className = 'shop-coin') {
 /** The sprout, `1.3em` square by default. */
 export function sproutEl(className = 'shop-hint__sprout') {
   return artEl(SPROUT_SVG, className);
+}
+
+/** The left arrow for the back button, `1em` square by default. */
+export function arrowLeftEl(className = 'shop-back__arrow') {
+  return artEl(ARROW_LEFT_SVG, className);
+}
+
+/** The plus mark for the buy button, `1em` square by default. */
+export function plusEl(className = 'shop-buy__plus') {
+  return artEl(PLUS_SVG, className);
 }
