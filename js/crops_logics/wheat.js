@@ -26,7 +26,9 @@ export const WHEAT = {
 
   likes: 'Cool, mild, light rain',
   hates: 'Heat, drought, heavy rain',
-  bestSeason: 'Cool / Dry',
+  // Plain season names, not `SEASON` constants: this layer imports nothing. See the
+  // same note in `rice.js`, and `tests/seasons.test.js` for the guard.
+  seasons: ['Winter', 'Late Autumn', 'Spring'],
 };
 
 /** Growth stage 1..5 for wheat planted `elapsedHours` ago. */

@@ -32,6 +32,10 @@ import { cropSeedImg } from '../config/assets.js';
  * @param {(cropId:string)=>boolean} [state.isUnlocked] land gate — defaults to
  *   open when the caller has nothing to say (tests, old callers), so a locked
  *   seed is hidden only when someone actually reports the lock.
+ * @param {(cropId:string)=>{ok:boolean, verdict?:object}|null} [state.verdictFor]
+ *   the weather verdict for a crop, so the picker can show what the next few hours
+ *   will do before the seed is spent. A caller that passes nothing gets a picker with
+ *   no forecast line and no refusal, which is what the older tests rely on.
  * @returns {{unmount:()=>void}}
  */
 export function mountCropPicker(root, state) {
@@ -46,13 +50,37 @@ export function mountCropPicker(root, state) {
     (crop) => crop && (seeds[crop.id] ?? 0) > 0 && gate(crop.id),
   );
 
+  // One verdict per crop, and the same answer for all of them when there is no
+  // forecast. Computed here rather than in `farm.js` so the picker can show the
+  // judgement *before* the player commits to it, which is the whole point of it.
+  const verdictFor_ = typeof state?.verdictFor === 'function' ? state.verdictFor : () => null;
+  // A caller that passes no `verdictFor` has no forecast concept at all — the older
+  // entry points and the tests — so it is treated as "nothing to refuse" rather than
+  // as "no forecast". Otherwise a picker that was never asked about weather would
+  // come up refusing.
+  const knowsWeather = typeof state?.verdictFor === 'function';
+  const canPlant = !knowsWeather || inBag.some((crop) => verdictFor_(crop.id)?.ok);
+
   const card = el('div', { class: 'card crop-picker' }, [
     el('div', { class: 'card__head' }, [
       el('span', { class: 'card__title', text: 'Plant a seed' }),
     ]),
 
+    // **No forecast means no planting.** The game's premise is that weather is real
+    // and never player-controlled, so a planting the weather was never asked about is
+    // not a planting — it is a coin toss wearing a crop's name. Said once, here,
+    // rather than repeated on every row, with the shop still offered because seeds
+    // are worth buying either way.
+    knowsWeather && !canPlant && inBag.length
+      ? el('p', { class: 'crop-picker__empty', role: 'status' }, [
+        'Waiting for a weather reading. Planting needs the forecast, so we know what '
+        + 'the next few hours will do to the seed.',
+      ])
+      : null,
+
     inBag.length
-      ? el('ul', { class: 'crop-picker__list' }, inBag.map((crop) => seedOption(crop, seeds)))
+      ? el('ul', { class: 'crop-picker__list' },
+        inBag.map((crop) => seedOption(crop, seeds, verdictFor_(crop.id))))
       : el('p', { class: 'crop-picker__empty' }, [
         'You have no seeds. Buy some from the shop to plant here.',
       ]),
@@ -97,8 +125,13 @@ export function mountCropPicker(root, state) {
  * takes — the three things a player decides on. `growNote` carries the likes and
  * hates, which are descriptive only; the mechanical effect is in
  * `config/cropWeatherMatrix.js`.
+ *
+ * **The forecast verdict is shown, because a hidden one is indistinguishable from
+ * random.** `plant()` judges the crop against the next six hours, so the player can
+ * see that judgement before committing to it — that is the difference between weather
+ * being a mechanic and weather being something that happens to you.
  */
-function seedOption(crop, seeds) {
+function seedOption(crop, seeds, verdict) {
   const count = seeds[crop.id] ?? 0;
   const hours = crop.growHours;
 
@@ -109,6 +142,10 @@ function seedOption(crop, seeds) {
       dataset: { cropId: crop.id },
       title: `${crop.likes}. Hates ${crop.hates.toLowerCase()}.`,
       'aria-label': `${crop.name}, ${count} in your bag, ready in ${hours} hours`,
+      // **Actually disabled, not just explained.** A picker that says "waiting for a
+      // weather reading" and still accepts the click is worse than either honest
+      // alternative: it tells the player the gate exists and then opens it.
+      disabled: verdict?.ok ? undefined : 'true',
     }, [
       el('img', {
         class: 'crop-picker__art',
@@ -124,10 +161,48 @@ function seedOption(crop, seeds) {
           text: `×${count} · ${hours}h · sells for ${crop.yield * crop.sellPrice}g`,
         }),
         el('span', { class: 'crop-picker__note', text: crop.growNote }),
+        verdictLine(crop, verdict),
       ]),
     ]),
   ]);
 }
+
+/**
+ * What the next six hours will do to this crop, in one line.
+ *
+ * `null` when there is no forecast at all, which is also the case where planting is
+ * refused — the picker says why on its own heading instead, so the row does not
+ * repeat it five times.
+ */
+function verdictLine(crop, verdict) {
+  if (!verdict?.ok) return null;
+
+  const { event, rating, season, seasonPenalty, health } = verdict.verdict;
+  const parts = [`Next ${verdict.verdict.windowHours}h: ${event.replace(/([A-Z])/g, ' $1').toLowerCase()}`];
+
+  parts.push(RATING_WORDS[rating] ?? 'neutral');
+  if (seasonPenalty < 0) parts.push(`out of season (${season})`);
+  parts.push(`${health}%`);
+
+  return el('span', {
+    class: 'crop-picker__weather',
+    dataset: { rating: String(rating) },
+    text: parts.join(' · '),
+  });
+}
+
+/**
+ * The rating words, so the picker never prints a bare `2` or a bare `-1` at a player.
+ * `0` is deliberately **"fine"** and not "neutral": neutral reads like nothing is
+ * happening, and fine reads like the weather did its job.
+ */
+const RATING_WORDS = {
+  2: 'thrives',
+  1: 'happy',
+  0: 'fine',
+  '-1': 'struggles',
+  '-2': 'harmed',
+};
 
 /** The shop button, which only earns its place when the bag is empty. */
 function shopButton(state) {

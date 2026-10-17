@@ -29,7 +29,9 @@ export const CORN = {
 
   likes: 'Warm, sun, moderate rain',
   hates: 'Drought, strong wind',
-  bestSeason: 'Warm / Sunny',
+  // Plain season names, not `SEASON` constants: this layer imports nothing. See the
+  // same note in `rice.js`, and `tests/seasons.test.js` for the guard.
+  seasons: ['Summer', 'Monsoon', 'Spring'],
 };
 
 /** Growth stage 1..5 for corn planted `elapsedHours` ago. */

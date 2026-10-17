@@ -40,6 +40,11 @@ export const PLOT_1 = {
  * Otherwise identical to the old `buildPlots()` loop: empty, dry, at full health
  * and alive, so existing saves and the geometry tests are unaffected.
  *
+ * `forecast` is `null` until something is planted: it is the weather verdict that
+ * `domain/farm.js` `plant()` records, and a plot with nothing in it has nothing to
+ * record. `null` rather than absent so a save written before this field existed still
+ * reads as "no verdict" instead of `undefined`.
+ *
  * @returns {object} a new plot, safe for the caller to mutate
  */
 export function createPlot1() {
@@ -50,6 +55,7 @@ export function createPlot1() {
     plantedAt: null,
     waterLevel: 0,
     health: 100,
+    forecast: null,
     dead: false,
   };
 }

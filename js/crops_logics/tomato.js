@@ -27,7 +27,9 @@ export const TOMATO = {
 
   likes: 'Warm, sun, steady water',
   hates: 'Frost, extreme heat, heavy rain',
-  bestSeason: 'Warm / Mild',
+  // Plain season names, not `SEASON` constants: this layer imports nothing. See the
+  // same note in `rice.js`, and `tests/seasons.test.js` for the guard.
+  seasons: ['Summer', 'Spring'],
 };
 
 /** Growth stage 1..5 for tomato planted `elapsedHours` ago. */

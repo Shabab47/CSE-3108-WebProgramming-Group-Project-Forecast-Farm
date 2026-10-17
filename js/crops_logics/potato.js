@@ -31,7 +31,9 @@ export const POTATO = {
 
   likes: 'Cool, moist',
   hates: 'Frost, heat, waterlogging',
-  bestSeason: 'Cool / Moist',
+  // Plain season names, not `SEASON` constants: this layer imports nothing. See the
+  // same note in `rice.js`, and `tests/seasons.test.js` for the guard.
+  seasons: ['Winter', 'Late Autumn', 'Autumn'],
 };
 
 /** Growth stage 1..5 for potato planted `elapsedHours` ago. */
