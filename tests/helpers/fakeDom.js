@@ -105,7 +105,18 @@ export class FakeNode {
     }
   }
 
+  /**
+   * Replace every child.
+   *
+   * The old children are **detached** first, exactly as the real `ParentNode` does. It
+   * used to drop `childNodes` and leave `parentNode` pointing at this element, which made
+   * `contains()` walk a tree that no longer existed and answer `true` for nodes that had
+   * been removed. `farmView.js` checks that its own card is still in the root before
+   * reusing it, and that check silently passed against a detached tree until this was
+   * fixed — a harness that lies about the DOM makes every assertion on it worthless.
+   */
   replaceChildren(...children) {
+    for (const child of this.childNodes) child.parentNode = null;
     this.childNodes = [];
     this.append(...children);
   }
@@ -123,6 +134,26 @@ export class FakeNode {
     const siblings = this.parentNode.childNodes;
     const at = siblings.indexOf(this);
     if (at !== -1) siblings.splice(at, 1);
+    this.parentNode = null;
+  }
+
+  /**
+   * Swap this node for another, in place.
+   *
+   * `farmView.js` uses this so a repaint that changes one plot replaces one tile without
+   * disturbing the paint order — the plots are absolutely positioned siblings and their
+   * **append order is the z-order** (see `plotLayers.js`). `remove()` followed by
+   * `append()` would move the tile to the end and silently restack the field, which is
+   * exactly the kind of wrong-but-not-throwing defect this harness exists to catch.
+   */
+  replaceWith(...nodes) {
+    if (!this.parentNode) return;
+    const siblings = this.parentNode.childNodes;
+    const at = siblings.indexOf(this);
+    if (at === -1) return;
+
+    for (const node of nodes) node.parentNode = this.parentNode;
+    siblings.splice(at, 1, ...nodes);
     this.parentNode = null;
   }
 

@@ -21,7 +21,8 @@ import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, test } from 'node:test';
 
 import { installDom, uninstallDom, visibleText } from './helpers/fakeDom.js';
-import { mountFarmView } from '../js/ui/farmView.js';
+import { el } from '../js/utils/dom.js';
+import { fieldSignature, mountFarmView, plotSignature } from '../js/ui/farmView.js';
 import { FIELD, STARTER_PLOT_ID, UNLOCK_ORDER } from '../js/config/field.js';
 
 let root;
@@ -334,4 +335,216 @@ test('the meter hides on empty, locked, dead and ready plots', () => {
   assert.equal(tiles[5].querySelector('.plot__grow'), null, 'a dead crop shows no meter');
   assert.equal(tiles[6].querySelector('.plot__grow'), null, 'a ready crop shows no meter — the gold rim owns it');
   assert.ok(tiles[6].querySelector('.plot__ready'), 'and the rim is there instead');
+});
+
+/* --- ISS-088: the repaint guard and the per-tile diff ------------------------
+ *
+ * The field used to be destroyed and rebuilt once a second, recreating ~34 `<img>`
+ * elements over 313–712 KB of art — roughly 16 MB of PNG re-decoded per second. These
+ * are the tests for the replacement, and the important half is the negative one: the
+ * signature must **stay equal** when nothing visible moved, because that is the only
+ * thing that makes the 1 Hz tick free.
+ */
+
+const HOUR = 3_600_000;
+
+/** A field signature, given plot overrides applied to every plot and/or state overrides. */
+function signatureWith(plotOverrides = {}, stateOverrides = {}) {
+  return fieldSignature({ plots: buildPlots(plotOverrides), selection: null, nextPrice: 100, ...stateOverrides });
+}
+
+test('a field nobody touched keeps one signature, so the tick does no work', () => {
+  // The single most important assertion in this file. A signature that drifted on every
+  // call would put the whole jank back while still looking correct, so this is checked
+  // twice in a row as well as across two structurally identical builds.
+  const plots = buildPlots();
+
+  assert.equal(
+    fieldSignature({ plots, selection: null, nextPrice: 100 }),
+    fieldSignature({ plots, selection: null, nextPrice: 100 }),
+    'two reads of the same field agree',
+  );
+
+  // A different array of equal plots must also agree — the signature is about values,
+  // not identity, or every `apply()` would repaint because it hands over a new array.
+  const rebuilt = buildPlots();
+  assert.notEqual(rebuilt, plots, 'the fixture really is a different array');
+  assert.equal(
+    fieldSignature({ plots: rebuilt, selection: null, nextPrice: 100 }),
+    fieldSignature({ plots, selection: null, nextPrice: 100 }),
+    'a fresh array of equal plots gives the same signature',
+  );
+});
+
+test('every visible change moves the signature', () => {
+  const base = signatureWith();
+
+  const changed = {
+    'selection moved': signatureWith({}, { selection: { plotId: 3 } }),
+    'the price moved': signatureWith({}, { nextPrice: 250 }),
+    'a plot was bought': signatureWith({ owned: true }),
+    'a crop died': signatureWith({ dead: true }),
+    'water rose': signatureWith({ waterLevel: 55 }),
+  };
+
+  for (const [why, signature] of Object.entries(changed)) {
+    assert.notEqual(signature, base, `${why} must repaint the field`);
+  }
+
+  // Planted plots are the interesting ones: stage, the rounded percent and the rounded
+  // minutes all move, and each is a separate term in the signature.
+  const growing = fieldSignature({
+    plots: buildPlots().map((plot) =>
+      plot.id === 5
+        ? { ...plot, owned: true, cropId: 'rice', plantedAt: Date.now() - 2 * HOUR, waterLevel: 60 }
+        : plot),
+    selection: null,
+    nextPrice: 100,
+  });
+  assert.notEqual(growing, base, 'planting repaints');
+
+  const ready = fieldSignature({
+    plots: buildPlots().map((plot) =>
+      plot.id === 5 ? { ...plot, owned: true, cropId: 'rice', plantedAt: Date.now() - 7 * HOUR } : plot),
+    selection: null,
+    nextPrice: 100,
+  });
+  assert.notEqual(ready, growing, 'and so does reaching maturity');
+});
+
+test('gold moving does not repaint the field', () => {
+  // Gold is drawn outside `#farm-view` and is not part of any tile. If it were in the
+  // signature, every purchase and every sale would rebuild all sixteen plots for nothing.
+  const plots = buildPlots({ owned: true });
+  assert.equal(
+    fieldSignature({ plots, gold: 0, selection: null, nextPrice: 100 }),
+    fieldSignature({ plots, gold: 999_999, selection: null, nextPrice: 100 }),
+    'gold is not on the field',
+  );
+});
+
+test('the threshold that swaps the ground sprite is in the signature', () => {
+  // `plotLayers` picks the watered or unwatered ground at 40%. Rounding the water level
+  // alone would miss the frame where a tile crosses that line, because 39 and 40 are one
+  // apart — so the boolean is tracked separately and not left to the rounded number.
+  const below = plotSignature({ ...buildPlots()[0], owned: true, waterLevel: 39 }, { nextPrice: 100 });
+  const above = plotSignature({ ...buildPlots()[0], owned: true, waterLevel: 40 }, { nextPrice: 100 });
+
+  assert.notEqual(below, above, 'crossing the watered threshold repaints');
+});
+
+test('a repaint that changes nothing does not touch the DOM at all', () => {
+  // The guard itself. Asserting on node identity is what proves nothing was rebuilt —
+  // a test that only compared markup would pass on a full rebuild too.
+  const plots = buildPlots();
+  const state = { plots, selection: null, nextPrice: 100 };
+
+  mountFarmView(root, state);
+
+  const baseBefore = root.querySelector('.field-stage__base');
+  const pumpBefore = root.querySelector('.field-stage__pump');
+  const tilesBefore = root.querySelectorAll('.plot');
+
+  mountFarmView(root, { ...state, plots: buildPlots() });
+
+  assert.equal(root.querySelector('.field-stage__base'), baseBefore, 'the base image survives');
+  assert.equal(root.querySelector('.field-stage__pump'), pumpBefore, 'the pump survives');
+  assert.deepEqual(root.querySelectorAll('.plot'), tilesBefore, 'and so does every tile');
+});
+
+test('buying a plot replaces that plot and the one it hands the offer to', () => {
+  // The other half, and the assertion is deliberately about **two** tiles rather than
+  // one. Buying plot 4 makes it owned, which changes the owned count, which moves the
+  // "next" marker onto `UNLOCK_ORDER[2]` — plot 1. So a correct diff rebuilds two tiles
+  // and leaves fourteen alone. A diff that only caught the clicked plot would leave the
+  // padlock and the price sitting on the wrong diamond.
+  const onOffer = UNLOCK_ORDER[1];
+  const nowOnOffer = UNLOCK_ORDER[2];
+
+  const state = { plots: buildPlots(), selection: null, nextPrice: 100 };
+  mountFarmView(root, state);
+  const before = root.querySelectorAll('.plot');
+
+  assert.ok(before[onOffer].classList.contains('plot--next'), 'the fixture starts with plot 4 on offer');
+
+  const bought = buildPlots().map((plot) => (plot.id === onOffer ? { ...plot, owned: true } : plot));
+  mountFarmView(root, { ...state, plots: bought });
+
+  const after = root.querySelectorAll('.plot');
+
+  assert.equal(after.length, before.length, 'still sixteen tiles');
+  assert.notEqual(after[onOffer], before[onOffer], 'the bought plot is a new node');
+  assert.notEqual(after[nowOnOffer], before[nowOnOffer], 'and so is the plot that took the offer');
+  assert.ok(after[onOffer].classList.contains('plot--owned'), 'the bought plot draws as owned');
+  assert.ok(after[nowOnOffer].classList.contains('plot--next'), 'the new one draws as on offer');
+  assert.ok(after[nowOnOffer].querySelector('.plot__price'), 'carrying its price');
+
+  for (const tile of after) {
+    const id = Number(tile.dataset.plotId);
+    if (id === onOffer || id === nowOnOffer) continue;
+    assert.equal(tile, before[id], `plot ${id} did not move and was left alone`);
+  }
+
+  // And nothing restacked: the plots are absolutely positioned siblings whose append
+  // order IS the z-order, so a repaint that appended instead of replacing would paint
+  // the field in the wrong order and look subtly wrong rather than broken.
+  assert.deepEqual(
+    after.map((tile) => tile.dataset.plotId),
+    before.map((tile) => tile.dataset.plotId),
+    'paint order is unchanged',
+  );
+});
+
+test('a skipped repaint cannot strand the field in a stale state', () => {
+  // The failure mode a guard invites: skip too eagerly and the field stops updating.
+  // Change, repaint, confirm visible, then repaint again with nothing changed and
+  // confirm the correct state is still the one on screen.
+  const state = { plots: buildPlots(), selection: null, nextPrice: 100 };
+  mountFarmView(root, state);
+
+  const bought = buildPlots().map((plot) => (plot.id === 1 ? { ...plot, owned: true } : plot));
+  mountFarmView(root, { ...state, plots: bought });
+
+  let tiles = root.querySelectorAll('.plot');
+  assert.ok(tiles[1].classList.contains('plot--owned'), 'the buy is on screen');
+
+  mountFarmView(root, { ...state, plots: buildPlots().map((p) => (p.id === 1 ? { ...p, owned: true } : p)) });
+
+  tiles = root.querySelectorAll('.plot');
+  assert.ok(tiles[1].classList.contains('plot--owned'), 'and survives a no-op repaint');
+});
+
+test('unmounting forgets the field, so a remount is a fresh mount', () => {
+  // Otherwise the guard would answer "nothing changed" against a detached tree and the
+  // second mount would draw into nothing.
+  const state = { plots: buildPlots(), selection: null, nextPrice: 100 };
+  mountFarmView(root, state).unmount();
+
+  mountFarmView(root, state);
+
+  assert.equal(root.querySelectorAll('.plot').length, FIELD.size * FIELD.size, 'sixteen tiles again');
+});
+
+test('something else clearing the root makes the next mount build for real', () => {
+  // This is a bug that actually happened while writing the guard. `tests/farmLoop.test.js`
+  // mounts the crop picker into this same element, which clears the field out from under
+  // it. The reuse path trusted its cache, repainted a detached card, and left the root
+  // holding a picker and no tiles — with nothing thrown and no test failing until
+  // `farmLoop` looked for plot 0 and did not find it.
+  //
+  // So the guard verifies its card is still standing in the root rather than assuming
+  // it, and this is the assertion for that.
+  const state = { plots: buildPlots(), selection: null, nextPrice: 100 };
+  mountFarmView(root, state);
+
+  // Something else takes the root over, exactly as `mountCropPicker` does.
+  root.replaceChildren(el('div', { class: 'someone-elses-panel' }));
+
+  const plots = buildPlots().map((plot) => (plot.id === 5 ? { ...plot, owned: true } : plot));
+  mountFarmView(root, { ...state, plots });
+
+  const tiles = root.querySelectorAll('.plot');
+  assert.equal(tiles.length, FIELD.size * FIELD.size, 'the field is rebuilt, not repainted into the void');
+  assert.equal(root.querySelectorAll('.someone-elses-panel').length, 0, 'and the intruder is cleared out');
+  assert.ok(tiles[5].classList.contains('plot--owned'), 'drawing the state it was given');
 });
