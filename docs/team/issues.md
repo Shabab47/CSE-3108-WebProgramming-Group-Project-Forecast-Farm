@@ -83,7 +83,7 @@ current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
 | ISS-072 | The crop layer is still sized for the old, half-height plot box | Low | Kafi | open | T-06 |
 | ISS-073 | Two replacement characters survive in `issues.md` itself | Low | Jim | **fixed** | — |
 | ISS-075 | The shop does not match the agreed art direction | Low | Jim | fixing | T-57 |
-| ISS-076 | The connection banner is in flow above a 100dvh shell, so it jumps the whole page every autosave | Medium | Hisham | **fixing** | T-58 |
+| ISS-076 | The connection banner is in flow above a 100dvh shell, so it jumps the whole page every autosave | Medium | Hisham | **fixed** | T-58 |
 
 ---
 
@@ -1304,7 +1304,7 @@ current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
   card shape, dimmed. The shop becomes painted art like `login.html` and does not read `data-theme`.
 
 ### ISS-076 The connection banner is in flow above a 100dvh shell, so it jumps the page every autosave
-- Reported by Hisham · 2026-10-17 · Owner: Hisham · Status: fixing
+- Reported by Hisham · 2026-10-17 · Owner: Hisham · Status: fixed
 - Where: `index.html` / `shop.html` / `settings.html` / `profile.html` (`#connection-banner`),
   `js/ui/connectionBanner.js`, `css/components.css`, `js/main.js`
 - Problem: the farm visibly lurches down and back every ten seconds, and again whenever the connection
@@ -1324,12 +1324,17 @@ current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
 - Risk of the fix: the banner is deliberately loud and persistent (DEC-030, ISS-050), because "your farm is
   only on this device" is a fact to act on. Shrinking it to a corner chip must not quietly regress ISS-050,
   or a player stops noticing their farm has stopped syncing — which is the exact bug ISS-050 was filed for.
-- Fix: **in progress (T-58).** `js/ui/connectionBanner.js` becomes `js/ui/syncIndicator.js` — a
+- Fix: **fixed in T-58.** `js/ui/connectionBanner.js` is now `js/ui/syncIndicator.js` — a
   `position: fixed` chip pinned bottom-left, which cannot shift layout on any page by construction. Two
   small dots: they wave while a save is in flight, sit static and dim when synced, and turn amber with a
   persistent `No connection` label when a write is queued. The escape hatch survives as a popover on click
   (Export + Retry + the ageing "last reached your account" line). To keep ISS-050 fixed, the *first* failed
   write still raises one toast — then the small persistent label holds the floor. Separately, `main.js`
   narrows its `on('sync')` re-render to the `pending` transition only, since that is the only one the panels
-  render differently. See DEC-037.
+  render differently; that was the second, independent source of the flicker. `prefers-reduced-motion`
+  needed no work — `reset.css:109` already clamps the wave. See DEC-037.
+- Verified: `tests/connectionStatus.test.js` 20 → 28 cases, covering the always-present dots, the
+  label-only-when-pending rule, the popover toggle and its `aria-expanded`, the unmount removing its own
+  `document` listeners, and `advanceAnnouncement`'s one-toast-per-outage rule. `npm run check` passes.
+  The pre-existing ISS-047 failure is unrelated and untouched.
 

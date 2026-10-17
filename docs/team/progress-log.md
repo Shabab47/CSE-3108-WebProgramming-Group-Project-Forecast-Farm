@@ -7,6 +7,25 @@ The per-person weekly notes that used to live in the README table are now in `me
 
 ---
 
+## Sync indicator: the connection banner stops jumping the page — Hisham
+
+- **Did:** fixed ISS-076. The full-width connection banner sat in normal flow above `.app`, which is
+  `height: 100dvh`, so every appearance pushed the whole shell down and let it snap back — and because
+  `copyFor('saving')` returned copy as well and `AUTOSAVE_MS` is 10 s, a *successful* autosave did it
+  on a timer. `js/ui/connectionBanner.js` is now `js/ui/syncIndicator.js`: a `position: fixed` chip in
+  the bottom-left corner, two dots that wave while saving, static when synced, amber with a persistent
+  `No connection` label when a write is queued, and a popover behind the dots carrying the full text,
+  the ageing line and both buttons. The first failed write of an outage also raises one toast, which is
+  what keeps ISS-050 from regressing. Separately, `main.js` now re-renders the shell only on `pending`
+  rather than on every `sync` — the other half of the flicker. DEC-037.
+- **Touched:** `js/ui/syncIndicator.js` (renamed), `js/connection.js`, `js/main.js`, `js/shop-main.js`,
+  `js/settings-main.js`, `js/profile-main.js`, `index.html`, `shop.html`, `settings.html`,
+  `profile.html`, `css/components.css`, `css/shop.css`, `tests/connectionStatus.test.js`.
+- **Tests:** `tests/connectionStatus.test.js` 28 pass (was 20). `npm run check` passes. `npm test` is
+  352 tests / 351 pass — the single failure is the pre-existing ISS-047 unregistered `rice_1.png`,
+  deliberately left alone because the fix deletes files in `assets/`, which is Kafi's folder.
+- **Next:** T-58 is done. ISS-076 still needs its `Status` flipped to `fixed` after this merges.
+
 ## Shop polish: per-crop unit pill and BUY + button — Jim
 
 - **Did:** brought the seed cards closer to the reference mockup. Each crop now carries a

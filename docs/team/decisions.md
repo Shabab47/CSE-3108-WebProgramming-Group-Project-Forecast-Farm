@@ -7,6 +7,51 @@ Format: who decided, the choice, why, and what was rejected.
 
 ---
 
+### DEC-037 The sync notice leaves the flow and becomes a corner chip with a one-time toast
+**Decided by:** Hisham · 2026-10-17 · **decided and built — this is T-58**
+
+The full-width connection banner is replaced by a small `position: fixed` chip in the bottom-left
+corner: two dots that wave while a save is in flight, sit static when synced, and turn amber with a
+persistent `No connection` label when a write is queued. The banner's full text, its ageing "last
+reached your account" line, and its Export and Retry buttons move into a popover behind the dots.
+Separately, the first failed write of an outage still raises one toast.
+
+**Why.** ISS-076, and it was not a styling problem. `#connection-banner` was an in-flow sibling
+*above* `.app`, which is `height: 100dvh` — so showing the banner claimed vertical space above a
+full-viewport box, grew the document past the viewport, and shoved the entire shell down before
+letting it snap back. Worse, `copyFor('saving')` returned copy as well as `copyFor('pending')`, and
+`AUTOSAVE_MS` is 10 s, so a **routine successful autosave** triggered the lurch on a timer. Players
+saw an interface that jumped every ten seconds for no reason they could identify. No restyle of an
+in-flow element fixes that; the notice has to leave the flow entirely.
+
+**What this deliberately gives up.** DEC-030 and ISS-050 both argue the opposite of what a corner
+chip looks like: that "your farm is only on this device" is a fact to act on, and that a failed save
+must not be able to pass unnoticed. A small permanent fixture is exactly what players learn to
+ignore. That is why the pairing is not optional:
+
+- the amber label is **persistent**, not a toast — the condition itself never self-dismisses;
+- the **first** failure of an outage raises a toast, which is transient, loud and impossible to
+  scroll past, and does not repeat (a notification firing every 30 s for the length of an outage is
+  how people learn to ignore notifications);
+- the export stays one click away, because it is the only mechanism that gets the farm off the
+  device at all (DEC-021).
+
+`copyFor('synced')` still returns `null`, so the healthy case prints nothing. That is the one part of
+the original rationale being kept intact.
+
+**Rejected:**
+
+- *Keep the banner but make it `fixed`.* A full-width fixed bar still covers the top of the farm, and
+  a save in flight would still flash a large element twice every 10 seconds. The frequency is the
+  problem, not only the position.
+- *Show the label on `saving` too.* That is precisely the defect. `saving` is a moment, not a
+  condition.
+- *Full dots-and-nothing, no words.* Rejected: it regresses ISS-050 outright. Status without a word is
+  invisible to a screen reader and invisible to a player who did not notice the colour change.
+- *A single dot.* Two, because one dot reads as a rendering artefact rather than as a signal.
+
+---
+
 ### DEC-036 Land unlocks one plot at a time, in a fixed order, and "greyed" means "not yet"
 **Decided by:** Jim · 2026-10-16 · **decided, not built — this is T-56**
 
