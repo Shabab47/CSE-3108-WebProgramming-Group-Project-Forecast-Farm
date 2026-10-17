@@ -487,3 +487,86 @@ test('a click means exactly one thing per plot state', () => {
     'and the next one is on offer',
   );
 });
+
+/* --- ISS-089: planting is judged by the weather, once, at the moment of sowing --- */
+
+/** A forecast sitting `hours` either side of now, so a full forward window exists. */
+function sky({ code = 0, temp = 20, rain = 0 } = {}) {
+  const base = new Date().getTime();
+  const stamp = (ms) => {
+    const at = new Date(ms);
+    return `${at.getFullYear()}-${String(at.getMonth() + 1).padStart(2, '0')}-`
+      + `${String(at.getDate()).padStart(2, '0')}T${String(at.getHours()).padStart(2, '0')}:00`;
+  };
+  const hours = 12;
+  const fill = (v) => Array.from({ length: hours }, () => v);
+  return {
+    hourly: {
+      time: Array.from({ length: hours }, (_, i) => stamp(base - 3_600_000 * (6 - i))),
+      weatherCode: fill(code), temperature: fill(temp), humidity: fill(50),
+      windSpeed: fill(5), precipitationProbability: fill(rain),
+    },
+  };
+}
+
+const DHAKA = { name: 'Dhaka', country: 'Bangladesh', lat: 23.81, lon: 90.41 };
+
+test('planting records the weather verdict and the health it produced', () => {
+  // The whole system in one assertion: a forecast exists, so the seed is sown *and*
+  // stamped with what the next few hours will do to it.
+  const sown = farm({ seeds: { rice: 1 } });
+  sown.weather = sky({ code: 0, temp: 40, rain: 0 }); // a drought
+  sown.location = DHAKA;
+
+  const result = plant(sown, STARTER_PLOT_ID, 'rice');
+  assert.ok(result.ok);
+
+  const plot = plotAt(result.state);
+  assert.ok(plot.forecast, 'the verdict is stored on the plot');
+  assert.equal(plot.forecast.event, 'drought');
+  assert.equal(plot.forecast.windowHours, 6);
+  assert.ok(plot.health < 100, 'and the crop starts wounded');
+  assert.ok(plot.health >= 25, 'but never dead');
+});
+
+test('a crop sown without a forecast records no verdict rather than a clean bill', () => {
+  // Honesty over convenience: `forecast: null` says "the weather was never asked",
+  // which is a different thing from "the weather was fine".
+  const sown = farm({ seeds: { rice: 1 } });
+  const result = plant(sown, STARTER_PLOT_ID, 'rice');
+
+  assert.ok(result.ok, 'planting still works, because the domain does not gate on weather');
+  assert.equal(plotAt(result.state).forecast, null);
+  assert.equal(plotAt(result.state).health, 100);
+});
+
+test('the health a planting gets is the health a harvest is paid on', () => {
+  // The two halves have to agree, or the whole verdict is decoration. Two identical
+  // rice plants, sown a week apart in real time, one through a drought and one
+  // through a fine day, harvested the same way. Only the weather differed.
+  const sow = (weather) => {
+    const state = farm({ seeds: { rice: 1 } });
+    state.weather = weather;
+    state.location = DHAKA;
+    const sown = plant(state, STARTER_PLOT_ID, 'rice');
+    assert.ok(sown.ok, 'the seed goes in');
+    const plot = plotAt(sown.state);
+    plot.plantedAt = Date.now() - 7 * 3_600_000; // grown; rice is ready at six hours
+    return sown.state;
+  };
+
+  const calm = sow(sky({ code: 0, temp: 20 }));
+  const hurt = sow(sky({ code: 0, temp: 40, rain: 0 }));
+
+  const calmPlot = plotAt(calm);
+  const hurtPlot = plotAt(hurt);
+  assert.ok(hurtPlot.health < calmPlot.health, 'the drought cost the crop something');
+
+  const calmGold = harvest(calm, STARTER_PLOT_ID);
+  const hurtGold = harvest(hurt, STARTER_PLOT_ID);
+  assert.ok(calmGold.ok && hurtGold.ok, 'both are harvestable');
+  assert.ok(
+    hurtGold.gold < calmGold.gold,
+    `a wounded harvest must pay less: ${hurtGold.gold} vs ${calmGold.gold}`,
+  );
+});

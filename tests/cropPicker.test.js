@@ -145,3 +145,68 @@ test('the picker can be taken down without a callback', async () => {
   assert.equal(root.querySelector('.crop-picker__shop'), null);
 });
 
+
+/* --- ISS-089: the picker shows the verdict, and refuses without a forecast ------- */
+
+const VERDICT = (rating, health, seasonPenalty = 0) => ({
+  ok: true,
+  verdict: {
+    cropId: 'rice', event: 'heavyRain', eventHours: 3, windowHours: 6,
+    rating, season: 'Monsoon', seasonPenalty, health,
+  },
+});
+
+test('the seed row says what the next few hours will do', () => {
+  mount({ verdictFor: () => VERDICT(2, 100) });
+
+  const line = root.querySelectorAll('.crop-picker__weather')[0];
+  assert.ok(line, 'the row carries the forecast line');
+  assert.match(line.textContent, /next 6h/i, 'and names the window');
+  assert.match(line.textContent, /thrives/, 'in words, not as a bare number');
+  assert.equal(line.dataset.rating, '2', 'the rating is also an attribute, for the colour');
+});
+
+test('an off-season crop says so, rather than only costing less quietly', () => {
+  // The cost is 10 health, and a line that does not mention the season would leave a
+  // player comparing two identical-looking plantings with no idea why they differ.
+  mount({ verdictFor: () => VERDICT(-1, 90, -1) });
+
+  const line = root.querySelectorAll('.crop-picker__weather')[0];
+  assert.match(line.textContent, /struggles/);
+  assert.match(line.textContent, /out of season/i, 'and names the season it is out of');
+});
+
+test('no forecast means the picker refuses to plant and says why', () => {
+  // The game's premise is that weather is real and never player-controlled, so a
+  // planting the weather was never asked about is not a planting.
+  const calls = { plant: [] };
+  mount({
+    verdictFor: () => ({ ok: false, reason: 'no_forecast' }),
+    onPlant: (cropId) => calls.plant.push(cropId),
+  });
+
+  const empty = root.querySelectorAll('.crop-picker__empty')[0];
+  assert.ok(empty, 'there is an explanation');
+  assert.match(empty.textContent, /weather reading/i);
+  assert.equal(
+    root.querySelectorAll('.crop-picker__weather').length,
+    0,
+    'and no verdict lines pretending otherwise',
+  );
+
+  // The seeds are still listed, because seeds are worth buying either way — but they
+  // are genuinely inert. A picker that says "waiting" and still accepts the click is
+  // worse than either honest alternative.
+  const seed = root.querySelectorAll('.crop-picker__seed')[0];
+  assert.ok(seed, 'the seed is still listed');
+  assert.equal(seed.getAttribute('disabled'), 'true', 'and cannot be clicked');
+});
+
+test('a picker with no verdict handler still works, for the older callers', () => {
+  // `farmLoop.test.js` mounts the picker with no `verdictFor`, and the default must
+  // not quietly read as "the weather is fine" — nor refuse, which would break it.
+  const { options } = mount();
+
+  assert.equal(options.length, 1, 'the seed is listed');
+  assert.equal(root.querySelectorAll('.crop-picker__empty').length, 0, 'and nothing is refused');
+});

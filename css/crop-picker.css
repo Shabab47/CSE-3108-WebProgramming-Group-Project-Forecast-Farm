@@ -114,6 +114,34 @@
   color: var(--text-faint);
 }
 
+/* The forecast verdict: what the next six hours will do to this seed.
+ *
+ * Above the note in weight and below it in size, because it is the thing the player
+ * is actually deciding on — `growNote` is flavour, this is the forecast.
+ *
+ * The colour is a second channel, never the only one: the rating word is in the text
+ * too, so this still reads for a colour-blind player and in a forced-colours theme.
+ * `data-rating` is the rating as a string, so `2` and `-2` cannot be confused with
+ * `0` in a selector. */
+.crop-picker__weather {
+  font-size: var(--text-xs, 0.75rem);
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.crop-picker__weather[data-rating='2'],
+.crop-picker__weather[data-rating='1'] {
+  color: var(--success, #2f7d4f);
+}
+
+.crop-picker__weather[data-rating='-1'] {
+  color: var(--warning, #96690d);
+}
+
+.crop-picker__weather[data-rating='-2'] {
+  color: var(--danger, #b3392f);
+}
+
 .crop-picker__empty {
   margin: 0;
   padding: var(--space-3, 0.75rem);
