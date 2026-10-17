@@ -7,6 +7,24 @@ The per-person weekly notes that used to live in the README table are now in `me
 
 ---
 
+## Shop repainted to the Figma reference (ISS-075) — Jim
+
+- **Did:** rebuilt the shop page to match Figma frame 114:2002. `css/shop.css` now paints the whole
+  stall — grass floor, wood posts and beams, scalloped awning, stone base, hanging `FARM SHOP` sign
+  (Luckiest Guy `#b2e557`), dark-green board with a wood-fence top strip — plus the purse pill and
+  footer hint bar. `css/shop-card.css` now paints golden radial-gradient card tops over cream bodies,
+  pack-size pill, Nunito name (Black 20px `#392b18`) and description (SemiBold 12px `#7a6844`),
+  coin + price, and three green buy buttons (`BUY +`, `×5`, `×10`). `js/ui/shopView.js` rebuilt to
+  the new markup with stall frame elements; `js/ui/shopArt.js` gained coin, arrow-left and plus SVGs.
+  `css/fonts.css` declares Nunito Regular/SemiBold/ExtraBold/Black self-hosted; `js/config/assets.js`
+  registers the four font files in `assets/fonts/`. Game data (`config/crops.js`) and rules
+  (`domain/shop.js`) unchanged; the three buy buttons are kept (`BUY_STEPS [1,5,10]`).
+- **Tests:** `tests/shop.test.js` 16 pass; `npm run check` clean. `npm test` fails only on the
+  pre-existing ISS-047 (duplicate flat-path rice sprites), unrelated to this change.
+- **Next:** nothing — ISS-075 is fixed, T-57 is done.
+
+---
+
 ## Shop polish: per-crop unit pill and BUY + button — Jim
 
 - **Did:** brought the seed cards closer to the reference mockup. Each crop now carries a

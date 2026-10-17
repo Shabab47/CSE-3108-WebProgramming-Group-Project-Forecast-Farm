@@ -33,7 +33,7 @@ export const CROPS = {
     growHours: 6,
     waterNeed: 0.9,
     yield: 10,
-    growNote: 'Cheapest seed, and the thirstiest crop — keep it watered.',
+    growNote: 'Cheapest seed, and the thirstiest crop. Keep it watered.',
     available: true,
   },
   potato: {
@@ -81,7 +81,7 @@ export const CROPS = {
     growHours: 8,
     waterNeed: 0.7,
     yield: 10,
-    growNote: 'The slowest crop and the thirstiest — a season-long bet.',
+    growNote: 'The slowest crop and the thirstiest. A season-long bet.',
     available: false,
   },
 };

@@ -1,12 +1,15 @@
-/* The shop's seed cards: a golden stall front over a cream body.
+/* The shop's seed cards: golden stall top, cream body, matching the Figma
+ * reference (frame 114:2002, each "Market item" 378 × 240).
  *
- * Sized by the page rather than the sidebar, and painted in fixed colours with
- * the stall (`css/shop.css`) — the card does not read `data-theme` either. The
- * wood tones are shared with `css/weather.css`.
+ * Each card:
+ *   - Golden radial-gradient display top (the packet's shelf)
+ *   - Cream body (#fff8df) with name, description, price and BUY button
+ *   - Pack-size pill ("5 SEEDS", "1 TOOL", etc.) top-left of the display
+ *   - Locked crops dim the whole card — same shape, quiet colours
  *
- * The purchase rule is unchanged; the three buttons are one primary `BUY +` and
- * two compact step buttons, which is the mockup's single button with the shop's
- * existing `BUY_STEPS` kept intact.
+ * Painted in fixed colours like `css/shop.css`; the shop does not read
+ * `data-theme`. The gold coin and plus icons are inline SVG from shopArt.js.
+ * Sized by the page grid (`css/shop.css`), not by the sidebar.
  */
 
 /* --- the grid --------------------------------------------------------------- */
@@ -14,98 +17,116 @@
 .shop-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 18px;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 14px;
 }
 
-/* --- a card -----------------------------------------------------------------
- *
- * The art half is taller than the body so the packet has room to stand proud. */
+/* --- a card ----------------------------------------------------------------- */
 
 .shop-card {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border: 3px solid #6b431f;
-  border-radius: 14px;
-  background: #fbf3dd;
-  box-shadow: 0 6px 14px rgba(20, 40, 15, 0.35);
+  border: 3px solid #e2c482;
+  border-radius: 18px;
+  background: #fff8df;
+  box-shadow: 0 6px 4px 0 rgba(17, 42, 33, 0.38);
   min-width: 0;
+  min-height: 0;
 }
 
+/* Golden display top: the packet's shelf. Radial gradient matches the Figma's
+ * golden display (90px tall — the Figma's 110px shrinks to fit viewports). */
 .shop-card__art {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-end;
-  min-height: 150px;
-  padding: 30px 12px 14px;
-  background:
-    radial-gradient(120% 90% at 50% 100%, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0) 62%),
-    linear-gradient(180deg, #fbe9a8 0%, #f2cd72 60%, #e9b95a 100%);
+  justify-content: center;
+  height: 90px;
+  overflow: hidden;
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(255, 233, 150, 1) 0%,
+    rgba(245, 204, 108, 1) 50%,
+    rgba(234, 175, 66, 1) 100%
+  );
 }
 
+/* Pack-size pill: "5 SEEDS", "1 TOOL", "1 BUNDLE", "1 ROLL". */
 .shop-card__pill {
   position: absolute;
-  top: 10px;
+  top: 9px;
   left: 10px;
-  padding: 3px 10px;
-  border: 1.5px solid #d9c07a;
-  border-radius: 999px;
-  background: #fdf6e0;
-  color: #8a6a2a;
-  font-size: 0.62rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  padding: 3px 7px;
+  background: rgba(255, 247, 217, 0.85);
+  border-radius: 6px;
+  color: #7a6844;
+  font-family: "Nunito", var(--font-sans);
+  font-weight: 900;
+  font-size: 10px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* Item shadow under the packet. */
+.shop-card__shadow {
+  position: absolute;
+  left: 129px;
+  top: 94px;
+  width: 120px;
+  height: 8px;
+  border-radius: 100px;
+  background: rgba(166, 103, 32, 0.19);
 }
 
 .shop-card__art img {
-  height: 104px;
+  height: 99px;
   width: auto;
   object-fit: contain;
   filter: drop-shadow(0 4px 4px rgba(60, 40, 10, 0.25));
+  position: relative;
+  z-index: 1;
 }
 
-/* The bar the packet stands on. */
-.shop-card__shelf {
-  width: 62%;
-  height: 6px;
-  margin-top: 2px;
-  border-radius: 3px;
-  background: rgba(60, 40, 10, 0.35);
-}
-
+/* Cream body: name, description, purchase row. */
 .shop-card__body {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 12px 14px 14px;
-  background: linear-gradient(180deg, #fdf6e0 0%, #f6ecd2 100%);
-  border-top: 3px solid #e0c98a;
+  gap: 2px;
+  padding: 8px 14px 10px;
+  background: #fff8df;
+  border-top: none;
 }
 
 .shop-card__name {
-  font-family: var(--font-sans);
-  font-weight: 700;
-  font-size: 1.05rem;
-  letter-spacing: 0.01em;
-  color: #3a2f1e;
+  font-family:
+    irish grover,
+    var(--font-ui);
+  font-weight: 600;
+  font-size: 20px;
+  line-height: 1.15;
+  color: #392b18;
+  margin: 0;
 }
 
 .shop-card__note {
-  font-size: 0.78rem;
-  line-height: 1.35;
-  color: #7a6a4a;
+  font-family: "Nunito", var(--font-sans);
+  font-weight: 600;
+  font-size: 12px;
+  line-height: 1.3;
+  color: #7a6844;
+  margin: 0;
 }
 
 .shop-card__owned {
   font-size: 0.72rem;
   color: #9a8a6a;
   font-variant-numeric: tabular-nums;
+  margin: 4px 0 0;
 }
 
-/* Price on the left, the buy cluster on the right — the mockup's single row. */
+/* Price on the left, the buy cluster on the right — one row. */
 .shop-card__buy-row {
   display: flex;
   align-items: center;
@@ -118,10 +139,12 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-family: var(--font-sans);
-  font-weight: 700;
-  font-size: 1.1rem;
-  color: #4a3418;
+  font-family:
+    irish grover,
+    var(--font-ui);
+  font-weight: 600;
+  font-size: 23px;
+  color: #392b18;
   font-variant-numeric: tabular-nums;
 }
 
@@ -133,23 +156,32 @@
 
 /* --- buy buttons ------------------------------------------------------------
  *
- * One primary `BUY +` and two compact step buttons, all in the stall's green. */
+ * One chunky green `BUY +` (Luckiest Guy) plus two compact step buttons.
+ * The purchase model (BUY_STEPS [1, 5, 10]) lives in js/domain/shop.js and is
+ * unchanged — only the labels and markup moved to match the Figma.
+ */
 
 .shop-buy {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 4px;
-  border: 3px solid #1f5c31;
+  border: 2px solid #326e20;
   border-radius: 10px;
-  background: linear-gradient(180deg, #5fbf5f 0%, #3f9e46 100%);
-  color: #ffffff;
-  font-family: var(--font-display);
-  letter-spacing: 0.03em;
+  background: linear-gradient(180deg, #9ae044 0%, #68bc24 100%);
+  color: #193c25;
+  font-family:
+    irish grover,
+    var(--font-ui);
+  font-weight: 400;
+  font-size: 21px;
   text-transform: uppercase;
+  letter-spacing: 0.03em;
   cursor: pointer;
-  box-shadow: 0 3px 0 #1f5c31, 0 4px 6px rgba(20, 40, 15, 0.3);
-  transition: transform var(--speed) var(--ease), filter var(--speed) var(--ease);
+  box-shadow: 0 3px 0 0 #315b22;
+  transition:
+    transform var(--speed) var(--ease),
+    filter var(--speed) var(--ease);
 }
 
 .shop-buy:hover {
@@ -158,19 +190,19 @@
 
 .shop-buy:active {
   transform: translateY(2px);
-  box-shadow: 0 1px 0 #1f5c31;
+  box-shadow: 0 1px 0 0 #315b22;
 }
 
 .shop-buy--primary {
   padding: 8px 14px;
-  font-size: 0.95rem;
-  border-radius: 999px;
+  height: 39px;
 }
 
 .shop-buy--step {
   min-width: 34px;
-  padding: 8px;
-  font-size: 0.8rem;
+  padding: 6px 8px;
+  font-size: 14px;
+  height: 39px;
 }
 
 .shop-buy__plus {
@@ -194,8 +226,15 @@
 
 /* --- locked crops -----------------------------------------------------------
  *
- * Listed, priced, and explicitly not for sale — so the card goes quiet rather
- * than disappearing, which would look like a bug. Same shape, dimmed. */
+ * Listed, priced, and explicitly not for sale — same shape, dimmed colours so
+ * it looks intentional rather than broken. The grow note explains why.
+ */
+
+.shop-card--locked {
+  border-color: #c9c0a8;
+  background: #e2dcc6;
+  box-shadow: 0 6px 4px 0 rgba(17, 42, 33, 0.2);
+}
 
 .shop-card--locked .shop-card__art {
   background: linear-gradient(180deg, #d9d2bd 0%, #c9c0a8 100%);
@@ -206,12 +245,35 @@
   opacity: 0.6;
 }
 
+.shop-card--locked .shop-card__shadow {
+  background: rgba(100, 90, 70, 0.19);
+}
+
 .shop-card--locked .shop-card__body {
-  background: linear-gradient(180deg, #ece7d6 0%, #e2dcc6 100%);
+  background: #e2dcc6;
 }
 
 .shop-card--locked .shop-card__name {
   color: #8a8272;
+}
+
+.shop-card--locked .shop-card__note {
+  color: #a09686;
+}
+
+.shop-card--locked .shop-card__owned {
+  color: #b0a898;
+}
+
+.shop-card--locked .shop-card__price {
+  color: #8a8272;
+}
+
+.shop-card--locked .shop-buy {
+  border-color: #6b6454;
+  background: linear-gradient(180deg, #a8a08c 0%, #8c8470 100%);
+  color: #5c5544;
+  box-shadow: 0 3px 0 0 #5c5544;
 }
 
 /* --- responsive: the grid --------------------------------------------------- */
