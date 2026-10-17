@@ -44,18 +44,26 @@ export function formatCoordinates(lat, lon) {
 /**
  * The best place name a reverse-geocode response can offer.
  *
- * ## Why `city` goes first
+ * ## The ladder, and why `locality` is not on it
  *
- * Measured against the live service: for London it returns `city: "London"` but
- * `locality: "City of Westminster"` — a borough, not the city anyone recognises. For a rural Icelandic
- * farm it returns a municipality name, which is long but still a real place, where
- * `principalSubdivision` (the region) might read better. `city` still goes first because it is what
- * the forward-search path effectively returns too, and one consistent rule beats a better answer in
- * some cases that nobody will notice.
+ * `city → principalSubdivision → countryName → coordinates`.
  *
- * The ladder always terminates: `city → locality → principalSubdivision → countryName → coordinates`.
- * A point in open ocean comes back with all four strings empty, and the coordinates are then the only
- * true thing available.
+ * `city` is the settlement a player would name. Measured on the live service it was populated for
+ * every land probe tried — Dhaka, London, and a rural Icelandic farm — so it is the rung that
+ * actually decides the answer in practice.
+ *
+ * `locality` was on the first draft of this ladder and was **removed by a test**. It looks like a
+ * better second rung, but it is populated with *regions* rather than settlements: for London it is
+ * `"City of Westminster"` (a borough), and for a point in open ocean it is `"Polynesian Triangle"`. A
+ * farm in the middle of the Atlantic labelled "Polynesian Triangle" is worse than useless — it looks
+ * authoritative and means nothing. Keeping it would have put a plausible-sounding lie on the board in
+ * exactly the case where there is no place at all, which is the one case the coordinate rung exists
+ * to handle honestly.
+ *
+ * `principalSubdivision` outranks `countryName` because a region is more useful than a country when
+ * both are available, and it is the only rung that fires between `city` and `country`.
+ *
+ * The ladder always terminates, so the coordinates are the final answer and never a placeholder.
  *
  * Pure and exported so the whole ladder is testable without a network.
  *
@@ -67,7 +75,6 @@ export function formatCoordinates(lat, lon) {
 export function placeNameFrom(data, lat, lon) {
   return (
     data?.city ||
-    data?.locality ||
     data?.principalSubdivision ||
     data?.countryName ||
     formatCoordinates(lat, lon)
