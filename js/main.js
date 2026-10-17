@@ -17,7 +17,7 @@ import { mountWeatherPanel } from './ui/weatherPanel.js';
 import { mountFarmView } from './ui/farmView.js';
 import { mountLocationBar } from './ui/locationBar.js';
 import { fetchWeather } from './services/weatherApi.js';
-import { reverseGeocode, searchPlaces } from './services/geocodeApi.js';
+import { formatCoordinates, reverseGeocode, searchPlaces } from './services/geocodeApi.js';
 import { AUTOSAVE_MS } from './config/game.js';
 import { REFRESH_MS } from './config/api.js';
 
@@ -187,7 +187,12 @@ function useDeviceLocation({ announce = true } = {}) {
         const named = await reverseGeocode(latitude, longitude);
 
         const next = {
-          name: named.ok ? named.name : 'Current location',
+          // Either the lookup named the place or it did not, and both answers are
+          // true. The coordinates are the fallback rather than a placeholder
+          // string, because a farm pinned at `23.81° N, 90.41° E` tells the player
+          // something "Current location" never did — and a lookup that cannot
+          // reach the network must not leave the board blank. ISS-077.
+          name: named.ok ? named.name : formatCoordinates(latitude, longitude),
           country: named.ok ? named.country : '',
           lat: latitude,
           lon: longitude,
