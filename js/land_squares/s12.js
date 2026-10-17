@@ -48,6 +48,7 @@ export function createPlot12() {
     plantedAt: null,
     waterLevel: 0,
     health: 100,
+    forecast: null,
     dead: false,
   };
 }

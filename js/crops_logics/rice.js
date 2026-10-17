@@ -43,7 +43,17 @@ export const RICE = {
    * weather lives in `config/cropWeatherMatrix.js`, so the two cannot drift. */
   likes: 'Rain, heat, flood',
   hates: 'Drought, frost',
-  bestSeason: 'Rainy',
+
+  /* Which seasons suit rice, by name. The other half of the weather rules:
+   * `cropWeatherMatrix.js` answers "what does this *event* do to rice", this
+   * answers "is rice in its season". Different axes, both mechanical.
+   *
+   * Plain names because this layer may import nothing — the `crops_logics: []` row in
+   * `scripts/check-imports.mjs` — so they are retyped rather than referenced, and
+   * `tests/seasons.test.js` asserts each is a season the game can produce. That test
+   * is the only thing standing between a stray `'monsoon'` and rice being
+   * permanently out of season. */
+  seasons: ['Monsoon', 'Summer'],
 };
 
 /** Growth stage 1..5 for rice planted `elapsedHours` ago. See `stageMath.js`. */

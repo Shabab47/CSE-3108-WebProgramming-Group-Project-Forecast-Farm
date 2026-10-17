@@ -26,6 +26,7 @@ import { createLog } from './utils/log.js';
 import { apply, emit, getState } from './state/store.js';
 import { clearPlot, harvest, plant } from './domain/farm.js';
 import { buyPlot } from './domain/land.js';
+import { verdictFor } from './domain/weather.js';
 import { isSeedUnlocked } from './utils/seedUnlocks.js';
 import { nextUnlockable } from './land_squares/index.js';
 import { plotAction } from './ui/plotClick.js';
@@ -148,6 +149,18 @@ function openPicker(plotId) {
     // braces, because a seed bought just before its gate moved is still in
     // the bag. Both read the same helper so they cannot disagree.
     isUnlocked: (cropId) => isSeedUnlocked(getState(), cropId),
+    // The same verdict `domain/farm.js` `plant()` will compute, so the line the
+    // player reads and the health the crop actually gets cannot disagree. Computed
+    // here against live state, which is why the picker needs no store import.
+    verdictFor: (cropId) => {
+      const state = getState();
+      return verdictFor({
+        cropId,
+        weather: state?.weather,
+        location: state?.location,
+        now: Date.now() + (state?.clock?.timeOffsetMs ?? 0),
+      });
+    },
     onPlant: (cropId) => {
       // Close *before* applying, so the list of seeds the player just spent is never on
       // screen for even one frame.

@@ -119,7 +119,7 @@ function mountShell(session) {
     onUseDeviceLocation: useDeviceLocation,
   });
 
-  mountSeasonCard(qsOrNull('#season-card'));
+  mountSeasonCard(qsOrNull('#season-card'), { location: getState()?.location });
   mountShopLauncher(qsOrNull('#shop-launch'), { href: shopHref(session) });
   mountInventoryLauncher(qsOrNull('#inventory-launch'), { href: farmHref(session) });
 

@@ -30,6 +30,7 @@ import { cropOf, harvestValue } from '../config/crops.js';
 import { HEALTH } from '../config/game.js';
 import { isSeedUnlocked } from '../utils/seedUnlocks.js';
 import { harvestsIn } from '../land_squares/index.js';
+import { verdictFor } from './weather.js';
 
 export const FARM_REASONS = {
   unknownPlot: 'That is not one of your plots.',
@@ -71,6 +72,16 @@ function gameNow(state) {
 /**
  * Sow a seed on one of your own plots, spending the seed.
  *
+ * **The weather is judged here, once, and that is the whole model.** A planting is
+ * measured against the next six hours of forecast at the moment the seed goes in, and
+ * the result is stored on the plot as `forecast`. There is no per-hour tick and no
+ * `simulator.js`: every crop takes 4–8 hours to grow, so the window covers its whole
+ * life, and a consequence the player could see before committing is worth more than
+ * one that arrives overnight.
+ *
+ * `forecast: null` is recorded when there is no forecast to judge by, so a crop sown
+ * without one is honest about it rather than looking untouched.
+ *
  * @param {object} state
  * @param {number} plotId
  * @param {string} cropId
@@ -96,12 +107,25 @@ export function plant(state, plotId, cropId) {
   const seeds = state.inventory?.seeds ?? {};
   if ((seeds[cropId] ?? 0) < 1) return { ok: false, reason: FARM_REASONS.noSeed(crop.name) };
 
+  const now = gameNow(state);
+  const verdict = verdictFor({
+    cropId,
+    weather: state.weather,
+    location: state.location,
+    now,
+  });
+
   // Planting and spending the seed are one indivisible change: there is no state in
   // which the seed has left the bag but the plot has not been sown, or the reverse.
   return {
     ok: true,
     state: {
-      ...withPlot(state, plotId, { cropId, plantedAt: gameNow(state) }),
+      ...withPlot(state, plotId, {
+        cropId,
+        plantedAt: now,
+        health: verdict.ok ? verdict.verdict.health : HEALTH.max,
+        forecast: verdict.ok ? verdict.verdict : null,
+      }),
       inventory: {
         ...state.inventory,
         seeds: { ...seeds, [cropId]: seeds[cropId] - 1 },
