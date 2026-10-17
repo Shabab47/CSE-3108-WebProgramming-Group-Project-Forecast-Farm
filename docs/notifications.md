@@ -87,3 +87,22 @@ ground. That is the whole design.
 - Never use `alert()`. Errors and warnings go through the same stack.
 - `store.apply` emits a `toast` event with a `reason` whenever a domain function returns
   `ok: false`, so most toasts need no explicit call.
+
+### The lost-connection toast
+
+`js/connection.js` raises one: **"No connection — your farm is safe on this device."** It fires on the
+**first** `sync` transition to `pending` and not again until the state returns to `synced`.
+
+The rule is in `advanceAnnouncement(announced, next)`, pure and exported so it can be tested without a
+store or a DOM. `synced` clears the flag rather than setting it, so one outage announces once and the
+next outage is a new outage that gets to be heard again. `saving` never announces — it is the state the
+game passes through twice every `AUTOSAVE_MS`, and a toast on every healthy autosave is a firehose.
+
+It exists because the permanent indicator is small. `ui/syncIndicator.js` is a fixed corner chip whose
+amber `No connection` label never self-dismisses, but a small permanent fixture is exactly what players
+learn to ignore. The toast is the transient, unmissable half of the pair; the label is the persistent
+half. Together they are what keeps ISS-050 fixed. See DEC-037.
+
+**Wording is load-bearing.** It must reassure rather than alarm — nothing is lost, the local copy is
+correct, and saying so is what stops someone clearing their browser. The same rule the alert strings
+above follow, for the same reason.

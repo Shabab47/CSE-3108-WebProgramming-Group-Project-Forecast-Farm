@@ -45,7 +45,7 @@ globalThis.document = { querySelector: () => null, createElement: () => ({}) };
 globalThis.location = { search: '', href: 'http://localhost:5173/index.html', replace() {} };
 
 /** Imported after the stubs, since both entry scripts touch the DOM as they load. */
-const { farmHref, resolveSession, shopHref } = await import('../js/main.js');
+const { farmHref, needsLocationRefresh, resolveSession, shopHref } = await import('../js/main.js');
 const { loadProvider } = await import('../js/auth-main.js');
 const localAuth = await import('../js/services/localAuth.js');
 
@@ -303,4 +303,30 @@ test('a missing session still produces a usable href', () => {
   for (const href of [shopHref(null), shopHref(undefined), farmHref(null)]) {
     assert.match(href, /^(shop|index)\.html$/);
   }
+});
+
+/* --- the ISS-077 save migration --------------------------------------------- */
+
+test('a farm saved before the fix is re-resolved, not left on the placeholder', () => {
+  // The half of ISS-077 that only shows up on someone else's save. The broken code
+  // pinned the coordinates *successfully* and failed only to name them, so it wrote
+  // `pinned: true` beside `name: 'Current location'`. A `!pinned`-only test sees a
+  // healthy farm and skips the repair, and the player keeps the placeholder for the
+  // life of their save.
+  assert.equal(needsLocationRefresh({ name: 'Current location', pinned: true }), true);
+});
+
+test('a farm that already has a real name is left alone', () => {
+  // The other half: a searched or already-repaired farm must not be re-looked-up on
+  // every single load, which would overwrite a name the player chose.
+  assert.equal(needsLocationRefresh({ name: 'Dhaka', country: 'Bangladesh', pinned: true }), false);
+  assert.equal(needsLocationRefresh({ name: '0.00° N, 140.00° W', pinned: true }), false);
+});
+
+test('a farm that was never pinned still needs its coordinates', () => {
+  // The original intent, unchanged by the migration.
+  assert.equal(needsLocationRefresh({ name: 'Dhaka' }), true);
+  assert.equal(needsLocationRefresh({}), true);
+  assert.equal(needsLocationRefresh(null), true);
+  assert.equal(needsLocationRefresh(undefined), true);
 });

@@ -83,6 +83,8 @@ current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
 | ISS-072 | The crop layer is still sized for the old, half-height plot box | Low | Kafi | open | T-06 |
 | ISS-073 | Two replacement characters survive in `issues.md` itself | Low | Jim | **fixed** | — |
 | ISS-075 | The shop does not match the agreed art direction | Low | Jim | fixing | T-57 |
+| ISS-076 | The connection banner is in flow above a 100dvh shell, so it jumps the whole page every autosave | Medium | Hisham | **fixed** | T-58 |
+| ISS-077 | `reverseGeocode` posted lat/lon to Open-Meteo's forward-search endpoint, so every farm was named "Current location" | **High** | Hisham | **fixed** | T-59 |
 
 ---
 
@@ -1301,4 +1303,103 @@ current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
   model and its tests are unchanged); only their labels and markup change. The page widens to ~1400px for
   four columns, the purse stays as a small top-right pill, and unavailable crops stay listed in the same
   card shape, dimmed. The shop becomes painted art like `login.html` and does not read `data-theme`.
+
+### ISS-076 The connection banner is in flow above a 100dvh shell, so it jumps the page every autosave
+- Reported by Hisham · 2026-10-17 · Owner: Hisham · Status: fixed
+- Where: `index.html` / `shop.html` / `settings.html` / `profile.html` (`#connection-banner`),
+  `js/ui/connectionBanner.js`, `css/components.css`, `js/main.js`
+- Problem: the farm visibly lurches down and back every ten seconds, and again whenever the connection
+  drops. Reproduce on a healthy connection with no action at all: open the game, plant nothing, wait.
+  `#connection-banner` is an in-flow sibling **above** `<div class="app">`, and `.app` is `height: 100dvh`
+  (`css/layout.css`). So when the banner un-hides it claims vertical space above a full-viewport box: the
+  document grows past the viewport, the entire shell is pushed down, a scrollbar appears, and when the
+  banner hides again everything snaps back. It is not a subtle nudge — the whole interface jumps.
+- Cause: two things compound. First, the mount point is in normal flow rather than out of it, so any
+  visibility change is a layout change. Second, and much worse, `copyFor('saving', …)` returns copy as well
+  as `copyFor('pending', …)`, and `AUTOSAVE_MS` is `10000` — so a **routine successful autosave** briefly
+  inserts a full-width bar. A save that works perfectly is the thing causing the jumping, which is why it
+  reads as random: it recurs on a timer, not on any player action.
+- Verified: `setSync('saving')` fires in `store.js` `saveNow()` on every write, and `main.js` re-renders the
+  entire shell on every `sync` event, so the churn is doubled — the panel rebuild is a second, independent
+  source of the flicker.
+- Risk of the fix: the banner is deliberately loud and persistent (DEC-030, ISS-050), because "your farm is
+  only on this device" is a fact to act on. Shrinking it to a corner chip must not quietly regress ISS-050,
+  or a player stops noticing their farm has stopped syncing — which is the exact bug ISS-050 was filed for.
+- Fix: **fixed in T-58.** `js/ui/connectionBanner.js` is now `js/ui/syncIndicator.js` — a
+  `position: fixed` chip pinned bottom-left, which cannot shift layout on any page by construction. Two
+  small dots: they wave while a save is in flight, sit static and dim when synced, and turn amber with a
+  persistent `No connection` label when a write is queued. The escape hatch survives as a popover on click
+  (Export + Retry + the ageing "last reached your account" line). To keep ISS-050 fixed, the *first* failed
+  write still raises one toast — then the small persistent label holds the floor. Separately, `main.js`
+  narrows its `on('sync')` re-render to the `pending` transition only, since that is the only one the panels
+  render differently; that was the second, independent source of the flicker. `prefers-reduced-motion`
+  needed no work — `reset.css:109` already clamps the wave. See DEC-037.
+- Verified: `tests/connectionStatus.test.js` 20 → 28 cases, covering the always-present dots, the
+  label-only-when-pending rule, the popover toggle and its `aria-expanded`, the unmount removing its own
+  `document` listeners, and `advanceAnnouncement`'s one-toast-per-outage rule. `npm run check` passes.
+  The pre-existing ISS-047 failure is unrelated and untouched.
+### ISS-077 `reverseGeocode` posted lat/lon to Open-Meteo's forward-search endpoint
+- Reported by Hisham · 2026-10-17 · Owner: Hisham · Status: fixed
+- Where: `js/services/geocodeApi.js` (`reverseGeocode`), `js/main.js` (`useDeviceLocation`, `bootWeather`)
+- Problem: every farm the game pins to the player's own coordinates is labelled **"Current location"**,
+  on the weather board and in the success toast, instead of a place name. Reproduce on a clean profile:
+  clear localStorage, open `index.html`, and read the place line on the board. Nothing needs to be
+  clicked — see "Why it was always broken" below.
+- Cause: `reverseGeocode()` sent `latitude`/`longitude` to `GEOCODE_URL`, which is
+  `https://geocoding-api.open-meteo.com/v1/search` — Open-Meteo's **forward search** endpoint. That
+  endpoint requires a `name` parameter and has no reverse mode at all, so the request can only ever
+  fail. Verified live, not inferred:
+  ```
+  GET …/v1/search?latitude=23.81&longitude=90.41&count=1&language=en&format=json
+  → 400 {"reason":"No value found (expected type 'String') at path 'name'. …","error":true}
+  ```
+  So `reverseGeocode` returned `{ok:false, reason:'http_400'}` for every coordinate on earth, and
+  `main.js` fell back to the literal string `'Current location'`. The search box was never affected —
+  `searchPlaces` sends `name=` correctly, which is why only this path shows the placeholder.
+- Why it was always broken, and why nobody noticed: it is not intermittent and not environment-specific.
+  A 400 looks identical to "the network is down" in a `catch`-and-fallback path, and the fallback is a
+  plausible-looking English phrase rather than a blank or an error. Worse, `bootWeather()` calls
+  `useDeviceLocation({announce:false})` automatically on first boot whenever `!saved.pinned`, so a brand
+  new farm silently took this path and stored the placeholder as its location name.
+- Cause of survival: **there is no `tests/geocodeApi.test.js`**. The module had zero coverage, and a
+  permanently-400ing request is invisible without either a test or a live call.
+- Fix: **fixed in T-59.** Point `reverseGeocode` at BigDataCloud's keyless
+  `reverse-geocode-client` endpoint (`REVERSE_GEOCODE_URL` in `js/config/api.js`), which returns a place
+  rather than the nearest building. Kept the existing `{ok, name, country, admin}` contract, so
+  `main.js`'s call site and `locationLine()` are untouched. The name ladder is
+  `city → principalSubdivision → countryName → coordinates`. That last rung is the point: the ladder
+  always terminates in something truthful, so the `'Current location'` literal is deleted rather than
+  shrunk, and a farm pinned mid-ocean still says where it is. Nominatim and Photon were measured and
+  rejected — both return the nearest building. See DEC-038.
+- **A test changed the design.** `locality` was on the first draft of the ladder and a test removed it:
+  it carries regions rather than settlements (`"City of Westminster"` for London, `"Polynesian
+  Triangle"` mid-ocean), so it would have put a plausible-sounding lie on the board in exactly the case
+  the coordinate rung exists to handle. `city` was populated for every land coordinate probed, so
+  dropping it costs nothing on land.
+- Verified: `tests/geocodeApi.test.js` added, 16 cases — the module had **no test file at all** before,
+  which is how this shipped. The load-bearing ones assert that the two directions do not share an
+  endpoint and that neither sends the other's parameter, so the exact mistake cannot recur silently.
+  `npm run check` passes. `locationLine()` is unchanged; its `'Unknown location'` guard (ISS-063) is now
+  even less reachable, since `name` always carries a value.
+- **The fix needed a second commit, because the first one only worked for new farms.** `bootWeather()`
+  re-resolves the location when `!saved.pinned` — but the broken code pinned the coordinates
+  *successfully* and failed only to name them, so it wrote `pinned: true` next to
+  `name: 'Current location'`. `pinned` never returns to false, so **no pre-existing farm was ever
+  re-resolved** and every current player kept the placeholder for the life of their save. Found by
+  actually running the game, not by reading the diff. `needsLocationRefresh(saved)` in `js/main.js` is
+  now that gate: exported, pure, and tested — it also checks the name against the one string the broken
+  code could write, which is the honest way to migrate stored data since a flag added today cannot
+  describe saves written before it existed. A farm that already has a real name is left alone, so
+  nothing re-resolves on every load.
+- **The migration then needed a third correction, again found by running it.** It called
+  `useDeviceLocation()`, which asks `navigator.geolocation` for permission — to repair a *text label*.
+  With the prompt pending or denied it silently did nothing on every load, which is indistinguishable
+  from the fix not existing, and it re-prompted the player each time. The coordinates are already in the
+  save, so `nameExistingLocation()` now reverse-geocodes those and touches no browser API at all. That is
+  also more correct: it names the farm where it *is*, rather than wherever the device is standing now.
+  Nothing is written unless the lookup succeeds, so a farm that cannot be named yet keeps its name and
+  simply tries again next load.
+- **Lesson, for whoever writes the next fix here:** both of these failed only at runtime, and both were
+  invisible to `npm test` and to reading the diff. A migration that depends on a permission prompt is a
+  migration that silently does nothing.
 

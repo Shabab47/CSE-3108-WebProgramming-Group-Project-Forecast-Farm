@@ -8,6 +8,21 @@ export const WEATHER_URL = 'https://api.open-meteo.com/v1/forecast';
 export const GEOCODE_URL = 'https://geocoding-api.open-meteo.com/v1/search';
 export const TIME_URL = 'https://utctime.app/api/now/';
 
+/**
+ * Coordinates → place name.
+ *
+ * **A different service from `GEOCODE_URL`, and it has to stay that way.** Open-Meteo's geocoding API
+ * is forward-search only: it takes `name=` and has no reverse mode, so posting `latitude`/`longitude`
+ * to it returns `400` for every coordinate on earth. That is ISS-077, which is how every farm ended up
+ * labelled "Current location".
+ *
+ * BigDataCloud's client endpoint is keyless, CORS-open (`Access-Control-Allow-Origin: *`, so it works
+ * from a browser without a proxy) and returns the *place* rather than the nearest building — which is
+ * the distinction that matters, because Nominatim and Photon answer "what is at these coordinates" and
+ * will cheerfully return a specific bank. See DEC-038 for the alternatives that were measured.
+ */
+export const REVERSE_GEOCODE_URL = 'https://api.bigdatacloud.net/data/reverse-geocode-client';
+
 /** Where the farm starts. The player can move it from the top bar search. */
 export const DEFAULT_LOCATION = {
   name: 'Dhaka',
