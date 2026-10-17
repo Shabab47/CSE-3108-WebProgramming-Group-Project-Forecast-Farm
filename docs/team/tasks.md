@@ -83,10 +83,10 @@ Weeks are in `goals.md`. Week 1 was planning; T-02 onward belong to weeks 2–5.
 
 | ID | Task | Owner | Status | Phase | Updated |
 | :--- | :--- | :--- | :--- | ---: | :--- |
-| T-07 | Wallet, plots, buying: locked plot price tags, confirm popover, `hud` gold | Hisham | todo | 2 | — |
-| T-08 | Inventory, shop, planting, growth: Seeds tab, `inventoryPanel`, `cropPicker`, stage from `plantedAt`, autosave | Hisham | todo | 2 | — |
+| T-07 | Wallet, plots, buying: locked plot price tags, confirm popover, `hud` gold | Hisham | **doing** | 2 | 2026-10-17 — **landed:** the free starting plot (`STARTER_PLOT_ID`, DEC-040), one file per crop and per land segment (DEC-039), `domain/land.js` `buyPlot`/`canBuyPlot` on DEC-036's fixed order, three visual states (`owned`/`next`/`locked`), gold price tags, `?fast=N` to watch growth, and `ensureStarterPlot()` repairing older saves instead of wiping them. **Open:** the confirm popover (ISS-080) |
+| T-08 | Inventory, shop, planting, growth: Seeds tab, `inventoryPanel`, `cropPicker`, stage from `plantedAt`, autosave | Hisham | **doing** | 2 | 2026-10-17 — **landed:** `cropPicker`, `domain/farm.js` `plant`/`harvest`/`clearPlot` (ISS-006 closed), hourly stage from `plantedAt` via the shared `stageMath.js`, the 1 Hz field repaint, and the crop click loop through `farmActions.js`. **Open:** the Seeds tab and `inventoryPanel` themselves; weather does not move health yet, so every harvest is at 100% (`simulator.js` still empty) |
 | T-09 | Pump and water: toggle, water rise, ground sprite swap, gold drain, auto-off at 0, `meters` | Hisham | todo | 2 | — |
-| T-10 | Market: sell tab, quality-based gold | Hisham | todo | 2 | — |
+| T-10 | Market: sell tab, quality-based gold | Hisham | **doing** | 2 | 2026-10-17 — **landed the paying half:** `harvest()` adds `yield * sellPrice * (health / 100)` and banks the crop with a quality-weighted average. **Open:** the sell tab and the market UI, and the gold has to actually leave the purse somewhere |
 
 ## Phase 3 — Weather · weeks 4 and 5
 
@@ -122,7 +122,7 @@ nobody discovers them mid-build.
 | ISS-009 current-hour index not specified | T-04, T-12 | 0 |
 | ISS-011 stale sample timestamps | T-04, T-11 | 0 |
 | ISS-012 geocode `results` key absent when empty | T-04, T-11 | 0 |
-| ISS-006 dead crops brick a plot | T-08 | 2 |
+| ISS-006 dead crops brick a plot | T-08 | 2 ✅ |
 | ISS-007 pump transparent canvas eats clicks | T-06 | 1 |
 | ISS-008 pump 36× stronger than rain | T-09 | 2 |
 | ISS-013 no state field for alert dedupe | T-13 | 3 |

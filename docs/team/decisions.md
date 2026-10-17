@@ -7,6 +7,130 @@ Format: who decided, the choice, why, and what was rejected.
 
 ---
 
+### DEC-041 One crop seed unlocks every four land segments owned
+**Decided by:** Jim · 2026-10-17 · **decided and built, fixed same day**
+
+**Choice:** Seeds unlock on owned-plot count in shop order: rice at 1 (every new
+farm), potato at 4, tomato at 8, wheat at 12, corn at 16. `CROP_UNLOCK_PLOTS`
+in `js/config/crops.js` owns the thresholds; `js/utils/seedUnlocks.js` owns the
+count (`ownedPlots`) and the gate (`isSeedUnlocked`); `domain/shop.js` refuses
+a too-early purchase with the plot count, `domain/farm.js` refuses sowing one,
+the shop card says `Unlocks at N plots — you own M`, and the picker hides a
+locked seed it is still carrying in the bag.
+
+**Fix (same day, after a 4-plot farm still could not buy potato): land is the
+*only* gate — `available` (art) is not read by the shop, the picker, or the
+plant rule.** Only rice has field sprites; potato→corn have seed packets,
+prices, numbers, icons — everything except `*_1..5.png`. Gating on art as well
+meant a farm that earned its unlock was told "not available yet" with nothing
+to do about it. Now a land-unlocked crop without art is buyable, plantable,
+and pays out with its own numbers; the field draws the rice sprite at the same
+stage tinted by `plot__crop--fallback` (`js/ui/plotLayers.js:fieldSpriteFor`,
+a hue shift no rice ever wears) until the real sprites land. Flipping
+`available: true` when art arrives deletes the fallback branch and nothing
+else — the economy and the tests do not move.
+
+**Why.** The user's words: *"after owing each 4 land segments, one crop seed
+is unlocked to be bought in the shop."* Five seeds across sixteen plots land on
+exactly four thresholds, so progression, shop order and field size agree with
+nothing left over — 1→4→8→12→16. Gating buying *and* sowing (not just the
+button) because a hand-edited bag or a stale picker must not plant what the
+shop would not sell.
+
+**Where it lives and why:** the helper is in `utils/`, not in either domain
+module, because the layer rules forbid one domain module from importing another
+and three callers (shop rule, plant rule, two UI panels) need the same answer.
+`config` owns the numbers, `utils` the counting, `domain` the refusals, `ui`
+the words — one direction, no cycles.
+
+**Rejected:**
+- **Art gate alone (status quo).** Four priced packets the shop refuses with no
+  path to earning them reads as broken, not as progression.
+- **Land gate alone, ignoring `available`.** Would sell potato the moment 4
+  plots are owned and plant a 404 into the field — the field art does not exist
+  yet. Both gates stay until the sprites land.
+- **Hiding locked seeds from the shop.** A shop that silently omits four of its
+  five seeds looks broken (the standing rule from the shop's own header
+  comment). Locked cards stay listed, priced, dimmed, and explicit about N/M.
+- **Unlocking on plots *bought* (1/5/9/13) instead of *owned* (1/4/8/12/16).**
+  Same five unlocks one step earlier, but thresholds that are not multiples of
+  four do not say "every 4 segments" on the card — and the user said four.
+
+---
+
+### DEC-040 The player starts owning one plot, and it is never for sale
+**Decided by:** Jim · 2026-10-17 · **decided and built — this is T-07**
+
+**Choice:** Every farm opens owning exactly one plot — `STARTER_PLOT_ID` = 0, the back corner — and that
+plot is never locked, never greyed, and never has a price. The other fifteen start locked and are bought
+one at a time. `PLOT_PRICES[0]` is never charged, so buying begins at 100.
+
+**Why.** The user's words: *"the top land segment shouldn't be locked, ever. player have it when he starts
+the game for the first time, then use it to gain money to buy more lands."* Before this, `buildPlots()`
+set `owned: false` on all sixteen, so a new player opened the game staring at sixteen padlocks with 200
+gold and nothing to do with either. The opening move of a farming game has to be *farming*.
+
+The back corner specifically, because `z = col + row` makes `(0,0)` the furthest diamond from the camera
+and nothing paints over it — and this is the plot a player looks at most, for the whole first session.
+
+It also makes the economy legible in one glance: 200 starting gold buys one rice packet at 100, six hours
+later that harvest pays 200, which is the second plot at 100 *and* another packet. The free plot is not a
+discount, it is the tutorial.
+
+**Where it did not need to change anything:** `PLOT_PRICES` already had sixteen entries and DEC-036
+already indexed both it and the unlock order by `ownedCount`. One plot owned means `ownedCount` starts at
+1, so index 0 falls away on its own. No price table was invented and no existing economics test broke.
+
+**Still open:** DEC-036 also lists a **confirm popover** before a purchase. Not built. A misclick spends
+gold that took an hour to earn and the plot on offer is always the one under the player's hand, so this is
+a real gap — `docs/team/issues.md`.
+
+**Rejected:**
+- **The whole top 2×2 zone (four free plots).** Reads better on screen, but it needs its own four-step
+  price ladder and it rewrites DEC-036's granularity. The user said "segment", singular.
+- **Bump `STATE_VERSION` and wipe every save.** Cheapest possible migration and it throws away every farm
+  in the world to deliver one plot. `ensureStarterPlot()` repairs on load instead, and only for a save with
+  *zero* owned plots — a player who bought land is never touched. See ISS-078.
+- **Charge for the first plot as today (`PLOT_PRICES[0] === 0` already means free).** No change needed;
+  recorded here so the zero is not later "corrected" into a charge.
+
+---
+
+### DEC-039 One file per crop and per land segment, below `config/`
+**Decided by:** Jim · 2026-10-17 · **decided and built — this is T-07**
+
+**Choice:** `js/crops_logics/<cropId>.js` (five files, plus a shared `stageMath.js`) and
+`js/land_squares/s1.js` … `s16.js` (plus an `index.js`). Both folders sit **below** `config` in the
+layering table and import nothing / only config respectively. `config/crops.js` stays and becomes the
+aggregator: it imports the five crops and keeps exporting `CROPS`, `SHOP_ORDER`, `cropOf`, `shopCrops`
+and `harvestValue` with unchanged signatures.
+
+**Why.** The user asked for it by name, and the reasons hold up. `config/crops.js` was 118 lines of a
+single object literal with five near-identical blocks; adding a sixth crop meant threading a block through
+one big file and hoping nothing else hard-coded a name. Now it is a file to add. And with T-07 landing,
+`domain/farm.js` wanted `growHours`, `sellPrice`, `waterNeed`, `likes` and `hates` from five different
+places in one file — the per-crop folder is what made that readable rather than a grep.
+
+**The land segments hold identity, not state.** Each `sN.js` exports an immutable descriptor (`id`, `col`,
+`row`, `zone`, `zoneLabel`, `isStarter`) and a `createPlotN()` **factory**. The factory is the load-bearing
+part: a module-level mutable plot would be the same object for every player, in every tab, forever. It could
+not be saved, two players on one machine would overwrite each other, and a save restored twice would share
+memory with the farm it came from. `state.plots` stays an ordinary serialisable array.
+
+**Also rejected, and worth recording:**
+- **Storing `timeLeft` on the plot, as the user's description suggested.** `docs/crops.md` has said since
+  the beginning that the stage is never stored, so a crop keeps growing while the tab is closed. A stored
+  countdown goes stale the moment the tab is backgrounded and needs migrating every time the formula
+  changes. `harvestsIn(plot, now)` derives it instead — including the debug speed, so the sprite on screen
+  and the readiness that pays out cannot disagree.
+- **A per-plot `state: 'next' | 'locked' | 'owned'`.** Already rejected in DEC-036, and still right: `owned`
+  is the only field the data needs, and `next` is `UNLOCK_ORDER[ownedCount]`. One source of truth.
+- **Putting crop numbers in `config/crops.js` *and* the new files.** Briefly true during the work, which is
+  exactly the drift the split exists to prevent. `config/crops.js` copies the objects wholesale and
+  restates no number, so the two cannot disagree.
+
+---
+
 ### DEC-038 Coordinates are named by BigDataCloud, and `locality` is not a place name
 **Decided by:** Hisham · 2026-10-17 · **decided and built — this is T-59**
 

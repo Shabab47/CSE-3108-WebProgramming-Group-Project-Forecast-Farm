@@ -11,22 +11,34 @@ no runtime dependencies. `package.json` exists only for scripts.
 
 | Folder | May import from | Never contains |
 | :--- | :--- | :--- |
-| `js/config/` | nothing | logic, DOM, fetch |
+| `js/crops_logics/` | nothing | DOM, fetch, other crops |
+| `js/land_squares/` | `config` | DOM, fetch, mutable state |
+| `js/config/` | `crops_logics` | logic, DOM, fetch |
 | `js/utils/` | `config` | DOM (except `utils/dom.js`), fetch |
-| `js/state/` | `config`, `utils` | DOM, fetch, game rules |
-| `js/domain/` | `config`, `utils`, `state/types` | DOM, fetch, `store.js` internals |
+| `js/state/` | `config`, `utils`, `land_squares` | DOM, fetch, game rules |
+| `js/domain/` | `config`, `utils`, `land_squares`, `state/types` | DOM, fetch, `store.js` internals |
 | `js/services/` | `config`, `utils` | DOM |
-| `js/ui/` | `config`, `utils`, `domain`, `state` | `fetch`, game rules, service calls |
+| `js/ui/` | `config`, `utils`, `domain`, `state`, `land_squares` | `fetch`, game rules, service calls |
 | `js/debug/` | anything | — |
-| `js/main.js` | anything | — |
+| `js/*.js` top level | anything | — |
+
+`crops_logics/` and `land_squares/` sit **below** `config` (DEC-039): one file per crop, one per
+land segment, each holding data and pure arithmetic. `config/crops.js` is the aggregator and
+restates no number.
 
 Three rules the layering depends on:
 
 1. **Only `js/services/` calls `fetch`.** Includes reading `data/sample-forecast.json`.
-2. **Only `js/ui/`, `js/debug/` and `js/main.js` touch the DOM.** `utils/dom.js` is the one
+2. **Only `js/ui/`, `js/debug/` and `js/*.js` top level touch the DOM.** `utils/dom.js` is the one
    exception, and `scripts/check-imports.mjs` whitelists it explicitly.
-3. **`js/main.js` is the only module that imports `js/services/`.** UI modules never import
-   a service. `main.js` passes callbacks in through `mountX(root, actions)`.
+3. **Entry scripts are the only modules that import `js/services/`.** UI modules never import
+   a service. Callbacks come in through `mountX(root, actions)`.
+
+**`land_squares/` holds identity, never live state.** Each `sN.js` exports an immutable descriptor
+and a `createPlotN()` **factory**. A module-level mutable plot would be the same object for every
+player, in every tab, forever — unsaveable, and two players on one machine would overwrite each
+other. `state.plots` stays an ordinary serialisable array, which is what makes `transfer.js` and
+the whole export/import path work without knowing this folder exists.
 
 ## Data flow
 
@@ -714,7 +726,8 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   ├── fonts.css               the two display faces, self-hosted @font-face
 │   ├── navbar.css              the game page's top bar
 │   ├── weather.css             the wooden forecast board and its sticky notes — plain literals plus one short-window block
-│   ├── scene.css               the isometric stage and the plot layers
+│   ├── scene.css               the isometric stage, the plot layers, locked/next/ready
+│   ├── crop-picker.css         the seed picker overlay and its rows
 │   ├── shop.css                the shop sign and the seed list
 │   ├── settings.css            the settings gear and the settings page
 │   ├── auth.css                the login backdrop and the stage it sits on
@@ -729,23 +742,35 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   ├── auth-main.js            the login page entry, wires panel to provider
 │   ├── shop-main.js            the shop page entry, same gate as main.js
 │   ├── settings-main.js        the settings page entry, same gate as main.js
+│   ├── farmActions.js          what a click on a plot does — store + rules + picker
 │   ├── remoteSave.js           joins the store to the server-save service
 │   ├── config/                 pure data, imports nothing
 │   │   ├── auth.js             storage keys, password policy, PBKDF2 cost
 │   │   ├── supabase.js         project URL + anon key (set, T-29)
 │   │   ├── api.js              URLs, default location, refresh interval
 │   │   ├── assets.js           every image path, in one place
-│   │   ├── field.js            FIELD geometry, ZONES, PLOT_PRICES
-│   │   ├── game.js             START_GOLD, PUMP, WATER, HEALTH, timings
-│   │   ├── crops.js            the crop table — prices, grow times, availability
+│   │   ├── field.js            FIELD geometry, ZONES, STARTER_PLOT_ID, UNLOCK_ORDER, PLOT_PRICES
+│   │   ├── game.js             START_GOLD, PUMP, WATER, HEALTH, timings, growthSpeed()
+│   │   ├── crops.js            the crop table — an aggregator over crops_logics/
 │   │   ├── tips.js             loading-screen facts and their timings
-│   │   ├── cropWeatherMatrix.js empty
+│   │   ├── cropWeatherMatrix.js likes/hates as numbers, per crop per event — not yet ticked
 │   │   ├── seasons.js          empty
 │   │   └── weatherEvents.js    empty
+│   ├── crops_logics/           one file per crop — imports nothing (DEC-039)
+│   │   ├── stageMath.js        stageAt, progressAt — the one growth formula
+│   │   ├── rice.js             the only playable crop
+│   │   ├── potato.js
+│   │   ├── tomato.js
+│   │   ├── wheat.js
+│   │   └── corn.js
+│   ├── land_squares/           one file per segment — identity, never live state (DEC-039)
+│   │   ├── index.js            buildPlots, starterPlot, nextUnlockable, harvestsIn
+│   │   ├── s1.js … s16.js      id, col, row, zone, isStarter + a createPlotN() factory
 │   ├── domain/                 game rules — no DOM, no fetch
 │   │   ├── authRules.js        what counts as a valid username, email or password
 │   │   ├── shop.js             buySeeds, canAfford, the refusal reasons
-│   │   ├── farm.js             empty
+│   │   ├── farm.js             plant, harvest, clearPlot
+│   │   ├── land.js             buyPlot, canBuyPlot
 │   │   ├── notifications.js    empty
 │   │   ├── simulator.js        empty
 │   │   └── weather.js          empty
@@ -764,9 +789,12 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── almanac.js          empty
 │   │   ├── authErrors.js       provider code → sentence, enumeration guard
 │   │   ├── authViews.js        the login page's view graph — menu, forms, reset
-│   │   ├── cropPicker.js       empty
+│   │   ├── cropPicker.js       which seed to sow on a plot
 │   │   ├── dangerAction.js     the arm-and-confirm control, with its password gate
-│   │   ├── farmView.js         the isometric field: plots, pump, crop layers
+│   │   ├── farmView.js         the isometric field — geometry only
+│   │   ├── plotLayers.js       what is painted inside one plot, back to front
+│   │   ├── plotLabel.js        a plot's accessible name — the whole of it
+│   │   ├── plotClick.js        plotAction(): what a click on a plot means
 │   │   ├── loadingTips.js      the boot veil and its rotating facts
 │   │   ├── locationBar.js      the place search in the farm top bar
 │   │   ├── loginFields.js      labelled input builders, one form per mode
@@ -795,7 +823,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── date.js             empty
 │   │   └── season.js           empty
 │   ├── state/
-│   │   ├── initialState.js     builds a fresh farm: 200 gold, 16 plots
+│   │   ├── initialState.js     builds a fresh farm: 200 gold, 16 plots, 1 already owned
 │   │   ├── saveFile.js         the per-user localStorage save
 │   │   ├── store.js            getState, apply, subscribe, bus, save/load
 │   │   └── types.js            planned — JSDoc @typedef for State

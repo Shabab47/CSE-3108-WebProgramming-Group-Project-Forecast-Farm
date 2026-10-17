@@ -34,8 +34,9 @@
 import { clear, el, setText } from '../utils/dom.js';
 import { createLog } from '../utils/log.js';
 import { cropSeedImg } from '../config/assets.js';
-import { shopCrops } from '../config/crops.js';
+import { requiredPlotsFor, shopCrops } from '../config/crops.js';
 import { BUY_STEPS, canAfford } from '../domain/shop.js';
+import { isSeedUnlocked, ownedPlots } from '../utils/seedUnlocks.js';
 import { coinEl, sproutEl } from './shopArt.js';
 
 const log = createLog('shopView');
@@ -59,6 +60,8 @@ function pluralSeeds(n) {
  * domain and its tests do not move; only the labels and the markup do.
  */
 function buildCard(crop, actions) {
+  const need = requiredPlotsFor(crop.id);
+
   const buyButtons = BUY_STEPS.map((quantity) => {
     const cost = crop.seedPrice * quantity;
     const isPrimary = quantity === 1;
@@ -97,7 +100,11 @@ function buildCard(crop, actions) {
 
   const owned = el('p', { class: 'shop-card__owned', text: 'None in your bag' });
 
-  const node = el('article', { class: crop.available ? 'shop-card' : 'shop-card shop-card--locked' }, [
+  // The note is filled per render: land-lock beats art-lock beats the blurb,
+  // because the player can act on the first and only wait on the second.
+  const note = el('p', { class: 'shop-card__note', text: crop.growNote });
+
+  const node = el('article', { class: 'shop-card' }, [
     el('div', { class: 'shop-card__art' }, [
       // The per-crop unit lands in the top-left pill: "5 SEEDS", "1 TOOL", etc.
       el('span', { class: 'shop-card__pill', text: crop.shopUnit ?? 'Seed packet' }),
@@ -119,14 +126,7 @@ function buildCard(crop, actions) {
       // the whole shop is seeds, so the suffix is always true.
       el('h2', { class: 'shop-card__name', text: `${crop.name} seeds` }),
 
-      // A locked crop says so in place of its own description, so the reason its
-      // buttons are dead is on the card rather than only in the toast.
-      el('p', {
-        class: 'shop-card__note',
-        text: crop.available
-          ? crop.growNote
-          : 'Not available yet — this crop needs its growth art drawn before it can be planted.',
-      }),
+      note,
 
       owned,
 
@@ -145,6 +145,22 @@ function buildCard(crop, actions) {
     update(state) {
       const count = state?.inventory?.seeds?.[crop.id] ?? 0;
       setText(owned, count > 0 ? `In your bag: ${format(count)}` : 'None in your bag');
+
+      // Land is the only gate. A land-unlocked crop without art yet shows its
+      // blurb with a fallback note — buyable and plantable, drawn as rice
+      // until its own sprites land.
+      const unlocked = isSeedUnlocked(state, crop.id);
+
+      node.classList.toggle('shop-card--locked', !unlocked);
+
+      if (!unlocked) {
+        const have = ownedPlots(state);
+        setText(note, `Unlocks at ${need} plots — you own ${have}. Buy more land first.`);
+      } else if (crop.available === true) {
+        setText(note, crop.growNote);
+      } else {
+        setText(note, `${crop.growNote} Field art still growing — shows as rice for now.`);
+      }
 
       for (const entry of buyButtons) {
         entry.node.disabled = !canAfford(state, crop.id, entry.quantity);

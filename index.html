@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="css/navbar.css" />
     <link rel="stylesheet" href="css/weather.css" />
     <link rel="stylesheet" href="css/scene.css" />
+    <link rel="stylesheet" href="css/crop-picker.css" />
     <link rel="stylesheet" href="css/shop.css" />
     <link rel="stylesheet" href="css/settings.css" />
     <link rel="stylesheet" href="css/sidebar.css" />
@@ -47,6 +48,19 @@
 
       <aside class="app__rail" id="right-rail"></aside>
     </div>
+
+    <!-- The seed picker's host: a viewport-level overlay, a body child beside the toast
+         stack rather than anything inside `.app`.
+
+         Two reasons, and both are load-bearing:
+           - `mountFarmView()` clears `#farm-view` wholesale on every render, so a picker
+             mounted inside the field was torn down by the 1 Hz growth tick and a player
+             had under a second to choose a seed. See ISS-085.
+           - It centres on the *whole screen*, not on the centre column, so it cannot live
+             inside `.app` at all: `.app` is `overflow: hidden` and `height: 100dvh`, so
+             anything anchored inside it is confined to the game shell and reads as
+             off-centre on a wide monitor. -->
+    <div id="farm-picker"></div>
 
     <div class="toast-stack" id="toast-stack" aria-live="polite"></div>
 

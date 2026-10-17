@@ -9,6 +9,11 @@ All entries below were found during the pre-build audit, by reading the plan
 against the actual assets and the live Open-Meteo responses. Nobody had written any code yet,
 so these are all cheap to fix now and expensive to find later.
 
+**ISS-078 onward** were found later, while building the plant/harvest/buy loop (T-07). Several of
+them share an uncomfortable property: the test suite **asserted the bug as the expected
+behaviour** and passed. Read those for what they say about writing a test that describes what
+should be true rather than what is.
+
 **An entry is a record of what was true when it was written.** A `fixed` entry keeps the
 numbers it was written with — "56 tests" was accurate then and is not a claim about today.
 Check the entry's own date, and `git log` for that file, before acting on one. For the
@@ -16,7 +21,322 @@ current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
 
 ---
 
-## Triage
+## ISS-087 An empty overlay dimmed the whole screen and ate every click
+**Found:** 2026-10-17, reported from the running game · **Severity: Critical** · **Status: fixed**
+
+The whole screen went dark and nothing answered — including the plot click that was
+supposed to open the picker. Reported as "whole screen is dimmed, cant press anything".
+
+**The cause was a comment I wrote that was simply wrong.** When `#farm-picker` became a
+body-level `position: fixed; inset: 0` overlay, I dropped the `:not(:empty)` guard it had
+needed as a flex child, and wrote:
+
+> "It is out of flow, so it takes no layout space whether or not it has children."
+
+Being out of flow means it takes no **layout** space. It says nothing about **painting**
+or **hit-testing**. `position: fixed` with `inset: 0` sizes an element to the viewport
+whether or not it has children, and `background` paints whether or not it has children.
+So the empty host was a full-screen dim overlay from the moment the page loaded, at
+`z-index: 300` — above every plot — swallowing every click. The player could not click
+their plot at all, which is why the picker never opened.
+
+**Fixed** with `#farm-picker:empty { display: none; }`.
+
+`:empty` matches only when there are no child nodes at all, and `farmActions.js` keeps the
+host truly empty when closed (`clear(host)` removes the card; nothing adds whitespace), so
+the guard is reliable. But it is a trap if anything ever leaves a text node in there, which
+is why the stylesheet now says so rather than relying on the reader to infer it.
+
+**Covered now.** `tests/mainPageBoot.test.js` asserts the `display: none` guard exists and
+that the host is empty before anything is planted — the state the guard protects. Confirmed
+to fail when the guard is removed.
+
+**The lesson, and it is the third of its kind in this piece of work:** a comment that
+explains *why* a rule exists is a claim, and a wrong claim is worse than no comment,
+because it stops the next person from looking. ISS-083 was a stale reference, ISS-085 a
+wrong assumption about what invalidates a picker, and this one a wrong assumption about
+what `position: fixed` does to an empty element. All three were found by playing the game.
+
+---
+
+## ISS-086 The seed picker was centred on the game column, not the screen
+**Found:** 2026-10-17, reported from the running game · **Severity: Medium** · **Status: fixed**
+
+The picker opened over the middle of the field rather than the middle of the screen.
+Reported as "the options should be shown in the middle of the screen after clicking an
+empty available land once".
+
+**The placement had been wrong twice, and each fix addressed only one of two
+requirements.** The picker has to be **outside** anything a field render clears, and it has
+to be anchored to the **viewport** to centre properly. Those pull against each other:
+
+1. It was appended into `#farm-view`. `mountFarmView()` clears that element wholesale on
+   every render, so the 1 Hz growth tick destroyed the picker about once a second — ISS-085.
+2. It then moved to a child of `.app__centre`, which survived the clear. But `.app__centre` is
+   the middle grid column, so the card centred on the column and read as off-centre on a
+   wide monitor. Worse, `.app` is `overflow: hidden` and `height: 100dvh`, so an overlay
+   anchored inside it could never cover the edges at all — the requirement was not merely
+   unmet but unreachable from there.
+
+**Fixed** by making `#farm-picker` a body-level child beside `#toast-stack`, and styling it
+as a `position: fixed; inset: 0` overlay with `place-items: center`. That is the only
+placement that satisfies both requirements at once.
+
+**The `.farm-picker` wrapper class is gone.** `farmActions.js` mounts the card straight into
+`#farm-picker`, so the overlay and the host are one element and there is nothing to keep in
+sync. The `:not(:empty)` rule that used to stop an empty flex child pushing the field down
+went with it — `position: fixed` is out of flow, so the host takes no layout space whether
+or not it has children.
+
+**Covered now.** `tests/mainPageBoot.test.js` asserts the shape of `index.html` — that
+`#farm-picker` comes after `.app` closes and is not nested inside it — and that
+`css/crop-picker.css` makes it `position: fixed`, `inset: 0` and `place-items: center`.
+Confirmed to fail when the overlay regresses to `position: absolute` / `place-items: start`.
+
+**The lesson is the same one ISS-085 taught, one layer up:** a placement that satisfies one
+constraint while quietly violating another is not a fix, it is a deferral. Both of these
+were found by playing the game rather than by reading the code.
+
+---
+
+## ISS-085 The seed picker vanished before a seed could be chosen
+**Found:** 2026-10-17, reported from the running game · **Severity: High** · **Status: fixed**
+
+Clicking an empty plot you own opened the crop picker and it disappeared on its own
+before a seed could be chosen. Reported as "the option to choose crop to plant doesn't
+stay, automatically vanishes".
+
+**Two independent causes, both from the same piece of work, and either alone was enough.**
+
+**1. The 1 Hz growth tick went through `renderPanels`.** The tick exists so a growing crop
+visibly changes sprite. It called `renderPanels(getState())`, which rebuilds the whole page
+— forecast board included, once a second, for no reason. And `renderPanels` called
+`closePicker()` on the way past, because a repaint invalidates a list of seeds. So the
+picker lived about one second: long enough to click the plot, not long enough to decide.
+
+A repaint is not a state change. On that tick nothing has been spent, planted or fetched —
+`plantedAt` has not moved — so `repaintFarm()` now does the field and only the field, and
+the tick calls that.
+
+**2. The picker was mounted inside `#farm-view`.** `mountFarmView()` calls `clear(root)`
+before it draws, so anything inside that element is destroyed by *any* repaint. Even with
+cause 1 fixed, the tick would have kept wiping the picker a second later. The host is now a
+dedicated `#farm-picker`, a **sibling** of `#farm-view` in `index.html`, so no field render
+can reach it.
+
+**The reasoning error underneath both** was treating "the page needs redrawing" and "the
+player is mid-choice" as the same event. They are not. A save completing, the clock ticking
+and the weather refreshing are all reasons to redraw and **none** of them are reasons to
+take a choice away from someone who is halfway through making it. The picker now closes on
+exactly three things — planting, "Never mind", and the shop link — and nothing else. The only
+thing that can change the seed bag underneath an open picker is planting, and planting is
+one of the three.
+
+**And the module-level `pickerHost` variable is gone.** The DOM is now the state: the host
+has children while the picker is up and none when it is not. A second source of truth for
+"is the picker open" is what let the two drift apart in the first place — the same mistake
+ISS-083 records, where a `pickerHost` guard and the variable it guarded had ended up in
+different modules.
+
+**Covered now, on the real booted page.** `tests/mainPageBoot.test.js` opens the picker
+through `onPlotClick`, then runs three state changes through the real `subscribe` chain and
+asserts the picker is still there and still clickable each time, then plants and asserts it
+closes. A second test pins the structure — that `#farm-picker` is not inside `#farm-view` —
+which holds even if someone reintroduces a caller that repaints more often. Both were
+confirmed to fail when the causes were reintroduced.
+
+---
+
+## ISS-084 Crop sprites were drawn at 70% of the plot they stand on
+**Found:** 2026-10-17, reported from the running game · **Severity: Medium** · **Status: fixed**
+
+Every planted crop looked far too small for its plot — a seedling sitting on a dinner
+plate. Reported as "the rice PNGs are smaller than the land PNG".
+
+**It was never the PNGs.** Both the ground and every crop stage are 1000x1000, and the
+alpha bounding boxes show the art filling them almost completely — 99.1% of the canvas
+width for `ground_unwatered`, and 97.4–99.8% for the five rice stages. The art was drawn
+as a matched pair.
+
+The bug was two numbers in `css/scene.css`:
+
+```css
+.plot__crop { bottom: 10%; width: 70%; }   /* was */
+.plot__crop { bottom: 0;    width: 100%; }  /* now */
+```
+
+`width: 70%` drew the plant at about **68% of the diamond's width**, and `bottom: 10%`
+floated it a tenth of the plot above the soil it is supposed to be planted in.
+
+The second one is the more interesting, because it is answerable only by measuring.
+Every sprite's art bottoms out at **y 757–801** against the ground's **757** — the artist
+drew them to stand on the diamond's lower vertex when both are at full size and share a
+bottom edge. `bottom: 0` is not a nudge that happens to look right; it is the placement
+the art was drawn for. Guessing 10% and then 0% would have found *a* number without ever
+knowing why.
+
+Useful cross-check: the ground's measured `h/w` is **0.540** against `FIELD.tileAspect`'s
+**0.538**, so the geometry constants in `config/field.js` are still correct and only the
+stylesheet was wrong.
+
+**The crops are deliberately taller than the ground** — 0.589 and 0.611 against 0.540,
+and `docs/crops.md` warns against scaling crop layers to the ground's *height*, because
+that clips the tops. Nothing clips them: `.plot`, `.field-stage__plots`,
+`.field-stage__mount` and `.field-stage` all leave `overflow` visible, so the extra
+height simply shows. The warning is now enforced rather than remembered —
+`tests/farmView.test.js` asserts the crop canvas matches the ground canvas, shares its
+bottom edge, and that nothing on the way up clips.
+
+**Why nothing caught it:** a rendered size is not a unit-testable thing, and the sprites
+were never missing or misnamed, so `assets.test.js` was green. Same family as ISS-083 —
+the defect was only ever visible by looking at the game.
+
+---
+
+## ISS-083 The game page failed to boot, and all 420 tests passed
+**Found:** 2026-10-17, immediately after T-07 · **Severity: Critical** · **Status: fixed**
+
+Every load of `index.html` died with *"Forecast Farm could not start. Check the browser
+console."* A `ReferenceError` on the first render, before a single plot was drawn.
+
+The cause was one line left behind by the `farmActions.js` split:
+
+```js
+// js/main.js, in renderPanels()
+if (pickerHost) closePicker();
+```
+
+`let pickerHost = null;` had moved into `farmActions.js` with the rest of the picker
+handling, and `renderPanels()` still referenced it. It is a bare undeclared identifier,
+so it resolved against the global scope and threw at runtime — **not** a syntax error, so
+the module imported cleanly, nothing complained at import time, and the failure only
+appeared on a page load.
+
+**Why nothing caught it.** `tests/mainBoot.test.js` stubs
+`globalThis.document = { querySelector: () => null, ... }`, which is how it stops the entry
+script's `if (qsOrNull('#top-bar'))` guard from running `start()` and redirecting the test
+process to the login page. That guard means **`start()` had never been executed by any test
+in the repo.** All 420 tests exercised code *below* it — the domain rules, the views, the
+store — and none of them touched the boot sequence, which is the first thing a player sees.
+
+This is the `AGENTS.md` blind spot stated exactly, and it was hit by the same kind of
+refactor `AGENTS.md` warns about: a declaration moved, a caller left behind.
+
+**Fixed** by dropping the guard — `closePicker()` already returns early when there is no
+picker, so `if (pickerHost)` was both broken and redundant.
+
+**And covered now.** `tests/mainPageBoot.test.js` runs `start()` for real against the
+element ids `index.html` actually has, and asserts boot completes, the shell mounts, and
+the field comes up 1 owned / 1 on offer / 14 locked. Reintroducing the one bad line makes
+it fail on `boot failed - pickerHost is not defined`.
+
+**Three harness gaps surfaced on the way, all fixed in `tests/helpers/fakeDom.js`:**
+`document` had no `addEventListener` (`connection.js` calls it), no `hidden` (`main.js`'s
+tick reads it), and `FakeNode` had no `remove()` (`loadingTips.js` and `farmActions.js`
+both use it). Each failed as a *game* bug, which is worse than not having the test.
+
+**Lesson, and the second time this suite has learned it:** a stub missing a method the real
+DOM has does not announce itself — it fails as whatever is under test. `AGENTS.md` already
+records that two settings-page smoke tests live outside the repo; that gap is now closed
+for the farm page.
+
+---
+
+## ISS-078 Every plot started locked, so a new player had nothing to plant on
+**Found:** 2026-10-17, while building the plant/harvest/buy loop · **Severity: High** · **Status: fixed** (DEC-040)
+
+`buildPlots()` in `js/state/initialState.js` set `owned: false` on all sixteen plots, and `PLOT_PRICES`
+had no caller anywhere in production code — so a brand new farm rendered sixteen padlocks, held 200 gold,
+and had exactly one thing it could do with either: buy seeds for a plot it did not own.
+
+Nothing caught it. `tests/initialState.test.js` asserted `state.plots.filter((plot) => plot.owned).length === 0`
+— the bug was written down as the expected behaviour, and the suite passed.
+
+Fixed by giving every farm `STARTER_PLOT_ID` (the back corner, plot 0) owned from the first frame, and by
+adding `domain/land.js` so the other fifteen can actually be bought.
+
+**The save migration was the interesting part, and the obvious version was wrong.** Bumping
+`STATE_VERSION` would discard every existing farm in the world to deliver one free plot. Instead
+`ensureStarterPlot()` runs in `store.init()` and repairs a save **only if it owns zero plots** — a player
+who has bought land is never touched, and a hand-edited or half-written save is passed through rather than
+having land invented for it. Getting that condition wrong in the permissive direction would hand out free
+plots to anyone whose save loaded oddly.
+
+---
+
+## ISS-079 The growth stage reached its last sprite at 80% and ignored the debug clock
+**Found:** 2026-10-17, same work · **Severity: Medium** · **Status: fixed**
+
+`growthStage()` in `js/ui/farmView.js` was:
+
+```js
+const progress = Math.min(elapsed / crop.growHours, 1);
+return Math.max(1, Math.ceil(progress * 5));
+```
+
+Two bugs in three lines.
+
+1. **`ceil(progress * 5)` hits 5 at 80%**, not at maturity. `docs/crops.md` specifies
+   `progress >= 1 ? 5 : 1 + floor(progress * 4)`. As written, a rice crop looked finished at 4h48m and
+   would have looked identical for the last 72 minutes — and since readiness was to be *paid out* on,
+   that gap is between "looks ready" and "is worth harvesting".
+2. **It read `Date.now()` directly**, so `state.clock.timeOffsetMs` was ignored. The debug time-skip moved
+   the weather and the season card and not the crops, which is the kind of thing that gets a feature
+   reverted after a demo in front of people.
+
+Both are gone. The stage comes from `harvestsIn()`, which is the same function `domain/farm.js` asks
+before it pays out — so the sprite on screen and the money in the purse cannot come from two different
+formulas. That is the actual fix; the arithmetic was the symptom.
+
+---
+
+## ISS-080 Buying land has no confirm step
+**Found:** 2026-10-17, while building T-07 · **Severity: Medium** · **Status: open**
+
+DEC-036 specifies a confirm popover before a purchase and it is **not built**. A click on the plot on offer
+spends gold immediately. The plot on offer is always the one adjacent to land already bought, which is
+exactly where the player's hand already is, and a misclick can spend an hour of earnings. Prices reach
+seven figures by plot 13, so the mistake gets expensive fast.
+
+The *refusal* paths are handled — clicking a plot that is not on offer says so rather than doing nothing,
+and being short of gold names the cost and the shortfall. It is only the successful purchase that goes
+through unconfirmed. Tracked here rather than in the code because it is a design question, not a bug.
+
+---
+
+## ISS-081 Six season images were never registered, so `npm test` failed before any of this
+**Found:** 2026-10-17 · **Severity: Low** · **Status: fixed**
+
+`assets/images/seasons/*.png` — Winter, Spring, Summer, Monsoon, Autumn, Late Autumn — were on disk and
+in active use by `ui/seasonCard.js`, which builds
+`assets/images/seasons/${encodeURIComponent(season)}.png`. None was in the `ASSETS` registry, so
+`tests/assets.test.js` failed on them.
+
+Found while fixing the same failure for five flat `crops/rice_*.png` duplicates. Both are the registry
+doing its job: it fails in both directions, so an unregistered file and a missing one look the same. The
+season art was the more interesting half, because those files are *loaded* — a registry entry for an
+unregistered image is untidy, an unregistered image that the game requests is a 404 on the season card for
+a third of the year.
+
+Note the filenames carry a space (`Late Autumn.png`), which is why `seasonCard.js` `encodeURIComponent`s
+the name. That is not tidying to do.
+
+---
+
+## ISS-082 Five duplicate rice sprites sit beside the real ones
+**Found:** 2026-10-17 · **Severity: Low** · **Status: fixed** (by registering, not deleting)
+
+`assets/images/crops/rice_1.png` … `rice_5.png` are byte-identical copies of
+`assets/images/crops/rice/rice_1.png` … `rice_5.png`, delivered before the per-crop folder convention
+existed. `cropStageImg()` builds the folder path, so **the game never requests the flat copies.**
+
+They were registered in `ASSETS` with `status: 'duplicate'` rather than deleted, at the user's request.
+That is the right call for delivered art and it keeps the registry honest about what is on disk — but it
+is not free: about 3 MB shipped to every visitor for nothing, and the next person will assume the flat
+copies are the live ones. If they are ever cleaned up, delete the five `ASSETS` entries in the same commit
+or `assets.test.js` fails in the other direction.
+
+---
 
 | ID | Title | Severity | Owner | Status | Fix in |
 | :--- | :--- | :--- | :--- | :--- | ---: |

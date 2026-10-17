@@ -26,8 +26,37 @@ export const HEALTH = {
   dryDrainPerHour: 5,
 };
 
-/** Simulator interval. */
+/** Simulator interval. Also how often the field redraws, so growth is visible. */
 export const TICK_MS = 1000;
+
+/**
+ * Debug override: how many times faster crops grow, from `?fast=N` in the URL.
+ *
+ * **Rice takes six real hours.** That is correct for the game and useless for
+ * looking at it — you cannot watch a crop reach stage 2, let alone harvest one, in a
+ * sitting. `?fast=60` divides every grow time by sixty, so a rice cycle takes six
+ * minutes and the sprite changes about every six seconds.
+ *
+ * It reads the URL and nothing else:
+ *
+ *  - **Off unless asked for.** A player who types the query gets it; nobody else does.
+ *  - **Never saved.** It is not part of the state object, so it cannot leak into a
+ *    save, an export, or another player's farm. Closing the tab ends it.
+ *  - **Does not touch gold.** Prices and payouts are unchanged, so a sped-up farm
+ *    earns exactly what a real one would — the debug flag shows you the loop, it does
+ *    not make the game easier.
+ *
+ * Anything unparseable, zero, negative or absurd falls back to 1 rather than
+ * producing a zero-length grow time.
+ */
+export function growthSpeed() {
+  if (typeof location === 'undefined' || !location.search) return 1;
+
+  const raw = Number(new URLSearchParams(location.search).get('fast'));
+  if (!Number.isFinite(raw) || raw < 1) return 1;
+
+  return Math.min(raw, 1000);
+}
 
 /** Autosave interval, and the gap after which a reload counts as "offline". */
 export const AUTOSAVE_MS = 10000;

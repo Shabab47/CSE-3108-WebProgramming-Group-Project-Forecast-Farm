@@ -12,7 +12,8 @@ import assert from 'node:assert/strict';
 
 import { buildInitialState } from '../js/state/initialState.js';
 import { BUY_STEPS, SHOP_REASONS, buySeeds, canAfford } from '../js/domain/shop.js';
-import { CROPS, SHOP_ORDER, cropOf, harvestValue, shopCrops } from '../js/config/crops.js';
+import { isSeedUnlocked, ownedPlots } from '../js/utils/seedUnlocks.js';
+import { CROPS, CROP_UNLOCK_PLOTS, SHOP_ORDER, cropOf, harvestValue, requiredPlotsFor, shopCrops } from '../js/config/crops.js';
 import { cropSeedImg } from '../js/config/assets.js';
 import { START_GOLD } from '../js/config/game.js';
 
@@ -20,6 +21,13 @@ const SESSION = { status: 'authed', userId: 'acc_test', email: 'abdul@rice.bd', 
 
 function farmWith(gold) {
   return { ...buildInitialState(SESSION), gold };
+}
+
+/** A farm owning exactly `count` plots (ids filled low to high), with gold. */
+function farmWithPlots(count, gold = 999999) {
+  const state = farmWith(gold);
+  state.plots = state.plots.map((plot, index) => ({ ...plot, owned: index < count }));
+  return state;
 }
 
 test('a new farm can afford one rice packet and nothing more', () => {
@@ -115,12 +123,18 @@ test('exact change is affordable — the purse may reach zero', () => {
   assert.equal(result.state.gold, 0);
 });
 
-test('an unavailable crop cannot be bought, however much gold there is', () => {
-  const result = buySeeds(farmWith(999999), 'corn', 1);
+test('a land-unlocked crop without art can still be bought — land is the only gate', () => {
+  // Potato needs 4 plots. A 1-plot farm is refused with the plot count; a
+  // 4-plot farm buys, even though `available` is still false — the field draws
+  // the rice fallback until the real sprites land, so nothing 404s.
+  const small = buySeeds(farmWithPlots(1), 'potato', 1);
+  assert.equal(small.ok, false);
+  assert.equal(small.reason, SHOP_REASONS.locked('Potato', 4, 1));
 
-  assert.equal(result.ok, false);
-  assert.equal(result.reason, SHOP_REASONS.unavailable('Corn'));
-  assert.equal(canAfford(farmWith(999999), 'corn', 1), false);
+  const unlocked = buySeeds(farmWithPlots(4, 500), 'potato', 1);
+  assert.equal(unlocked.ok, true);
+  assert.equal(unlocked.state.inventory.seeds.potato, 1);
+  assert.equal(canAfford(farmWithPlots(4, 500), 'potato', 1), true);
 });
 
 test('a crop that is not in the table is not sold', () => {
@@ -163,4 +177,41 @@ test('canAfford and buySeeds never disagree', () => {
       }
     }
   }
+});
+
+test('one seed unlocks every four plots owned, in shop order', () => {
+  // DEC-041: rice at 1, potato at 4, tomato at 8, wheat at 12, corn at 16.
+  // Five seeds across sixteen plots, nothing left over.
+  assert.deepEqual(SHOP_ORDER, ['rice', 'potato', 'tomato', 'wheat', 'corn']);
+  assert.deepEqual(
+    SHOP_ORDER.map((id) => requiredPlotsFor(id)),
+    [1, 4, 8, 12, 16],
+  );
+  assert.deepEqual(CROP_UNLOCK_PLOTS, {
+    rice: 1, potato: 4, tomato: 8, wheat: 12, corn: 16,
+  });
+
+  // The gate opens exactly at its threshold — one plot short is still locked.
+  for (const cropId of SHOP_ORDER) {
+    const need = requiredPlotsFor(cropId);
+    assert.equal(isSeedUnlocked(farmWithPlots(need), cropId), true, `${cropId} at ${need} plots`);
+    if (need > 1) {
+      assert.equal(isSeedUnlocked(farmWithPlots(need - 1), cropId), false, `${cropId} at ${need - 1} plots`);
+    }
+  }
+
+  // A new farm owns one plot: rice open, everything else land-locked.
+  assert.equal(ownedPlots(farmWith(200)), 1);
+  assert.equal(isSeedUnlocked(farmWith(200), 'rice'), true);
+  assert.equal(isSeedUnlocked(farmWith(200), 'potato'), false);
+
+  // And the shop refuses with the plot count, not the art queue.
+  const locked = buySeeds(farmWithPlots(3), 'potato', 1);
+  assert.equal(locked.ok, false);
+  assert.equal(locked.reason, SHOP_REASONS.locked('Potato', 4, 3));
+  assert.equal(canAfford(farmWithPlots(3), 'potato', 1), false, 'a locked seed greys its buttons');
+
+  // Unknown ids stay unknown rather than unlocking at some default.
+  assert.equal(requiredPlotsFor('truffle'), Infinity);
+  assert.equal(isSeedUnlocked(farmWithPlots(16), 'truffle'), false);
 });

@@ -1,9 +1,10 @@
 import { el, clear } from '../utils/dom.js';
 import { plotToScreen, pumpBox, frameY } from '../utils/iso.js';
 import { FIELD } from '../config/field.js';
-import { cropOf } from '../config/crops.js';
-import { cropStageImg, groundTile } from '../config/assets.js';
 import { WATER } from '../config/game.js';
+import { harvestsIn, isNextUnlockable } from '../land_squares/index.js';
+import { plotName } from './plotLabel.js';
+import { plotLayers } from './plotLayers.js';
 
 const PUMP_IMG = 'assets/images/pump.png';
 const BASE_IMG = 'assets/images/base.png';
@@ -38,6 +39,28 @@ function pumpStyle() {
   return `left:${pct(x)};top:${topPct(y)};width:${pct(size)}`;
 }
 
+/**
+ * The field, mounted.
+ *
+ * This file owns the **geometry** — where each of the sixteen diamonds goes, how big
+ * it is, and in what order they paint over each other. What is painted on one is
+ * `plotLayers.js`, what a plot is called is `plotLabel.js`, and what a click means is
+ * `plotClick.js`. `AGENTS.md` asks for panels to be split by responsibility before
+ * they grow, and this one had.
+ *
+ * `state` carries the plots, the selection, the clock, and the price of the plot on
+ * offer. The only required callback is `onPlotClick`; a caller that just wants to
+ * watch clicks passes that alone, which is what `tests/farmView.test.js` does.
+ *
+ * **This module never imports `state/store.js`.** Every action arrives as a callback
+ * from `farmActions.js`, so the whole field mounts in a fake DOM with no store, no
+ * network and no browser. That is the reason the layer rules in `AGENTS.md` are worth
+ * enforcing.
+ *
+ * @param {HTMLElement} root
+ * @param {object} state `{plots, selection, clock, nextPrice, onPlotClick}`
+ * @returns {{unmount: () => void}}
+ */
 export function mountFarmView(root, state) {
   clear(root);
 
@@ -68,30 +91,47 @@ export function mountFarmView(root, state) {
 
   const plotsEl = card.querySelector('#field-plots');
 
-  function render(plots, selection) {
+  /**
+   * Draw the whole field.
+   *
+   * Rebuilt from scratch every time rather than patched, and there are only sixteen
+   * tiles — the cost is not worth a diffing pass that would have to reason about
+   * which of five mutually exclusive classes a plot just changed between.
+   */
+  function render() {
     clear(plotsEl);
 
-    for (const plot of plots) {
-      const tile = renderPlot(plot, selection);
-      plotsEl.append(tile);
+    for (const plot of state?.plots ?? []) {
+      plotsEl.append(renderPlot(plot));
     }
   }
 
-  function renderPlot(plot, selection) {
+  function renderPlot(plot) {
     const { col, row } = plot;
     const { x, y, z } = plotToScreen(col, row);
 
-    const isSelected = selection?.plotId === plot.id;
+    const isSelected = state?.selection?.plotId === plot.id;
     const isOwned = plot.owned;
     const hasCrop = plot.cropId != null;
     const isWatered = plot.waterLevel >= WATER.wateredThreshold;
 
+    // Three states, not two (DEC-036): `next` is the one plot on offer and takes a
+    // click, `locked` is the other fourteen and does not. `isNextUnlockable` is asked
+    // of the same helper the buy rule uses, so the plot that looks buyable and the
+    // plot that is buyable cannot disagree.
+    const isNext = !isOwned && isNextUnlockable(state, plot.id);
+    const isLocked = !isOwned && !isNext;
+
+    const grown = isOwned ? harvestsIn(plot, now()) : null;
+    const isReady = Boolean(grown?.ready);
+
     const classes = [
       'plot',
-      isOwned ? 'plot--owned' : 'plot--unowned',
+      isOwned ? 'plot--owned' : isNext ? 'plot--next' : 'plot--locked',
       isSelected ? 'plot--selected' : '',
       hasCrop ? 'plot--planted' : '',
       plot.dead ? 'plot--dead' : '',
+      isReady ? 'plot--ready' : '',
     ].filter(Boolean).join(' ');
 
     // A real `<button>`, so keyboard focus and keyboard activation come for free —
@@ -99,11 +139,22 @@ export function mountFarmView(root, state) {
     // the player counts plots from 1, hence the `+ 1`; the name has to be here rather
     // than in the children, because every child is decorative. The layers inside are
     // `<span>`s, not `<div>`s, because a button's content model is phrasing content.
+    //
+    // `disabled` on a locked plot is what makes it genuinely unclickable rather than
+    // merely drawn that way — it drops out of the tab order and out of the a11y tree
+    // for activation, which is the honest description of "you cannot buy this yet".
     const tile = el('button', {
       type: 'button',
       class: classes,
       dataset: { plotId: String(plot.id) },
-      'aria-label': isOwned ? `Plot ${plot.id + 1}` : `Plot ${plot.id + 1}, unowned`,
+      'aria-label': plotName(plot, {
+        isOwned,
+        isNext,
+        isReady,
+        grown,
+        price: state.nextPrice ?? 0,
+      }),
+      disabled: isLocked ? 'true' : undefined,
       // `left`/`top` are the box centre — `css/scene.css` pulls it back with
       // translate(-50%, -50%). `top` goes through `frameY` on its way out, because
       // `iso.js` counts y in frame *widths* while CSS resolves `top` against the
@@ -116,68 +167,11 @@ export function mountFarmView(root, state) {
         `z-index:${z};`,
     });
 
-    // The one hit target, and the reason the button's box is not. `pointer-events`
-    // inherits, so the button above is inert and every layer below is decorative;
-    // this is what answers a pointer, and `css/scene.css` clips it to the diamond.
-    // Without it the square box overlaps a neighbour's by half a box, and a third of
-    // each tile's visible surface answers as the plot in front. ISS-004.
-    tile.append(el('span', { class: 'plot__hit' }));
-
-    const groundSrc = groundTile(isWatered);
-    tile.append(
-      el('img', {
-        class: 'plot__ground',
-        src: groundSrc,
-        alt: '',
-        // Square PNG, transparent corners: never let it become a drag ghost.
-        draggable: 'false',
-        'aria-hidden': 'true',
-      }),
-    );
-
-    if (hasCrop && !plot.dead) {
-      const crop = cropOf(plot.cropId);
-      if (crop) {
-        const stage = growthStage(plot);
-        tile.append(
-          el('img', {
-            class: 'plot__crop',
-            draggable: 'false',
-            src: cropStageImg(plot.cropId, stage),
-            alt: `${crop.name} — stage ${stage}`,
-            'aria-hidden': 'true',
-          }),
-        );
-      }
+    for (const layer of plotLayers(plot, {
+      isOwned, isNext, isReady, grown, isWatered, price: state.nextPrice ?? 0,
+    })) {
+      tile.append(layer);
     }
-
-    if (plot.dead) {
-      tile.append(
-        el('span', { class: 'plot__dead', text: '🥀', 'aria-label': 'Dead crop' }),
-      );
-    }
-
-    if (isOwned && hasCrop && !plot.dead) {
-      const waterPct = Math.round(plot.waterLevel);
-      tile.append(
-        el('span', { class: 'plot__water', title: `Water: ${waterPct}%` }, [
-          el('span', { class: 'plot__water-fill', style: `height:${waterPct}%` }),
-        ]),
-      );
-    }
-
-    if (!isOwned) {
-      // The padlock alone, and centred. The "Buy" label that used to sit under it is
-      // gone: it landed in the half of the diamond that the plot in front paints over,
-      // so it read "BU.." or "..UY" depending on the row. The padlock says the same
-      // thing and survives every row.
-      tile.append(
-        el('span', { class: 'plot__lock' }, [
-          el('span', { class: 'plot__lock-icon', text: '🔒', 'aria-hidden': 'true' }),
-        ]),
-      );
-    }
-
     tile.addEventListener('click', () => {
       if (state.onPlotClick) state.onPlotClick(plot.id);
     });
@@ -185,17 +179,19 @@ export function mountFarmView(root, state) {
     return tile;
   }
 
-  function growthStage(plot) {
-    if (!plot.plantedAt || !plot.cropId) return 1;
-    const crop = cropOf(plot.cropId);
-    if (!crop) return 1;
-
-    const elapsed = (Date.now() - plot.plantedAt) / (1000 * 60 * 60);
-    const progress = Math.min(elapsed / crop.growHours, 1);
-    return Math.max(1, Math.ceil(progress * 5));
+  /**
+   * The game's clock, including any debug time-skip.
+   *
+   * The offset lives in state and is added by the caller, so a time-skip moves growth
+   * and the water bar together. Reading `Date.now()` directly here — which is what
+   * this file used to do — meant the debug buttons changed the weather and not the
+   * crops, which is the sort of thing that gets a feature reverted after a demo.
+   */
+  function now() {
+    return Date.now() + (state?.clock?.timeOffsetMs ?? 0);
   }
 
-  render(state?.plots, state?.selection);
+  render();
 
   return {
     unmount() {

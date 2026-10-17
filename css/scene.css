@@ -147,6 +147,107 @@
   z-index: 100;
 }
 
+/* --- locked, next, and ready ------------------------------------------------
+ *
+ * Three states rather than two (DEC-036). `farmView.js` puts exactly one of
+ * `plot--owned`, `plot--next` or `plot--locked` on every plot, so these cannot
+ * stack — but they are written with equal specificity and rely on that, which is why
+ * the class list is asserted in `tests/farmView.test.js`.
+ *
+ * The distinction that matters is **which plot you can click.** `next` answers, and
+ * carries its price. `locked` is `disabled` in the markup, so it leaves the tab order
+ * and cannot be activated at all; the dimming here is what makes that legible rather
+ * than looking like a bug. */
+
+/* Locked: dimmed and desaturated, reusing the `--locked` language `shop.css` already
+ * established for a thing you cannot buy yet, rather than inventing a second one. */
+.plot--locked {
+  filter: grayscale(0.7) brightness(0.62);
+  cursor: not-allowed;
+}
+
+.plot--locked:hover {
+  transform: translate(-50%, -50%);
+  z-index: 0;
+}
+
+/* Next: the padlock stays bright — that contrast is the whole signal — and the plot
+ * keeps the hover scale, because it is the one that does something when clicked. */
+.plot--next .plot__lock-icon {
+  opacity: 1;
+}
+
+/* The price, bottom-centre on the diamond. `pointer-events: none` because the button
+ * underneath answers the click and a caption that swallowed it would be a dead spot in
+ * the middle of the one plot the player is aiming at.
+ *
+ * Gold, to match the purse and the harvest rim — the two are both "this is money, this
+ * is about to be money". The number carries no unit: at plot sizes this small
+ * "100 gold" is wider than the diamond and would spill onto the neighbour. The button's
+ * accessible name says the unit. */
+.plot__price {
+  position: absolute;
+  left: 50%;
+  bottom: 32%;
+  transform: translateX(-50%);
+  min-width: 1.6em;
+  padding: 0.05em 0.3em;
+  border-radius: 999px;
+  background: var(--gold);
+  color: #3a2a05;
+  font-family: 'Luckiest Guy', var(--font-body);
+  font-size: 0.58rem;
+  line-height: 1.3;
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Long prices — the ladder reaches seven figures by plot 13 — must not run off the
+ * diamond. Clipped with an ellipsis rather than allowed to spill onto the plot in
+ * front; `farmView.js` formats the number with separators so the readable prefix is
+ * the leading digits, which is the part that matters. */
+.plot__price {
+  max-width: 86%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Ready to harvest: a gold rim just outside the ground diamond.
+ *
+ * A real element painted **behind** the ground, not a `::after` ring. Clipping a
+ * `border` to the diamond polygon leaves four disconnected corner slivers rather than
+ * an outline — the border box is square and the clip cuts it to a lozenge — so the
+ * obvious approach does not work. Sizing a filled diamond slightly larger than the
+ * ground's and letting the ground cover its middle does, and it survives any
+ * `object-fit` the ground PNG happens to use.
+ *
+ * A ring and not a caption, for the reason the "Buy" caption was removed: anything in
+ * the lower half of the diamond is painted over by the plot in front. */
+.plot__ready {
+  position: absolute;
+  inset: -5%;
+  clip-path: polygon(50% 22.4%, 100% 50%, 50% 75.6%, 0 50%);
+  background: var(--gold);
+  pointer-events: none;
+  animation: plot-ready-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes plot-ready-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+/* The water fill already transitions its height; the ready rim must not fight the
+ * `.plot` transform transition, and it is the only animated thing on the field, so it
+ * is the only one that needs to opt out. */
+@media (prefers-reduced-motion: reduce) {
+  .plot__ready {
+    animation: none;
+    opacity: 1;
+  }
+}
+
 /* The ring is drawn *outside* the box on purpose, and it survives because the
    `clip-path` lives on `.plot__hit` rather than on `.plot`. Move the clip onto `.plot`
    and this rule — like `reset.css`'s `:focus-visible` outline — is clipped away
@@ -170,13 +271,64 @@
   object-fit: contain;
 }
 
+/* The crop sprite, standing on the soil.
+ *
+ * **Full canvas width, and bottom-aligned with the ground.** Measured, not guessed —
+ * the alpha bounding boxes of every sprite in `assets/images/crops/rice/` against
+ * `ground_unwatered.png`:
+ *
+ * ```
+ *   sprite              art w    art h    art bottom    h/w
+ *   ground_unwatered    99.1%    53.5%       757       0.540
+ *   rice_1              97.4%    53.6%       767       0.550
+ *   rice_2              99.2%    54.0%       769       0.544
+ *   rice_3              99.8%    58.8%       792       0.589
+ *   rice_4              98.9%    60.4%       801       0.611
+ *   rice_5              99.4%    54.3%       768       0.546
+ * ```
+ *
+ * Two things fall out of that, and both were wrong here before:
+ *
+ *  1. **The art fills its canvas**, 97–100% of the width, exactly as the ground does.
+ *     So the canvas is the same 1000x1000 and must be laid at the same size — this
+ *     used to be `width: 70%`, which drew the plant at about 68% of the diamond's
+ *     width. Every rice stage looked like a seedling sitting on a dinner plate.
+ *  2. **Every sprite's art bottoms out at y≈757–801**, against the ground's 757. They
+ *     were drawn to stand on the diamond's lower vertex when both are at full size and
+ *     share a bottom edge, so `bottom: 0` is the placement that honours the art — not a
+ *     nudge. This used to be `bottom: 10%`, which floated the plant a tenth of the
+ *     plot above the soil it is supposed to be planted in.
+ *
+ * The ground's `h/w` of 0.540 is `FIELD.tileAspect` (0.538) to within measurement
+ * error, which is a useful confirmation that the geometry constants are still right.
+ *
+ * **The crops are *taller* than the ground on purpose** — 0.589 and 0.611 against
+ * 0.540, and `docs/crops.md` says so explicitly: plants stand proud of the soil rather
+ * than being squashed into the diamond. Nothing on the way up from here clips them:
+ * `.plot`, `.field-stage__plots`, `.field-stage__mount`, `.field-stage` and
+ * `.card.farm-view` all leave `overflow` visible, so the extra height simply shows.
+ * Do not "fix" this by matching the crop to the ground's *height* — that is the one
+ * change that would clip the tops, and the reason the warning is in the docs.
+ */
 .plot__crop {
   position: absolute;
-  bottom: 10%;
+  bottom: 0;
   left: 50%;
   transform: translateX(-50%);
-  width: 70%;
+  width: 100%;
   pointer-events: none;
+}
+
+/* A crop drawn with borrowed art until its own sprites land.
+ *
+ * Same shape, same size — only the hue says "stand-in": a cool tint no rice
+ * ever wears, plus a slight dim so it never reads as the real thing at a
+ * glance. Kept in CSS (not a second image) so deleting the fallback is one
+ * `available: true` flip and nothing else. See `fieldSpriteFor` in
+ * `js/ui/plotLayers.js`.
+ */
+.plot__crop--fallback {
+  filter: hue-rotate(140deg) saturate(0.8) brightness(0.92);
 }
 
 .plot__dead {
@@ -208,6 +360,60 @@
   background: #4a9ede;
   border-radius: inherit;
   transition: height var(--speed) var(--ease);
+}
+
+/* The growth meter: a small green bar with the time left, floating above the
+ * crop it belongs to.
+ *
+ * Top, not bottom: the lower half of the diamond is painted over by the plot
+ * in front (the same reason the old "Buy" caption read "BU.." or "..UY" and
+ * was removed). `bottom: 78%` sits it on the crop's head where no neighbour
+ * reaches. Centred at 70% of the plot so it never touches the diamond's edge,
+ * and `pointer-events: none` so it never steals the click the `.plot__hit`
+ * layer below is waiting for.
+ *
+ * Hidden when ready on purpose — see `js/ui/growthMeter.js`. The gold rim
+ * owns that moment alone.
+ */
+.plot__grow {
+  position: absolute;
+  bottom: 78%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 70%;
+  pointer-events: none;
+}
+
+.plot__grow-track {
+  display: block;
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(20, 40, 15, 0.55);
+  overflow: hidden;
+}
+
+.plot__grow-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(180deg, #5fbf5f 0%, #3f9e46 100%);
+  transition: width var(--speed) var(--ease);
+}
+
+.plot__grow-label {
+  font-size: 0.62rem;
+  font-size: 10cqi;
+  font-weight: 700;
+  line-height: 1;
+  color: #fbf3dd;
+  text-shadow: 0 1px 2px rgba(20, 40, 15, 0.8);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 /* No scrim. The unowned ground stays visible and the padlock sits on it, the way

@@ -53,10 +53,68 @@ export const ZONES = {
 };
 
 /**
+ * The plot every farm starts with, and the only one that is never for sale.
+ *
+ * `id` 0 is the back corner: `col` 0, `row` 0, so `z = col + row = 0` and it is the
+ * furthest diamond from the camera. Nothing paints over it, which matters for a
+ * plot the player is meant to read at a glance for the whole first session.
+ *
+ * The player starts on it, plants on it, and earns the money that buys the rest.
+ * Because it is owned from the first frame it can never be locked, greyed, or shown
+ * with a price — see `land_squares/s1.js`.
+ */
+export const STARTER_PLOT_ID = 0;
+
+/**
+ * The order plots are acquired in (DEC-036), **including the free one**.
+ *
+ * Sixteen entries indexed by `ownedCount`, which is why it has sixteen and not
+ * fifteen: `nextUnlockable()` reads `UNLOCK_ORDER[ownedCount]`, and a starting farm
+ * already owns one plot, so index 0 is the starter's own slot. Listing only the
+ * fifteen paid plots and indexing from there put every purchase one slot early and
+ * made `UNLOCK_ORDER[0]` unreachable.
+ *
+ * Zone A → B → C → D, and within a zone by `col` then `row`, so the farm fills from
+ * the back edge to the front and every plot bought touches one already owned.
+ *
+ * **Read this against the id formula before trusting it.** `id = row * 4 + col`, so a
+ * zone is *not* a contiguous run of ids: zone A is `{0, 1, 4, 5}`, not `{0, 1, 2, 3}`.
+ * An earlier draft got that wrong and offered a zone-B plot as the second purchase;
+ * the test in `tests/farm.test.js` that walks the whole ladder now pins every zone.
+ *
+ * ```
+ *   index  0    1    2    3    4    5    6    7    8    9   10   11   12   13   14   15
+ *   plot   0    4    1    5    2    6    3    7    8   12    9   13   10   14   11   15
+ *   zone   A    A    A    A    B    B    B    B    C    C    C    C    D    D    D    D
+ *   cost   —  100  200  400  800 1600 3200 6400 ...
+ * ```
+ *
+ * Index 0 is the starter and is never charged — see `PLOT_PRICES`. Because both arrays
+ * are indexed the same way there is no second source of truth: `nextUnlockable()` in
+ * `land_squares/index.js` is the only place that decides, and it cannot disagree with
+ * itself.
+ *
+ * Storing a per-plot `state: 'next' | 'locked' | 'owned'` was rejected in DEC-036: it
+ * would make a wrong order a save-migration problem, and `owned` is the only field
+ * the data actually needs.
+ */
+export const UNLOCK_ORDER = [
+  // Zone A — top. Ids 0, 1, 4, 5; id 0 is the free starter.
+  0, 4, 1, 5,
+  // Zone B — right. Ids 2, 3, 6, 7.
+  2, 6, 3, 7,
+  // Zone C — left. Ids 8, 9, 12, 13.
+  8, 12, 9, 13,
+  // Zone D — bottom. Ids 10, 11, 14, 15.
+  10, 14, 11, 15,
+];
+
+/**
  * The price of the n-th plot the player buys is PLOT_PRICES[ownedCount].
  * Price depends on how many plots are already owned, not on which plot it is
- * (DEC-009). The first plot is free; every plot after costs exactly twice the
- * previous one. All sixteen together cost 3,276,700 gold.
+ * (DEC-009). Index 0 is never charged — the player already owns that plot — so
+ * buying begins at index 1, and every plot after costs exactly twice the last.
+ * All sixteen together cost 3,276,700 gold.
  */
 export const PLOT_PRICES = [
   0, 100, 200, 400, 800, 1600, 3200, 6400, 12800, 25600, 51200, 102400, 204800,
