@@ -462,73 +462,187 @@
   white-space: nowrap;
   border: 0;
 }
-/* --- connection banner ---------------------------------------------------
+/* --- sync indicator ------------------------------------------------------
  *
- * Persistent, full width, and above everything: `js/ui/connectionBanner.js`.
+ * `js/ui/syncIndicator.js`. Two small dots in the bottom-left corner that say
+ * whether the farm is reaching the server.
  *
- * Deliberately not a toast. A toast dismisses itself, and the fact this carries
- * -- "your farm is only on this device" -- is one a player can act on but cannot
- * afford to miss.
+ * **`position: fixed`, deliberately.** This replaced a full-width banner that
+ * sat in normal flow above `.app`, which is `height: 100dvh` — so every time it
+ * appeared it claimed vertical space above a full-viewport box and shoved the
+ * whole interface down, then let it snap back when it went. `copyFor('saving')`
+ * returned copy too, and `AUTOSAVE_MS` is 10 s, so a *successful* save triggered
+ * the jump on a timer. That is ISS-076, and no amount of restyling an in-flow
+ * element would have fixed it: out of flow, or nowhere.
+ *
+ * ## Why it is still not a toast
+ *
+ * A toast dismisses itself, and the fact this carries -- "your farm is only on
+ * this device" -- is one a player can act on but cannot afford to miss. So the
+ * amber label is **persistent**, not a toast. The toast is a separate, one-shot
+ * thing that fires on the first failed write only (see `js/connection.js`), which
+ * is what preserves ISS-050 now that the permanent fixture is small.
  *
  * Amber rather than red. Nothing has failed and nothing is lost; the farm is
  * still saving locally, so this is a notice, not an alarm.
+ *
+ * `z-index: 210` sits above `.toast-stack`'s 200 on purpose. The chip is
+ * permanent and the toast is transient, so the transient one yields. They are on
+ * opposite corners anyway; this only matters on a narrow screen.
  */
 
-.connection-banner {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
-  width: 100%;
-  padding: var(--space-3) var(--space-4);
-  background: var(--warning-soft);
-  border-bottom: 1px solid var(--warning);
-  color: var(--text);
-  font-size: var(--text-sm);
-  line-height: 1.45;
+.sync-indicator {
+  position: fixed;
+  bottom: var(--space-4);
+  left: var(--space-4);
+  z-index: 210;
 }
 
-.connection-banner[hidden] {
+/* The button is the dot pair and the label. A real <button> rather than a div so
+ * the popover is reachable by keyboard and the focus ring comes for free. */
+.sync-indicator__chip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px 10px;
+  font: inherit;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  background: var(--surface-glass);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-chip);
+  box-shadow: var(--shadow-card);
+  cursor: pointer;
+  transition: color var(--speed) var(--ease), border-color var(--speed) var(--ease);
+}
+
+.sync-indicator__chip:hover {
+  color: var(--text);
+}
+
+.sync-indicator__chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.sync-indicator__chip[aria-expanded='true'] {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+/* Plain dots, no asset: the icons in this project are all 0 bytes on purpose
+ * (DEC-014), and a 5px circle does not need one. */
+.sync-indicator__dots {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 10px;
+}
+
+.sync-indicator__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--success);
+  /* Dim when idle. `synced` is the common case and should be nearly invisible;
+   * the wave is what draws the eye when a save is actually happening. */
+  opacity: 0.35;
+}
+
+/* The wave: the second dot is offset by half a cycle, so the pair reads as a
+ * wave travelling across rather than two things blinking together. `translateY`
+ * on a flex-end row of 10px keeps the motion to about 4px — enough to see,
+ * small enough not to be the most interesting thing on screen.
+ *
+ * `reset.css:109` already clamps this to 0.01ms for `prefers-reduced-motion`,
+ * so the dots simply sit dim instead of waving. Nothing to add. */
+.sync-indicator[data-sync='saving'] .sync-indicator__dot {
+  opacity: 1;
+  animation: sync-wave 1.2s var(--ease) infinite;
+}
+
+.sync-indicator[data-sync='saving'] .sync-indicator__dot:nth-child(2) {
+  animation-delay: 0.6s;
+}
+
+@keyframes sync-wave {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.35;
+  }
+  50% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+.sync-indicator__label:empty {
   display: none;
 }
 
-/* A plain dot rather than an icon: it needs no asset, and the icons in this
- * project are all 0 bytes on purpose (DEC-014). */
-.connection-banner__dot {
-  flex: 0 0 auto;
-  width: 0.5rem;
-  height: 0.5rem;
-  margin-top: 0.4rem;
-  border-radius: 50%;
+/* `pending`: the dots stop pretending to be fine and say so. */
+.sync-indicator[data-sync='pending'] .sync-indicator__chip {
+  color: var(--warning);
+  border-color: var(--warning);
+}
+
+.sync-indicator[data-sync='pending'] .sync-indicator__dot {
   background: var(--warning);
+  opacity: 1;
+  animation: none;
 }
 
-.connection-banner__body {
-  flex: 1 1 auto;
-  min-width: 0;
+/* --- the popover ---------------------------------------------------------
+ *
+ * Where the banner's full text, its ageing "last reached your account" line and
+ * both of its buttons went. Fixed like its parent, so it is out of flow and
+ * opens upward without pushing anything. Anchored above the chip.
+ */
+
+.sync-indicator__popover {
+  position: absolute;
+  bottom: calc(100% + var(--space-2));
+  left: 0;
+  width: min(22rem, calc(100vw - 2 * var(--space-4)));
+  padding: var(--space-3) var(--space-4);
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-input);
+  box-shadow: var(--shadow-pop);
+  font-size: var(--text-sm);
 }
 
-.connection-banner__title {
+.sync-indicator__popover[hidden] {
+  display: none;
+}
+
+.sync-indicator__title {
   margin: 0 0 2px;
+  font-size: var(--text-sm);
   font-weight: 600;
 }
 
-.connection-banner__detail {
+.sync-indicator__detail {
   margin: 0;
   color: var(--text-muted);
+  line-height: 1.45;
 }
 
-.connection-banner__actions {
+.sync-indicator__actions {
   display: flex;
-  flex: 0 0 auto;
+  flex-wrap: wrap;
   gap: var(--space-2);
+  margin-top: var(--space-3);
 }
 
-.connection-banner__actions:empty,
-.connection-banner__btn[hidden] {
+.sync-indicator__actions:empty,
+.sync-indicator__btn[hidden] {
   display: none;
 }
 
-.connection-banner__btn {
+.sync-indicator__btn {
   padding: var(--space-2) var(--space-3);
   font: inherit;
   font-size: var(--text-xs);
@@ -540,33 +654,19 @@
   white-space: nowrap;
 }
 
-.connection-banner__btn:hover {
+.sync-indicator__btn:hover {
   background: var(--surface);
 }
 
-.connection-banner__btn:focus-visible {
+.sync-indicator__btn:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
-/* `saving` is a moment rather than a condition, so it reads as activity rather
- * than as the same amber warning the player just saw. */
-.connection-banner[data-sync='saving'] {
-  background: var(--surface-glass);
-  border-bottom-color: var(--border);
-}
-
-.connection-banner[data-sync='saving'] .connection-banner__dot {
-  background: var(--accent);
-}
-
 @media (max-width: 640px) {
-  .connection-banner {
-    flex-wrap: wrap;
-  }
-
-  .connection-banner__actions {
-    width: 100%;
+  /* Bottom-left is also where a phone's home indicator lives. */
+  .sync-indicator {
+    bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
   }
 }
 
