@@ -1,19 +1,3 @@
-/* The shop's seed cards: golden stall top, cream body, matching the Figma
- * reference (frame 114:2002, each "Market item" 378 × 240).
- *
- * Each card:
- *   - Golden radial-gradient display top (the packet's shelf)
- *   - Cream body (#fff8df) with name, description, price and BUY button
- *   - Pack-size pill ("5 SEEDS", "1 TOOL", etc.) top-left of the display
- *   - Locked crops dim the whole card — same shape, quiet colours
- *
- * Painted in fixed colours like `css/shop.css`; the shop does not read
- * `data-theme`. The gold coin and plus icons are inline SVG from shopArt.js.
- * Sized by the page grid (`css/shop.css`), not by the sidebar.
- */
-
-/* --- the grid --------------------------------------------------------------- */
-
 .shop-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -35,8 +19,6 @@
   min-height: 0;
 }
 
-/* Golden display top: the packet's shelf. Radial gradient matches the Figma's
- * golden display (90px tall — the Figma's 110px shrinks to fit viewports). */
 .shop-card__art {
   position: relative;
   display: flex;
@@ -154,12 +136,7 @@
   gap: 6px;
 }
 
-/* --- buy buttons ------------------------------------------------------------
- *
- * One chunky green `BUY +` (Luckiest Guy) plus two compact step buttons.
- * The purchase model (BUY_STEPS [1, 5, 10]) lives in js/domain/shop.js and is
- * unchanged — only the labels and markup moved to match the Figma.
- */
+/* --- buy buttons ------------------------------------------------------------*/
 
 .shop-buy {
   display: inline-flex;
@@ -224,11 +201,7 @@
   cursor: not-allowed;
 }
 
-/* --- locked crops -----------------------------------------------------------
- *
- * Listed, priced, and explicitly not for sale — same shape, dimmed colours so
- * it looks intentional rather than broken. The grow note explains why.
- */
+/* --- locked crops -----------------------------------------------------------*/
 
 .shop-card--locked {
   border-color: #c9c0a8;
