@@ -402,13 +402,10 @@ or `assets.test.js` fails in the other direction.
 | ISS-071 | An even rim between the cluster and `base.png` is geometrically impossible | Medium | Jim | **fixed** | T-54 |
 | ISS-072 | The crop layer is still sized for the old, half-height plot box | Low | Kafi | open | T-06 |
 | ISS-073 | Two replacement characters survive in `issues.md` itself | Low | Jim | **fixed** | — |
-<<<<<<< HEAD
 | ISS-075 | The shop does not match the agreed art direction | Low | Jim | fixed | T-57 |
-=======
-| ISS-075 | The shop does not match the agreed art direction | Low | Jim | fixing | T-57 |
 | ISS-076 | The connection banner is in flow above a 100dvh shell, so it jumps the whole page every autosave | Medium | Hisham | **fixed** | T-58 |
 | ISS-077 | `reverseGeocode` posted lat/lon to Open-Meteo's forward-search endpoint, so every farm was named "Current location" | **High** | Hisham | **fixed** | T-59 |
->>>>>>> origin/main
+| ISS-078 | A merge was committed to `main` with unresolved conflict markers still in it | Medium | Hisham | **fixing** | T-60 |
 
 ---
 
@@ -1730,4 +1727,28 @@ or `assets.test.js` fails in the other direction.
 - **Lesson, for whoever writes the next fix here:** both of these failed only at runtime, and both were
   invisible to `npm test` and to reading the diff. A migration that depends on a permission prompt is a
   migration that silently does nothing.
+
+### ISS-078 A merge was committed to `main` with unresolved conflict markers still in it
+- Reported by Hisham · 2026-10-17 · Owner: Hisham · Status: fixing
+- Where: `css/shop.css`, `docs/team/issues.md`, `docs/team/progress-log.md`, `docs/team/tasks.md`
+- Problem: `main` carries literal `<<<<<<<` / `=======` / `>>>>>>>` lines in four files. Confirmed
+  against the committed blob (`git show origin/main:css/shop.css`), not just a dirty working tree, so
+  anyone who clones gets it. `npm test` and `npm run check` both pass regardless — which is exactly why
+  it survived review.
+- Cause: commit `8cccedb` ("merge: origin/main into jim", author aa-jim) was committed with the merge
+  unfinished. It landed on `main` via `761ce39` (PR #22).
+- Verified by blame: line 75 of `css/shop.css` is last touched by `8cccedb`.
+- Severity: **`css/shop.css` is the one that matters.** It is a live stylesheet, so the marker lines are
+  parsed as CSS selectors. The same merge also resurrected a rule that ISS-076 deleted —
+  `body.shop-page > #connection-banner` — which now matches nothing, since the mount point was renamed
+  `#sync-indicator`. The file also contradicted itself: a rule for a dead selector 40 lines above a
+  comment saying that rule was removed. The other three files are docs, where each conflict trapped two
+  entries that both had to be kept: Jim's T-57 / ISS-075 against Hisham's T-58, T-59 / ISS-076, ISS-077.
+- **Why the checks did not catch it:** `check-imports.mjs` reads JS imports and `node --test` runs the
+  suite; neither parses CSS or markdown. There is no test that asserts the repository is free of conflict
+  markers, and there should be one — see the fix below.
+- Fix: **in progress (T-60).** Resolve all four keeping both sides of every conflict, drop the dead
+  `#connection-banner` rule, and add `tests/noConflictMarkers.test.js`, which walks the tracked tree and
+  fails on any line starting with `<<<<<<<`, `=======` or `>>>>>>>`. That test is the durable half of
+  this fix: it turns "somebody committed an unfinished merge" from a silent defect into a red suite.
 

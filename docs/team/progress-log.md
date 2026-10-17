@@ -7,8 +7,34 @@ The per-person weekly notes that used to live in the README table are now in `me
 
 ---
 
-<<<<<<< HEAD
-## Shop repainted to the Figma reference (ISS-075) — Jim
+## main was committed with an unfinished merge in it — Hisham
+
+- **Did:** fixed ISS-078. Found while pulling: `origin/main` had moved `2802d1c` → `eddf829`, and four of
+  those commits were **my own already-merged PR #21** plus Jim's shop repaint and the farm-work PR. All my
+  work verified intact — nothing had been reverted.
+- **The problem:** `8cccedb` ("merge: origin/main into jim", aa-jim) was committed with the merge
+  unfinished and reached `main` via PR #22. It carries literal `<<<<<<<` / `=======` / `>>>>>>>` lines in
+  **`css/shop.css`** and three team docs. Confirmed against the committed blob, so anyone cloning gets it.
+  The same merge also resurrected `body.shop-page > #connection-banner` — dead CSS, since ISS-076 renamed
+  that mount point to `#sync-indicator` — 40 lines above a comment saying the rule was deleted.
+- **Why review missed it, which is the real lesson:** the suite was **435 green with the markers in it**.
+  `check-imports.mjs` reads JS imports and `node --test` runs code; neither parses CSS or markdown, so a
+  conflict marker was invisible to every tool this project had. That is a tooling gap, not a lapse.
+- **Touched:** `css/shop.css`, `docs/team/issues.md`, `docs/team/progress-log.md`, `docs/team/tasks.md`,
+  `tests/noConflictMarkers.test.js` (new).
+- **The guard, and it is verified rather than assumed:** the new test walks the whole tracked tree for
+  lines beginning with a merge marker, plus `git ls-files -u` for a merge left unfinished in the index,
+  and a third case asserting the detector matches git's three real marker shapes and does not fire on
+  ordinary content. **Confirmed against `origin/main` itself**: dropped into a worktree at the broken
+  commit, it fails with 12 markers across 4 files; on the fixed tree it passes 3/3. A guard that cannot
+  fail is worse than no guard, because it reads as coverage.
+- **Tests:** 438 tests, 438 pass. `npm run check` clean. **ISS-047 is fixed upstream** — the duplicate
+  flat-path rice sprites are gone and the asset registry is green, which was the last red test my own
+  branch had been carrying.
+- **Next:** PR. Jim should sanity-check that his T-57 shop row and the `#connection-banner` removal are
+  what he expects, since the resolution touches his files.
+
+## Shop repainted to the Figma reference (ISS-075) - Jim
 
 - **Did:** rebuilt the shop page to match Figma frame 114:2002. `css/shop.css` now paints the whole
   stall — grass floor, wood posts and beams, scalloped awning, stone base, hanging `FARM SHOP` sign
@@ -25,7 +51,6 @@ The per-person weekly notes that used to live in the README table are now in `me
 - **Next:** nothing — ISS-075 is fixed, T-57 is done.
 
 ---
-=======
 ## Every farm was named "Current location" — Hisham
 
 - **Did:** fixed ISS-077. `reverseGeocode()` was posting `latitude`/`longitude` to Open-Meteo's
@@ -83,7 +108,6 @@ The per-person weekly notes that used to live in the README table are now in `me
   352 tests / 351 pass — the single failure is the pre-existing ISS-047 unregistered `rice_1.png`,
   deliberately left alone because the fix deletes files in `assets/`, which is Kafi's folder.
 - **Next:** T-58 is done, and ISS-076 is closed.
->>>>>>> origin/main
 
 ## Shop polish: per-crop unit pill and BUY + button — Jim
 
