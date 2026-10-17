@@ -5,6 +5,12 @@ decoration into a decision tool: the player reads ahead and chooses what to do a
 
 Implementation: `js/domain/notifications.js`, rendered by `js/ui/toastStack.js`.
 
+> **Status: built (T-13, 2026-10-17).** Everything below was written as a specification and
+> sat unimplemented against a **0-byte** `domain/notifications.js` — including this file's own
+> closing note that "section 7 of the implementation plan does not provide" the dedupe field.
+> `state.notified` existed; nothing read it. All of it is now in code, with the one place the
+> shipped behaviour differs from the original spec called out in **Toasts** below.
+
 ---
 
 ## Alert strings
@@ -106,3 +112,52 @@ half. Together they are what keeps ISS-050 fixed. See DEC-037.
 **Wording is load-bearing.** It must reassure rather than alarm — nothing is lost, the local copy is
 correct, and saying so is what stops someone clearing their browser. The same rule the alert strings
 above follow, for the same reason.
+
+---
+
+## What shipped, and where it runs
+
+T-13 built this, and the shipped behaviour differs from the specification in exactly one
+way worth recording. Everything else follows what is written above.
+
+### Two clocks, because there are two different facts
+
+| | Forecast warning | Standing warning |
+| :--- | :--- | :--- |
+| Fact | bad weather is **coming** | this plot is **dry now** |
+| Function | `forProjection()` | `currentTrouble()` |
+| Checked | the 15-minute weather refresh | the 1 Hz tick |
+| Why there | the forecast only changes when it is refetched, so checking every second computes the same answer sixty times a minute | it is a **condition**, not a forecast, and a player who plants into a heatwave should not wait a quarter of an hour to be told |
+
+`main.js` holds both: `announceForecast()` on refresh, and inside `tickFarm()` for the
+standing one. Firing the standing warning from the refresh instead would mean a player
+could watch a plot dry for up to fifteen minutes while holding the correct information.
+
+### `forProjection()` vs `alertsToRaise()`
+
+The split the spec asked for — candidates, and a separate firing decision — is what shipped,
+because the first half is then testable with no store and no DOM. `forProjection(state)`
+returns candidates; `alertsToRaise(state)` applies the dedupe map and returns
+`{ alerts, notified }`. Both are pure.
+
+### Where the strings live now
+
+The table at the top of this file is the **intent**, and `MESSAGES` in
+`domain/notifications.js` is the **implementation**, with a per-crop line for each event the
+matrix rates worse than neutral plus a `GENERIC` fallback. Two differences from the table,
+both deliberate:
+
+- **Frost is a drain, not an instant kill** (see `weather-events.md`), so the tomato line says
+  *"cover them or lose the crop"* — the table's phrasing — while the rice line says *"the
+  first crop to suffer"* and does not promise the same stakes for a hardier crop.
+- **Every message names an action.** *"Run the pump"*, *"water them"*, *"water it"*. The
+  table's question-mark forms (*"start water pump?"*) were a worse fit once there was
+  actually a pump to start: a warning with no action attached is just anxiety, and the
+  action here is always available.
+
+### Standing-warning dedupe
+
+`currentTrouble()` keys on `'drought_warning'` and stores the **message text** in the same
+`notified` map, rather than the window-start stamp the forecast half uses. A standing
+condition has no window to key on; the text changes when the plot count or the crop does,
+which is exactly when re-warning is correct. It persists, so a reload does not re-toast.

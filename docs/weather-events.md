@@ -55,6 +55,13 @@ weather was fine".
 
 ## The nine events
 
+> **These rates are now in code.** Until T-09 this table was documentation of a system that
+> did not exist — `plot.waterLevel` was `0` on every plot from creation and nothing wrote it
+> again. They live in `config/weatherEvents.js` as `EVAPORATION_PER_HOUR` and
+> `RAIN_WATER_PER_HOUR`, so the document and the game cannot disagree. **Evaporation is
+> scaled by each crop's `waterNeed`; rain is not**, because rain falls on the plot rather than
+> on the crop.
+
 | id | Label | Evaporation | Rain water / hour |
 | :--- | :--- | ---: | ---: |
 | `sunny` | Sunny | 1.5 | 0 |
@@ -214,15 +221,28 @@ missing.
 Current rain probability and UV come from the hourly entry matching the current hour, since
 `current` does not carry them.
 
-## Balance note — unresolved
+## Balance note — resolved (T-09, ISS-008)
 
-`WATER.pumpPerSecond` is 0.5, so the pump fills a plot from 0 to 100 in 200 seconds for about
-10 gold across the field. Heavy rain adds 50/h, so rain needs 2 hours to do the same job, for
-free. The pump is roughly 36× stronger than the weather it exists to compensate for, which
-flattens most of the decisions in this document: `waterLevel` pins at 100, the `wateredThreshold`
-of 40 is always met, and the drought conditional at 30 never fires while the pump runs.
+> **This note is history.** It is kept because the arithmetic in it is where the fix came
+> from, and because ISS-008's "36×" was never a guess — it is exactly
+> `0.5 × 3600 = 1800` water/hour against heavy rain's `50/hour` from the table above. Once
+> someone runs that division, the recommendation stops being a matter of taste.
 
-This is placeholder balance (README assumption 4), not a design intent, but it should be settled
-before the water meter in Phase 2 step 9 is built on top of it. Lowering `pumpPerSecond` to
-around 0.05 turns the pump into a top-up tool and lets forecast-driven watering matter. Tracked
-as ISS-008.
+`WATER.pumpPerSecond` was 0.5, so the pump filled a plot from 0 to 100 in 200 seconds for about
+10 gold across the field. Heavy rain adds 50/h, so rain needed 2 hours to do the same job, for
+free. The pump was roughly 36× stronger than the weather it exists to compensate for, which
+flattened most of the decisions in this document: `waterLevel` pinned at 100, the
+`wateredThreshold` of 40 was always met, and the drought conditional at 30 never fired while
+the pump ran.
+
+It was also, until T-09, not observable — `waterLevel` was written once at plot creation and
+nothing changed it, so none of the above actually happened in the running game. It was a
+description of a system that was not there.
+
+**Now:** `pumpPerSecond` is **0.05** (180/h, so **3.6×** heavy rain), `upkeepPerSecond` is
+**0.01** scaled with it (5 water per gold, so a full plot costs 20 gold against a 200-gold
+rice harvest), and the pump waters **one plot at a time**. A plot fills from empty in 2000 s —
+a real fraction of a six-hour crop rather than a 200 s afterthought. See DEC-040.
+
+**Re-open ISS-008 and check the 3.6× against the table above** rather than trusting the 36×,
+now that both sides of the comparison exist and can be measured.

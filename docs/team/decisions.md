@@ -96,6 +96,64 @@ a real gap — `docs/team/issues.md`.
 
 ---
 
+### DEC-040 The pump waters one plot, at 0.05/s, billed at 0.01/s
+**Decided by:** Hisham · 2026-10-17 · **applies ISS-008 and ISS-090** — T-09
+
+**Choice.** Three linked decisions, asked and answered together because any one of them alone
+leaves the pump incoherent.
+
+**1. The pump waters ONE plot, aimed by clicking it.** Not the whole farm.
+
+**Why:** a per-second gold bill that scaled with the number of plots would price water by
+**how much land you own** rather than **how thirsty you are**. A player with sixteen plots
+pays sixteen times as much to keep one rice field alive, which is the wrong incentive and
+would make buying land a decision about pump bills instead of about crops. Clicking the
+plot is also a better way to choose one square of dirt than a dropdown of sixteen.
+
+**2. `WATER.pumpPerSecond: 0.5 → 0.05`.** ISS-008's own recommendation, applied.
+
+**Why:** ISS-008 said the pump was ~36× stronger than rain and left the call to the team. The
+36 is not a guess — it is `0.5 × 3600 = 1800` water/hour against heavy rain's `50/hour`, from
+the table in `docs/weather-events.md`. **At 0.05 the pump delivers 180/hour and is 3.6× rain.**
+That is the number the issue wanted to exist, and ISS-008 can now be *measured* rather than
+estimated, because rain-as-water exists as of this change — which is what made the decision
+possible at all.
+
+**3. `PUMP.upkeepPerSecond: 0.05 → 0.01`, scaled with the rate rather than left behind.**
+
+**Why:** cutting the water rate 10× while holding the price would have made a full plot cost
+**100 gold** — the entire profit margin on rice, which is 100 in and 200 out. Scaling the
+upkeep keeps the *old* economics at the *new* speed: one full plot costs **20 gold**, a fifth
+of the margin. Water stays a real decision without being ruinous. The pump now delivers
+**5 water per gold**.
+
+**Consequences worth stating:**
+
+- **ISS-008 is now measurable, so re-open it and check the 3.6× rather than reading the 36×.**
+- **`ground_watered.png` (318 KB) can be seen for the first time.** It is a registered asset
+  that no code path could reach, because `waterLevel` was 0 on every plot from creation.
+- **The `rain-is-free` loading tip stopped lying.** `config/tips.js` told every player on a
+  slow load that *"Rain waters your crops at no charge. The pump bills you gold every second
+  it runs."* Both halves were false. They are now both true.
+- **`HEALTH.dryDrainPerHour` (5) has its first reader.** Nothing had ever drained a plot's
+  health between sowing and harvest, so the `health / 100` payout multiplier always paid at
+  full quality. Dryness now drains it, below 30 water.
+- **`PUMP.price: 250` is still dead**, deliberately. Buying the pump is out of scope (DEC-008);
+  the pump is pre-owned.
+
+**Also rejected: a `setInterval` that adds a fixed step.** Everything is derived from
+`lastTickAt` on the state — which already existed — so a tab closed for six hours catches up
+in one call. A fixed step silently under-applies after a sleep, and a farm that stops
+evaporating while you are asleep is a bug with good PR.
+
+**File layout.** `js/domain/water.js` is the **medium** (evaporation, rain, the dry drain);
+`js/domain/pump.js` is the **machine** (`pumpRun`, `costOf`, `setPump`, `aimPump`). They were
+one file first and it ran to 285 lines, over the ~200 convention. The split also removed a
+naming conflict: `ownership.md` had been listing `js/domain/pump.js` as a planned file for
+this exact work all along, so the file the ownership table promised now exists.
+
+---
+
 ### DEC-039 One file per crop and per land segment, below `config/`
 **Decided by:** Jim · 2026-10-17 · **decided and built — this is T-07**
 
