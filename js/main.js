@@ -513,9 +513,13 @@ async function start() {
     // times a minute and dismissed the seed picker each time, which made it impossible
     // to choose a seed. See ISS-085.
     //
-    // Sixteen tiles are rebuilt rather than diffed: the field is small and the diffing
-    // pass would have to reason about which of five exclusive classes a plot just
-    // changed between.
+    // **The tick is allowed to be naive about *when*; it is not naive about *what*.**
+    // `mountFarmView` compares a signature of everything the field draws before it
+    // touches the DOM, so almost every one of these calls returns without doing anything
+    // at all. That matters because rebuilding the field means recreating ~34 `<img>`
+    // elements over 313–712 KB of art, and a fresh `<img>` re-decodes even when the
+    // bitmap is already in memory — about 16.4 MB of PNG per second, every second, which
+    // is ISS-088 and the reason the whole page felt unresponsive.
     //
     // Skipped while the tab is hidden, which matters on a phone — a backgrounded tab
     // holding a 1 Hz timer is a battery complaint, and there is nothing visible to
