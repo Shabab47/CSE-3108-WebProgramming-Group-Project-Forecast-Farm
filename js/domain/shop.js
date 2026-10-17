@@ -22,7 +22,8 @@
  * the game can be made in one place.
  */
 
-import { cropOf } from '../config/crops.js';
+import { cropOf, requiredPlotsFor } from '../config/crops.js';
+import { isSeedUnlocked, ownedPlots } from '../utils/seedUnlocks.js';
 
 /** Quantities the shop offers, cheapest decision first. */
 export const BUY_STEPS = [1, 5, 10];
@@ -30,12 +31,24 @@ export const BUY_STEPS = [1, 5, 10];
 export const SHOP_REASONS = {
   unknownCrop: 'There is no such seed in the shop.',
   badQuantity: 'Pick how many seeds you want before buying.',
-  unavailable: (name) => `${name} is not available to plant yet. Its art is still being drawn.`,
+  locked: (name, need, owned) =>
+    `${name} unlocks when you own ${need} plots (you own ${owned}). Buy more land first.`,
   tooExpensive: (cost, gold) => `That costs ${cost} gold and you have ${gold}.`,
 };
 
 /**
  * Buy seed packets for one crop.
+ *
+ * Two refusals that matter, in the order the player can act on them: nonsense
+ * first, then land-lock (buy more plots), then the purse. The UI greys the
+ * buttons with `canAfford` but the rule is the authority — a stale button or
+ * a hand-edited save must not bypass it.
+ *
+ * Land is the *only* unlock gate (DEC-041 as fixed): `available` is ignored
+ * here on purpose. The art for potato→corn does not exist yet, but their seed
+ * packets and numbers do — and a 4-plot farm that earned its unlock must be
+ * able to spend it. The field draws a rice-sprite fallback with a tint until
+ * the real sprites land, so nothing 404s and nothing bricks.
  *
  * @param {object} state
  * @param {string} cropId
@@ -50,7 +63,9 @@ export function buySeeds(state, cropId, quantity = 1) {
     return { ok: false, reason: SHOP_REASONS.badQuantity };
   }
 
-  if (!crop.available) return { ok: false, reason: SHOP_REASONS.unavailable(crop.name) };
+  const owned = ownedPlots(state);
+  const need = requiredPlotsFor(cropId);
+  if (owned < need) return { ok: false, reason: SHOP_REASONS.locked(crop.name, need, owned) };
 
   const cost = crop.seedPrice * quantity;
   if (cost > state.gold) return { ok: false, reason: SHOP_REASONS.tooExpensive(cost, state.gold) };
@@ -81,7 +96,8 @@ export function buySeeds(state, cropId, quantity = 1) {
  */
 export function canAfford(state, cropId, quantity = 1) {
   const crop = cropOf(cropId);
-  if (!crop || !crop.available) return false;
+  if (!crop) return false;
+  if (!isSeedUnlocked(state, cropId)) return false;
   if (!Number.isInteger(quantity) || quantity < 1) return false;
   return crop.seedPrice * quantity <= (state?.gold ?? 0);
 }

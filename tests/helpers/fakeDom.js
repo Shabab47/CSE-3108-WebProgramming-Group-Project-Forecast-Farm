@@ -110,6 +110,22 @@ export class FakeNode {
     this.append(...children);
   }
 
+  /**
+   * Detach from the parent, as `Element.remove()` does.
+   *
+   * Two call sites need it and neither was caught until a boot smoke test ran the real
+   * entry script: `loadingTips.js` takes the boot veil down with `veil.remove()`, and
+   * `farmActions.js` closes the seed picker the same way. Both are ordinary DOM calls
+   * that every browser supports, so a stub without them fails as a *game* bug.
+   */
+  remove() {
+    if (!this.parentNode) return;
+    const siblings = this.parentNode.childNodes;
+    const at = siblings.indexOf(this);
+    if (at !== -1) siblings.splice(at, 1);
+    this.parentNode = null;
+  }
+
   /* --- attributes ---------------------------------------------------------- */
 
   setAttribute(name, value) {
@@ -170,6 +186,14 @@ export class FakeNode {
     this.focusCount += 1;
   }
 
+  /** Ancestor test, as `Node.contains()`. Deep, and includes the node itself. */
+  contains(other) {
+    for (let node = other; node; node = node.parentNode) {
+      if (node === this) return true;
+    }
+    return false;
+  }
+
   /* --- traversal ------------------------------------------------------------ */
 
   get children() {
@@ -220,6 +244,13 @@ class FakeTextNode extends FakeNode {
 /**
  * Install `globalThis.document` and `globalThis.Node`, and return a root to mount into.
  *
+ * `addEventListener` / `removeEventListener` are no-ops because the real `document` has
+ * them and `js/connection.js` calls them on it. Their absence made a boot smoke test
+ * fail with `target.addEventListener is not a function` — a harness failure that reads
+ * exactly like a game failure, which is the worst kind of both. `hidden` is here for
+ * the same reason: `main.js`'s tick reads it to skip repaints on a backgrounded tab,
+ * and `undefined` reads as falsy, i.e. always repaint.
+ *
  * @returns {FakeNode}
  */
 export function installDom() {
@@ -229,10 +260,13 @@ export function installDom() {
   globalThis.Node = FakeNode;
   globalThis.document = {
     body: root,
+    hidden: false,
     createElement: (tag) => new FakeNode(tag),
     createTextNode: (text) => new FakeTextNode(text),
     querySelector: (selector) => root.querySelector(selector),
     querySelectorAll: (selector) => root.querySelectorAll(selector),
+    addEventListener: () => {},
+    removeEventListener: () => {},
   };
 
   return root;

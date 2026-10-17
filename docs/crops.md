@@ -1,7 +1,12 @@
 # Crops
 
-Source of truth for crop numbers is `js/config/crops.js`. This document explains what the
-numbers mean and why they are what they are.
+Source of truth for crop numbers is **`js/crops_logics/<cropId>.js`** — one file per crop, each
+holding its prices, grow time, water need, yield and likes/hates. `js/config/crops.js` assembles
+those into the table everything else imports and restates no number. This document explains what
+the numbers mean and why they are what they are.
+
+Land is described the same way: one file per segment in `js/land_squares/`, assembled by
+`index.js`.
 
 ## Crop table
 
@@ -92,26 +97,62 @@ field renders, so growth keeps running while the tab is closed and nothing has t
 when the formula changes.
 
 ```
-progress = (now - plantedAt) / 3_600_000 / crop.growHours
-stage    = progress >= 1 ? 5 : 1 + floor(progress * 4)
+hoursElapsed = (now - plantedAt) / 3_600_000      clamped to [0, growHours]
+progress     = hoursElapsed / crop.growHours     clamped to [0, 1]
+stage        = min(floor(hoursElapsed) + 1, 5)
 ```
 
 `now = Date.now() + state.clock.timeOffsetMs`, so the debug time-skip buttons move growth too.
 
-| Stage | Progress | Art |
-| ---: | :--- | :--- |
-| 1 | 0 – 25% | `rice_1.png` sprouted |
-| 2 | 25 – 50% | `rice_2.png` |
-| 3 | 50 – 75% | `rice_3.png` |
-| 4 | 75 – 100% | `rice_4.png` mature, still green |
-| 5 | 100% | `rice_5.png` golden, ready |
+**The stage advances on the hour and is stable in between.** The field re-renders every
+`TICK_MS`, but the sprite only changes when a whole hour has passed, so the art does not flicker
+and the number means something a player can hold on to.
+
+### Rice, which takes six hours and has five sprites
+
+This is the whole table for the only playable crop, and it is not a general rule — it is what
+falls out of `min(floor(hours) + 1, 5)` when `growHours` is 6:
+
+| Elapsed | Stage | Art | Ready? |
+| ---: | ---: | :--- | :--- |
+| 0 – 1h | 1 | `rice_1.png` sprouted | no |
+| 1 – 2h | 2 | `rice_2.png` | no |
+| 2 – 3h | 3 | `rice_3.png` | no |
+| 3 – 4h | 4 | `rice_4.png` | no |
+| 4 – 6h | 5 | `rice_5.png` golden | **at 6h** |
+| 6h + | 5 | `rice_5.png` | yes |
+
+**The last sprite is held for two hours, and that is deliberate.** Five stages spread evenly
+over six hours would give every stage an arbitrary, uneven slice of time and still land on the
+same five files. When `rice_6.png` is drawn, widen the `5` in `stageMath.js` and hour six picks
+up the new sprite on its own — no crop file, no UI, no formula changes. Until then it is what
+stops `cropStageImg(cropId, 6)` building a URL that 404s and leaving a blank diamond at the
+exact moment the player most wants to see the payoff.
+
+### Readiness is not the sprite
+
+> **Ready to harvest requires `progress >= 1` and `not dead`. It is deliberately *not*
+> `stage === 5`.**
+
+Stage 5 is drawn from four hours, so a rice crop at 5h05m already looks finished and is not
+harvestable for another 55 minutes. Judging readiness by the picture would let a player pull a
+crop an hour early, and would put the money and the artwork on two different clocks.
+
+A dead crop never becomes ready, which is why `farm.clearPlot()` exists — see
+`docs/team/issues.md` ISS-006.
+
+### Seeing it grow without waiting six hours
+
+`?fast=N` in the URL divides every grow time by N, so `?fast=60` turns 30 real minutes into 30
+hours of crop growth and a full rice cycle takes six minutes. It reads the URL and nothing
+else: off unless asked for, never part of the save file, and it changes no prices — a sped-up
+farm earns exactly what a real one would. See `growthSpeed()` in `js/config/game.js`.
+
+### The empty state
 
 An **empty plot is the ground tile itself** (`ground_unwatered.png` or `ground_watered.png`).
 `rice_1` is the first growth stage, not the empty state. This is the single most common
 misreading of the art, so it is worth stating twice.
-
-Ready to harvest requires `progress >= 1` **and** `not dead`. A dead crop never becomes ready,
-which is why `farm.clearPlot()` exists — see `docs/team/issues.md` ISS-006.
 
 ## Land prices
 
@@ -124,11 +165,38 @@ land shop a single "next price" instead of sixteen.
 
 | Plot | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
 | :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Cost (gold) | Free | 100 | 200 | 400 | 800 | 1,600 | 3,200 | 6,400 |
+| Cost (gold) | **Free** | 100 | 200 | 400 | 800 | 1,600 | 3,200 | 6,400 |
 
 | Plot | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 |
 | :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | Cost (gold) | 12,800 | 25,600 | 51,200 | 102,400 | 204,800 | 409,600 | 819,200 | 1,638,400 |
+
+### Plot 1 is free, and always will be
+
+**`STARTER_PLOT_ID` = 0 is owned from the first frame and is never for sale.** Not priced, not
+locked, not greyed, at any point in the game — `buyPlot()` on it answers "That is your first
+plot. You will never need to buy it." The table's "Free" is not a discount to be spent; it is a
+permanent property of that one plot. See DEC-040.
+
+`PLOT_PRICES[0]` is consequently never charged, and buying begins at index 1.
+
+### Which plot is next
+
+`UNLOCK_ORDER` in `js/config/field.js` is the acquisition order: **sixteen entries indexed by
+`ownedCount`**, index 0 being the starter's own slot. Exactly one plot is on offer at a time and
+the other fourteen are `disabled` — DEC-036.
+
+Zone A → B → C → D, `col` then `row` within each. **Read it against the id formula**, because
+`id = row * 4 + col` means a zone is *not* a contiguous run of ids: zone A is `{0, 1, 4, 5}`, not
+`{0, 1, 2, 3}`. An early draft got that wrong and offered a zone-B plot as the second purchase,
+leaving a hole in the middle of the field.
+
+```
+index  0    1    2    3    4    5    6    7    8    9   10   11   12   13   14   15
+plot   0    4    1    5    2    6    3    7    8   12    9   13   10   14   11   15
+zone   A    A    A    A    B    B    B    B    C    C    C    C    D    D    D    D
+cost   —  100  200  400  800 1600 3200 6400 ...
+```
 
 Cumulative totals, which are what actually matters for pacing:
 
@@ -149,29 +217,52 @@ past that yet.
 
 The doubling curve is what makes the goal feel like a goal rather than a checklist. A flat price
 list would be exhausted in an afternoon; a curve that multiplies by two every purchase turns the
-farm into something a player returns to over months. The first plot being free means a new player
-can plant within a minute of starting, and the freebie plus 200 starting gold is enough to buy the
-second plot and ten rice seeds outright.
+farm into something a player returns to over months.
+
+The free first plot is what makes the opening legible in a single move: 200 starting gold buys a
+rice packet at 100, and six hours later that harvest pays 200 — which is the second plot at 100
+*and* another packet. The freebie is not a discount, it is the tutorial.
 
 ### A note on pacing
 
 Rice earns about 100 gold per planting after seed cost — 200 in, 200 out — and takes six hours to
 grow. Buying all sixteen plots is therefore a very long haul at that rate — deliberately so, but
-worth revisiting if playtesting shows the mid-game going quiet. The debug panel's *unlock all
-plots* button exists so a full farm can be demonstrated without grinding. Reachable-by estimates
-in the table above assume a full farm earning at that rate, so a small farm is slower, not faster.
+worth revisiting if playtesting shows the mid-game going quiet. Use `?fast=60` when you need to
+*see* the loop rather than live it: a whole rice cycle in six minutes. Reachable-by estimates in
+the table above assume a full farm earning at that rate, so a small farm is slower, not faster.
 
 ## Harvest and quality
 
 ```
-units  = crop.yield
-quality = plot.health / 100          // 0..1
-gold    = units * crop.sellPrice * qualityAvg
+units   = crop.yield
+quality = plot.health / HEALTH.max          // 0..1, clamped
+gold    = round(units * crop.sellPrice * quality)
 ```
 
-A plot harvested at full health sells for `10 * 20 * 1.0` = 200 gold on rice, against a 100 gold
-seed — the 2× ratio described above. Quality is averaged into the existing stack when harvest is
-added, so selling part of a stack and then adding more does not distort the average.
+A plot harvested at full health pays `10 * 20 * 1.0` = 200 gold on rice, against a 100 gold seed —
+the 2× ratio described above. Quality is **averaged into the existing stack**, so selling part of a
+pile and then harvesting more does not distort the average: `inventory.harvest[cropId]` carries
+`units`, `qualitySum` and a derived `quality`.
+
+Health is clamped to `[0, 1]` before it multiplies anything, so a hand-edited save cannot set
+`health: 9999` and mint gold.
+
+### The loop, end to end
+
+1. **Buy a seed** in the shop — 100 gold for a rice packet, refused if you cannot pay.
+2. **Click your free plot.** It opens the seed picker, listing only what is in your bag. An empty
+   bag still opens the picker; it says so and offers the shop, because a click that silently did
+   nothing would leave you unsure the plot was yours.
+3. **Pick a seed.** It is spent and `plantedAt` is stamped. `rice_1.png` appears.
+4. **Wait.** The sprite changes on the hour; a gold rim appears when it is actually ready.
+5. **Click it.** Gold is added, the crop goes into the harvest bag, the plot empties, and the
+   land is still yours.
+6. **Click the plot on offer** — the one carrying a price tag — to buy it. The other fourteen
+   are padlocked and `disabled`.
+
+Health only moves when `js/domain/simulator.js` lands; it is still an empty file, so a crop cannot
+yet be harmed by weather. Until then every harvest is at full health and the 2× ratio holds
+exactly. `config/cropWeatherMatrix.js` is written and waiting for it.
 
 ## Crop artwork
 

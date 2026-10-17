@@ -15,9 +15,11 @@ import { mountSeasonCard } from './ui/seasonCard.js';
 import { mountWeatherPanel } from './ui/weatherPanel.js';
 import { mountFarmView } from './ui/farmView.js';
 import { mountLocationBar } from './ui/locationBar.js';
+import { nextUnlockable } from './land_squares/index.js';
+import { onPlotClick } from './farmActions.js';
 import { fetchWeather } from './services/weatherApi.js';
 import { formatCoordinates, reverseGeocode, searchPlaces } from './services/geocodeApi.js';
-import { AUTOSAVE_MS } from './config/game.js';
+import { AUTOSAVE_MS, TICK_MS } from './config/game.js';
 import { REFRESH_MS } from './config/api.js';
 
 const log = createLog('main');
@@ -130,6 +132,41 @@ function mountShell(session) {
 
 }
 
+/**
+ * Repaint the field, and nothing else.
+ *
+ * Split out of `renderPanels` because **a repaint is not a state change**, and the two
+ * need different amounts of the page. The 1 Hz tick exists so a growing crop visibly
+ * changes sprite, and on that tick nothing has been spent, planted or fetched —
+ * `plantedAt` has not moved. Sending the tick through `renderPanels` rebuilt the whole
+ * page once a second, forecast board included, and it used to dismiss the seed picker
+ * on the way past, so a player could open the picker and had under a second to choose a
+ * seed. See ISS-085.
+ *
+ * `mountFarmView()` clears `#farm-view` wholesale, so nothing that is not the field may
+ * be mounted inside it — the seed picker's host is a sibling for exactly that reason.
+ */
+function repaintFarm(state) {
+  const offer = nextUnlockable(state);
+
+  mountFarmView(qsOrNull('#farm-view'), {
+    plots: state?.plots ?? [],
+    selection: state?.selection,
+    clock: state?.clock,
+    nextPrice: offer?.price ?? 0,
+    onPlotClick,
+  });
+}
+
+/**
+ * The whole page, for when the state itself has changed.
+ *
+ * **This does not dismiss the seed picker**, and that is deliberate. The only thing that
+ * can change the seed bag under an open picker is planting, and planting dismisses it
+ * itself in `farmActions.js`. A save completing, the clock ticking or the weather
+ * refreshing are all reasons to redraw the page and none of them are a reason to take a
+ * choice away from a player who is halfway through making it.
+ */
 function renderPanels(state) {
   mountWeatherPanel(qsOrNull('#forecast-card'), {
     location: state?.location,
@@ -137,11 +174,7 @@ function renderPanels(state) {
     sync: getSync(),
   });
 
-  mountFarmView(qsOrNull('#farm-view'), {
-    plots: state?.plots ?? [],
-    selection: state?.selection,
-    onPlotClick: (plotId) => log.trace('plot clicked', plotId),
-  });
+  repaintFarm(state);
 
   const goldEl = qsOrNull('#gold-value');
   if (goldEl && state) goldEl.textContent = `${state.gold} gold`;
@@ -392,6 +425,27 @@ async function start() {
     // lands. Holding the veil until then would mean a weather timeout keeps a
     // perfectly good farm hidden behind a veil.
     loader.done();
+
+    // The field redraws once a second so a growing crop visibly changes sprite.
+    //
+    // **`repaintFarm`, not `renderPanels`.** Nothing here writes state: growth is
+    // derived from `plantedAt` on every render, so a second passing is a repaint and not
+    // a state change. Going through `renderPanels` rebuilt the forecast board sixty
+    // times a minute and dismissed the seed picker each time, which made it impossible
+    // to choose a seed. See ISS-085.
+    //
+    // Sixteen tiles are rebuilt rather than diffed: the field is small and the diffing
+    // pass would have to reason about which of five exclusive classes a plot just
+    // changed between.
+    //
+    // Skipped while the tab is hidden, which matters on a phone — a backgrounded tab
+    // holding a 1 Hz timer is a battery complaint, and there is nothing visible to
+    // repaint. The crop will have grown by the time the tab comes back, because
+    // `plantedAt` did not move.
+    setInterval(() => {
+      if (document.hidden) return;
+      repaintFarm(getState());
+    }, TICK_MS);
 
     setInterval(saveNow, AUTOSAVE_MS);
     wireSaveOnExit();

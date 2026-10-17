@@ -18,12 +18,21 @@ const JS_ROOT = join(ROOT, 'js');
 
 /** Which folders each layer may import from. See docs/architecture.md. */
 const ALLOWED = {
-  config: [],
+  // Crop and land data sit *below* config rather than inside it: one file per crop
+  // in `crops_logics/`, one per land segment in `land_squares/`. They hold numbers
+  // and pure arithmetic and import nothing, and `config/crops.js` assembles the
+  // crops into the table everything else reads. Both were previously part of config
+  // and are registered here so this script can see 21 new files instead of being
+  // silently blind to them.
+  crops_logics: [],
+  land_squares: ['config'],
+
+  config: ['crops_logics'],
   utils: ['config'],
-  state: ['config', 'utils'],
-  domain: ['config', 'utils', 'state/types'],
+  state: ['config', 'utils', 'land_squares'],
+  domain: ['config', 'utils', 'land_squares', 'state/types'],
   services: ['config', 'utils'],
-  ui: ['config', 'utils', 'domain', 'state'],
+  ui: ['config', 'utils', 'domain', 'state', 'land_squares'],
   debug: ['config', 'utils', 'state', 'domain', 'services', 'ui'],
 };
 

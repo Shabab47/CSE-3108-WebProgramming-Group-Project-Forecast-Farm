@@ -22,7 +22,7 @@ import { afterEach, beforeEach, test } from 'node:test';
 
 import { installDom, uninstallDom, visibleText } from './helpers/fakeDom.js';
 import { mountFarmView } from '../js/ui/farmView.js';
-import { FIELD } from '../js/config/field.js';
+import { FIELD, STARTER_PLOT_ID, UNLOCK_ORDER } from '../js/config/field.js';
 
 let root;
 
@@ -34,17 +34,32 @@ afterEach(() => {
   uninstallDom();
 });
 
-/** Sixteen plots as `buildPlots()` makes them — unowned, empty, dry. */
+/**
+ * The field a real player sees on their first load: one plot owned, fifteen locked.
+ *
+ * Plot 0 is owned because a farm always starts owning the starter — a fixture with
+ * all sixteen unowned is a state the game cannot reach, and it quietly changes the
+ * answer to "which plot is next", since `nextUnlockable` counts owned plots. The
+ * starter's own behaviour is asserted properly in `initialState.test.js`.
+ *
+ * @param {object} overrides applied to every plot, on top of the defaults
+ */
 function buildPlots(overrides = {}) {
   const plots = [];
 
   for (let row = 0; row < FIELD.size; row += 1) {
     for (let col = 0; col < FIELD.size; col += 1) {
+      const id = row * FIELD.size + col;
+      const isStarter = id === STARTER_PLOT_ID;
+
       plots.push({
-        id: row * FIELD.size + col,
+        id,
         col,
         row,
-        owned: false,
+        zone: isStarter ? 'A' : 'B',
+        zoneLabel: isStarter ? 'top' : 'right',
+        isStarter,
+        owned: isStarter,
         cropId: null,
         plantedAt: null,
         waterLevel: 0,
@@ -59,9 +74,15 @@ function buildPlots(overrides = {}) {
 }
 
 /** Mount the field and collect the plot ids it reports as clicked. */
-function mount({ plots = buildPlots(), selection = null } = {}) {
+function mount({ plots = buildPlots(), selection = null, ...rest } = {}) {
   const clicks = [];
-  mountFarmView(root, { plots, selection, onPlotClick: (id) => clicks.push(id) });
+  mountFarmView(root, {
+    plots,
+    selection,
+    nextPrice: 100,
+    onPlotClick: (id) => clicks.push(id),
+    ...rest,
+  });
   return { clicks, tiles: root.querySelectorAll('.plot') };
 }
 
@@ -105,13 +126,96 @@ test('the box is inert and one clipped layer inside it takes the pointer', () =>
   assert.match(ruleFor('.plot__hit').exec(css)?.[0] ?? '', /pointer-events:\s*auto/);
 });
 
-test('an unowned plot is padlocked, and the word "Buy" is gone', () => {
+test('a crop sprite is laid at the same size as the soil it stands on', () => {
+  // Measured from the alpha bounding boxes, in `css/scene.css`: the ground's art is
+  // 99.1% of its canvas and every rice stage is 97.4–99.8%, and all of them bottom
+  // out at y 757–801 against the ground's 757. They were drawn as a matched pair.
+  //
+  // `.plot__crop` was `width: 70%`, which drew the plant at roughly 68% of the
+  // diamond's width, and `bottom: 10%`, which floated it above the soil. Every stage
+  // looked like a sprout on a dinner plate. Nothing throws, nothing is missing, and
+  // no unit test can see a size — so the stylesheet is the assertion.
+  const css = readFileSync(new URL('../css/scene.css', import.meta.url), 'utf8');
+  const ruleFor = (selector) => new RegExp(`${selector.replace(/[.]/g, '\\.')}\\s*\\{([^}]*)\\}`).exec(css)?.[1] ?? '';
+  const decl = (rule, property) => new RegExp(`${property}\\s*:\\s*([^;]+)`).exec(rule)?.[1]?.trim();
+
+  const ground = ruleFor('.plot__ground');
+  const crop = ruleFor('.plot__crop');
+
+  assert.equal(
+    decl(crop, 'width'),
+    decl(ground, 'width'),
+    'the crop canvas is the same size as the ground canvas — both are 1000x1000',
+  );
+  assert.equal(decl(crop, 'bottom'), '0', 'and shares its bottom edge, which is where the art sits');
+  assert.equal(decl(crop, 'left'), '50%', 'horizontally centred on the diamond');
+  assert.match(decl(crop, 'transform') ?? '', /translateX\(-50%\)/);
+
+  // And nothing between the plot and the stage clips the extra height the crops are
+  // drawn with on purpose — `docs/crops.md` says so, and clipping the tops is the one
+  // failure mode a "fix" here would cause.
+  for (const selector of ['.plot', '.field-stage__plots', '.field-stage__mount', '.field-stage']) {
+    const rule = ruleFor(selector);
+    if (!rule) continue;
+    assert.ok(
+      !/overflow\s*:\s*hidden/.test(rule),
+      `${selector} clips overflow, so a crop taller than the ground loses its top`,
+    );
+  }
+});
+
+test('the free plot is plain ground, and exactly one of the rest is for sale', () => {
+  // Three states, not two (DEC-036). The starter is `owned`; of the fifteen locked
+  // plots exactly one is `next` and the other fourteen are `locked` — the whole point
+  // being that the far plots must not look identical to the one on offer.
   const { tiles } = mount();
 
-  for (const tile of tiles) {
-    assert.equal(withClass(tile, 'plot__lock').length, 1, 'every unowned plot is padlocked');
-    assert.ok(/unowned$/.test(tile.getAttribute('aria-label')), 'and says so out loud');
+  const owned = tiles.filter((tile) => tile.classList.contains('plot--owned'));
+  const next = tiles.filter((tile) => tile.classList.contains('plot--next'));
+  const locked = tiles.filter((tile) => tile.classList.contains('plot--locked'));
+
+  assert.equal(owned.length, 1, 'the starter plot');
+  assert.equal(owned[0].dataset.plotId, String(STARTER_PLOT_ID));
+  assert.equal(next.length, 1, 'exactly one plot is on offer');
+  assert.equal(locked.length, 14, 'the rest are locked');
+  assert.equal(owned.length + next.length + locked.length, 16, 'and every plot is exactly one of them');
+
+  for (const tile of locked) {
+    assert.equal(withClass(tile, 'plot__lock').length, 1, 'every locked plot is padlocked');
+    assert.equal(withClass(tile, 'plot__price').length, 0, 'and carries no price');
+    assert.equal(tile.getAttribute('disabled'), 'true', 'and cannot be clicked at all');
   }
+
+  assert.equal(withClass(owned[0], 'plot__lock').length, 0, 'the free plot has no padlock');
+
+  // `next` shows the price and takes a click.
+  assert.equal(withClass(next[0], 'plot__lock').length, 1, 'and is still padlocked');
+  assert.equal(withClass(next[0], 'plot__price').length, 1, 'the next plot carries its price');
+  assert.equal(next[0].getAttribute('disabled'), null, 'and is clickable');
+
+  const onOffer = UNLOCK_ORDER[1]; // index 0 is the free starter's own slot
+  assert.equal(
+    next[0].dataset.plotId,
+    String(onOffer),
+    `the plot on offer is id ${onOffer}, straight from config/field.js`,
+  );
+  assert.equal(
+    next[0].getAttribute('aria-label'),
+    `Plot ${onOffer + 1}, 100 gold, buy this plot`,
+    'and the name says what a click will do, in gold rather than an unlabelled number',
+  );
+  assert.equal(withClass(next[0], 'plot__price')[0].textContent, '100');
+});
+
+test('a seven-figure price is separated, because 1638400 is a smear at plot size', () => {
+  const { tiles } = mount({ nextPrice: 1_638_400 });
+
+  const next = tiles.filter((tile) => tile.classList.contains('plot--next'));
+  assert.equal(withClass(next[0], 'plot__price')[0].textContent, '1,638,400');
+});
+
+test('the word "Buy" is not rendered anywhere', () => {
+  mount();
 
   // The caption went on purpose: it sat in the half of the diamond that the plot in
   // front paints over, so it was clipped to "BU.." or "..UY" depending on the row.
@@ -121,12 +225,21 @@ test('an unowned plot is padlocked, and the word "Buy" is gone', () => {
   );
 });
 
-test('an owned plot is not padlocked', () => {
+test('an owned plot is not padlocked, and is not "locked"', () => {
   const { tiles } = mount({ plots: buildPlots({ owned: true }) });
 
   for (const tile of tiles) {
     assert.equal(withClass(tile, 'plot__lock').length, 0, 'owned plots carry no padlock');
-    assert.ok(/^Plot \d+$/.test(tile.getAttribute('aria-label')), 'and are not "unowned"');
+    assert.equal(withClass(tile, 'plot__price').length, 0, 'and no price');
+    assert.ok(!tile.classList.contains('plot--locked'), 'and are not locked');
+    assert.equal(tile.getAttribute('disabled'), null, 'and are clickable');
+
+    // The name says what the plot *is*, not just what it is not. It used to be the
+    // bare "Plot 7"; a screen reader user now hears that the ground is free.
+    assert.ok(
+      /^Plot \d+, empty$/.test(tile.getAttribute('aria-label')),
+      `an owned empty plot says it is empty, got "${tile.getAttribute('aria-label')}"`,
+    );
   }
 });
 
@@ -160,4 +273,65 @@ test('a planted plot renders its layers, and they are phrasing content', () => {
     'height:60%',
     'the water bar keeps its level',
   );
+});
+
+test('a growing crop carries a green meter with the time left', () => {
+  // Rice takes 6h. Planted 3h ago it is half grown: the bar reads 50% and the
+  // label reads 3h — the same words the screen-reader name already says, so
+  // the two can never disagree. See `plotLabel.formatLeft`.
+  const HOUR = 3_600_000;
+  const planted = buildPlots().map((plot) =>
+    plot.id === 5
+      ? { ...plot, owned: true, cropId: 'rice', plantedAt: Date.now() - 3 * HOUR, waterLevel: 60 }
+      : plot,
+  );
+  const { tiles } = mount({ plots: planted });
+
+  const tile = tiles[5];
+  assert.equal(tile.querySelector('.plot__grow').tagName, 'SPAN', 'the meter is there while growing');
+  assert.equal(
+    tile.querySelector('.plot__grow-fill').getAttribute('style'),
+    'width:50%',
+    'the bar matches progress',
+  );
+  assert.equal(tile.querySelector('.plot__grow-label').textContent, '3h', 'and the label names the wait');
+  assert.ok(
+    /^Plot 6, Rice growing, 3h left$/.test(tile.getAttribute('aria-label')),
+    `the accessible name says the same thing, got "${tile.getAttribute('aria-label')}"`,
+  );
+});
+
+test('the meter hides on empty, locked, dead and ready plots', () => {
+  // Empty, locked and dead never grew anything; ready hands the moment to the
+  // gold rim instead — a full green bar beside it would say the same thing
+  // twice. See `js/ui/growthMeter.js`.
+  const HOUR = 3_600_000;
+  const now = Date.now();
+  const plots = buildPlots().map((plot) => {
+    if (plot.id === 0) return { ...plot, cropId: 'rice', plantedAt: now - 3 * HOUR }; // growing: meter
+    if (plot.id === 1) return plot; // owned by fixture? no — only the starter is owned; empty
+    if (plot.id === 5) {
+      return { ...plot, owned: true, cropId: 'rice', plantedAt: now - 3 * HOUR, dead: true }; // dead
+    }
+    if (plot.id === 6) {
+      return { ...plot, owned: true, cropId: 'rice', plantedAt: now - 7 * HOUR }; // ready
+    }
+    return plot;
+  });
+  const { tiles } = mount({ plots });
+
+  assert.ok(tiles[0].querySelector('.plot__grow'), 'a growing crop shows its meter');
+
+  const emptyStarter = tiles.find((tile) => tile.dataset.plotId === '1' && !tile.querySelector('.plot__grow'));
+  assert.ok(emptyStarter, 'an empty owned plot shows no meter');
+
+  const locked = tiles.filter((tile) => tile.classList.contains('plot--locked'));
+  assert.ok(locked.length > 0, 'the fixture has locked plots');
+  for (const tile of locked) {
+    assert.equal(tile.querySelector('.plot__grow'), null, `locked plot ${tile.dataset.plotId} shows no meter`);
+  }
+
+  assert.equal(tiles[5].querySelector('.plot__grow'), null, 'a dead crop shows no meter');
+  assert.equal(tiles[6].querySelector('.plot__grow'), null, 'a ready crop shows no meter — the gold rim owns it');
+  assert.ok(tiles[6].querySelector('.plot__ready'), 'and the rim is there instead');
 });

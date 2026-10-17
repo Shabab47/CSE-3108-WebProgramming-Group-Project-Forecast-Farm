@@ -55,6 +55,15 @@ Seven per crop: five growth stages, then two failure states.
 | `rice_3.png` | Mid-sized | ✅ done |
 | `rice_4.png` | Mature, still green | ✅ done |
 | `rice_5.png` | Golden, ready to harvest | ✅ done |
+| `rice_6.png` | Sixth hour — **wanted, see below** | ⬜ **missing** |
+
+**Why `rice_6.png` is wanted.** Rice takes six hours and there are five sprites, so
+`stageMath.js` holds stage 5 for the whole of hours five and six. That is a deliberate
+placeholder, not the design: the `min(..., STAGE_COUNT)` in `stageMath.js` is what stops
+`cropStageImg(cropId, 6)` requesting a file that does not exist, and widening that one number is
+all it takes to make hour six use a sixth sprite. No crop file, UI change or formula edit is
+involved. A sixth sprite would let all six hours show distinct art, and would be the first crop
+to need it.
 | `rice_rain_damaged.png` | Rain-damaged overlay | ⬜ **missing** |
 | `rice_drought_killed.png` | Drought-killed dried texture | ⬜ **missing** |
 

@@ -10,7 +10,7 @@
 import { createLog } from '../utils/log.js';
 import { SAVE_DEBOUNCE_MS, SAVE_RETRY_BACKOFF_MS } from '../config/game.js';
 import { importFromText } from './transfer.js';
-import { buildInitialState, normaliseSession } from './initialState.js';
+import { buildInitialState, ensureStarterPlot, normaliseSession } from './initialState.js';
 import { deleteSave, readSave, writeSave } from './saveFile.js';
 import { exportFilename, exportToText } from './transfer.js';
 
@@ -184,6 +184,15 @@ export async function init(session, build = buildInitialState, server = null) {
   if (!saved) saved = load();
 
   state = saved ? adoptSession(saved, session) : build(session);
+
+  // Farms saved before the starter plot existed have all sixteen plots locked, which
+  // leaves a returning player with no land at all. Repair it on the way in rather
+  // than bumping STATE_VERSION, which would throw every existing farm away.
+  const repaired = ensureStarterPlot(state);
+  if (repaired !== state) {
+    state = repaired;
+    log.info('granted the free starting plot to an older save');
+  }
 
   log.info(fromServer ? 'resumed farm from server' : saved ? 'resumed farm' : 'new farm', 'for', userId);
   notify();

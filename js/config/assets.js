@@ -37,6 +37,19 @@ export const ASSETS = [
   { path: 'assets/images/crops/rice/rice_4.png', name: 'Rice — stage 4', size: 646392, dimensions: '1000x1000', status: 'done', category: 'crop-sprite', page: 'field' },
   { path: 'assets/images/crops/rice/rice_5.png', name: 'Rice — stage 5', size: 589773, dimensions: '1000x1000', status: 'done', category: 'crop-sprite', page: 'field' },
 
+  // Flat copies of the five rice sprites, delivered at this path before the per-crop
+  // folder convention existed. Byte-identical to `crops/rice/rice_N.png` and kept,
+  // because they were delivered art and this registry documents what is on disk rather
+  // than deciding what should be. **Nothing loads these** — `cropStageImg()` builds the
+  // folder path, so the game never requests them. If they are ever cleaned up, delete
+  // these five entries in the same commit; `tests/assets.test.js` fails in both
+  // directions, which is the point of it.
+  { path: 'assets/images/crops/rice_1.png', name: 'Rice — stage 1 (flat copy, unused)', size: 624896, dimensions: '1000x1000', status: 'duplicate', category: 'crop-sprite', page: 'field' },
+  { path: 'assets/images/crops/rice_2.png', name: 'Rice — stage 2 (flat copy, unused)', size: 712164, dimensions: '1000x1000', status: 'duplicate', category: 'crop-sprite', page: 'field' },
+  { path: 'assets/images/crops/rice_3.png', name: 'Rice — stage 3 (flat copy, unused)', size: 557278, dimensions: '1000x1000', status: 'duplicate', category: 'crop-sprite', page: 'field' },
+  { path: 'assets/images/crops/rice_4.png', name: 'Rice — stage 4 (flat copy, unused)', size: 646392, dimensions: '1000x1000', status: 'duplicate', category: 'crop-sprite', page: 'field' },
+  { path: 'assets/images/crops/rice_5.png', name: 'Rice — stage 5 (flat copy, unused)', size: 589773, dimensions: '1000x1000', status: 'duplicate', category: 'crop-sprite', page: 'field' },
+
   // --- Shop ---
   { path: 'assets/images/Shop/shop.png', name: 'Shop sign (button to open the shop)', size: 1523803, dimensions: '1254x1254', status: 'done', category: 'button-art', page: 'shop' },
   { path: 'assets/images/crops/rice/rice seed.png', name: 'Rice seed packet', size: 1505980, dimensions: '1312x1199', status: 'done', category: 'shop-art', page: 'shop' },
@@ -52,6 +65,21 @@ export const ASSETS = [
 
   // --- Settings ---
   { path: 'assets/images/settings/settings.png', name: 'Settings gear (button to open settings)', size: 1578477, dimensions: '1254x1254', status: 'done', category: 'button-art', page: 'settings' },
+
+  // --- Seasons (the season card's illustration) ---
+  //
+  // `ui/seasonCard.js` builds this path as
+  // `assets/images/seasons/${encodeURIComponent(season)}.png`, so the file name has to
+  // be the season name in `domain/seasons.js` exactly — which is why "Late Autumn"
+  // carries a space. The six names there are Winter, Spring, Summer, Monsoon, Autumn,
+  // Late Autumn, and all six are here; a missing one 404s the season card for a third
+  // of the year.
+  { path: 'assets/images/seasons/Winter.png', name: 'Season card — Winter', size: 15874, dimensions: '', status: 'done', category: 'season-art', page: 'field' },
+  { path: 'assets/images/seasons/Spring.png', name: 'Season card — Spring', size: 15207, dimensions: '', status: 'done', category: 'season-art', page: 'field' },
+  { path: 'assets/images/seasons/Summer.png', name: 'Season card — Summer', size: 14909, dimensions: '', status: 'done', category: 'season-art', page: 'field' },
+  { path: 'assets/images/seasons/Monsoon.png', name: 'Season card — Monsoon', size: 10690, dimensions: '', status: 'done', category: 'season-art', page: 'field' },
+  { path: 'assets/images/seasons/Autumn.png', name: 'Season card — Autumn', size: 16073, dimensions: '', status: 'done', category: 'season-art', page: 'field' },
+  { path: 'assets/images/seasons/Late Autumn.png', name: 'Season card — Late Autumn', size: 16993, dimensions: '', status: 'done', category: 'season-art', page: 'field' },
 
   // --- Weather (forecast strip / weather panel) ---
   { path: 'assets/icons/weather/sunny.svg', name: 'Sunny icon', size: 0, dimensions: '', status: 'empty', category: 'icon', page: 'weather' },

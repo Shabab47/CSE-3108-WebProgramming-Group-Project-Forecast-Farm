@@ -8,17 +8,56 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildInitialState, buildPlots, normaliseSession, zoneOf } from '../js/state/initialState.js';
-import { FIELD, PLOT_PRICES } from '../js/config/field.js';
+import {
+  buildInitialState,
+  buildPlots,
+  ensureStarterPlot,
+  normaliseSession,
+  zoneOf,
+} from '../js/state/initialState.js';
+import { FIELD, PLOT_PRICES, STARTER_PLOT_ID } from '../js/config/field.js';
 import { START_GOLD } from '../js/config/game.js';
 
 const SESSION = { status: 'authed', userId: 'acc_test', email: 'abdul@rice.bd', farmerName: 'Abdul Karim' };
 
-test('a fresh farm has sixteen unowned plots', () => {
+test('a fresh farm has sixteen plots, and the back corner is already the player\'s', () => {
   const plots = buildPlots();
   assert.equal(plots.length, FIELD.size * FIELD.size);
   assert.equal(plots.length, 16);
-  assert.ok(plots.every((plot) => plot.owned === false && plot.cropId === null));
+
+  // The starter plot. Every farm opens owning one plot, so a new player can plant
+  // within a minute of starting instead of staring at sixteen padlocks.
+  const owned = plots.filter((plot) => plot.owned);
+  assert.equal(owned.length, 1, 'exactly one plot is owned');
+  assert.equal(owned[0].id, STARTER_PLOT_ID, 'and it is the starter');
+
+  assert.ok(plots.every((plot) => plot.cropId === null), 'none of them has a crop yet');
+});
+
+test('the starter plot is the back corner, which nothing paints over', () => {
+  const starter = buildPlots().find((plot) => plot.owned);
+
+  // `utils/iso.js` paints in `z = col + row` order, so the furthest diamond from the
+  // camera is (0,0) — the topmost one, with every other plot painting over it if it
+  // were anywhere else. Being the free plot means it is read constantly, so it has to
+  // be the one that is never occluded.
+  assert.equal(starter.col, 0);
+  assert.equal(starter.row, 0);
+  assert.equal(starter.col + starter.row, 0, 'lowest z on the whole field');
+  assert.equal(starter.zone, 'A');
+  assert.equal(starter.isStarter, true);
+  assert.ok(
+    buildPlots().filter((p) => !p.owned).every((p) => p.isStarter === false),
+    'no other plot claims to be the starter',
+  );
+});
+
+test('every plot the player does not start with begins locked', () => {
+  const plots = buildPlots();
+
+  for (const plot of plots) {
+    assert.equal(plot.owned, plot.id === STARTER_PLOT_ID, `plot ${plot.id}`);
+  }
 });
 
 test('plot ids are row-major and unique', () => {
@@ -54,18 +93,72 @@ test('the first plot is free and every price after doubles', () => {
   }
 });
 
-test('a new farm starts with the documented gold and nothing owned', () => {
+test('a new farm starts with the documented gold and one plot', () => {
   const state = buildInitialState(SESSION);
 
   assert.equal(state.version, 1);
   assert.equal(state.gold, START_GOLD);
   assert.equal(state.session.email, SESSION.email);
   assert.equal(state.session.status, 'authed');
-  assert.equal(state.plots.filter((plot) => plot.owned).length, 0);
+  assert.equal(state.plots.filter((plot) => plot.owned).length, 1, 'the free plot');
   assert.equal(state.inventory.seeds.rice, 0);
   assert.equal(state.pump.on, false);
   assert.equal(state.weather, null);
   assert.equal(state.clock.timeOffsetMs, 0);
+});
+
+test('an older save with no land is given the starter plot', () => {
+  // Farms saved before the starter plot existed have all sixteen plots unowned, which
+  // leaves a returning player with nothing to plant on. They are repaired rather than
+  // discarded — bumping STATE_VERSION would throw away every farm in the world.
+  const legacy = buildInitialState(SESSION);
+  legacy.plots = legacy.plots.map((plot) => ({ ...plot, owned: false }));
+
+  const repaired = ensureStarterPlot(legacy);
+
+  assert.equal(repaired.plots.filter((plot) => plot.owned).length, 1);
+  assert.equal(
+    repaired.plots.find((plot) => plot.owned).id,
+    STARTER_PLOT_ID,
+    'and it is the back corner',
+  );
+});
+
+test('a save that already owns land is left exactly as it is', () => {
+  // The dangerous case: a repair that fires on a farm which legitimately owns
+  // nothing, or worse, one that hands out land on a hand-edited save.
+  const owned = buildInitialState(SESSION);
+  owned.plots = owned.plots.map((plot, index) => ({ ...plot, owned: index < 5 }));
+
+  assert.equal(ensureStarterPlot(owned), owned, 'same object back — nothing was touched');
+
+  const oneOwned = buildInitialState(SESSION);
+  oneOwned.plots = oneOwned.plots.map((plot, index) => ({ ...plot, owned: index === 9 }));
+
+  assert.equal(
+    ensureStarterPlot(oneOwned).plots.filter((plot) => plot.owned).length,
+    1,
+    'and still owns only the one plot it had',
+  );
+});
+
+test('the repair survives being handed junk', () => {
+  // It runs on every single load, on state that came out of localStorage and off a
+  // server, so it must not be the thing that throws on a corrupt save. `store.init`
+  // calls it unconditionally.
+  assert.equal(ensureStarterPlot(null), null);
+  assert.equal(ensureStarterPlot(undefined), undefined);
+  assert.equal(ensureStarterPlot('nonsense'), 'nonsense');
+  assert.equal(ensureStarterPlot(42), 42);
+
+  const noPlots = { gold: 10 };
+  assert.equal(ensureStarterPlot(noPlots), noPlots, 'no plots array, so nothing to repair');
+
+  // A wrong-length array is a hand-edited or half-written save. Repairing it would
+  // mean inventing a plot that does not exist, so it is passed through untouched.
+  const short = buildInitialState(SESSION);
+  short.plots = short.plots.slice(0, 9).map((plot) => ({ ...plot, owned: false }));
+  assert.equal(ensureStarterPlot(short), short, 'fifteen plots is not a field to repair');
 });
 
 test('a malformed session is coerced, never passed through', () => {
