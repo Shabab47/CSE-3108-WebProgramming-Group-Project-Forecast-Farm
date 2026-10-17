@@ -4,7 +4,52 @@ The nine game events, how real weather data maps onto them, and what each one do
 
 Config lives in `js/config/weatherEvents.js` (events, thresholds, WMO groups) and
 `js/config/cropWeatherMatrix.js` (ratings). The rules that read them live in
-`js/domain/weather.js` (classification) and `js/domain/simulator.js` (per-tick effects).
+`js/domain/weather.js`, which classifies and returns a **verdict for a planting**.
+
+---
+
+## How a planting is judged — applied once, not per hour
+
+**This supersedes the per-hour model the tables below were written for.**
+
+A planting is measured **once**, against the **next six hours** of forecast, at the
+moment the seed goes into the ground. The verdict is stored on the plot as
+`plot.forecast` and the resulting number as `plot.health`.
+
+**Why six hours.** Every crop takes 4–8 hours to grow — `rice` and `tomato` are 6,
+`wheat` 5, `potato` 4, `corn` 8 — so a six-hour window covers the whole life of the
+crop line. `corn` is the only one that outlives it.
+
+**Why once, and not on a timer.** A consequence the player can see *before* committing
+to it is worth more than one that arrives overnight, and it is the only version of this
+system that can be previewed in the seed picker at all. It also means there is nothing
+to tick: **`domain/simulator.js` is empty and is meant to stay empty.** The per-hour
+figures below are used as *rates*, multiplied by how many of the window's hours the
+event actually held, and applied in one step.
+
+**Which event wins.** The most severe in the window, never an average. Averaging is
+what lets one frost hour vanish into five ordinary ones, and "one of the next six
+hours is below freezing" is exactly the fact a player is deciding on. `sunny` and
+`cloudy` tie at the bottom of the order and simply lose.
+
+**Health.** `100 − drain`, floored at **25**. Weather wounds a crop and cannot kill
+it. This document calls frost *a drain, not an instant kill*, and applying six hours
+of −30 in a single instant **is** an instant kill. Death stays the pump's fault, which
+is the only way "your crop died" has something a player can act on behind it.
+
+**The season is a separate, softer input.** An off-season planting costs a flat 10
+health (`SEASON_MISS_COST` in `domain/weather.js`), not a second rating, so "planted
+rice in winter" stays one legible number rather than compounding with a forecast
+rating the player cannot compare it against. It is **never a gate** — a January player
+with only rice unlocked must still have something to plant. Seasons come from the
+player's **latitude**, via the band calendars in `config/seasons.js`.
+
+**No forecast means no planting.** With nothing to judge by, `verdictFor()` answers
+`{ok: false}` and the picker disables its rows and says why. The game's premise is
+that weather is real and never player-controlled, so a planting the weather was never
+asked about is a coin toss wearing a crop's name. `plot.forecast` is `null` on a crop
+sown without one — "the weather was never asked" is a different thing from "the
+weather was fine".
 
 ---
 

@@ -21,6 +21,57 @@ current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
 
 ---
 
+## ISS-089 The weather was fetched, classified, displayed — and did nothing to the farm
+**Found:** 2026-10-17, from the question "is the farm really influenced by the weather?" ·
+**Severity: High** · **Status: fixed**
+
+**The premise of the game was not implemented.** Real weather came from Open-Meteo
+for the player's coordinates and appeared on the board in full — temperature,
+humidity, wind, rain chance — and nothing connected any of it to a crop. Growth was
+purely `plantedAt + growHours`; rain never watered anything; `plot.health` was set to
+100 and never moved, so `harvest()`'s `health / 100` multiplier always paid at full
+quality; and frost, drought and heat existed in a config table nothing read.
+
+`HEALTH.dryDrainPerHour: 5` was defined in `config/game.js` and never read.
+
+**Why nothing caught it.** Four modules that would have done it were **0 bytes and
+never imported by any runtime code**: `domain/simulator.js`,
+`config/weatherEvents.js`, `domain/notifications.js`, `js/utils/season.js`. A fifth,
+`config/cropWeatherMatrix.js`, held 124 lines of real rating data and was referenced
+only by a comment, a test, and another comment. `domain/weather.js` *was* imported —
+by `weatherPanel.js`, for `describeWeatherCode` and `windCompass`, i.e. classification
+for the board and nothing else.
+
+The matrix file documented its own gap at lines 26–32: *"Not wired to the simulator
+yet … a crop will not actually be harmed by a drought until the simulator lands."* It
+was filed as part of T-12, which had never started.
+
+**Also found while auditing the empty files:**
+
+- `domain/seasons.js` computed the southern hemisphere by rotating a six-element list
+  by `HEMISPHERE_OFFSET = 6`. `(index + 6) % 6` is the identity, so **both hemispheres
+  returned the same season for all twelve months**, untested. Worse, the calendar was
+  South Asian while being applied to everyone, and the month was read without ever
+  consulting where the player is.
+- `services/timeApi.js` is dead, writes `document.getElementById('time').innerHTML`
+  from a `services/` file (the two "known violations" `check-imports` prints), and
+  hardcodes `timeapi.io` while `config/api.js` declares `TIME_URL` as a different host.
+  **Left alone** — it is T-04's file and bundling an unrelated service rewrite breaks
+  AGENTS §8.
+- Three files named for seasons, two of them empty, was a trap for anyone implementing
+  this.
+
+**Fix: fixed in T-12.** The rules live in `config/weatherEvents.js` and
+`config/seasons.js`; `domain/weather.js` turns them into a verdict; `plant()` records
+it on the plot. Judged **once, at sowing**, against the next six hours — which is
+possible because every crop takes 4–8 hours, so the window covers the whole crop
+line, and which means **no `simulator.js` is needed at all**. Seasons now come from
+the player's latitude via per-band calendars with the southern months written out.
+`domain/seasons.js` had no test whatsoever, which is how the identity rotation
+survived; the hemisphere and band behaviour are now asserted.
+
+---
+
 ## ISS-088 The field was rebuilt from scratch once a second, re-decoding ~16 MB of PNG
 **Found:** 2026-10-17, reported from the running game as "the whole system is super
 unresponsive" · **Severity: High** · **Status: fixed**

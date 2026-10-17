@@ -7,6 +7,54 @@ The per-person weekly notes that used to live in the README table are now in `me
 
 ---
 
+## The weather was on screen and did nothing — Hisham
+
+- **Did:** fixed ISS-089, from the question "is the farm really influenced by the weather?". It
+  was not. Real weather came from Open-Meteo for the player's coordinates and appeared on the board
+  in full — temperature, humidity, wind, rain chance — and **none of it touched a crop**. Growth was
+  purely `plantedAt + growHours`, rain never watered anything, `plot.health` was set to 100 and never
+  moved so the `health / 100` payout always paid at full quality, and `HEALTH.dryDrainPerHour: 5`
+  was defined and never read.
+- **Why nobody caught it:** four modules that would have done it were **0 bytes and never imported by
+  any runtime code** — `domain/simulator.js`, `config/weatherEvents.js`, `domain/notifications.js`,
+  `utils/season.js` — and `config/cropWeatherMatrix.js` held 124 lines of real rating data that only
+  a comment and a test referenced. The matrix documented its own gap: *"Not wired to the simulator
+  yet … a crop will not actually be harmed by a drought until the simulator lands."* It was filed as
+  T-12, which had never started.
+- **The design, and the reversal it contains:** a planting is judged **once, at sowing**, against the
+  **next six hours** — sized to the crop line, since every crop is 4–8 h — and stored as
+  `plot.health` + `plot.forecast`. **There is no simulator**, and `domain/simulator.js` is meant to
+  stay empty. That reverses the per-hour model the thresholds were written for, which is why DEC-039
+  exists. Health is floored at 25 so weather wounds and never kills; the season is a soft flat −10 and
+  never a gate; the most severe hour wins so one frost hour cannot be averaged away; and the picker
+  shows the verdict before the seed is spent, then refuses to plant without a forecast.
+- **Two real bugs found while auditing the empty files.** `domain/seasons.js` computed the southern
+  hemisphere by rotating a six-element list by `HEMISPHERE_OFFSET = 6` — `(index + 6) % 6` is the
+  identity, so **both hemispheres answered identically for all twelve months**, with no test at all.
+  Seasons now come from the player's latitude, each band carrying its own calendar with the southern
+  months written out. And the tropical band boundary had to be **27.5°, not the Tropic of Cancer's
+  23.44°**, because Dhaka is at 23.81° and a textbook line put the game's own home location into
+  the temperate band — a mistake caught by a test, since nothing else checks Dhaka.
+- **Left alone deliberately:** `services/timeApi.js` — dead, writes `document.getElementById('time')
+  .innerHTML` from a `services/` file, and hardcodes `timeapi.io` while `config/api.js` declares a
+  different host. Real, wrong, and T-04's.
+- **Touched:** `config/weatherEvents.js` and `config/seasons.js` (both empty, now filled),
+  `domain/seasons.js`, `domain/weather.js`, `domain/farm.js`, `crops_logics/*.js` (added `seasons`,
+  removed the dead `bestSeason`), `land_squares/*.js` (plots gain `forecast`), `ui/cropPicker.js`,
+  `ui/seasonCard.js`, `farmActions.js`, `main.js`, `css/crop-picker.css`, and
+  `tests/{weatherPanel,farm,cropPicker}.test.js`. `utils/season.js` deleted.
+- **Tests:** 494, all passing (was 477). New cases cover the classification order, the snow codes,
+  per-band seasons, **the two hemispheres no longer agreeing** — the assertion that could not have
+  existed before, because before this they *were* identical — the window starting at the current hour
+  rather than index 0, the most-severe-hour rule, the health floor across every crop and event, and
+  the picker refusing.
+- **Not done, and said so in the guide rather than hidden:** **rain still does not water anything.**
+  `plot.waterLevel` is 0 at plot creation and nothing in the running game changes it — no pump, no
+  evaporation. That is T-09, and it means ISS-008 (the pump being ~36× stronger than rain) still
+  cannot be measured, because there is no rain to compare against.
+- **Next:** PR. This is the game's premise, so it is worth watching a planting through the picker by
+  hand before it merges.
+
 ## The field was rebuilt every second, re-decoding ~16 MB of PNG — Hisham
 
 - **Did:** fixed ISS-088, from the report "the whole system is super unresponsive". The cause was
