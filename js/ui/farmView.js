@@ -9,9 +9,83 @@ import { plotLayers } from './plotLayers.js';
 const PUMP_IMG = 'assets/images/pump.png';
 const BASE_IMG = 'assets/images/base.png';
 
+/**
+ * What each root has already been painted with, so a repaint can be skipped or made
+ * partial instead of rebuilding ~34 `<img>` elements. See ISS-088.
+ *
+ * Weak on the count that matters: keyed by the root element, so a torn-down panel takes
+ * its entry with it and there is nothing to leak.
+ */
+const mounted = new WeakMap();
+
 /** A frame-width fraction -> a CSS percentage. `width` and `padding-top` both take one. */
 function pct(fraction) {
   return `${fraction * 100}%`;
+}
+
+/**
+ * The game's clock, including any debug time-skip. Module scope because the signature has
+ * to agree with the renderer about what "now" is, and two copies of that question drift.
+ */
+function nowOf(state) {
+  return Date.now() + (state?.clock?.timeOffsetMs ?? 0);
+}
+
+/**
+ * Everything one tile draws, reduced to a comparable string.
+ *
+ * **The point is the resolution, not the completeness.** A tile shows a growth *stage*, a
+ * growth bar and a water bar each rounded to a whole percent, and a countdown rounded to
+ * whole minutes (`formatLeft`). That is what this hashes, so two states differing only
+ * below those thresholds compare equal — otherwise the guard repaints for changes nobody
+ * can see. Anything that alters the markup or a class is in here; `left`, `top`, `width`
+ * and `z-index` are not, because they come from `col`/`row` and `FIELD` and never change.
+ * `onPlotClick` is excluded because swapping the callback changes no pixel.
+ *
+ * Pure and exported so the rule is testable without a DOM — the only way to prove the
+ * half that matters, that it *stays equal* when nothing visible moved.
+ *
+ * @param {object} plot
+ * @param {object} state
+ * @returns {string}
+ */
+export function plotSignature(plot, state) {
+  const isOwned = Boolean(plot.owned);
+  const isSelected = state?.selection?.plotId === plot.id;
+  const isNext = !isOwned && isNextUnlockable(state, plot.id);
+
+  const grown = isOwned ? harvestsIn(plot, nowOf(state)) : null;
+
+  return [
+    isOwned,
+    isNext,
+    isSelected,
+    Boolean(plot.dead),
+    plot.cropId ?? '',
+    grown?.stage ?? '',
+    Boolean(grown?.ready),
+    Math.round(Math.min(Math.max(grown?.progress ?? 0, 0), 1) * 100),
+    Math.ceil(Math.max(0, grown?.msLeft ?? 0) / 60000),
+    Math.round(plot.waterLevel ?? 0),
+    // The threshold is tracked separately from the rounded number: 39 and 40 are one
+    // apart, and crossing it swaps the ground sprite.
+    (plot.waterLevel ?? 0) >= WATER.wateredThreshold,
+    state?.nextPrice ?? 0,
+  ].join('|');
+}
+
+/**
+ * The whole field as one string, in plot order, compared against the last painted one
+ * before any DOM is touched. An idle farm holds this equal for a minute or more at a
+ * time, which is the entire saving — ISS-088.
+ *
+ * @param {object} state
+ * @returns {string}
+ */
+export function fieldSignature(state) {
+  return (state?.plots ?? [])
+    .map((plot) => plotSignature(plot, state))
+    .join('§');
 }
 
 /**
@@ -62,6 +136,32 @@ function pumpStyle() {
  * @returns {{unmount: () => void}}
  */
 export function mountFarmView(root, state) {
+  // **Verify, do not assume.** The cache is only valid while our own card is still the
+  // thing standing in this root. `tests/farmLoop.test.js` mounts the crop picker into the
+  // same element, which clears the field; reusing a detached card there left the root
+  // holding a picker and sixteen invisible tiles, and nothing threw. That failure is the
+  // whole reason this check exists, and it is cheap.
+  const cached = mounted.get(root);
+  const live = cached && cached.card.parentNode === root ? cached : null;
+  if (!live) mounted.delete(root);
+
+  // Nothing the field draws has moved. This is the branch the 1 Hz tick takes almost
+  // every time, and it is why the tick can run for six hours unheeded — ISS-088.
+  if (live && live.signature === fieldSignature(state)) return live.controller;
+
+  // Something changed: keep the card, the stage and the two static images, and repaint
+  // the plots. `base.png` and `pump.png` never change and are 62 KB and 73 KB of art,
+  // and a fresh `<img>` re-decodes even when the bitmap is already in memory.
+  if (live) {
+    // `repaint` rebinds `state` rather than reading it off the controller, because
+    // `renderPlot` closes over this binding. Storing it on the controller instead is a
+    // silent failure: the diff compares the *old* state against itself, finds sixteen
+    // matches and repaints nothing.
+    live.controller.repaint(state);
+    live.signature = fieldSignature(state);
+    return live.controller;
+  }
+
   clear(root);
 
   const card = el('div', { class: 'card farm-view' }, [
@@ -91,21 +191,36 @@ export function mountFarmView(root, state) {
 
   const plotsEl = card.querySelector('#field-plots');
 
+  /** This mount's own tiles. Per-mount, so two fields cannot share a node map. */
+  const tiles = new Map();
+
   /**
-   * Draw the whole field.
+   * Repaint only the tiles whose own signature moved.
    *
-   * Rebuilt from scratch every time rather than patched, and there are only sixteen
-   * tiles — the cost is not worth a diffing pass that would have to reason about
-   * which of five mutually exclusive classes a plot just changed between.
+   * This replaces a wholesale rebuild, and the old reasoning for it — "there are only
+   * sixteen tiles, a diffing pass would have to reason about which of five exclusive
+   * classes changed" — counted the buttons and forgot the images. Each tile carries a
+   * ground and a crop sprite of 313–712 KB, so rebuilding all sixteen meant ~16.4 MB of
+   * PNG decoded per second. That was ISS-088, and it is also why a click to buy land
+   * appeared to do nothing: the click queued behind the decode and every tile was
+   * replaced, so there was nothing local to see.
+   *
+   * One string per tile avoids all of that and leaves the renderer itself unchanged. A
+   * moved tile is swapped with `replaceWith`, so the paint order — which is append order
+   * — survives without re-sorting.
    */
-  function render() {
-    clear(plotsEl);
+  function repaint(nextState) {
+    state = nextState;
 
     for (const plot of state?.plots ?? []) {
-      plotsEl.append(renderPlot(plot));
+      const signature = plotSignature(plot, state);
+      if (tiles.get(plot.id)?.signature === signature) continue;
+
+      const node = renderPlot(plot);
+      tiles.get(plot.id)?.node?.replaceWith(node);
+      tiles.set(plot.id, { node, signature });
     }
   }
-
   function renderPlot(plot) {
     const { col, row } = plot;
     const { x, y, z } = plotToScreen(col, row);
@@ -122,7 +237,7 @@ export function mountFarmView(root, state) {
     const isNext = !isOwned && isNextUnlockable(state, plot.id);
     const isLocked = !isOwned && !isNext;
 
-    const grown = isOwned ? harvestsIn(plot, now()) : null;
+    const grown = isOwned ? harvestsIn(plot, nowOf(state)) : null;
     const isReady = Boolean(grown?.ready);
 
     const classes = [
@@ -179,23 +294,24 @@ export function mountFarmView(root, state) {
     return tile;
   }
 
-  /**
-   * The game's clock, including any debug time-skip.
-   *
-   * The offset lives in state and is added by the caller, so a time-skip moves growth
-   * and the water bar together. Reading `Date.now()` directly here — which is what
-   * this file used to do — meant the debug buttons changed the weather and not the
-   * crops, which is the sort of thing that gets a feature reverted after a demo.
-   */
-  function now() {
-    return Date.now() + (state?.clock?.timeOffsetMs ?? 0);
-  }
+  const controller = {
+    state,
+    repaint,
 
-  render();
-
-  return {
     unmount() {
+      mounted.delete(root);
       clear(root);
     },
   };
+
+  // First mount: every tile is new, so seed the map by rendering them all.
+  for (const plot of state?.plots ?? []) {
+    const node = renderPlot(plot);
+    plotsEl.append(node);
+    tiles.set(plot.id, { node, signature: plotSignature(plot, state) });
+  }
+
+  mounted.set(root, { signature: fieldSignature(state), controller, card });
+
+  return controller;
 }
