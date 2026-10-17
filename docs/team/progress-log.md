@@ -35,7 +35,16 @@ The per-person weekly notes that used to live in the README table are now in `me
   single failure is the pre-existing ISS-047 unregistered `rice_1.png`, untouched and unrelated.
 - **Note:** ISS-076 is reserved by the unpushed `hisham/sync-indicator` branch, so this is ISS-077 and
   the number will look like a gap on `main` until both merge.
-- **Next:** clear localStorage, reload `index.html`, and the place line should read a real name.
+- **Next:** done, but only after a second pass. Running the game showed the placeholder surviving the
+  first fix, and the reason is worth remembering: `bootWeather()` re-resolves on `!saved.pinned`, and
+  the broken code had pinned the coordinates *successfully* while failing only to name them — so every
+  pre-existing save has `pinned: true` and was never re-resolved. The repair applied only to farms
+  created after it. `needsLocationRefresh(saved)` in `js/main.js` is now the gate: it also compares the
+  name against the single string the broken code could write, so existing farms migrate themselves on
+  next load, and a farm that already has a real name is left alone. Pure, exported, 3 cases in
+  `mainBoot.test.js`. No manual localStorage clear needed any more — which is the point, since a fix
+  that needs every player to wipe their farm is not a fix.
+- **Next:** push and PR.
 
 ## Shop polish: per-crop unit pill and BUY + button — Jim
 

@@ -1348,4 +1348,14 @@ current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
   endpoint and that neither sends the other's parameter, so the exact mistake cannot recur silently.
   `npm run check` passes. `locationLine()` is unchanged; its `'Unknown location'` guard (ISS-063) is now
   even less reachable, since `name` always carries a value.
+- **The fix needed a second commit, because the first one only worked for new farms.** `bootWeather()`
+  re-resolves the location when `!saved.pinned` — but the broken code pinned the coordinates
+  *successfully* and failed only to name them, so it wrote `pinned: true` next to
+  `name: 'Current location'`. `pinned` never returns to false, so **no pre-existing farm was ever
+  re-resolved** and every current player kept the placeholder for the life of their save. Found by
+  actually running the game, not by reading the diff. `needsLocationRefresh(saved)` in `js/main.js` is
+  now that gate: exported, pure, and tested — it also checks the name against the one string the broken
+  code could write, which is the honest way to migrate stored data since a flag added today cannot
+  describe saves written before it existed. A farm that already has a real name is left alone, so
+  nothing re-resolves on every load.
 

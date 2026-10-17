@@ -238,12 +238,51 @@ async function searchFor(query) {
   emit('toast', { message: `Farm moved to ${place.name}.`, tone: 'success' });
 }
 
+/**
+ * The name ISS-077 wrote into every farm it touched.
+ *
+ * Not a live string anywhere — it is only ever compared against, to migrate saves
+ * that were written while the reverse lookup was failing.
+ */
+const LEGACY_PLACEHOLDER_NAME = 'Current location';
+
+/**
+ * Whether this save's location has to be looked up again before the weather means
+ * anything.
+ *
+ * Two cases, and the second is the subtle one.
+ *
+ * `!saved.pinned` is the original intent: a farm that was never pinned has no
+ * coordinates to speak of.
+ *
+ * The placeholder comparison is the migration ISS-077 needed, and it is load-bearing
+ * rather than defensive. The old code pinned the coordinates *successfully* and
+ * failed only to name them, so it wrote `pinned: true` next to
+ * `name: 'Current location'`. `pinned` therefore never returns to false, and a bare
+ * `!saved.pinned` test means **no pre-fix farm is ever re-resolved** — the repair
+ * would apply only to farms created after it, and every existing player would keep
+ * the placeholder for the life of their save.
+ *
+ * Comparing against the one string is the honest way to migrate stored data: a flag
+ * added today cannot describe saves written before it existed.
+ *
+ * Pure and exported so the gate itself can be tested — the gate is the part that
+ * silently decides whether a repair ever runs.
+ *
+ * @param {{pinned?: boolean, name?: string}|null|undefined} saved
+ * @returns {boolean}
+ */
+export function needsLocationRefresh(saved) {
+  return !saved?.pinned || saved?.name === LEGACY_PLACEHOLDER_NAME;
+}
+
 function bootWeather() {
-  const saved = getState()?.location;
-  const needsDeviceFix = !saved?.pinned;
+  const needsDeviceFix = needsLocationRefresh(getState()?.location);
 
   refreshWeather({ quiet: true }).then(() => {
     if (!needsDeviceFix) return;
+    // Silent: quietly repairing a farm's name should not announce itself as a
+    // location change the player did not ask for.
     return useDeviceLocation({ announce: false });
   });
 
