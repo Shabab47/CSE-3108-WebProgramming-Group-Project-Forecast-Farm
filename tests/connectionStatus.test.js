@@ -1,12 +1,13 @@
 /**
- * Tests for the connection banner and the blocked screen — the two modules that
+ * Tests for the sync indicator and the blocked screen — the two modules that
  * tell a player the truth about a connection.
  *
- * These are pure and DOM-free: `copyFor` and `messageFor` return the sentences,
- * and everything else is exercised through the mount functions with a minimal
- * fake root, so the logic is verified without a browser.
+ * These are pure and DOM-free: `copyFor`, `chipLabelFor`, `advanceAnnouncement`
+ * and `messageFor` return the sentences and the decisions, and everything else is
+ * exercised through the mount functions with a minimal fake root, so the logic is
+ * verified without a browser.
  *
- * The words matter as much as the branches. A banner that says "error" when the
+ * The words matter as much as the branches. A notice that says "error" when the
  * player has lost nothing is a lie that trains people to ignore warnings, and the
  * bug this work fixed (ISS-048) was exactly that kind of dishonesty — the game
  * told a player with a valid account that they were signed out.
@@ -15,14 +16,22 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { copyFor, describeStaleFor, mountConnectionBanner } from '../js/ui/connectionBanner.js';
+import { advanceAnnouncement } from '../js/connection.js';
+import {
+  SYNCED_NOTE,
+  chipLabelFor,
+  copyFor,
+  describeStaleFor,
+  mountSyncIndicator,
+} from '../js/ui/syncIndicator.js';
 import { messageFor, mountBlockedScreen } from '../js/ui/blockedScreen.js';
 
-/* --- the banner copy -------------------------------------------------------- */
+/* --- the notice copy -------------------------------------------------------- */
 
 test('a synced farm says nothing at all', () => {
-  // The healthy case must produce no banner. A strip that is always on screen
-  // stops being read, and then it is not telling the player anything.
+  // The healthy case must produce no notice. Text that is always on screen stops
+  // being read, and then it is not telling the player anything — which is why
+  // the chip prints a label only when there is genuinely something wrong.
   assert.equal(copyFor('synced', 0), null);
 });
 
@@ -52,6 +61,51 @@ test('a save in flight is shown as activity, not as a warning', () => {
   assert.doesNotMatch(copy.title, /no connection/i);
 });
 
+/* --- the chip label --------------------------------------------------------- */
+
+test('only a failed write prints a label on the chip', () => {
+  // The dots are permanent, so the label must not be — a permanent label is read
+  // once and then ignored, which is how a player ends up not noticing their farm
+  // stopped syncing. This is the half of the chip that carries ISS-050.
+  assert.equal(chipLabelFor('synced'), null);
+  assert.equal(chipLabelFor('saving'), null);
+  assert.equal(chipLabelFor('pending'), 'No connection');
+});
+
+test('the popover still says something when the farm is fine', () => {
+  // The dots are always clickable, so `copyFor('synced')` being null must not
+  // leave the popover opening onto a blank panel.
+  assert.ok(SYNCED_NOTE.title);
+  assert.ok(SYNCED_NOTE.body);
+});
+
+/* --- the first-failure notice ------------------------------------------------ */
+
+test('the first failed write announces, and the rest of the outage does not', () => {
+  // A toast that fires every 30 s for the length of an outage is how people learn
+  // to ignore notifications, so it fires exactly once per outage.
+  const first = advanceAnnouncement(false, 'pending');
+  assert.deepEqual(first, { announce: true, announced: true });
+
+  const second = advanceAnnouncement(first.announced, 'pending');
+  assert.deepEqual(second, { announce: false, announced: true });
+});
+
+test('a save in flight never announces', () => {
+  // `saving` is the state the game passes through twice every AUTOSAVE_MS. If it
+  // announced, every healthy autosave would raise a toast — the exact defect that
+  // made the old banner jump the page (ISS-076).
+  assert.equal(advanceAnnouncement(false, 'saving').announce, false);
+});
+
+test('recovering rearms the notice for the next outage', () => {
+  const outage = advanceAnnouncement(false, 'pending');
+  const recovered = advanceAnnouncement(outage.announced, 'synced');
+
+  assert.deepEqual(recovered, { announce: false, announced: false });
+  assert.equal(advanceAnnouncement(recovered.announced, 'pending').announce, true);
+});
+
 test('the banner never says the player has been signed out', () => {
   // The whole point of ISS-048: a disconnected player is not signed out, and
   // telling them otherwise is what sent them to a password prompt. The word may
@@ -74,7 +128,7 @@ test('stale ages are phrased, not numbered', () => {
   assert.equal(describeStaleFor(Number.NaN), 'just now', 'an unknown age still reads as recent');
 });
 
-/* --- the banner mount ------------------------------------------------------- */
+/* --- the chip mount --------------------------------------------------------- */
 
 /*
  * A minimal DOM, in the shape `js/utils/dom.js`'s `el()` needs: `createElement`,
@@ -121,6 +175,16 @@ class FakeElement extends FakeNode {
     this.on[event] = handler;
   }
 
+  removeEventListener(event, handler) {
+    this.listeners[event] = (this.listeners[event] ?? []).filter((fn) => fn !== handler);
+  }
+
+  /** Enough of the real thing for the popover's outside-click check. */
+  contains(node) {
+    if (node === this) return true;
+    return (this.children ?? []).some((kid) => kid instanceof FakeElement && kid.contains(node));
+  }
+
   remove() {}
 }
 
@@ -129,6 +193,16 @@ function installFakeDom() {
   globalThis.document = {
     createElement: (tag) => new FakeElement(tag),
     createTextNode: (text) => ({ textContent: String(text) }),
+    // `mountSyncIndicator` wires its outside-click and Escape handlers through
+    // `listen(document, …)` at mount time, so the fake document needs these even
+    // though most tests never dispatch them.
+    addEventListener(event, handler) {
+      (this.listeners ??= {})[event] = [...(this.listeners[event] ?? []), handler];
+    },
+    removeEventListener(event, handler) {
+      this.listeners[event] = (this.listeners?.[event] ?? []).filter((fn) => fn !== handler);
+    },
+    listeners: {},
   };
 }
 
@@ -150,40 +224,97 @@ function findNode(node, predicate) {
   return null;
 }
 
-/** The banner or blocked-screen root that the mount appended. */
+/** The chip or blocked-screen root that the mount appended. */
 function mounted(root) {
-  return findNode(root, (n) => String(n.className ?? '').includes('connection-banner') || String(n.className ?? '').includes('blocked'));
+  return findNode(root, (n) => String(n.className ?? '').includes('sync-indicator') || String(n.className ?? '').includes('blocked'));
 }
 
 function buttonLabelled(root, label) {
   return findNode(root, (n) => n.tag === 'button' && n.textContent === label);
 }
 
-test('the banner is hidden until there is something to say', () => {
-  const root = fakeRoot();
-  mountConnectionBanner(root, { getSync: () => 'synced' });
+function partOf(root, className) {
+  return findNode(root, (n) => String(n.className ?? '') === className);
+}
 
-  assert.equal(mounted(root).hidden, true);
+test('the dots are on screen even when the farm is perfectly synced', () => {
+  // Always present, by design: the chip is the reassurance that autosave is
+  // happening at all, and a fixture that appears only when something is wrong
+  // teaches players to ignore it. What stays empty is the *label*.
+  const root = fakeRoot();
+  mountSyncIndicator(root, { getSync: () => 'synced' });
+
+  assert.equal(partOf(root, 'sync-indicator__dots').children.length, 2);
+  assert.equal(partOf(root, 'sync-indicator__label').textContent, '');
 });
 
-test('a pending save reveals the banner', () => {
+test('the chip records the sync state for the stylesheet to read', () => {
+  // `data-sync` is the whole contract with css/components.css: it is what turns
+  // the dots amber and what starts the wave.
   const root = fakeRoot();
-  mountConnectionBanner(root, { getSync: () => 'pending', now: () => 0 });
+  mountSyncIndicator(root, { getSync: () => 'pending', now: () => 0 });
 
-  const banner = mounted(root);
-  assert.equal(banner.hidden, false);
-  assert.equal(banner.dataset.sync, 'pending');
+  const chip = mounted(root);
+  assert.equal(chip.dataset.sync, 'pending');
+  assert.equal(partOf(root, 'sync-indicator__label').textContent, 'No connection');
+});
+
+test('a healthy save never prints a label', () => {
+  // The regression that mattered: `saving` used to produce a full-width banner,
+  // so a *working* autosave shoved the whole page down every 10 s (ISS-076).
+  const root = fakeRoot();
+  const chip = mountSyncIndicator(root, { getSync: () => 'saving', now: () => 0 });
+
+  assert.equal(mounted(root).dataset.sync, 'saving');
+  assert.equal(partOf(root, 'sync-indicator__label').textContent, '');
+  assert.equal(partOf(root, 'sync-indicator__popover').hidden, true, 'the popover must not open itself');
+});
+
+test('the popover stays shut until the chip is clicked', () => {
+  const root = fakeRoot();
+  const chip = mountSyncIndicator(root, { getSync: () => 'pending', now: () => 0 });
+  const popover = partOf(root, 'sync-indicator__popover');
+  const button = partOf(root, 'sync-indicator__chip');
+
+  assert.equal(popover.hidden, true);
+  assert.equal(button.attributes['aria-expanded'], 'false');
+
+  button.on.click();
+  assert.equal(popover.hidden, false);
+  assert.equal(button.attributes['aria-expanded'], 'true', 'the toggle must be announced, not just drawn');
+
+  button.on.click();
+  assert.equal(popover.hidden, true);
+});
+
+test('unmount takes the document listeners with it', () => {
+  // A chip that is torn down but still listening to `document` keeps the whole
+  // indicator alive in memory, and every remount adds another pair. Measured as
+  // this mount's own delta, because earlier tests leave their own listeners
+  // behind on the shared fake document.
+  const listenerCount = () => Object.keys(globalThis.document.listeners)
+    .reduce((n, key) => n + globalThis.document.listeners[key].length, 0);
+
+  const before = listenerCount();
+  const root = fakeRoot();
+  const chip = mountSyncIndicator(root, { getSync: () => 'synced' });
+
+  assert.equal(listenerCount(), before + 2, 'mount wires one click and one keydown handler');
+
+  chip.unmount();
+  assert.equal(listenerCount(), before, 'unmount must remove both');
+  assert.equal(root.children.length, 0);
 });
 
 test('the export button only exists when an export handler is given', () => {
   // A guest cannot export — there is no account to bind the file to. Showing a
   // button that cannot work is worse than showing none.
   const withoutExport = fakeRoot();
-  mountConnectionBanner(withoutExport, { getSync: () => 'pending', now: () => 0 });
+  mountSyncIndicator(withoutExport, { getSync: () => 'pending', now: () => 0 });
   assert.equal(buttonLabelled(withoutExport, 'Export your farm').hidden, true);
 
   const withExport = fakeRoot();
-  mountConnectionBanner(withExport, {
+  mountSyncIndicator(withExport, {
     getSync: () => 'pending',
     now: () => 0,
     onExport: () => {},
@@ -194,42 +325,43 @@ test('the export button only exists when an export handler is given', () => {
 test('the export button fires the handler it was given', () => {
   let exported = false;
   const root = fakeRoot();
-  mountConnectionBanner(root, { getSync: () => 'pending', now: () => 0, onExport: () => { exported = true; } });
+  mountSyncIndicator(root, { getSync: () => 'pending', now: () => 0, onExport: () => { exported = true; } });
 
   buttonLabelled(root, 'Export your farm').on.click();
 
-  assert.equal(exported, true, 'the banner must offer the escape hatch, not just mention it');
+  assert.equal(exported, true, 'the chip must offer the escape hatch, not just mention it');
 });
 
-test('refresh re-reads the state, so recovering hides the banner', () => {
+test('refresh re-reads the state, so recovering clears the chip', () => {
   let sync = 'pending';
   const root = fakeRoot();
-  const banner = mountConnectionBanner(root, { getSync: () => sync, now: () => 0 });
+  const chip = mountSyncIndicator(root, { getSync: () => sync, now: () => 0 });
 
-  assert.equal(mounted(root).hidden, false);
+  assert.equal(partOf(root, 'sync-indicator__label').textContent, 'No connection');
 
-  // This is the reconnect path: the store emits `sync`, `js/connection.js`
-  // calls `refresh`, and the banner goes away on its own.
+  // This is the reconnect path: the store emits `sync`, `js/connection.js` calls
+  // `refresh`, and the label goes away on its own.
   sync = 'synced';
-  banner.refresh();
+  chip.refresh();
 
-  assert.equal(mounted(root).hidden, true);
+  assert.equal(mounted(root).dataset.sync, 'synced');
+  assert.equal(partOf(root, 'sync-indicator__label').textContent, '');
 });
 
-test('the banner ages its wording without re-rendering on a timer', () => {
+test('the popover ages its wording without re-rendering on a timer', () => {
   // The text is computed at paint time from `now()`, so one re-render covers any
-  // length of outage. A banner that rebuilt itself every second would be a
+  // length of outage. A popover that rebuilt itself every second would be a
   // permanent source of layout churn during a long outage.
   let now = 0;
   const root = fakeRoot();
-  const banner = mountConnectionBanner(root, { getSync: () => 'pending', now: () => now });
+  const chip = mountSyncIndicator(root, { getSync: () => 'pending', now: () => now });
 
   const findText = () => findNode(root, (n) => String(n.className ?? '').includes('__detail'))?.textContent ?? '';
 
   assert.match(findText(), /just now/);
 
   now = 20 * 60_000;
-  banner.refresh();
+  chip.refresh();
   assert.match(findText(), /20 minutes ago/);
 });
 

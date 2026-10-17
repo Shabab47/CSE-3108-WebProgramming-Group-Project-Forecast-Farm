@@ -72,7 +72,16 @@ body.shop-page::after {
   box-shadow: inset 4px 0 6px rgba(0, 0, 0, 0.25);
 }
 
+<<<<<<< HEAD
 /* --- the stall shell -------------------------------------------------------- */
+=======
+/* The sync indicator used to need an override here: as a full-width banner it sat
+   in flow above the stall and had to be lifted over the log columns with
+   `z-index: 1`. It is `position: fixed` at `z-index: 210` now, so it already
+   paints over them and this rule is gone — see ISS-076. */
+
+/* --- the stall -------------------------------------------------------------- */
+>>>>>>> origin/main
 
 .shop-shell {
   display: block;

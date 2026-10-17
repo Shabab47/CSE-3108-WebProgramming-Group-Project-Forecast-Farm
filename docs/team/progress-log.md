@@ -7,6 +7,7 @@ The per-person weekly notes that used to live in the README table are now in `me
 
 ---
 
+<<<<<<< HEAD
 ## Shop repainted to the Figma reference (ISS-075) — Jim
 
 - **Did:** rebuilt the shop page to match Figma frame 114:2002. `css/shop.css` now paints the whole
@@ -24,6 +25,65 @@ The per-person weekly notes that used to live in the README table are now in `me
 - **Next:** nothing — ISS-075 is fixed, T-57 is done.
 
 ---
+=======
+## Every farm was named "Current location" — Hisham
+
+- **Did:** fixed ISS-077. `reverseGeocode()` was posting `latitude`/`longitude` to Open-Meteo's
+  **forward search** endpoint (`/v1/search`), which takes `name=` and has no reverse mode — so the
+  request returned `400 {"reason":"No value found … at path 'name'."}` for every coordinate on earth,
+  verified live. `main.js` fell back to the literal string `'Current location'`. The search box was
+  never affected, which is why only this path showed the placeholder. Reverse geocoding now goes to
+  BigDataCloud's keyless `reverse-geocode-client` (new `REVERSE_GEOCODE_URL` in `js/config/api.js`);
+  forward search stays on Open-Meteo. DEC-038 records the three services measured before choosing one.
+- **The naming ladder:** `city → principalSubdivision → countryName → coordinates`, and it always
+  terminates. `locality` was on the first draft and **a test removed it** — it carries regions, not
+  settlements (`"City of Westminster"` for London, `"Polynesian Triangle"` mid-ocean), so a farm in open
+  water would have been labelled with a plausible-sounding region that means nothing. The
+  `'Current location'` literal is deleted rather than shrunk: a farm that cannot be named for any
+  reason, including the reverse service being down, now shows its own coordinates
+  (`23.81° N, 90.41° E`).
+- **Why nobody caught it:** there was no `tests/geocodeApi.test.js` at all, and a 400 inside a
+  `catch`-and-fallback path is indistinguishable from being offline. Worse, `bootWeather()` calls
+  `useDeviceLocation({announce:false})` automatically on first boot when `!saved.pinned`, so every new
+  farm took this path silently.
+- **Touched:** `js/config/api.js`, `js/services/geocodeApi.js`, `js/main.js`,
+  `tests/geocodeApi.test.js` (new), `docs/architecture.md` (its services tree was missing
+  `geocodeApi.js` entirely), `decisions.md`, `issues.md`, `tasks.md`.
+- **Tests:** `tests/geocodeApi.test.js` 16 cases — including the direct regression guard that the two
+  directions do not share an endpoint. `npm run check` passes. `npm test` is 360 tests / 359 pass; the
+  single failure is the pre-existing ISS-047 unregistered `rice_1.png`, untouched and unrelated.
+- **Note:** this landed as ISS-077 rather than ISS-076, because the sync-indicator work below had already
+  claimed 076 on its own branch. The two were combined into one PR, so the numbering is now contiguous.
+- **Corrected twice at runtime, both times only visible by actually running it, and both worth
+  remembering:** the first fix named *new* farms only, because the broken code pinned the coordinates
+  successfully and left `pinned: true` next to the placeholder, so no existing save was ever
+  re-resolved. The second attempt fixed that gate but still called `useDeviceLocation()`, which asks
+  `navigator.geolocation` for permission just to repair a *text label* — with the prompt pending or
+  denied it silently did nothing on every load. `needsLocationRefresh(saved)` (exported, pure, 3 cases in
+  `mainBoot.test.js`) is the gate, and `nameExistingLocation()` reverse-geocodes the coordinates
+  **already in the save** and touches no browser API at all. A fix that needs every player to wipe their
+  farm by hand is not a fix.
+- **Next:** push and PR.
+
+## Sync indicator: the connection banner stops jumping the page — Hisham
+
+- **Did:** fixed ISS-076. The full-width connection banner sat in normal flow above `.app`, which is
+  `height: 100dvh`, so every appearance pushed the whole shell down and let it snap back — and because
+  `copyFor('saving')` returned copy as well and `AUTOSAVE_MS` is 10 s, a *successful* autosave did it
+  on a timer. `js/ui/connectionBanner.js` is now `js/ui/syncIndicator.js`: a `position: fixed` chip in
+  the bottom-left corner, two dots that wave while saving, static when synced, amber with a persistent
+  `No connection` label when a write is queued, and a popover behind the dots carrying the full text,
+  the ageing line and both buttons. The first failed write of an outage also raises one toast, which is
+  what keeps ISS-050 from regressing. Separately, `main.js` now re-renders the shell only on `pending`
+  rather than on every `sync` — the other half of the flicker. DEC-037.
+- **Touched:** `js/ui/syncIndicator.js` (renamed), `js/connection.js`, `js/main.js`, `js/shop-main.js`,
+  `js/settings-main.js`, `js/profile-main.js`, `index.html`, `shop.html`, `settings.html`,
+  `profile.html`, `css/components.css`, `css/shop.css`, `tests/connectionStatus.test.js`.
+- **Tests:** `tests/connectionStatus.test.js` 28 pass (was 20). `npm run check` passes. `npm test` is
+  352 tests / 351 pass — the single failure is the pre-existing ISS-047 unregistered `rice_1.png`,
+  deliberately left alone because the fix deletes files in `assets/`, which is Kafi's folder.
+- **Next:** T-58 is done, and ISS-076 is closed.
+>>>>>>> origin/main
 
 ## Shop polish: per-crop unit pill and BUY + button — Jim
 

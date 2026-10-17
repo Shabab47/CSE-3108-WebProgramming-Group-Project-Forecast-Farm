@@ -7,7 +7,6 @@ import { mountConnectionStatus, wireSaveOnExit } from './connection.js';
 import { adoptState, apply, emit, exportPayload, flushPendingSave, getState, getSync, init, on, reset, saveNow, subscribe } from './state/store.js';
 import { mountBootLoader } from './ui/loadingTips.js';
 import { mountBlockedScreen } from './ui/blockedScreen.js';
-import { mountConnectionBanner } from './ui/connectionBanner.js';
 import { mountToastStack } from './ui/toastStack.js';
 import { mountNavbar } from './ui/navbar.js';
 import { mountShopLauncher } from './ui/shopLauncher.js';
@@ -17,7 +16,7 @@ import { mountWeatherPanel } from './ui/weatherPanel.js';
 import { mountFarmView } from './ui/farmView.js';
 import { mountLocationBar } from './ui/locationBar.js';
 import { fetchWeather } from './services/weatherApi.js';
-import { reverseGeocode, searchPlaces } from './services/geocodeApi.js';
+import { formatCoordinates, reverseGeocode, searchPlaces } from './services/geocodeApi.js';
 import { AUTOSAVE_MS } from './config/game.js';
 import { REFRESH_MS } from './config/api.js';
 
@@ -187,7 +186,12 @@ function useDeviceLocation({ announce = true } = {}) {
         const named = await reverseGeocode(latitude, longitude);
 
         const next = {
-          name: named.ok ? named.name : 'Current location',
+          // Either the lookup named the place or it did not, and both answers are
+          // true. The coordinates are the fallback rather than a placeholder
+          // string, because a farm pinned at `23.81° N, 90.41° E` tells the player
+          // something "Current location" never did — and a lookup that cannot
+          // reach the network must not leave the board blank. ISS-077.
+          name: named.ok ? named.name : formatCoordinates(latitude, longitude),
           country: named.ok ? named.country : '',
           lat: latitude,
           lon: longitude,
@@ -233,13 +237,80 @@ async function searchFor(query) {
   emit('toast', { message: `Farm moved to ${place.name}.`, tone: 'success' });
 }
 
-function bootWeather() {
-  const saved = getState()?.location;
-  const needsDeviceFix = !saved?.pinned;
+/**
+ * The name ISS-077 wrote into every farm it touched.
+ *
+ * Not a live string anywhere — it is only ever compared against, to migrate saves
+ * that were written while the reverse lookup was failing.
+ */
+const LEGACY_PLACEHOLDER_NAME = 'Current location';
 
+/**
+ * Whether this save's location has to be looked up again before the weather means
+ * anything.
+ *
+ * Two cases, and the second is the subtle one.
+ *
+ * `!saved.pinned` is the original intent: a farm that was never pinned has no
+ * coordinates to speak of.
+ *
+ * The placeholder comparison is the migration ISS-077 needed, and it is load-bearing
+ * rather than defensive. The old code pinned the coordinates *successfully* and
+ * failed only to name them, so it wrote `pinned: true` next to
+ * `name: 'Current location'`. `pinned` therefore never returns to false, and a bare
+ * `!saved.pinned` test means **no pre-fix farm is ever re-resolved** — the repair
+ * would apply only to farms created after it, and every existing player would keep
+ * the placeholder for the life of their save.
+ *
+ * Comparing against the one string is the honest way to migrate stored data: a flag
+ * added today cannot describe saves written before it existed.
+ *
+ * Pure and exported so the gate itself can be tested — the gate is the part that
+ * silently decides whether a repair ever runs.
+ *
+ * @param {{pinned?: boolean, name?: string}|null|undefined} saved
+ * @returns {boolean}
+ */
+export function needsLocationRefresh(saved) {
+  return !saved?.pinned || saved?.name === LEGACY_PLACEHOLDER_NAME;
+}
+
+/**
+ * Name the farm from the coordinates the save already holds.
+ *
+ * **This deliberately does not touch `navigator.geolocation`.** The farm's coordinates are already in
+ * the save — the broken code stored them correctly and only failed to name them — so re-prompting for
+ * a location permission just to repair a text label is both unnecessary and, as it turned out,
+ * useless: with the prompt pending or denied the old migration silently did nothing on every single
+ * load, which looks exactly like the fix not existing. Naming the farm where it *is* is also more
+ * correct than naming it wherever the device happens to be standing now.
+ *
+ * Nothing is written unless the lookup succeeds, so a farm that cannot be named yet keeps its current
+ * name and simply tries again on the next load.
+ *
+ * @returns {Promise<boolean>} whether the name was repaired
+ */
+async function nameExistingLocation() {
+  const saved = getState()?.location;
+  if (!needsLocationRefresh(saved)) return false;
+  if (!Number.isFinite(saved?.lat) || !Number.isFinite(saved?.lon)) return false;
+
+  const named = await reverseGeocode(saved.lat, saved.lon);
+  if (!named.ok) {
+    log.warn('could not name the saved location -', named.reason);
+    return false;
+  }
+
+  setLocation({ ...saved, name: named.name, country: named.country, pinned: true });
+  log.info(`named the saved location: ${named.name}`);
+  return true;
+}
+
+function bootWeather() {
   refreshWeather({ quiet: true }).then(() => {
-    if (!needsDeviceFix) return;
-    return useDeviceLocation({ announce: false });
+    // Silent: quietly repairing a farm's name should not announce itself as a
+    // location change the player did not ask for.
+    return nameExistingLocation();
   });
 
   setInterval(() => refreshWeather({ quiet: true }), REFRESH_MS);
@@ -296,19 +367,24 @@ async function start() {
       if (state) renderPanels(state);
     });
 
-    // Before `bootWeather()`, and before the veil lifts: the banner has to be on
+    // Before `bootWeather()`, and before the veil lifts: the chip has to be on
     // screen before the first save can fail, or the player never learns their farm
     // stopped syncing.
-    mountConnectionStatus(qsOrNull('#connection-banner'), {
+    mountConnectionStatus(qsOrNull('#sync-indicator'), {
       onExport: exportFromBanner,
     });
 
     bootWeather();
 
-    // The sync state changes over time, and the weather panel is the one place a
-  // paused forecast is visible, so re-render on it rather than only on state
-  // changes — a dropped connection produces no state change to hang off.
-  on('sync', () => renderPanels(getState()));
+    // The weather panel is the one place a paused forecast is visible, so a
+  // dropped connection has to re-render it — a failed save produces no state
+  // change to hang off. Only `pending`, though: `saving` and `synced` render
+  // identically to each other, and rebuilding the whole shell on both of those
+  // meant a full re-render twice every AUTOSAVE_MS. That is the second half of
+  // ISS-076, and the chip is only the first.
+  on('sync', (next) => {
+    if (next === 'pending') renderPanels(getState());
+  });
 
   // The shell is up and playable now, so the veil goes. Deliberately *not*
     // waiting for `bootWeather()` — that fetch is fire-and-forget and the farm

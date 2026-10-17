@@ -97,7 +97,7 @@ async function start() {
   await init(session, undefined, remote);
 
   mountToastStack();
-  mountConnectionStatus(qsOrNull('#connection-banner'));
+  mountConnectionStatus(qsOrNull('#sync-indicator'));
   mountProfile(root, profileActions(session, provider));
   loader.done();
 
