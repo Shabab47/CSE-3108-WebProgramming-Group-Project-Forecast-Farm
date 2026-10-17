@@ -276,14 +276,42 @@ export function needsLocationRefresh(saved) {
   return !saved?.pinned || saved?.name === LEGACY_PLACEHOLDER_NAME;
 }
 
-function bootWeather() {
-  const needsDeviceFix = needsLocationRefresh(getState()?.location);
+/**
+ * Name the farm from the coordinates the save already holds.
+ *
+ * **This deliberately does not touch `navigator.geolocation`.** The farm's coordinates are already in
+ * the save — the broken code stored them correctly and only failed to name them — so re-prompting for
+ * a location permission just to repair a text label is both unnecessary and, as it turned out,
+ * useless: with the prompt pending or denied the old migration silently did nothing on every single
+ * load, which looks exactly like the fix not existing. Naming the farm where it *is* is also more
+ * correct than naming it wherever the device happens to be standing now.
+ *
+ * Nothing is written unless the lookup succeeds, so a farm that cannot be named yet keeps its current
+ * name and simply tries again on the next load.
+ *
+ * @returns {Promise<boolean>} whether the name was repaired
+ */
+async function nameExistingLocation() {
+  const saved = getState()?.location;
+  if (!needsLocationRefresh(saved)) return false;
+  if (!Number.isFinite(saved?.lat) || !Number.isFinite(saved?.lon)) return false;
 
+  const named = await reverseGeocode(saved.lat, saved.lon);
+  if (!named.ok) {
+    log.warn('could not name the saved location -', named.reason);
+    return false;
+  }
+
+  setLocation({ ...saved, name: named.name, country: named.country, pinned: true });
+  log.info(`named the saved location: ${named.name}`);
+  return true;
+}
+
+function bootWeather() {
   refreshWeather({ quiet: true }).then(() => {
-    if (!needsDeviceFix) return;
     // Silent: quietly repairing a farm's name should not announce itself as a
     // location change the player did not ask for.
-    return useDeviceLocation({ announce: false });
+    return nameExistingLocation();
   });
 
   setInterval(() => refreshWeather({ quiet: true }), REFRESH_MS);

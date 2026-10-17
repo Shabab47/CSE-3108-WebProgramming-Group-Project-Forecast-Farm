@@ -45,6 +45,13 @@ The per-person weekly notes that used to live in the README table are now in `me
   `mainBoot.test.js`. No manual localStorage clear needed any more — which is the point, since a fix
   that needs every player to wipe their farm is not a fix.
 - **Next:** push and PR.
+- **Corrected twice at runtime, both times only visible by actually running it.** The first fix named
+  new farms only, because the broken code had pinned coordinates successfully and left `pinned: true`
+  next to the placeholder — so no existing save was ever re-resolved. The second attempt called
+  `useDeviceLocation()`, which asks `navigator.geolocation` for permission just to repair a text label;
+  with the prompt pending or denied it silently did nothing on every load. `nameExistingLocation()` now
+  reverse-geocodes the coordinates **already in the save** and touches no browser API, which is both
+  sufficient and more correct — it names the farm where it is, not where the device is now.
 
 ## Shop polish: per-crop unit pill and BUY + button — Jim
 

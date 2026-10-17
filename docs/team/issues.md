@@ -1358,4 +1358,15 @@ current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
   code could write, which is the honest way to migrate stored data since a flag added today cannot
   describe saves written before it existed. A farm that already has a real name is left alone, so
   nothing re-resolves on every load.
+- **The migration then needed a third correction, again found by running it.** It called
+  `useDeviceLocation()`, which asks `navigator.geolocation` for permission — to repair a *text label*.
+  With the prompt pending or denied it silently did nothing on every load, which is indistinguishable
+  from the fix not existing, and it re-prompted the player each time. The coordinates are already in the
+  save, so `nameExistingLocation()` now reverse-geocodes those and touches no browser API at all. That is
+  also more correct: it names the farm where it *is*, rather than wherever the device is standing now.
+  Nothing is written unless the lookup succeeds, so a farm that cannot be named yet keeps its name and
+  simply tries again next load.
+- **Lesson, for whoever writes the next fix here:** both of these failed only at runtime, and both were
+  invisible to `npm test` and to reading the diff. A migration that depends on a permission prompt is a
+  migration that silently does nothing.
 
