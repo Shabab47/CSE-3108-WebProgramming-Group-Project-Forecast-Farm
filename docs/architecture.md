@@ -651,8 +651,12 @@ farm and still reported that nothing had changed.
 | what a waiting player reads on the loading veil | `js/config/tips.js` |
 | how long the veil waits before painting | `js/config/tips.js` (`SHOW_AFTER_MS`, `FIRST_TIP_AFTER_MS`) |
 | what the veil looks like | `js/ui/loadingTips.js`, `.boot-loader` in `css/components.css` |
-| what weather does to crops | `js/config/cropWeatherMatrix.js`, `js/domain/simulator.js` |
-| pump cost / water speed | `js/config/game.js` |
+| what weather does to crops **at sowing** | `js/config/cropWeatherMatrix.js`, `js/domain/weather.js` (`verdictFor`) |
+| what weather does to crops **while they stand** | `js/domain/water.js` (`tick`) — evaporation, rain, dryness |
+| pump cost / water speed | `js/config/game.js` (`PUMP`, `WATER`) |
+| the pump's own rules | `js/domain/pump.js` (`pumpRun`, `setPump`, `aimPump`) |
+| the pump's control and meter | `js/ui/pumpPanel.js` |
+| evaporation / rain-water rates | `js/config/weatherEvents.js` (`EVAPORATION_PER_HOUR`, `RAIN_WATER_PER_HOUR`) |
 | plant / harvest / clear rules | `js/domain/farm.js` |
 | buying land | `js/domain/plots.js` |
 | seeds, harvest, selling | `js/domain/inventory.js` |
@@ -764,9 +768,10 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── game.js             START_GOLD, PUMP, WATER, HEALTH, timings, growthSpeed()
 │   │   ├── crops.js            the crop table — an aggregator over crops_logics/
 │   │   ├── tips.js             loading-screen facts and their timings
-│   │   ├── cropWeatherMatrix.js likes/hates as numbers, per crop per event — not yet ticked
-│   │   ├── seasons.js          empty
-│   │   └── weatherEvents.js    empty
+│   │   ├── cropWeatherMatrix.js likes/hates as numbers, per crop per event
+│   │   ├── seasons.js          SEASON, the three latitude BANDS, bandForLat
+│   │   └── weatherEvents.js    the nine events, classifyHour, eventRank, and the
+│   │                           evaporation / rain-water tables (T-09)
 │   ├── crops_logics/           one file per crop — imports nothing (DEC-039)
 │   │   ├── stageMath.js        stageAt, progressAt — the one growth formula
 │   │   ├── rice.js             the only playable crop
@@ -782,9 +787,12 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── shop.js             buySeeds, canAfford, the refusal reasons
 │   │   ├── farm.js             plant, harvest, clearPlot
 │   │   ├── land.js             buyPlot, canBuyPlot
-│   │   ├── notifications.js    empty
-│   │   ├── simulator.js        empty
-│   │   └── weather.js          empty
+│   │   ├── notifications.js    forProjection, alertsToRaise, currentTrouble
+│   │   ├── pump.js             the machine: pumpRun, costOf, setPump, aimPump
+│   │   ├── seasons.js          seasonFor — derived from latitude, not the month
+│   │   ├── simulator.js        empty ON PURPOSE, see below
+│   │   ├── water.js            the medium: tick — evaporation, rain, and the dry drain
+│   │   └── weather.js          forecastWindow, worstEventIn, verdictFor
 │   ├── services/               the only place that calls fetch
 │   │   ├── authApi.js          Supabase REST provider — live
 │   │   ├── accountApi.js       delete_my_account over PostgREST RPC
@@ -806,6 +814,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── plotLayers.js       what is painted inside one plot, back to front
 │   │   ├── plotLabel.js        a plot's accessible name — the whole of it
 │   │   ├── plotClick.js        plotAction(): what a click on a plot means
+│   │   ├── pumpPanel.js        the pump toggle, its price, and the aimed plot's meter
 │   │   ├── loadingTips.js      the boot veil and its rotating facts
 │   │   ├── locationBar.js      the place search in the farm top bar
 │   │   ├── loginFields.js      labelled input builders, one form per mode
@@ -905,6 +914,36 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
     ├── reference/              field render, layout wireframe, style mockup
     └── team/                   goals, tasks, ownership, issues, decisions, members
 ```
+
+---
+
+## Weather reaches a crop by two paths, and there is no simulator
+
+`js/domain/simulator.js` is **0 bytes and stays that way on purpose.** It was the plan's
+answer to "what weather does to crops", and it is empty because the real answer turned out to
+be two smaller answers rather than one loop:
+
+| | At **sowing** | While the crop **stands** |
+| :--- | :--- | :--- |
+| Question | *is this a sensible thing to plant right now?* | *what is happening to it while I am away?* |
+| Window | the next **6 hours** | elapsed time, since `lastTickAt` |
+| Owner | `domain/weather.js` — `verdictFor()` | `domain/water.js` — `tick()` |
+| Writes | `plot.health`, `plot.forecast` | `plot.waterLevel`, `plot.health`, `plot.dead` |
+
+The 6-hour window is sized to the crop line: every crop is 4–8 hours (rice 6, wheat 5, potato
+4, corn 8), so it covers a whole crop's life. The most severe hour wins, never an average, so
+one frost hour among six cannot be averaged away. Health is floored at 25, so **weather wounds
+and never kills** — the second path, dryness, is the only thing that can take a crop to 0, and
+`domain/water.js` is therefore the only writer of `plot.dead: true` in the codebase.
+
+A per-hour simulator was rejected for three reasons. It would have to run while the tab is
+closed to be fair, which means replaying history rather than simulating. It would need its own
+stored state, and `docs/crops.md` has said since the beginning that **the stage is never
+stored** — a stored countdown goes stale the moment the tab is backgrounded. And both halves
+are already deterministic from `(plantedAt, lastTickAt, forecast)`, so a loop adds a place for
+the two to disagree without adding a decision.
+
+See `docs/weather-events.md` for the numbers and DEC-039 for the sowing rule.
 
 ---
 

@@ -40,6 +40,63 @@ export const WEATHER_EVENTS = [
   { id: 'cloudy', label: 'Cloudy', drainPerHour: 0 },
 ];
 
+/**
+ * Water lost per hour, by event — the `Evaporation` column of the table in
+ * `docs/weather-events.md`, transcribed so the document and the game cannot disagree.
+ *
+ * Scaled by the crop's own `waterNeed`, so a thirsty crop dries faster. Rain and
+ * drought both read here: rain stops the loss, and drought triples it.
+ */
+export const EVAPORATION_PER_HOUR = {
+  sunny: 1.5,
+  cloudy: 0.8,
+  lightRain: 0,
+  heavyRain: 0,
+  drought: 3,
+  frost: 0.5,
+  hail: 0.8,
+  strongWind: 1.5,
+  highHumidity: 1,
+};
+
+/**
+ * Water gained per hour, by event — the `Rain water / hour` column.
+ *
+ * This is the half that never existed in code, which is why `plot.waterLevel` was
+ * written once at plot creation and never again. It is also the number ISS-008 is
+ * measured against: heavy rain is 50/h, so the pump at `WATER.pumpPerSecond: 0.05`
+ * delivers 180/h and is **3.6×** rain. At the old 0.5 it was 1800/h and **36×**, which
+ * is where that issue's figure came from.
+ */
+export const RAIN_WATER_PER_HOUR = {
+  sunny: 0,
+  cloudy: 0,
+  lightRain: 20,
+  heavyRain: 50,
+  drought: 0,
+  frost: 0,
+  hail: 5,
+  strongWind: 0,
+  highHumidity: 0,
+};
+
+/** Below this a plot is "dry" and a drought damages it. From the spec. */
+export const DRY_WATER = 30;
+
+/**
+ * The rate for an event, or 0 for one the tables do not mention.
+ *
+ * Exported so a caller never has to know the maps exist, and so an unknown event is
+ * a zero rather than an exception — a missing row must not stop the farm.
+ *
+ * @param {object} table
+ * @param {string} eventId
+ * @returns {number}
+ */
+export function rateFor(table, eventId) {
+  return table[eventId] ?? 0;
+}
+
 /** Code groups, exactly as `docs/weather-events.md` lists them. */
 const CODES = {
   hail: [96, 99],

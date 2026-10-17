@@ -29,7 +29,7 @@ small.
 | `js/state/` | Hisham | Afif |
 | `js/domain/authRules.js` | Hisham | Shabab |
 | `js/ui/authErrors.js` | Hisham | Shabab |
-| `js/domain/farm.js`, `plots.js`, `pump.js`, `wallet.js`, `inventory.js`, `simulator.js` | Hisham | Shabab |
+| `js/domain/farm.js`, `plots.js`, `pump.js`, `wallet.js`, `inventory.js`, `simulator.js`, `water.js` | Hisham | Shabab |
 | `js/utils/iso.js` | Hisham | Kafi |
 | `js/ui/farmView.js`, `plotTile.js`, `pumpView.js`, `cropPicker.js` | Hisham | Kafi |
 | `js/debug/` | Hisham | — |

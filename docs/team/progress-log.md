@@ -7,6 +7,48 @@ The per-person weekly notes that used to live in the README table are now in `me
 
 ---
 
+## The pump was a picture of a pump — Hisham
+
+- **Did:** built T-09 and T-13 together, from the question "will drainage or add water by pump
+  work?". **Neither existed.** `plot.waterLevel` was written once, to `0`, when a plot was
+  created, and read in three places — all of them for drawing. `state.pump` was `{on: false}`
+  and read by nothing, and there was no pump control anywhere in the UI. Of the four `WATER`
+  constants only `wateredThreshold` was ever read; `pumpPerSecond`, `baseDecayPerHour`, `max` and
+  `startLevel` were dead, as were `PUMP.upkeepPerSecond` and `HEALTH.dryDrainPerHour`.
+  **`ground_watered.png` — 318 KB, registered in `assets.js` — could never be seen**, and the
+  pump art on the field was decoration.
+- **Touched:** new `js/domain/water.js` and `js/ui/pumpPanel.js`; filled the 0-byte
+  `js/domain/notifications.js` (**Afif's file — I am the listed backup**); `main.js`,
+  `farmActions.js`, `initialState.js`, `config/game.js`, `config/weatherEvents.js`;
+  `css/scene.css` (**Kafi's folder**); tests appended to `tests/weatherPanel.test.js`, no new
+  test files. **Note the ownership drift:** `ownership.md` lists a `js/domain/pump.js` and a
+  `js/ui/meters.js`; I wrote `water.js` and `pumpPanel.js` instead. Worth renaming one side.
+- **Decided (DEC-040):** pump waters **one plot**, aimed by clicking it, so a per-second bill
+  cannot scale with land owned. `pumpPerSecond` 0.5 → **0.05**, which is ISS-008's own
+  recommendation — and its "36×" was never a guess, it is `1800/h` against heavy rain's
+  `50/h`, so at 0.05 the pump is **3.6× rain** and the comparison is finally measurable.
+  `upkeepPerSecond` 0.05 → **0.01** scaled with it, or a full plot would cost 100 gold against
+  a 100-gold rice margin; it now costs 20.
+- **Broke:** two of my own bugs, both caught before commit. `pumpPanel` read `.style.height`,
+  which the fake DOM in `mainPageBoot` does not have — boot crashed and left a live timer
+  behind, so the whole **file hung** rather than failing. And I read the evaporation table's
+  column as an absolute rate instead of a multiplier on `baseDecayPerHour`, which made bare
+  soil dry at 1.5/h: a plot would take 133 hours, so nothing could ever be dry and the pump
+  would still have been pointless. Both fixed, both now pinned by tests.
+- **Found:** nothing in the codebase ever set `dead: true`. `plotLayers.js` had a dead-crop
+  sprite branch, `farmView.js` a `plot--dead` class, `plotClick.js` the fifth `clear` case, and
+  ISS-006 is filed about dead crops bricking plots — all wired, all waiting for a writer that
+  did not exist. Dryness is now that writer.
+- **A tip stopped lying:** `config/tips.js` told every player on a slow load that *"Rain waters
+  your crops at no charge. The pump bills you gold every second it runs."* Both halves were
+  false. Both are now true.
+- **Tests:** 511 pass (was 494), `npm run check` clean.
+- **Next:** ISS-008 should be **re-opened and re-measured** now that both sides exist — check
+  the 3.6× rather than trusting the 36×. The pump has no visual feedback while running beyond
+  the panel meter, and `pumpView.js` is still unwired (ISS-007).
+
+---
+
 ## The weather was on screen and did nothing — Hisham
 
 - **Did:** fixed ISS-089, from the question "is the farm really influenced by the weather?". It

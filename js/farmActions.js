@@ -27,6 +27,7 @@ import { apply, emit, getState } from './state/store.js';
 import { clearPlot, harvest, plant } from './domain/farm.js';
 import { buyPlot } from './domain/land.js';
 import { verdictFor } from './domain/weather.js';
+import { aimPump } from './domain/pump.js';
 import { isSeedUnlocked } from './utils/seedUnlocks.js';
 import { nextUnlockable } from './land_squares/index.js';
 import { plotAction } from './ui/plotClick.js';
@@ -71,6 +72,24 @@ function pickerHost() {
 export function onPlotClick(plotId) {
   const state = getState();
   if (!state) return;
+
+  // **A running pump claims the click first.** Watering is what the player is doing,
+  // so it must not be swallowed by "this plot has a crop in it and would open the
+  // picker" — the pump is aimed by clicking a plot, and a planted plot is the most
+  // common thing to want to water. Only an owned, living plot is accepted, so a
+  // padlocked square still falls through to its own rules below.
+  if (state.pump?.on) {
+    const aimed = aimPump(state, plotId);
+    if (aimed.ok) {
+      apply((s) => ({ ok: true, state: aimed.state }));
+      emit('toast', {
+        message: `Pump on — watering plot ${plotId + 1}.`,
+        tone: 'info',
+      });
+      return;
+    }
+    log.trace('pump is on but that plot cannot take water', plotId);
+  }
 
   switch (plotAction(state, plotId)) {
     case 'harvest': {

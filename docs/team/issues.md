@@ -21,6 +21,52 @@ current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
 
 ---
 
+## ISS-090 The pump did nothing, and nothing ever changed a plot's water
+**Found:** 2026-10-17, from the question "will drainage or add water by pump work?" ·
+**Severity: High** · **Status: fixed**
+
+**The water half of the game did not exist.** `plot.waterLevel` was written once, to
+`0`, when a plot was created — and read in exactly three places, all of them for
+drawing. **Nothing ever wrote it again.** `state.pump` existed as `{on: false}` and
+**nothing ever read or wrote it**; there was no pump control in the UI at all, and
+`plotAction` had no pump case.
+
+Of the four `WATER` constants, one was read:
+
+| Constant | Read at runtime? |
+| :--- | :--- |
+| `wateredThreshold: 40` | yes — the only one, twice in `farmView.js` |
+| `pumpPerSecond: 0.5` | **no** |
+| `baseDecayPerHour: 8` | **no** — there was no evaporation |
+| `max`, `startLevel` | **no** |
+
+`PUMP.upkeepPerSecond`, `PUMP.price` and `HEALTH.dryDrainPerHour` were all defined and
+read by nothing either.
+
+**What that meant in the running game.** Every plot was permanently at 0 water, so:
+the water bar always drew at `height:0%`; **`ground_watered.png` — 318 KB, registered
+in `assets.js` — was an asset that could never be seen**; and the pump art on the field
+was a picture of a pump that did nothing.
+
+**And a loading tip actively lied.** `config/tips.js` carries `rain-is-free`: *"Rain
+waters your crops at no charge. The pump bills you gold every second it runs."* The
+boot veil shows that to every player on a slow load. Neither half was true, and a
+player has no way to discover otherwise.
+
+**Why nothing caught it.** The same shape as ISS-089: a `Meters — Water and heat —
+T-09` placeholder sat in the right rail waiting for a panel that was never written,
+and `docs/weather-events.md` had tabulated evaporation and rain-water rates in a
+table no code had transcribed.
+
+**Fix: fixed in T-09.** `domain/water.js` closes the loop — evaporation scaled by each
+crop's `waterNeed`, rain from the documented table, the pump aimed at one plot, and
+dryness below 30 draining health (the first reader of `HEALTH.dryDrainPerHour`).
+`domain/notifications.js` was the second 0-byte file and now implements the warning
+rules `docs/notifications.md` had specified. ISS-008's recommended `pumpPerSecond: 0.05`
+is applied, and `upkeepPerSecond` scaled with it. See DEC-040.
+
+---
+
 ## ISS-089 The weather was fetched, classified, displayed — and did nothing to the farm
 **Found:** 2026-10-17, from the question "is the farm really influenced by the weather?" ·
 **Severity: High** · **Status: fixed**
@@ -480,10 +526,10 @@ or `assets.test.js` fails in the other direction.
 | ISS-026 | Client-side accounts are not real security | **High** | Hisham | open | — |
 | ISS-006 | Dead crops permanently brick a plot | **High** | Hisham | open | T-08 |
 | ISS-007 | Pump's transparent canvas eats plot clicks | **High** | Hisham | open | T-06 |
-| ISS-008 | Pump is ~36× stronger than rain | **High** | Hisham | open | T-09 |
+| ISS-008 | Pump is ~36× stronger than rain | ~~High~~ **Medium** | Hisham | **fixed — re-measure at 3.6×** | T-09 ✅ |
 | ISS-009 | ~~`hourly[0]` is midnight~~ — premise void under `forecast_hours` | ~~High~~ | Afif | **stale** | — |
 | ISS-010 | `check-imports` fails on `utils/dom.js` | **High** | Hisham | open | T-02 |
-| ISS-013 | No state field for notification dedupe | **High** | Afif | open | T-13 |
+| ISS-013 | No state field for notification dedupe | ~~High~~ **Low** | Afif | **fixed** | T-13 ✅ |
 | ISS-015 | Drought's conditional rating has no home | Medium | Afif | open | T-12 |
 | ISS-012 | Geocoding omits `results` when empty | Medium | Afif | open | T-04 |
 | ISS-011 | Stale sample data breaks the current-hour lookup | Medium | Afif | open | T-04 |
@@ -771,7 +817,7 @@ or `assets.test.js` fails in the other direction.
   content box, or size the button to the 27.9% content bbox.
 
 ### ISS-008 Pump is ~36× stronger than rain
-- Reported by Hisham · Owner: Hisham · Status: open
+- Reported by Hisham · Owner: Hisham · Status: **fixed** — re-measured, see Fix
 - Where: `js/config/game.js`
 - Problem: `WATER.pumpPerSecond` is 0.5, so the pump fills a plot from 0 to 100 in 200 seconds,
   costing about 10 gold across the whole field. Heavy rain adds 50/h and so needs 2 hours to do
@@ -780,8 +826,13 @@ or `assets.test.js` fails in the other direction.
   decisions described in `docs/weather-events.md` stop mattering.
 - Cause: Placeholder balance (README assumption 4), but Phase 2 step 9 builds the water meter on
   top of it.
-- Fix: _pending._ Decide before T-09. Recommended: `pumpPerSecond: 0.05`, which makes the pump a
-  top-up tool and lets forecast-driven watering matter. Needs the team's call, not mine.
+- Fix: **applied in T-09, DEC-040.** `pumpPerSecond: 0.05` as recommended, plus
+  `upkeepPerSecond: 0.01` scaled with it (holding the old price would have made a full plot
+  cost 100 gold against a 100-gold rice margin) and the pump limited to one plot at a time.
+  **Re-open and re-measure:** the pump is now 180/h against heavy rain's 50/h, so **3.6×**
+  rather than 36× — and unlike when this was filed, both sides of that comparison actually
+  run, so the number can be checked instead of estimated. `ground_watered.png` becoming
+  visible for the first time is the side effect worth confirming by eye.
 
 ### ISS-009 ~~`hourly[0]` is midnight, not the current hour~~ — premise no longer holds
 - Reported by Hisham · Owner: Afif · Status: **stale — will not occur**
@@ -826,15 +877,20 @@ or `assets.test.js` fails in the other direction.
 - Fix: _pending._ Whitelist `js/utils/dom.js` explicitly in the script.
 
 ### ISS-013 No state field for notification dedupe
-- Reported by Hisham · Owner: Afif · Status: open
+- Reported by Hisham · Owner: Afif · Status: **fixed**
 - Where: `js/state/types.js`, `js/state/initialState.js`, `js/domain/notifications.js`
 - Problem: The plan says notifications fire "at most once per event window", but the State shape
   in section 7 has no field to remember which windows have fired. Either alerts repeat every
   hour of a six-hour rain, or dedupe lives in module memory and is lost on reload, re-firing
   everything.
 - Cause: A cross-cutting requirement with no home in the state contract.
-- Fix: _pending._ Add `notified: { [cropId + ':' + eventId]: isoWindowStart }` to the state
-  shape, `initialState()`, and the save payload.
+- Fix: **closed in T-13.** The field `notified: {}` was already in `initialState()` by the time
+  this was implemented — it landed with the state work, so only the *reader* was missing.
+  `alertsToRaise()` in `js/domain/notifications.js` now keys `cropId:event` on the **start of
+  the event window**, so a six-hour run of heavy rain warns once rather than six times, and a
+  later window of the same event warns again. It persists, so a reload does not re-fire.
+  The map holds one extra entry, `drought_warning`, storing the standing-warning text instead
+  of a window stamp, because a standing condition has no window to key on.
 
 ### ISS-015 Drought's conditional rating has no home
 - Reported by Hisham · Owner: Afif · Status: open

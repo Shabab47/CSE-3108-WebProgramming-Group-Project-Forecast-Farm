@@ -12,12 +12,27 @@ export const WATER = {
   max: 100,
   wateredThreshold: 40, // ground renders "watered" at or above this
   baseDecayPerHour: 8,
-  pumpPerSecond: 0.5, // see ISS-008 -- recommended 0.05, team decision pending
+  // **0.5 → 0.05, applying ISS-008's recommendation.** The old rate delivered
+  // 1800 water/hour against heavy rain's 50/hour — the 36× that issue was filed
+  // about. This delivers 180/hour, so the pump is 3.6× rain rather than 36×: still
+  // the faster option, but not the only one worth having.
+  //
+  // At 0.05 a plot fills from empty in 2000 s, which is a real fraction of a
+  // six-hour crop rather than a 200 s afterthought.
+  pumpPerSecond: 0.05,
   startLevel: 0,
 };
 
 export const PUMP = {
-  upkeepPerSecond: 0.05,
+  // **0.05 → 0.01, to keep the pump's price proportionate after the rate cut.**
+  // At the old rate a full plot cost 10 gold; scaling the rate down 10× without
+  // scaling the upkeep down would have made one full plot cost 100 gold, which is
+  // the entire profit margin on a rice harvest.
+  //
+  // At 0.01 the pump delivers **5 water per gold**, so filling one plot to 100 costs
+  // **20 gold** against a 200-gold rice harvest — a fifth of the margin, which is a
+  // real decision without being ruinous.
+  upkeepPerSecond: 0.01,
   price: 250, // not used in the MVP; the pump is pre-owned (DEC-008)
 };
 

@@ -90,6 +90,32 @@ water lost per hour = WATER.baseDecayPerHour * waterNeed * event.evaporation
 - Drought: `8 * 1 * 3` = 24/h on bare soil, the worst case in the game.
 - Heavy rain: evaporation is 0, and rain adds water instead.
 
+> **This is implemented (T-09).** Until then `plot.waterLevel` was `0` on every plot from
+> creation and nothing ever wrote it again, so the formula above described a system that was
+> not running. It is now `ratesFor(plot, event)` in `js/domain/water.js`.
+>
+> **The Evaporation column is a multiplier on `baseDecayPerHour`, not an absolute rate.**
+> Reading it as absolute gives bare soil 1.5/h instead of 12/h — a plot that takes 133 hours
+> to dry, longer than a save, which would make the pump and the drought warnings both
+> pointless. There is a test pinning this.
+>
+> **Measured pacing**, which is the reason to trust the formula rather than admire it:
+
+| Crop | `waterNeed` | Sun | Drought | Hours from full to the dry line |
+| :--- | ---: | ---: | ---: | ---: |
+| Rice | 0.9 | 10.8/h | 21.6/h | **6.5 h** in sun, 3.2 h in drought |
+| Corn | 0.7 | 8.4/h | 16.8/h | 8.3 h in sun, 4.2 h in drought |
+| Wheat | 0.5 | 6/h | 12/h | 11.7 h in sun, 5.8 h in drought |
+| Potato | 0.5 | 6/h | 12/h | 11.7 h in sun, 5.8 h in drought |
+| Tomato | 0.5 | 6/h | 12/h | 11.7 h in sun, 5.8 h in drought |
+
+Rice grows in 6 h, so **the thirsty crop needs exactly one watering per crop** and the
+thirsty ones need one every one or two. That cadence is the whole point of `waterNeed` being
+a number: wheat can be left alone in sun, rice cannot, and a player learns which is which by
+watching the water bar rather than by reading a table.
+
+Rain is **not** scaled by `waterNeed` — it falls on the plot, not on the crop.
+
 ## Growth stages
 
 Five stages, and **the stage is never stored**. It is computed from `plantedAt` every time the
