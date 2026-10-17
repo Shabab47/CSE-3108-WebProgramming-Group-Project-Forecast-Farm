@@ -229,6 +229,67 @@ the original rationale being kept intact.
 
 ---
 
+### DEC-039 Weather is judged once, at sowing, over six hours — and there is no simulator
+**Decided by:** Hisham · 2026-10-17 · **decided and built — this is T-12**
+
+The weather's effect on a crop is computed **once**, when the seed goes into the ground,
+against the **next six hours** of forecast, and stored on the plot. There is no per-hour
+tick, and `js/domain/simulator.js` stays empty on purpose.
+
+**Why six hours, and why once.** Every crop takes 4–8 hours to grow — `rice` and `tomato`
+6, `wheat` 5, `potato` 4, `corn` 8 — so a six-hour window covers the whole life of the crop
+line, and `corn` is the only one that outlives it. The window is therefore sized to the crop,
+not to the clock. Judging once also means the consequence is **visible before the player
+commits**, which is the only version of this system that can be previewed in the seed picker
+at all, and a previewable mechanic is worth more than a surprise one.
+
+**This reverses the per-hour model** that `docs/weather-events.md` was written around, and
+that reversal is why this entry exists — the per-hour drains are still in the document, still
+correct as *rates*, and someone will otherwise read them as a simulator spec. They are now
+multiplied by how many of the window's hours the event held and applied in one step.
+
+**Weather wounds; it does not kill.** Health is `100 − drain`, floored at **25**. The
+document calls frost *a drain, not an instant kill*, and its own figure is −30/h — six of
+those applied at once is −180, which is an instant kill. The floor keeps the promise the
+spec already made, and keeps death the pump's fault, which is the only way "your crop died"
+has something a player can act on behind it.
+
+**The season is soft, and separate.** Off-season costs a flat 10 health, not a second
+rating, so "planted rice in winter" stays one legible number rather than compounding with a
+forecast rating the player cannot compare against. It is **never a gate**: a January player
+with only rice unlocked must still have something to plant, or a weather feature becomes a
+dead end for the player least able to avoid it.
+
+**The most severe hour wins, never an average.** Averaging lets one frost hour disappear
+into five ordinary ones, and "one of the next six hours is below freezing" is exactly the fact
+being decided on.
+
+**Seasons come from the player's latitude.** The previous `getSeason(date, hemisphere)`
+rotated a six-element list by `HEMISPHERE_OFFSET = 6`, and `(index + 6) % 6` is the identity —
+both hemispheres returned the same season for all twelve months, with no test. Each latitude
+band now carries its own calendar with the southern months **written out**, because a
+rotation is what produced the bug. The tropical band is the South Asian six-season year, and
+its boundary is **27.5°, not the Tropic of Cancer's 23.44°**: Dhaka is at 23.81°, so a
+textbook tropic line put the game's own home location in the temperate band.
+
+**Planting requires a forecast.** With nothing to judge by, `verdictFor()` answers
+`{ok: false}`, the picker disables its rows and says why, and `plot.forecast` is `null` rather
+than a clean bill. The premise is that weather is real and never player-controlled, so a
+planting the weather was never asked about is a coin toss wearing a crop's name.
+
+**Rejected:**
+
+- *A per-hour simulator.* The documented shape, and it needs `simulator.js`, a tick, offline
+  catch-up across a sleep, and a way to tell a player their crop died while they were away
+  (ISS-014). It also makes the effect unseeable before it happens.
+- *Averaging the window.* Hides the one hour that matters.
+- *Gating planting on season.* Soft-lock risk, above.
+- *Rain as free water.* Still unimplemented — `plot.waterLevel` is set to 0 at plot creation
+  and nothing in the running game changes it. That is T-09, and it is why ISS-008 (the pump
+  being ~36× stronger than rain) cannot be measured yet: there is no rain to compare against.
+
+---
+
 ### DEC-036 Land unlocks one plot at a time, in a fixed order, and "greyed" means "not yet"
 **Decided by:** Jim · 2026-10-16 · **decided, not built — this is T-56**
 

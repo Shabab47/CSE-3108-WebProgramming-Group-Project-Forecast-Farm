@@ -260,9 +260,43 @@ Health is clamped to `[0, 1]` before it multiplies anything, so a hand-edited sa
 6. **Click the plot on offer** — the one carrying a price tag — to buy it. The other fourteen
    are padlocked and `disabled`.
 
-Health only moves when `js/domain/simulator.js` lands; it is still an empty file, so a crop cannot
-yet be harmed by weather. Until then every harvest is at full health and the 2× ratio holds
-exactly. `config/cropWeatherMatrix.js` is written and waiting for it.
+Health now moves, at the moment of sowing. `plant()` judges the crop against the **next six hours**
+of forecast and writes the result to `plot.health` and `plot.forecast` — so a crop is born at
+whatever quality the weather is about to inflict, and every harvest after that pays on it. See
+`docs/weather-events.md` for the whole model.
+
+**`js/domain/simulator.js` is empty and is meant to stay empty.** The judgement happens once rather
+than on a timer, which is possible because every crop takes 4–8 hours to grow.
+
+## Seasons
+
+Each crop carries a `seasons` list naming the seasons that suit it. **Off-season is a soft penalty,
+never a gate** — a flat 10 health, because a January player with only rice unlocked must still have
+something to plant.
+
+| Crop | Seasons it suits | Was, as a tooltip string |
+| :--- | :--- | :--- |
+| Rice | Monsoon, Summer | `'Rainy'` |
+| Potato | Winter, Late Autumn, Autumn | `'Cool / Moist'` |
+| Tomato | Summer, Spring | `'Warm / Mild'` |
+| Wheat | Winter, Late Autumn, Spring | `'Cool / Dry'` |
+| Corn | Summer, Monsoon, Spring | `'Warm / Sunny'` |
+
+Those strings are gone. `"Rainy"` is not a season the game can produce — it is a climate word, and it
+is what `cropWeatherMatrix.js` warns about when it keeps `likes` and `hates` apart from the
+mechanical table. A second vocabulary claiming to be a season while `getSeason()` answers something
+else is the same half-answered question.
+
+**The names are retyped, not referenced.** `crops_logics/` may import nothing (see the
+`crops_logics: []` row in `scripts/check-imports.mjs`), so a crop file cannot import the `SEASON`
+constants. `tests/weatherPanel.test.js` asserts every name a crop uses is one a band can actually
+produce, which is the only thing stopping a stray `'monsoon'` from leaving rice permanently out of
+season with nothing to show for it.
+
+**Seasons come from the player's latitude**, not the calendar month — see
+`config/seasons.js` for the three bands. Only the tropical band has real suitability; temperate and
+polar bands produce correct season *names* and leave crops neutral, rather than marking them with a
+table nobody has thought through.
 
 ## Crop artwork
 

@@ -59,29 +59,42 @@ the player can plant anything they have seed for.
 
 ## Using the forecast
 
-The season card answers "what usually works here". The forecast strip answers "what is happening
-in the next 24 hours". Read both before planting.
+**A planting is judged once, by the next six hours, and the seed picker shows you the verdict
+before you spend the seed.** Each row reads like `Next 6h: heavy rain · thrives · 100%`, and the
+rating is spelled out in words rather than given as a number.
 
-| If the forecast shows... | Plant | Because |
+The season card answers "what usually works here". The picker line answers "what is about to happen
+to this seed".
+
+| If the next 6 h show... | Plant | Because |
 | :--- | :--- | :--- |
-| Rain within 24 h | Rice | thrives, and rain is free water |
-| Rain, then heat | Rice, then wheat | rice now, wheat after the rain window |
-| Heat ≥ 38 °C, no rain | Wheat | `drought` is only `risk` for wheat, `severe` for rice |
-| Cold snap ≤ 2 °C | Wheat | the only crop that is `ok` in frost |
+| Rain | Rice | `heavyRain` is `content` for rice and `harmed` for wheat |
+| Heat ≥ 38 °C with no rain | Wheat | `drought` is `harmed` for rice, `unhappy` for potato |
+| Anything ≤ 2 °C, or snow | Wheat | the only crop that is not `harmed` by `frost` |
 | Sustained wind ≥ 40 km/h | Potato, rice | corn and tomato take real damage |
 | Humidity ≥ 85% | Rice, corn | blight hits potato and tomato |
 
-A worked example. It is a Hot season in Dhaka and the next 24 h read `sunny`, `sunny`,
-`drought`, `drought`. Rice is the season's best crop and takes `severe` damage in drought,
-which at −30/h plus dry drain kills a full-health plant in under three hours. Wheat is only
-`risk` in drought and is `ok` in sun. The seasonal advice says rice; the forecast says wheat.
-The forecast wins, because it is about this week rather than this season.
+A worked example. It is Autumn in Dhaka and the next six hours read `sunny`, `sunny`, `drought`,
+`drought`, `drought`, `drought`. Rice suits the season and hates drought; the picker shows it
+`harmed · 50%`, and a rice harvest on that plot pays 100 gold instead of 200. Wheat is out of its
+own season by only 10 health and is merely `unhappy` in drought, so it shows `90%` and pays 180.
+The seasonal advice says rice; the forecast says wheat. **The forecast wins**, because it is about
+this planting rather than this year.
+
+Note the window is **six hours, not twenty-four**, and it is the most severe hour that counts — one
+frost hour among six ordinary ones still shows `frost`, because averaging it away would hide the
+one fact the player is deciding on.
 
 ## Water
 
-A crop's `waterNeed` scales evaporation, so a thirsty crop in a dry spell needs the pump more
-often. Rice at 0.9 loses 21.6/h under `drought` evaporation; wheat at 0.5 loses 12/h.
+**This section describes what is planned, not what exists.** `plot.waterLevel` is set to 0 when a
+plot is created and **nothing in the running game changes it** — there is no evaporation, no rain
+watering, and no pump. That is T-09, still to do.
 
-Dryness is also a damage multiplier, not just a water source: any plot at `waterLevel == 0`
-takes an extra `HEALTH.dryDrainPerHour`, and drought damage only lands below 30 water. A
-thirsty crop punishes you twice — see `docs/weather-events.md`.
+So the honest summary today is: weather affects a crop exactly once, at the moment of sowing, by
+setting `plot.health` — and health is what the harvest is multiplied by. Rain is **not** yet free
+water; a rainy forecast raises rice's rating but does not wet the field.
+
+Once T-09 lands, the design below is what it is meant to satisfy: a crop's `waterNeed` scales
+evaporation, dryness is a damage multiplier as well as a water source, and drought damage only
+lands below 30 water — so a thirsty crop punishes you twice. See `docs/weather-events.md`.
