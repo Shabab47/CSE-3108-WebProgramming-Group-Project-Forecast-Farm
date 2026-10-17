@@ -361,10 +361,11 @@ test('no forecast means no verdict, rather than a verdict of "fine"', () => {
  * `ground_watered.png` was a registered asset that could never be seen.
  */
 
-import { tick, aimPump, setPump, elapsedHours, ratesFor } from '../js/domain/water.js';
+import { tick, elapsedHours, ratesFor } from '../js/domain/water.js';
+import { aimPump, setPump, costOf, pumpRun } from '../js/domain/pump.js';
 import { alertsToRaise, currentTrouble, forProjection, plantedCrops } from '../js/domain/notifications.js';
 import { buildInitialState } from '../js/state/initialState.js';
-import { HEALTH, PUMP, WATER } from '../js/config/game.js';
+import { HEALTH, WATER } from '../js/config/game.js';
 import { EVAPORATION_PER_HOUR, RAIN_WATER_PER_HOUR } from '../js/config/weatherEvents.js';
 
 const SESSION = { status: 'authed', userId: 'acc_test', email: 'a@b.c' };
@@ -468,8 +469,9 @@ test('the pump waters one plot and bills for exactly what it delivered', () => {
 test('filling one plot costs about a fifth of a rice harvest', () => {
   // Rice is 100 in and 200 out, so the margin is 100. A full plot at 20 gold keeps
   // water a real decision instead of a rounding error.
-  const cost = (WATER.max / WATER.pumpPerSecond) * PUMP.upkeepPerSecond;
+  const cost = costOf(WATER.max);
   assert.ok(cost > 10 && cost < 30, `a full plot costs ${cost} gold, which should be 10–30`);
+  assert.equal(cost, 20, 'and the derived rate is 5 water per gold');
 });
 
 test('the pump stops itself when the plot is full and when the gold is gone', () => {
@@ -588,6 +590,30 @@ test('the pump will not be aimed at land the player does not own', () => {
   assert.equal(aimPump(state, 9999).ok, false, 'and so is a plot that does not exist');
   assert.equal(aimPump(state, state.plots.find((p) => p.owned).id).ok, true);
   assert.equal(setPump(state, true).pump.on, true);
+});
+
+test('the pump refuses to water a plot that is already full, and bills nothing for it', () => {
+  // `pumpRun` is the machine's own rules with no store attached. A full plot means
+  // `needed` is 0, so `delivered` is 0, so the bill is 0 — the panel saying "running"
+  // while charging gold would be the one thing a meter must never do.
+  const state = farmWith({ weather: sky({ code: 0 }) });
+  state.pump = { on: true, target: 0 };
+  state.plots[0].waterLevel = WATER.max;
+
+  const run = pumpRun(state, 1);
+  assert.equal(run.watered, 0);
+  assert.equal(run.spent, 0);
+  assert.equal(run.autoOff, 'full');
+});
+
+test('a pump aimed at a dead crop runs nothing, rather than billing for water', () => {
+  const state = farmWith({ weather: sky({ code: 0 }) });
+  state.pump = { on: true, target: 0 };
+  state.plots[0].dead = true;
+
+  const run = pumpRun(state, 1);
+  assert.equal(run.plot, null, 'there is nothing to water');
+  assert.equal(run.spent, 0);
 });
 
 /* --- notifications ----------------------------------------------------------- */

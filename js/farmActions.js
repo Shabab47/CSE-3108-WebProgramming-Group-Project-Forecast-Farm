@@ -27,7 +27,7 @@ import { apply, emit, getState } from './state/store.js';
 import { clearPlot, harvest, plant } from './domain/farm.js';
 import { buyPlot } from './domain/land.js';
 import { verdictFor } from './domain/weather.js';
-import { aimPump } from './domain/water.js';
+import { aimPump } from './domain/pump.js';
 import { isSeedUnlocked } from './utils/seedUnlocks.js';
 import { nextUnlockable } from './land_squares/index.js';
 import { plotAction } from './ui/plotClick.js';

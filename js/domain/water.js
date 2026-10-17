@@ -1,11 +1,17 @@
 /**
- * Water: the pump, the rain, and the drying.
+ * Water: the medium — evaporation, rain, and what a plot holds afterwards.
  *
  * ## Why this is a module and not part of `farm.js`
  *
  * `farm.js` sows and harvests. This is the third thing — the one that makes a crop
  * worth planting — and it is a different responsibility with different inputs: the
  * clock, the weather, and the gold balance rather than the bag.
+ *
+ * ## Why the pump is not in here
+ *
+ * Because it is a different responsibility, and it is a **machine** rather than a medium.
+ * Whether it is on, which square it points at and what that costs is `pump.js`; this file
+ * decides what a plot *holds* once the sky and the pump have both had their say.
  *
  * ## Why everything is computed over *elapsed* time
  *
@@ -18,17 +24,16 @@
  * `lastTickAt` on the state is what makes that work, and it already existed.
  */
 
-import { HEALTH, PUMP, WATER } from '../config/game.js';
+import { HEALTH, WATER } from '../config/game.js';
 import { cropOf } from '../config/crops.js';
 import {
-  DRY_WATER,
   EVAPORATION_PER_HOUR,
   RAIN_WATER_PER_HOUR,
   classifyHour,
-  eventRank,
   rateFor,
 } from '../config/weatherEvents.js';
 import { indexOfHour } from './weather.js';
+import { pumpRun } from './pump.js';
 
 /**
  * The weather in the hour containing `now`, as an event id.
@@ -130,45 +135,20 @@ export function tick(state, now = Date.now()) {
   if (hours <= 0) return { state, spent: 0, watered: 0, autoOff: null, deaths: [] };
 
   const eventId = currentEvent(state, now);
-  let spent = 0;
-  let watered = 0;
-  let autoOff = null;
 
-  const pump = state.pump ?? { on: false, target: null };
-  const targetId = pump.on ? pump.target : null;
-  const target = targetId == null ? null : state.plots.find((p) => p.id === targetId);
-
-  // The pump only runs if it has somewhere to run. `target: null` is the state after
-  // an auto-off, and the toggle stays on so the player can pick a plot and carry on.
-  const pumping = Boolean(pump.on && target && !target.dead);
-
-  const seconds = hours * 3600;
-  if (pumping) {
-    const needed = WATER.max - (target.waterLevel ?? 0);
-    const wanted = WATER.pumpPerSecond * seconds;
-    const delivered = Math.min(needed, wanted);
-    watered = delivered;
-    spent = Math.round((delivered / WATER.pumpPerSecond) * PUMP.upkeepPerSecond * 100) / 100;
-
-    if (spent > (state.gold ?? 0)) {
-      // Ran dry mid-second. Deliver only what the remaining gold pays for, which is
-      // what actually happened rather than what was attempted.
-      const affordable = (state.gold ?? 0) / PUMP.upkeepPerSecond * WATER.pumpPerSecond;
-      watered = Math.max(0, Math.min(delivered, affordable));
-      spent = state.gold ?? 0;
-      autoOff = 'gold';
-    } else if (needed <= wanted) {
-      autoOff = 'full';
-    }
-  }
+  // The machine's business — is it on, where is it aimed, what does that cost — is
+  // `pump.js`. This is the medium: it decides what a plot *holds* once the sky and the
+  // pump have both had their say.
+  const run = pumpRun(state, hours);
+  const pumpedId = run.plot ? run.plot.id : null;
 
   const plots = state.plots.map((plot) => {
     let level = settlePlot(plot, eventId, hours);
 
     // Pumped plots are topped up *after* the weather, so a pump running through rain
     // does not appear to lose the race.
-    if (pumping && plot.id === targetId && autoOff !== 'gold') {
-      level = Math.min(WATER.max, level + watered);
+    if (pumpedId !== null && plot.id === pumpedId && run.autoOff !== 'gold') {
+      level = Math.min(WATER.max, level + run.watered);
     }
 
     const before = plot.waterLevel ?? 0;
@@ -209,18 +189,22 @@ export function tick(state, now = Date.now()) {
   });
 
   const deaths = plots.filter((p, i) => p.dead && !state.plots[i].dead && p.cropId != null);
+  const pump = state.pump ?? { on: false, target: null };
 
   return {
     state: {
       ...state,
       plots,
-      gold: Math.max(0, (state.gold ?? 0) - spent),
-      pump: autoOff === 'gold' ? { ...pump, on: false } : pump,
+      gold: Math.max(0, (state.gold ?? 0) - run.spent),
+      // An empty purse turns it **off**, not merely idle: it cannot restart itself, and a
+      // toggle that reads "on" while billing nothing is a lie. A full plot leaves it on,
+      // so the player only has to pick the next square.
+      pump: run.autoOff === 'gold' ? { ...pump, on: false } : pump,
       lastTickAt: now,
     },
-    spent,
-    watered,
-    autoOff,
+    spent: run.spent,
+    watered: run.watered,
+    autoOff: run.autoOff,
     deaths,
   };
 }
@@ -266,48 +250,4 @@ export function elapsedHours(state, now) {
   const last = state?.lastTickAt;
   if (!Number.isFinite(last)) return 0;
   return Math.max(0, (now - last) / 3_600_000);
-}
-
-/**
- * Is this plot in trouble right now?
- *
- * Two kinds, and they need different words: **dry** is about water and the pump answers
- * it; **drought** is the weather doing it. A single boolean would let the notification
- * say "use the pump" about a heatwave, which the pump cannot fix — the pump adds water,
- * it does not lower the temperature.
- *
- * @param {object} plot
- * @param {string} eventId
- * @returns {{dry: boolean, heat: boolean, drought: boolean}}
- */
-export function plotTrouble(plot, eventId) {
-  const level = plot.waterLevel ?? 0;
-  return {
-    dry: level < DRY_WATER,
-    heat: eventRank(eventId) <= 2,
-    drought: eventId === 'drought',
-  };
-}
-
-/* --- the controls ----------------------------------------------------------- */
-
-/** Turn the pump on or off. `target` is kept, so switching back on resumes. */
-export function setPump(state, on) {
-  return { ...state, pump: { ...(state.pump ?? {}), on: Boolean(on) } };
-}
-
-/**
- * Point the pump at one plot, and start it.
- *
- * Refuses a plot the player does not own or that is dead — a pump pointed at a
- * locked square would bill gold for water nobody can use.
- */
-export function aimPump(state, plotId) {
-  const plot = state.plots.find((p) => p.id === plotId);
-  if (!plot || !plot.owned || plot.dead) return { ok: false, reason: 'bad_plot' };
-
-  return {
-    ok: true,
-    state: { ...state, pump: { ...(state.pump ?? { on: false }), on: true, target: plotId } },
-  };
 }
