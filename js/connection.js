@@ -45,6 +45,27 @@ const log = createLog('connection');
 const FIRST_FAILURE_NOTICE = 'No connection — your farm is safe on this device.';
 
 /**
+ * Decide whether a `sync` transition should raise the notice, and what the
+ * "already announced" flag becomes afterwards.
+ *
+ * Pure and exported so it can be tested without a store, a DOM or a module mock —
+ * the notice is the thing standing between a small chip and a regression of
+ * ISS-050, so it wants a test of its own rather than none.
+ *
+ * `synced` clears the flag rather than setting it: one outage announces once, and
+ * the next outage is a new outage that deserves to be heard again.
+ *
+ * @param {boolean} announced
+ * @param {'synced'|'saving'|'pending'} next
+ * @returns {{announce: boolean, announced: boolean}}
+ */
+export function advanceAnnouncement(announced, next) {
+  if (next === 'synced') return { announce: false, announced: false };
+  if (next === 'pending' && !announced) return { announce: true, announced: true };
+  return { announce: false, announced };
+}
+
+/**
  * Mount the chip and wire the retry loop.
  *
  * @param {HTMLElement|null} root where to put the chip; null mounts nothing
@@ -75,9 +96,9 @@ export function mountConnectionStatus(root, actions = {}) {
   const offSync = on('sync', (next) => {
     indicator.refresh();
 
-    if (next === 'synced') announced = false;
-    else if (next === 'pending' && !announced) {
-      announced = true;
+    const step = advanceAnnouncement(announced, next);
+    announced = step.announced;
+    if (step.announce) {
       log.info('server save failed - raising the first-failure notice');
       emit('toast', { message: FIRST_FAILURE_NOTICE, tone: 'error' });
     }
