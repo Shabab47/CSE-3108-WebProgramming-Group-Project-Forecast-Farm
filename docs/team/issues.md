@@ -21,6 +21,62 @@ current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
 
 ---
 
+## ISS-088 The field was rebuilt from scratch once a second, re-decoding ~16 MB of PNG
+**Found:** 2026-10-17, reported from the running game as "the whole system is super
+unresponsive" · **Severity: High** · **Status: fixing**
+
+Everything on the game page felt heavy, clicks felt like they waited, and — the
+symptom that identifies it — **clicking a plot to buy land showed nothing and then
+suddenly it was bought.**
+
+**Cause.** `main.js` runs `repaintFarm()` on a 1 Hz interval, and that calls
+`mountFarmView()`, whose first statement is `clear(root)`. It therefore rebuilds the
+card, the stage, `base.png`, `pump.png` and all sixteen plot tiles — and each tile is a
+`<button>` wrapping a `plot__hit` span, a `plot__ground` `<img>`, a `plot__crop` `<img>`,
+water spans, a three-span growth meter, lock spans and a price span.
+
+So **roughly 34 `<img>` elements were destroyed and recreated every second**, pointing at
+measured art of 313–318 KB (grounds) and 557–712 KB (rice stages). That is **≈16.4 MB of
+PNG re-decoded per second**, plus a `filter: grayscale(0.7) brightness(0.62)` re-raster on
+up to fourteen `.plot--locked` tiles and a `hue-rotate` filter on fallback crop sprites.
+
+**Why it reads as jank and not as slow loading.** The images are already in the HTTP and
+memory caches, so nothing is re-downloaded — but a cache does nothing about **decoding**.
+Creating a fresh `<img>` element forces a fresh decode and a compositor upload whatever the
+cache says. A 1000×1000 PNG costs milliseconds to decode; thirty-four of them a second
+permanently occupies a large slice of the frame budget.
+
+**Why the buy click looked like it did nothing.** `domain/land.js` `buyPlot()` is pure
+and synchronous — no network, no await. The click was not slow; it was **queued behind the
+decode work** already on the main thread, and because every one of the sixteen tiles was
+replaced there was no local feedback to show. One root cause, three symptoms.
+
+**What makes the fix nearly free.** Nothing the field displays changes at 1 Hz. Growth
+stages are ~72 minutes apart for rice (6 h over 5 stages). The growth meter is
+`Math.round(progress * 100)` — 1% every ~3.6 minutes. The water bar is
+`Math.round(waterLevel)` against an 8/hour decay — 1% every ~7.5 minutes. `formatLeft()`
+already rounds to whole **minutes**. The ready rim, lock, price and selection change only
+on real player events. An idle farm needs about **one** repaint a minute, not sixty.
+
+**Fix:** in progress (T-61). A pure `fieldSignature(state)` at the resolution the field
+actually draws at, compared against the last painted one, so an unchanged repaint returns
+without touching the DOM. `mountFarmView` mounts the card, stage, base and pump once and
+re-renders only `#field-plots` afterwards. Tiles are diffed individually, so buying one
+plot replaces one tile instead of sixteen.
+
+**Deliberately not closed by this: ISS-018.** That issue is about image *flicker*; this one
+is about decode *cost*. They share a root cause but they are not the same defect, and the
+flicker half is still open.
+
+**Not addressed here, and reported together with it: slow first load.** The game page pulls
+~3.9 MB on first paint because the art is 1000×1000 for a diamond roughly 55 px wide —
+about 300× the pixel area it needs. Invisible on localhost, slow on a hosted build. The
+structural fix is downscaling the art, which was consciously left out of this change: it
+collides with the measured geometry in `AGENTS.md` §5, the no-overwrite rule in §7, and
+DEC-010. It deserves its own decision, not a footnote.
+
+---
+
 ## ISS-087 An empty overlay dimmed the whole screen and ate every click
 **Found:** 2026-10-17, reported from the running game · **Severity: Critical** · **Status: fixed**
 
