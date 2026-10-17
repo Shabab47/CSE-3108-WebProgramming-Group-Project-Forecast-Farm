@@ -18,9 +18,9 @@ import { mountLocationBar } from './ui/locationBar.js';
 import { nextUnlockable } from './land_squares/index.js';
 import { onPlotClick } from './farmActions.js';
 import { fetchWeather } from './services/weatherApi.js';
-import { formatCoordinates, reverseGeocode, searchPlaces } from './services/geocodeApi.js';
+import { formatCoordinates, isPlaceholderName, placeLabel, reverseGeocode, searchPlaces } from './services/geocodeApi.js';
 import { AUTOSAVE_MS, TICK_MS } from './config/game.js';
-import { REFRESH_MS } from './config/api.js';
+import { REFRESH_MS, SUGGEST_COUNT } from './config/api.js';
 
 const log = createLog('main');
 
@@ -114,6 +114,8 @@ function mountShell(session) {
 
   mountLocationBar(qsOrNull('#location-bar'), {
     onSearch: searchFor,
+    onChoose: moveFarmTo,
+    onSuggest: suggestFor,
     onUseDeviceLocation: useDeviceLocation,
   });
 
@@ -246,23 +248,26 @@ function useDeviceLocation({ announce = true } = {}) {
   });
 }
 
-async function searchFor(query) {
-  emit('toast', { message: `Looking for “${query}”…`, tone: 'info' });
-
-  const result = await searchPlaces(query);
-  const place = result.ok ? result.results?.[0] : null;
-
-  if (!place) {
-    emit('toast', { message: `No place found for “${query}”.`, tone: 'error' });
-    return;
-  }
-
+/**
+ * Move the farm to a place that has already been resolved.
+ *
+ * Both ways of choosing a location end here — a row the player picked out of the suggestion list,
+ * and the first hit from a submitted search — because they are the same decision with different
+ * amounts of work already done, and one writer is what stops the two from drifting apart. The
+ * suggestion path is the one that arrives with a fully-populated place and the search path is not,
+ * so anything not filled in is defaulted here rather than at each call site.
+ *
+ * @param {{name: string, country?: string, lat: number, lon: number, tz?: string}} place
+ */
+async function moveFarmTo(place) {
   setLocation({
     name: place.name,
-    country: place.country,
+    country: place.country ?? '',
     lat: place.lat,
     lon: place.lon,
-    tz: place.tz,
+    // 'auto' rather than undefined: Open-Meteo reads a missing timezone as UTC, and a farm
+    // pinned at 23.81° N shown in UTC is showing the wrong evening.
+    tz: place.tz || 'auto',
     pinned: true,
   });
 
@@ -271,12 +276,58 @@ async function searchFor(query) {
 }
 
 /**
- * The name ISS-077 wrote into every farm it touched.
+ * Candidates for the suggestion list.
  *
- * Not a live string anywhere — it is only ever compared against, to migrate saves
- * that were written while the reverse lookup was failing.
+ * Answers places, never the service's `{ok, results}` envelope, so `js/ui/locationBar.js` has one
+ * shape to handle and no knowledge of what a failed lookup is. See `geocodeApi`'s note on why the
+ * two layers do not share that envelope.
+ *
+ * `placeLabel` is applied here rather than in the panel for the same reason: the service has no
+ * business knowing how a candidate should read in a list, and the panel has no business knowing
+ * that `admin1` is a province.
+ *
+ * **Failure answers `null`, and "no matches" answers `[]`.** Those are not the same message to a
+ * player: one is a service that was not reached, the other is a service that was asked and had
+ * nothing. Collapsing them makes every dropped connection read as "no places found", which is how
+ * a player learns to distrust a search box that was only ever offline.
+ *
+ * @param {string} query
+ * @param {AbortSignal} [signal] cancels the request when a newer keystroke replaces it
+ * @returns {Promise<object[]|null>} `[]` for no matches, `null` for a lookup that did not answer
  */
-const LEGACY_PLACEHOLDER_NAME = 'Current location';
+async function suggestFor(query, signal) {
+  const result = await searchPlaces(query, { signal });
+
+  if (!result.ok) {
+    // 'aborted' is the player typing faster than the network answers, not a fault. Logging it
+    // would fill the console with failures for every fast typist and teach us to ignore it.
+    if (result.reason !== 'aborted') log.warn('place search failed -', result.reason);
+    return null;
+  }
+
+  return result.results.map((place) => ({ ...place, ...placeLabel(place) }));
+}
+
+/**
+ * The submitted search, which takes the single best match.
+ *
+ * Still here, and still `[0]`, because submitting the form is a decision to stop deliberating: the
+ * player typed a place and pressed Enter, and the top hit is the answer they meant. The suggestion
+ * list is for the case where that is not good enough.
+ */
+async function searchFor(query) {
+  emit('toast', { message: `Looking for “${query}”…`, tone: 'info' });
+
+  const result = await searchPlaces(query, { count: SUGGEST_COUNT });
+  const place = result.ok ? result.results?.[0] : null;
+
+  if (!place) {
+    emit('toast', { message: `No place found for “${query}”.`, tone: 'error' });
+    return;
+  }
+
+  await moveFarmTo(place);
+}
 
 /**
  * Whether this save's location has to be looked up again before the weather means
@@ -295,8 +346,13 @@ const LEGACY_PLACEHOLDER_NAME = 'Current location';
  * would apply only to farms created after it, and every existing player would keep
  * the placeholder for the life of their save.
  *
- * Comparing against the one string is the honest way to migrate stored data: a flag
- * added today cannot describe saves written before it existed.
+ * **The comparison is `isPlaceholderName`, not `=== 'Current location'`, and that is
+ * the fix for "it still says Current Location".** An equality test only recognises
+ * its own spelling: a save written with a capital `L`, with a doubled space, or with
+ * the phrase a hand-edited export carries all fail the gate, so the repair silently
+ * declines to run and the placeholder stays for good. The gate is the part that
+ * decides whether the repair happens, so a gate that is too narrow looks exactly like
+ * no fix at all.
  *
  * Pure and exported so the gate itself can be tested — the gate is the part that
  * silently decides whether a repair ever runs.
@@ -305,7 +361,7 @@ const LEGACY_PLACEHOLDER_NAME = 'Current location';
  * @returns {boolean}
  */
 export function needsLocationRefresh(saved) {
-  return !saved?.pinned || saved?.name === LEGACY_PLACEHOLDER_NAME;
+  return !saved?.pinned || isPlaceholderName(saved?.name);
 }
 
 /**
@@ -319,7 +375,7 @@ export function needsLocationRefresh(saved) {
  * correct than naming it wherever the device happens to be standing now.
  *
  * Nothing is written unless the lookup succeeds, so a farm that cannot be named yet keeps its current
- * name and simply tries again on the next load.
+ * name and simply tries again — on the next refresh, not only on the next page load.
  *
  * @returns {Promise<boolean>} whether the name was repaired
  */
@@ -334,19 +390,42 @@ async function nameExistingLocation() {
     return false;
   }
 
+  // Still a placeholder would mean the repair "succeeded" into the same nameless state and the
+  // board looks unchanged, so there is nothing to show for the request. `placeNameFrom` already
+  // guarantees a real name or a coordinate pair, but a hand-edited save can carry anything.
+  if (isPlaceholderName(named.name)) {
+    log.warn('the lookup answered with a placeholder, leaving the farm alone');
+    return false;
+  }
+
   setLocation({ ...saved, name: named.name, country: named.country, pinned: true });
   log.info(`named the saved location: ${named.name}`);
   return true;
 }
 
+/**
+ * The first weather fetch, the name repair, and the interval that repeats both.
+ *
+ * **The repair is not chained onto the weather fetch.** It used to be, which made the name of a farm
+ * depend on a service it has nothing to do with: the forecast request is the slowest call on boot and
+ * the most likely to fail, so a weather timeout silently cancelled the naming too, forever, on every
+ * load. Two unrelated promises, two independent jobs. The repair is cheap — it returns immediately
+ * unless the name is a placeholder, which is the only case it exists for.
+ */
 function bootWeather() {
-  refreshWeather({ quiet: true }).then(() => {
-    // Silent: quietly repairing a farm's name should not announce itself as a
-    // location change the player did not ask for.
-    return nameExistingLocation();
-  });
+  void refreshWeather({ quiet: true });
 
-  setInterval(() => refreshWeather({ quiet: true }), REFRESH_MS);
+  // Silent: quietly repairing a farm's name should not announce itself as a
+  // location change the player did not ask for.
+  void nameExistingLocation();
+
+  setInterval(() => {
+    void refreshWeather({ quiet: true });
+    // Retried here as well as at boot, because the usual reason a farm is still
+    // unnamed is that the device was offline when it was asked. Waiting for the
+    // player to reload the page to fix a label is not a repair.
+    void nameExistingLocation();
+  }, REFRESH_MS);
 }
 
 async function start() {

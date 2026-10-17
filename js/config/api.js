@@ -23,6 +23,35 @@ export const TIME_URL = 'https://utctime.app/api/now/';
  */
 export const REVERSE_GEOCODE_URL = 'https://api.bigdatacloud.net/data/reverse-geocode-client';
 
+/**
+ * How the search-as-you-type list behaves.
+ *
+ * Separate from `searchPlaces` itself because these are presentation decisions, and the service
+ * has no business knowing how fast a player types.
+ *
+ * `SUGGEST_COUNT` is six rather than five because a suggestion list is read by comparison — the
+ * player is scanning for "the Dhaka in Bangladesh" among several Dhakas — so one more row is worth
+ * more than the single extra request it costs. Open-Meteo caps `count` at 100.
+ */
+export const SUGGEST_COUNT = 6;
+
+/**
+ * Quiet period before a keystroke turns into a request.
+ *
+ * 200 ms is the point at which typing stops feeling like it is waiting and starts feeling like it
+ * is thinking. Longer and the list lags behind the letters; shorter and every character is a
+ * round trip to a public API that has no rate limit worth spending.
+ */
+export const SUGGEST_DEBOUNCE_MS = 200;
+
+/**
+ * Shortest query worth asking about.
+ *
+ * One letter matches most of the planet and the list comes back with places the player did not
+ * mean — "S" is a better start than a worse answer.
+ */
+export const SUGGEST_MIN_QUERY = 2;
+
 /** Where the farm starts. The player can move it from the top bar search. */
 export const DEFAULT_LOCATION = {
   name: 'Dhaka',

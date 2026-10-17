@@ -490,6 +490,93 @@
   height: 14px;
 }
 
+/* The suggestion list, and the wrapper that anchors it.
+ *
+ * The wrapper exists so the list can be positioned against the search pill without the pill
+ * itself becoming a positioning context - `position: relative` on `.location-bar` would also
+ * make its own `overflow` and shadow behave differently, and the row is a flex row that has
+ * no reason to know about an overlay.
+ *
+ * `z-index: 30` is not decorative. The board's own children are positioned (`.board-meter` is
+ * `position: relative`) with `z-index: auto`, and positioned siblings with `auto` paint in tree
+ * order - so without this the meters and the sticky note paint straight over an open list. It
+ * sits above the farm's plots (`0..20`) and well below the toast stack (200), the sync chip (210)
+ * and the seed picker (300), so an open list never buries a message or a modal.
+ */
+.location-bar-wrap {
+  position: relative;
+  z-index: 30;
+}
+
+.location-bar-suggest {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  right: 0;
+  /* Six rows at ~26px plus padding. Fixed rather than content-height because the count is
+     `SUGGEST_COUNT` and a list that grows past the board reads as a different component. */
+  max-height: 186px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  /* The same wood-and-paper language as the pill above it, so the list reads as part of the
+     board rather than as a browser dropdown dropped on top of one. */
+  border: 3px solid #6b431f;
+  border-radius: 14px;
+  background: #fffaef;
+  box-shadow: 0 3px 0 #6b431f;
+}
+
+.location-bar-suggest[hidden] {
+  display: none;
+}
+
+.location-bar-suggest-item {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  color: #3f2c12;
+  font-size: 13px;
+  line-height: 18px;
+  cursor: pointer;
+}
+
+.location-bar-suggest-item:hover,
+.location-bar-suggest-item.is-active {
+  background: #f0e6c4;
+}
+
+/* The name is what the player scans for, so it is the part that is allowed to be truncated.
+   The context is what makes two candidates with the same name distinguishable, so it is not:
+   a row reading "Springfield · United States" instead of "Springfield · Illinois" would be
+   a row the player cannot choose between. */
+.location-bar-suggest-name {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.location-bar-suggest-context {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: #7a5f28;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.location-bar-suggest-empty {
+  padding: 6px 8px;
+  color: #7a5f28;
+  font-size: 12px;
+  font-style: italic;
+}
+
 @media (max-width: 1180px) {
   .board-body {
     /* Keep the fractional split at narrower widths — a fixed meters column was

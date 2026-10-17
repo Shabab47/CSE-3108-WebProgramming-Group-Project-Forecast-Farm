@@ -330,3 +330,21 @@ test('a farm that was never pinned still needs its coordinates', () => {
   assert.equal(needsLocationRefresh(null), true);
   assert.equal(needsLocationRefresh(undefined), true);
 });
+
+test('the repair is not skipped over a farm that spells the placeholder differently', () => {
+  // "it still says Current Location" with the fix deployed. An `===` gate recognises exactly one
+  // spelling of the phrase; every other spelling skips the repair and the placeholder is
+  // permanent. The gate is silent about it, so from the player's side the fix does not exist.
+  //
+  // Capital L, doubled spaces and a hand-edited export are all saves that a real player has.
+  for (const name of ['Current Location', 'CURRENT LOCATION', '  Current   location ', 'Your location']) {
+    assert.equal(needsLocationRefresh({ name, pinned: true }), true, `missed ${JSON.stringify(name)}`);
+  }
+});
+
+test('a farm with no name at all is repaired, not treated as already named', () => {
+  // `weatherPanel.locationLine()` answers 'Unknown location' for a farm whose name is empty, so
+  // the empty string reaches the save rather than that sentence. Either way the farm is nameless.
+  assert.equal(needsLocationRefresh({ name: '', pinned: true, lat: 23.8, lon: 90.4 }), true);
+  assert.equal(needsLocationRefresh({ name: '   ', pinned: true }), true);
+});

@@ -170,16 +170,49 @@ export class FakeNode {
    * observable. A non-awaiting `dispatchEvent` would let a test assert only on the
    * final state and miss everything in between.
    *
-   * @returns {Promise<void>} resolves once every listener has settled
+   * **The event object is now a real one, not `{type, target}`.** It used to be a bare pair,
+   * which meant any handler calling `event.preventDefault()` threw *in the test only* - the
+   * single most misleading kind of harness failure, because the code under test is correct and
+   * the suite is the thing that is wrong. The location bar's suggestion list needs both halves
+   * of the combobox keyboard contract: `preventDefault` to swallow Enter so the form does not
+   * also submit, and `key` to tell ArrowDown from ArrowUp. Neither is expressible without this.
+   *
+   * @param {string} type
+   * @param {{key?: string}} [init] extra event fields, merged onto the object
+   * @returns {Promise<object>} the event, so a test can read `defaultPrevented`
    */
-  async dispatch(type) {
+  async dispatch(type, init = {}) {
+    const event = {
+      type,
+      target: this,
+      key: init.key ?? '',
+      defaultPrevented: false,
+      preventDefault() {
+        this.defaultPrevented = true;
+      },
+      stopPropagation() {},
+    };
+
     for (const handler of [...(this.listeners.get(type) ?? [])]) {
-      await handler({ type, target: this });
+      await handler(event);
     }
+
+    return event;
   }
 
   click() {
     return this.dispatch('click');
+  }
+
+  /** Fire `keydown` with `key` set, as a browser does for a real keystroke. */
+  key(key) {
+    return this.dispatch('keydown', { key });
+  }
+
+  /** Change the value, as a player typing does. Does not fire `input` on its own. */
+  type(value) {
+    this.value = value;
+    return this.dispatch('input');
   }
 
   focus() {

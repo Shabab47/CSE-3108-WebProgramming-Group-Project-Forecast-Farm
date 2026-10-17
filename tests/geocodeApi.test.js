@@ -18,11 +18,13 @@ import assert from 'node:assert/strict';
 
 import {
   formatCoordinates,
+  isPlaceholderName,
+  placeLabel,
   placeNameFrom,
   reverseGeocode,
   searchPlaces,
 } from '../js/services/geocodeApi.js';
-import { GEOCODE_URL, REVERSE_GEOCODE_URL } from '../js/config/api.js';
+import { GEOCODE_URL, REVERSE_GEOCODE_URL, SUGGEST_COUNT } from '../js/config/api.js';
 
 let calls = [];
 
@@ -224,4 +226,124 @@ test('every search failure is a reason, never a throw', () => {
       return searchPlaces('Dhaka');
     })
     .then((r) => assert.deepEqual(r, { ok: false, reason: 'http_429' }));
+});
+
+/* --- searchPlaces options ---------------------------------------------------
+ *
+ * Search-as-you-type is what made these parameters exist. `d`, `dh`, `dha`, `dhak` are four
+ * questions about one, and without a signal the list is painted by whichever answer arrives
+ * first rather than by whichever question was asked last. */
+
+test('the row count is a parameter, and defaults to the suggestion list size', () => {
+  stub(() => json(200, { results: [] }));
+
+  return searchPlaces('Dhaka')
+    .then(() => assert.equal(new URL(calls[0]).searchParams.get('count'), String(SUGGEST_COUNT)))
+    .then(() => searchPlaces('Dhaka', { count: 1 }))
+    .then(() => assert.equal(new URL(calls[1]).searchParams.get('count'), '1'));
+});
+
+test('the signal reaches fetch, so a superseded request can be thrown away', () => {
+  let init = null;
+  globalThis.fetch = async (_url, options) => {
+    init = options;
+    return json(200, { results: [] });
+  };
+
+  const controller = new AbortController();
+  return searchPlaces('Dhaka', { signal: controller.signal }).then(() => {
+    assert.equal(init.signal, controller.signal);
+  });
+});
+
+test('a cancelled request reports itself as cancelled, not as a dropped connection', () => {
+  // The distinction is worth a `reason` of its own. Reported as `network`, every fast typist
+  // would be logged as an offline player and shown "search failed" for the letter they had
+  // just finished typing.
+  const controller = new AbortController();
+  globalThis.fetch = async () => {
+    // What a real aborted `fetch` does: reject.
+    controller.abort();
+    throw Object.assign(new Error('The user aborted a request.'), { name: 'AbortError' });
+  };
+
+  return searchPlaces('dhak', { signal: controller.signal }).then((result) => {
+    assert.deepEqual(result, { ok: false, reason: 'aborted' });
+  });
+});
+
+/* --- how a candidate reads in the list -------------------------------------- */
+
+test('a candidate carries the context that tells same-named places apart', () => {
+  // "Dhaka" alone is not an answer — there is one in Ohio, one in Bihar and one in Chittagong
+  // Division, and a list of six identical rows is worse than no list.
+  const { name, context, label } = placeLabel({ name: 'Dhaka', admin: 'Dhaka Division', country: 'Bangladesh' });
+
+  assert.equal(name, 'Dhaka');
+  assert.equal(context, 'Dhaka Division · Bangladesh');
+  assert.equal(label, 'Dhaka · Dhaka Division · Bangladesh');
+});
+
+test('a region that repeats the city is dropped rather than printed twice', () => {
+  // Real Open-Meteo payload, not an invented one: `name: "Dhaka"` genuinely comes back beside
+  // `admin1: "Dhaka"`. "Dhaka · Dhaka · Bangladesh" is noise, not detail.
+  assert.equal(
+    placeLabel({ name: 'Dhaka', admin: 'Dhaka', country: 'Bangladesh' }).label,
+    'Dhaka · Bangladesh',
+  );
+  // And the comparison is case-folded, because the service is inconsistent about capitalisation.
+  assert.equal(
+    placeLabel({ name: 'springfield', admin: 'Springfield', country: 'United States' }).label,
+    'springfield · United States',
+  );
+});
+
+test('a place with no context still has a label', () => {
+  // Open-Meteo returns `admin1: ""` for plenty of real places, and an empty `·` with a space on
+  // either side of it is what a naive join produces.
+  assert.deepEqual(placeLabel({ name: 'Reykjavik', admin: '', country: 'Iceland' }), {
+    name: 'Reykjavik',
+    context: 'Iceland',
+    label: 'Reykjavik · Iceland',
+  });
+  assert.deepEqual(placeLabel({ name: 'Nowhere' }), { name: 'Nowhere', context: '', label: 'Nowhere' });
+});
+
+test('a missing candidate is labelled, not thrown at', () => {
+  for (const missing of [null, undefined, {}]) {
+    assert.equal(placeLabel(missing).label, '');
+  }
+});
+
+/* --- the placeholder gate ----------------------------------------------------- */
+
+test('every spelling of the placeholder is recognised, not just the one it was written with', () => {
+  // The bug this exists for. An `=== 'Current location'` gate repairs the farms written by the
+  // build that produced exactly that string, and silently declines every other one — so the
+  // player keeps seeing "Current Location" for the life of their save and the repair looks like
+  // it was never deployed.
+  for (const spelling of [
+    'Current location',
+    'Current Location',
+    'CURRENT LOCATION',
+    '  current   location  ',
+    'Your location',
+    'Unknown location',
+  ]) {
+    assert.equal(isPlaceholderName(spelling), true, `should have matched ${JSON.stringify(spelling)}`);
+  }
+});
+
+test('a real name is never mistaken for a placeholder', () => {
+  // The cost of being generous here is one wasted request; the cost of being wrong the other way
+  // is a farm permanently called "Location".
+  for (const real of ['Dhaka', 'Location Mandi', 'New London', '0.00° N, 140.00° W', 'Ipswich']) {
+    assert.equal(isPlaceholderName(real), false, `should not have matched ${real}`);
+  }
+});
+
+test('a nameless save counts as a placeholder without needing a list entry', () => {
+  for (const blank of ['', '   ', null, undefined]) {
+    assert.equal(isPlaceholderName(blank), true);
+  }
 });

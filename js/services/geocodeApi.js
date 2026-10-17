@@ -17,7 +17,7 @@
  * that cannot be named still has weather and must keep playing.
  */
 
-import { GEOCODE_URL, REVERSE_GEOCODE_URL } from '../config/api.js';
+import { GEOCODE_URL, REVERSE_GEOCODE_URL, SUGGEST_COUNT } from '../config/api.js';
 
 /**
  * A readable coordinate pair, for when there is genuinely no place to name.
@@ -82,6 +82,106 @@ export function placeNameFrom(data, lat, lon) {
 }
 
 /**
+ * How one candidate reads in the suggestion list.
+ *
+ * ## A search result is a *place*, not a *name*
+ *
+ * `searchPlaces` answers with candidates and "Dhaka" is one of them — so are Dhaka in Ohio, Dhaka
+ * in Bihar and Dhaka in Chittagong Division. A suggestion list showing six identical rows labelled
+ * "Dhaka" is worse than no list at all, because the only thing distinguishing them is invisible.
+ *
+ * So the label is the name *plus the context that tells them apart*, joined once each and in
+ * descending order of how much it narrows the choice:
+ *
+ *     Dhaka · Dhaka Division · Bangladesh
+ *     Paris · Île-de-France · France
+ *     Springfield · Illinois · United States
+ *
+ * Repeated parts are dropped rather than deduplicated by string identity alone: Open-Meteo really
+ * does return `admin1: "Dhaka"` next to `name: "Dhaka"`, and "Dhaka, Dhaka" is noise, not detail.
+ *
+ * The first row is always the name on its own, so the bold part of the row needs no markup and the
+ * list stays scannable when the context is a long country name.
+ *
+ * Pure, and takes whatever `searchPlaces` returns, so it works for a search result and a
+ * reverse-geocoded farm alike — the two are the same shape on purpose.
+ *
+ * @param {{name?: string, admin?: string, country?: string}|null|undefined} place
+ * @returns {{name: string, context: string, label: string}}
+ */
+export function placeLabel(place) {
+  const name = String(place?.name ?? '').trim();
+  const seen = new Set([name.toLowerCase()]);
+
+  const context = [];
+  for (const part of [place?.admin, place?.country]) {
+    const text = String(part ?? '').trim();
+    const key = text.toLowerCase();
+    // A part that is blank, or that a part already in the list repeats, adds
+    // nothing — and a dropped part must not leave its separator behind either,
+    // which is why the join happens once at the end rather than per part.
+    if (!text || seen.has(key)) continue;
+    seen.add(key);
+    context.push(text);
+  }
+
+  return {
+    name,
+    context: context.join(' · '),
+    label: context.length ? `${name} · ${context.join(' · ')}` : name,
+  };
+}
+
+/**
+ * Every nameless phrase that has ever reached a save.
+ *
+ * A set, so adding one is a one-line change and nothing that consumes it has to be touched.
+ */
+const PLACEHOLDER_NAMES = new Set([
+  'current location',
+  'your location',
+  'my location',
+  'unknown location',
+  'location',
+]);
+
+/**
+ * Whether a saved name is one of the phrases that say nothing about where the farm is.
+ *
+ * ## Why this is not an equality test
+ *
+ * The string this exists to detect was written by older builds as `'Current location'`, and the
+ * migration that replaces it compared with `===`. That works right up until it does not: the phrase
+ * has since appeared with a capital `L` in a build, in a player's own save, and in a save file
+ * exported by hand. Every one of those farms keeps saying "Current Location" forever, because the
+ * gate that is supposed to repair them rejects the one string they were written with — and the gate
+ * is silent, so the symptom reads as "the fix is not there" rather than "the fix missed my save".
+ *
+ * A repair that only recognises its own spelling is not a repair. So the comparison is on a
+ * normalised form — trimmed, collapsed, case-folded — against a *list* of the phrases that have
+ * been shipped. `unknown location` is on it because `weatherPanel.locationLine()` emits exactly that
+ * when a farm has no name at all, and such a farm is just as nameless as one labelled "Current
+ * location". An empty name is a placeholder too, and needs no list entry.
+ *
+ * **Pure and deliberately generous.** A false positive costs one extra reverse-geocode call on
+ * load, which is free and idempotent — it re-derives the name from coordinates that are already
+ * stored. A false negative costs the player their farm's name permanently. Erring towards asking.
+ *
+ * @param {string|null|undefined} name
+ * @returns {boolean}
+ */
+export function isPlaceholderName(name) {
+  const key = String(name ?? '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
+
+  if (!key) return true;
+
+  return PLACEHOLDER_NAMES.has(key);
+}
+
+/**
  * Coordinates → place name, for the farm the player pinned to themselves.
  *
  * Answers the same shape as `searchPlaces`, so `main.js` and `locationLine()` treat a pinned farm and
@@ -130,24 +230,45 @@ export async function reverseGeocode(lat, lon) {
 /**
  * A typed place name → candidates.
  *
- * `count: 5` so the list has something to show, and `format: json` rather than GeoJSON because
- * nothing here draws a map.
+ * ## Now a *list*, not an answer
+ *
+ * This used to hand back five candidates for `main.js` to take `[0]` of, which meant the game asked
+ * the network a question it had already decided the answer to. The API takes options for two reasons
+ * that both come from the suggestion list:
+ *
+ * - `count` — a suggestion list is read by comparison, so it wants a different number of rows than
+ *   a best-guess does. `SUGGEST_COUNT` is the default; the old `5` is still what a caller without
+ *   options gets for free, because the default is the only thing that changed shape here.
+ * - `signal` — an `AbortSignal`, handed straight to `fetch`. Search-as-you-type means a keystroke
+ *   supersedes the request the last keystroke started, and an aborted request is how that is
+ *   enforced. Without it, `d`, `dh`, `dha`, `dhak` are four live requests racing to paint the list,
+ *   and the one that loses is decided by latency rather than by order — so the list flickers back
+ *   through "Dhahran" on the way to "Dhaka".
+ *
+ * **`format: json`, not GeoJSON**, because nothing here draws a map.
  *
  * @param {string} query
+ * @param {{count?: number, signal?: AbortSignal}} [options]
  * @returns {Promise<{ok: true, results: object[]}|{ok: false, reason: string}>}
  */
-export async function searchPlaces(query) {
+export async function searchPlaces(query, options = {}) {
+  const { count = SUGGEST_COUNT, signal } = options;
+
   const params = new URLSearchParams({
     name: query,
-    count: '5',
+    count: String(count),
     language: 'en',
     format: 'json',
   });
 
   let res;
   try {
-    res = await fetch(`${GEOCODE_URL}?${params}`);
+    res = await fetch(`${GEOCODE_URL}?${params}`, { signal });
   } catch {
+    // An abort is the *caller's* doing, not a failure: it asked for this request to be thrown away
+    // because a newer keystroke replaced it. Reporting it as `network` would log every fast typist
+    // as a dropped connection, and the UI would show "search failed" for the letter they just typed.
+    if (signal?.aborted) return { ok: false, reason: 'aborted' };
     return { ok: false, reason: 'network' };
   }
 
