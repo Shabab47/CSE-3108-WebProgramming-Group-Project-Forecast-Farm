@@ -21,9 +21,9 @@
   </head>
 
   <body>
-    <!-- Connection banner mount point. Empty until a save actually fails, so it
-         costs nothing on a healthy connection — see js/connection.js. -->
-    <div id="connection-banner"></div>
+    <!-- Sync indicator mount point. A fixed corner chip, so it can never shift
+         the layout — see ISS-076 and js/connection.js. -->
+    <div id="sync-indicator"></div>
 
     <!-- The farm itself. Replaced wholesale by the blocked screen when there is no
          connection and no session, because RLS means there is no farm to show. -->

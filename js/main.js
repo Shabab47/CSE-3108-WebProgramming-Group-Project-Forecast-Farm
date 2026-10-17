@@ -298,7 +298,7 @@ async function start() {
     // Before `bootWeather()`, and before the veil lifts: the chip has to be on
     // screen before the first save can fail, or the player never learns their farm
     // stopped syncing.
-    mountConnectionStatus(qsOrNull('#connection-banner'), {
+    mountConnectionStatus(qsOrNull('#sync-indicator'), {
       onExport: exportFromBanner,
     });
 
