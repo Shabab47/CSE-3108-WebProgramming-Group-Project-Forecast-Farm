@@ -1,40 +1,31 @@
 /**
  * The corner chip that says whether the farm is reaching the server.
  *
- * ## What replaced what
+ * ## Why it is `position: fixed`
  *
- * This was `connectionBanner.js`, a full-width bar in normal flow above `.app`.
- * Because `.app` is `height: 100dvh`, showing that bar pushed the entire shell
- * down and grew the document past the viewport, so the interface lurched — and
- * `copyFor('saving')` returned copy as well, so with `AUTOSAVE_MS` at 10 s a
- * *successful* save caused the lurch on a timer. That is ISS-076. The fix is not
- * a restyle: the notice had to leave the flow entirely, so it is `position:
- * fixed` now and cannot move anything by construction.
+ * This was `connectionBanner.js`, a full-width bar in normal flow above `.app`,
+ * which is `height: 100dvh` — so showing it pushed the whole shell down and grew
+ * the document past the viewport, and the interface lurched. `copyFor('saving')`
+ * returned copy as well, so with `AUTOSAVE_MS` at 10 s a *successful* save caused
+ * it on a timer. That is ISS-076, and no restyle of an in-flow element fixes it.
  *
- * ## Why it is still not a toast
+ * ## Why the amber label is still persistent, not a toast
  *
- * A toast dismisses itself, and the fact this carries — "your farm is only on
- * this device" — is one a player can act on but cannot afford to miss. So the
- * amber `No connection` label is **persistent**. The toast is a separate,
- * one-shot thing raised on the first failed write only, which lives in
- * `js/connection.js` because it needs the bus. That pairing is what keeps ISS-050
- * fixed now that the permanent fixture is small enough to ignore.
+ * "Your farm is only on this device" is a fact to act on but cannot afford to
+ * miss, so the label never self-dismisses. The toast is a separate, one-shot
+ * thing raised on the first failed write only, in `js/connection.js` because it
+ * needs the bus — and that pairing is what keeps ISS-050 fixed now that the
+ * permanent fixture is small enough to ignore.
  *
- * ## Why it listens to both things
+ * ## Why it follows the save outcome, not the event
  *
- * `window.online` is the browser's guess and it is often wrong in both
- * directions. A laptop on captive-portal wifi reports "online" with nothing
- * reachable, and a working connection to a local server reports "offline" while
- * Supabase is fine. So the chip is driven by the *save outcome* as well as the
- * event: a successful write proves the server is reachable whatever the event
- * says, and a failed one proves it is not.
+ * `window.online` is wrong in both directions — a captive portal reports "online"
+ * with nothing reachable, a healthy local connection reports "offline" while
+ * Supabase is fine. A successful write proves the server is reachable whatever
+ * the event says, so the outcome wins.
  *
- * ## Where the banner's text went
- *
- * The chip shows a short label. The full explanation, the ageing "last reached
- * your account" line, and both buttons (the `.farm` export, which is the escape
- * hatch that already exists per DEC-021, and retry) live in the popover behind
- * the dots. Clicking or focusing the chip opens it.
+ * The full text, the ageing "last reached your account" line, and both buttons
+ * (the `.farm` export, DEC-021, and retry) live in the popover behind the dots.
  *
  * @typedef {'synced'|'saving'|'pending'} SyncState
  */
@@ -63,10 +54,9 @@ export function describeStaleFor(ms) {
 /**
  * The words printed beside the dots, or null when there is nothing to say.
  *
- * Separate from `copyFor` on purpose: the dots are a permanent fixture, but a
- * *label* on a permanent fixture stops being read within a day, so the chip only
- * ever prints one — the one condition a player must not miss. Everything else is
- * one click away.
+ * Separate from `copyFor` on purpose: the dots are permanent, but a *label* on a
+ * permanent fixture stops being read within a day, so the chip prints exactly one
+ * — the condition a player must not miss. Everything else is one click away.
  *
  * @param {SyncState} sync
  * @returns {string|null}
@@ -99,9 +89,8 @@ export function copyFor(sync, sinceMs) {
 /**
  * What the popover says when everything is fine.
  *
- * `copyFor('synced')` is null, which is right for the chip — a permanent strip
- * that always reads the same says nothing. But the dots are clickable, so the
- * popover must not open onto a blank panel.
+ * `copyFor('synced')` is null, which is right for the chip — but the dots are
+ * clickable, so the popover must not open onto a blank panel.
  */
 export const SYNCED_NOTE = {
   title: 'Saved',
@@ -115,12 +104,7 @@ export const SYNCED_NOTE = {
  * imports no service and has no idea what a farm or a server is.
  *
  * @param {HTMLElement} root
- * @param {{
- *   getSync?: () => SyncState,
- *   now?: () => number,
- *   onExport?: () => void,
- *   onRetry?: () => void,
- * }} actions
+ * @param {{getSync?: () => SyncState, now?: () => number, onExport?: () => void, onRetry?: () => void}} actions
  * @returns {{unmount: () => void, refresh: () => void, setOpen: (open:boolean) => void}}
  */
 export function mountSyncIndicator(root, actions = {}) {
@@ -141,26 +125,21 @@ export function mountSyncIndicator(root, actions = {}) {
   const title = el('p', { class: 'sync-indicator__title' });
   const detail = el('p', { class: 'sync-indicator__detail' });
 
-  // The player's way out of the one situation the chip cannot fix on its own:
-  // needing the farm somewhere else while the connection is down.
-  const exportButton = el('button', {
+  /** The popover's buttons. Export is the way out of the one situation the chip
+   *  cannot fix on its own: needing the farm somewhere else while it is down. */
+  const popoverButton = (label, run) => el('button', {
     class: 'sync-indicator__btn',
     type: 'button',
-    text: 'Export your farm',
-    on: { click: () => { log.info('export requested from the sync popover'); actions.onExport?.(); } },
+    text: label,
+    on: { click: () => { log.info(`${label} requested from the sync popover`); run(); } },
   });
 
-  const retryButton = el('button', {
-    class: 'sync-indicator__btn',
-    type: 'button',
-    text: 'Retry now',
-    on: { click: () => { log.info('retry requested from the sync popover'); actions.onRetry?.(); } },
-  });
-
-  const actionsRow = el('div', { class: 'sync-indicator__actions' }, [exportButton, retryButton]);
+  const exportButton = popoverButton('Export your farm', () => actions.onExport?.());
+  const retryButton = popoverButton('Retry now', () => actions.onRetry?.());
 
   const popover = el('div', { class: 'sync-indicator__popover', id: 'sync-popover', hidden: true }, [
-    title, detail, actionsRow,
+    title, detail,
+    el('div', { class: 'sync-indicator__actions' }, [exportButton, retryButton]),
   ]);
 
   const chip = el('button', {
@@ -184,8 +163,8 @@ export function mountSyncIndicator(root, actions = {}) {
     const sync = getSync();
     const text = chipLabelFor(sync);
 
-    // `data-sync` drives the dot colour and the wave in css/components.css. It is
-    // always written, so the chip is never left showing the previous state.
+    // `data-sync` drives the dot colour and the wave in css/components.css, and is
+    // always written so the chip is never left showing the previous state.
     indicator.dataset.sync = sync;
     setText(label, text ?? '');
 
@@ -202,8 +181,7 @@ export function mountSyncIndicator(root, actions = {}) {
   }
 
   // A click anywhere else closes the popover, and Escape always does. Without the
-  // outside click a panel left open over the farm is just an overlay nobody asked
-  // for.
+  // outside click, a panel left open over the farm is an overlay nobody asked for.
   const offDocumentClick = listen(document, 'click', (event) => {
     if (popover.hidden) return;
     if (indicator.contains?.(event.target)) return;
