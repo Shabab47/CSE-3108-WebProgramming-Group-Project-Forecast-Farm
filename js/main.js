@@ -295,7 +295,7 @@ async function start() {
       if (state) renderPanels(state);
     });
 
-    // Before `bootWeather()`, and before the veil lifts: the banner has to be on
+    // Before `bootWeather()`, and before the veil lifts: the chip has to be on
     // screen before the first save can fail, or the player never learns their farm
     // stopped syncing.
     mountConnectionStatus(qsOrNull('#connection-banner'), {
@@ -304,10 +304,15 @@ async function start() {
 
     bootWeather();
 
-    // The sync state changes over time, and the weather panel is the one place a
-  // paused forecast is visible, so re-render on it rather than only on state
-  // changes — a dropped connection produces no state change to hang off.
-  on('sync', () => renderPanels(getState()));
+    // The weather panel is the one place a paused forecast is visible, so a
+  // dropped connection has to re-render it — a failed save produces no state
+  // change to hang off. Only `pending`, though: `saving` and `synced` render
+  // identically to each other, and rebuilding the whole shell on both of those
+  // meant a full re-render twice every AUTOSAVE_MS. That is the second half of
+  // ISS-076, and the chip is only the first.
+  on('sync', (next) => {
+    if (next === 'pending') renderPanels(getState());
+  });
 
   // The shell is up and playable now, so the veil goes. Deliberately *not*
     // waiting for `bootWeather()` — that fetch is fire-and-forget and the farm
