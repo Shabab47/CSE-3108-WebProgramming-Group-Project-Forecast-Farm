@@ -250,7 +250,7 @@ async function start() {
 
   // Boot 2
   mountToastStack();
-  mountConnectionStatus(qsOrNull('#connection-banner'));
+  mountConnectionStatus(qsOrNull('#sync-indicator'));
   mountSettings(root, settingsActions(session, provider));
   loader.done();
 

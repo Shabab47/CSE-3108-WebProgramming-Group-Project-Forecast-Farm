@@ -53,7 +53,7 @@ services (fetch)  →  main.js  →  store.apply  →  domain (pure rules)  → 
    `initialState(session)`. Either way the live session goes into state.
 2. Preload images (rice stages + both ground tiles + base + pump).
 3. Mount UI: navbar, sidebar, seasonCard, weatherPanel, farmView, hud, buttonBar,
-   meters, envMetrics, toastStack, connectionBanner.
+   meters, envMetrics, toastStack, syncIndicator.
 4. Fetch weather for `state.location`, or the sample fallback. Repeat every `REFRESH_MS`.
 5. Start the simulator interval (`TICK_MS`) and the autosave interval (`AUTOSAVE_MS`).
 6. If `?debug=1`, mount the debug panel.
@@ -89,9 +89,24 @@ A connection that drops while the farm is open **does not stop play**. The farm
 keeps saving to localStorage and syncs when the connection returns. What changes
 is that the game now says so:
 
-- `ui/connectionBanner.js` — persistent, never a toast, because "your farm is only
-  on this device" is a fact to act on. Offers the `.farm` export as the escape
-  hatch, which is the mechanism that already existed (DEC-021).
+- `ui/syncIndicator.js` — a fixed chip in the bottom-left corner: two dots that
+  wave while a save is in flight, sit static and dim when synced, and turn amber
+  with a persistent `No connection` label when a write is queued. The full text,
+  the ageing line and both buttons live in a popover behind the dots.
+
+  It is **`position: fixed` on purpose**, and it used to be a full-width banner in
+  normal flow above `.app` — which is `height: 100dvh`. That made every appearance
+  a layout change: the document grew past the viewport and the whole shell lurched
+  down and back. Because `copyFor('saving')` returned copy too and `AUTOSAVE_MS` is
+  10 s, a *successful* save did it, on a timer, with no player action involved. See
+  ISS-076 and DEC-037.
+
+  The amber label is still persistent rather than a toast, because "your farm is
+  only on this device" is a fact to act on. What shrank is the *fixture*, not the
+  obligation to be honest, so the first failed write of an outage also raises one
+  toast — transient and impossible to scroll past — and then the label holds the
+  floor. The `.farm` export is one click away in the popover, which is the
+  mechanism that already existed (DEC-021).
 - `ui/weatherPanel.js` — the last forecast stays on screen marked
   *"Live weather paused — last read N minutes ago"*, rather than a timestamp that
   reads as live.
@@ -101,6 +116,17 @@ is that the game now says so:
 `js/connection.js` wires all of this for all four entry points, so the farm, shop,
 settings and login share one copy instead of four that drift — the boot and save
 wiring was already copy-pasted three times.
+
+**Only the `pending` transition re-renders the shell.** `main.js` used to call
+`renderPanels()` on every `sync` event, which meant rebuilding the whole shell twice
+per autosave — the second, independent source of the flicker in ISS-076. `saving`
+and `synced` render identically to each other, so only `pending` — the one that makes
+the weather panel say it is paused — is worth a re-render.
+
+**`advanceAnnouncement(announced, next)` is pure and exported** so the toast's
+one-per-outage rule can be tested without a store, a DOM or a module mock. It is the
+thing standing between a small chip and a regression of ISS-050, so it has a test of
+its own.
 
 **`pagehide` cannot complete a server save.** It needs an `Authorization` header
 and `navigator.sendBeacon` cannot send one. The synchronous localStorage write
@@ -754,6 +780,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── savePanel.js        export / import a farm file
 │   │   ├── settingsLauncher.js the settings gear in the farm sidebar
 │   │   ├── settingsView.js     the settings page: two destructive actions
+│   │   ├── syncIndicator.js    the fixed corner chip: dots, label, popover
 │   │   ├── shopLauncher.js     the shop sign in the farm sidebar
 │   │   ├── shopView.js         the seed list on shop.html
 │   │   ├── toastStack.js       transient messages
@@ -875,11 +902,11 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 | `state/saveFile.js` | `saveKey`, `writeSave`, `readSave`, `deleteSave` | the local cache writer |
 | `services/saveApi.js` | `readRemoteSave`, `writeRemoteSave`, `deleteRemoteSave`, `countRemoteSaves` | the server save; takes the token per call |
 | `remoteSave.js` | `buildServerSave` | the join, at the top of `js/` beside the entry points |
-| `connection.js` | `mountConnectionStatus`, `wireSaveOnExit` | the banner + retry wiring for all four pages. Top of `js/` because it needs `ui/` and `state/` at once |
+| `connection.js` | `mountConnectionStatus`, `advanceAnnouncement`, `wireSaveOnExit` | the chip + retry + one-time-toast wiring for all four pages. Top of `js/` because it needs `ui/`, `state/` and the toast bus at once |
 | `services/geocodeApi.js` | `reverseGeocode`, `searchPlaces`, `placeNameFrom`, `formatCoordinates` | **The two directions use two different services and must never share one.** Open-Meteo is forward-search only (`name=`); reverse goes to BigDataCloud (`latitude`/`longitude`). Posting coordinates to `/v1/search` is a guaranteed `400` — ISS-077, and every farm was labelled "Current location" because of it. Both answer `{ok, …}` and never throw. `placeNameFrom` and `formatCoordinates` are pure and exported so the name ladder is testable offline — DEC-038 |
 | `js/main.js` | `needsLocationRefresh` | whether a save's location is looked up again on load: `!saved.pinned`, **or** the name is the one string ISS-077 could write. The second clause is what makes pre-fix saves migrate themselves — without it the repair only reaches farms created after it, because the broken code pinned the coordinates successfully and failed only to name them, so `pinned` was already `true`. A farm that has a real name is never re-resolved |
 | `ui/blockedScreen.js` | `mountBlockedScreen`, `messageFor` | replaces the page when there is no session *because there is no connection* |
-| `ui/connectionBanner.js` | `mountConnectionBanner`, `copyFor`, `describeStaleFor` | persistent, never a toast |
+| `ui/syncIndicator.js` | `mountSyncIndicator`, `chipLabelFor`, `copyFor`, `describeStaleFor`, `SYNCED_NOTE` | the fixed corner chip. Label persistent, notice one-shot — DEC-037, ISS-076 |
 | `state/transfer.js` | `exportToText`, `exportFilename`, `readExport`, `rebaseState`, `importFromText`, `verifySignature`, `SAVE_EXTENSION` | pure; the caller passes `now` |
 | `utils/checksum.js` | `checksum`, `checksumsMatch` | FNV-1a. Detects damage, **not** tampering |
 | `services/authApi.js` | `signIn`, `signUp`, `signOut`, `currentSession`, `requestPasswordReset`, `updatePassword`, `restoreSession`, `accessToken` | same contract as `localAuth.js`, except **`restoreSession()` answers `{ok, session\|reason}`, not `session\|null`** (ISS-048) |

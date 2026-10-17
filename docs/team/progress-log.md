@@ -33,25 +33,37 @@ The per-person weekly notes that used to live in the README table are now in `me
 - **Tests:** `tests/geocodeApi.test.js` 16 cases — including the direct regression guard that the two
   directions do not share an endpoint. `npm run check` passes. `npm test` is 360 tests / 359 pass; the
   single failure is the pre-existing ISS-047 unregistered `rice_1.png`, untouched and unrelated.
-- **Note:** ISS-076 is reserved by the unpushed `hisham/sync-indicator` branch, so this is ISS-077 and
-  the number will look like a gap on `main` until both merge.
-- **Next:** done, but only after a second pass. Running the game showed the placeholder surviving the
-  first fix, and the reason is worth remembering: `bootWeather()` re-resolves on `!saved.pinned`, and
-  the broken code had pinned the coordinates *successfully* while failing only to name them — so every
-  pre-existing save has `pinned: true` and was never re-resolved. The repair applied only to farms
-  created after it. `needsLocationRefresh(saved)` in `js/main.js` is now the gate: it also compares the
-  name against the single string the broken code could write, so existing farms migrate themselves on
-  next load, and a farm that already has a real name is left alone. Pure, exported, 3 cases in
-  `mainBoot.test.js`. No manual localStorage clear needed any more — which is the point, since a fix
-  that needs every player to wipe their farm is not a fix.
+- **Note:** this landed as ISS-077 rather than ISS-076, because the sync-indicator work below had already
+  claimed 076 on its own branch. The two were combined into one PR, so the numbering is now contiguous.
+- **Corrected twice at runtime, both times only visible by actually running it, and both worth
+  remembering:** the first fix named *new* farms only, because the broken code pinned the coordinates
+  successfully and left `pinned: true` next to the placeholder, so no existing save was ever
+  re-resolved. The second attempt fixed that gate but still called `useDeviceLocation()`, which asks
+  `navigator.geolocation` for permission just to repair a *text label* — with the prompt pending or
+  denied it silently did nothing on every load. `needsLocationRefresh(saved)` (exported, pure, 3 cases in
+  `mainBoot.test.js`) is the gate, and `nameExistingLocation()` reverse-geocodes the coordinates
+  **already in the save** and touches no browser API at all. A fix that needs every player to wipe their
+  farm by hand is not a fix.
 - **Next:** push and PR.
-- **Corrected twice at runtime, both times only visible by actually running it.** The first fix named
-  new farms only, because the broken code had pinned coordinates successfully and left `pinned: true`
-  next to the placeholder — so no existing save was ever re-resolved. The second attempt called
-  `useDeviceLocation()`, which asks `navigator.geolocation` for permission just to repair a text label;
-  with the prompt pending or denied it silently did nothing on every load. `nameExistingLocation()` now
-  reverse-geocodes the coordinates **already in the save** and touches no browser API, which is both
-  sufficient and more correct — it names the farm where it is, not where the device is now.
+
+## Sync indicator: the connection banner stops jumping the page — Hisham
+
+- **Did:** fixed ISS-076. The full-width connection banner sat in normal flow above `.app`, which is
+  `height: 100dvh`, so every appearance pushed the whole shell down and let it snap back — and because
+  `copyFor('saving')` returned copy as well and `AUTOSAVE_MS` is 10 s, a *successful* autosave did it
+  on a timer. `js/ui/connectionBanner.js` is now `js/ui/syncIndicator.js`: a `position: fixed` chip in
+  the bottom-left corner, two dots that wave while saving, static when synced, amber with a persistent
+  `No connection` label when a write is queued, and a popover behind the dots carrying the full text,
+  the ageing line and both buttons. The first failed write of an outage also raises one toast, which is
+  what keeps ISS-050 from regressing. Separately, `main.js` now re-renders the shell only on `pending`
+  rather than on every `sync` — the other half of the flicker. DEC-037.
+- **Touched:** `js/ui/syncIndicator.js` (renamed), `js/connection.js`, `js/main.js`, `js/shop-main.js`,
+  `js/settings-main.js`, `js/profile-main.js`, `index.html`, `shop.html`, `settings.html`,
+  `profile.html`, `css/components.css`, `css/shop.css`, `tests/connectionStatus.test.js`.
+- **Tests:** `tests/connectionStatus.test.js` 28 pass (was 20). `npm run check` passes. `npm test` is
+  352 tests / 351 pass — the single failure is the pre-existing ISS-047 unregistered `rice_1.png`,
+  deliberately left alone because the fix deletes files in `assets/`, which is Kafi's folder.
+- **Next:** T-58 is done, and ISS-076 is closed.
 
 ## Shop polish: per-crop unit pill and BUY + button — Jim
 

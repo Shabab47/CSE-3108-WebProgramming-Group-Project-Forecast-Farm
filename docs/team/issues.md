@@ -83,6 +83,7 @@ current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
 | ISS-072 | The crop layer is still sized for the old, half-height plot box | Low | Kafi | open | T-06 |
 | ISS-073 | Two replacement characters survive in `issues.md` itself | Low | Jim | **fixed** | — |
 | ISS-075 | The shop does not match the agreed art direction | Low | Jim | fixing | T-57 |
+| ISS-076 | The connection banner is in flow above a 100dvh shell, so it jumps the whole page every autosave | Medium | Hisham | **fixed** | T-58 |
 | ISS-077 | `reverseGeocode` posted lat/lon to Open-Meteo's forward-search endpoint, so every farm was named "Current location" | **High** | Hisham | **fixed** | T-59 |
 
 ---
@@ -1303,11 +1304,43 @@ current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
   four columns, the purse stays as a small top-right pill, and unavailable crops stay listed in the same
   card shape, dimmed. The shop becomes painted art like `login.html` and does not read `data-theme`.
 
+### ISS-076 The connection banner is in flow above a 100dvh shell, so it jumps the page every autosave
+- Reported by Hisham · 2026-10-17 · Owner: Hisham · Status: fixed
+- Where: `index.html` / `shop.html` / `settings.html` / `profile.html` (`#connection-banner`),
+  `js/ui/connectionBanner.js`, `css/components.css`, `js/main.js`
+- Problem: the farm visibly lurches down and back every ten seconds, and again whenever the connection
+  drops. Reproduce on a healthy connection with no action at all: open the game, plant nothing, wait.
+  `#connection-banner` is an in-flow sibling **above** `<div class="app">`, and `.app` is `height: 100dvh`
+  (`css/layout.css`). So when the banner un-hides it claims vertical space above a full-viewport box: the
+  document grows past the viewport, the entire shell is pushed down, a scrollbar appears, and when the
+  banner hides again everything snaps back. It is not a subtle nudge — the whole interface jumps.
+- Cause: two things compound. First, the mount point is in normal flow rather than out of it, so any
+  visibility change is a layout change. Second, and much worse, `copyFor('saving', …)` returns copy as well
+  as `copyFor('pending', …)`, and `AUTOSAVE_MS` is `10000` — so a **routine successful autosave** briefly
+  inserts a full-width bar. A save that works perfectly is the thing causing the jumping, which is why it
+  reads as random: it recurs on a timer, not on any player action.
+- Verified: `setSync('saving')` fires in `store.js` `saveNow()` on every write, and `main.js` re-renders the
+  entire shell on every `sync` event, so the churn is doubled — the panel rebuild is a second, independent
+  source of the flicker.
+- Risk of the fix: the banner is deliberately loud and persistent (DEC-030, ISS-050), because "your farm is
+  only on this device" is a fact to act on. Shrinking it to a corner chip must not quietly regress ISS-050,
+  or a player stops noticing their farm has stopped syncing — which is the exact bug ISS-050 was filed for.
+- Fix: **fixed in T-58.** `js/ui/connectionBanner.js` is now `js/ui/syncIndicator.js` — a
+  `position: fixed` chip pinned bottom-left, which cannot shift layout on any page by construction. Two
+  small dots: they wave while a save is in flight, sit static and dim when synced, and turn amber with a
+  persistent `No connection` label when a write is queued. The escape hatch survives as a popover on click
+  (Export + Retry + the ageing "last reached your account" line). To keep ISS-050 fixed, the *first* failed
+  write still raises one toast — then the small persistent label holds the floor. Separately, `main.js`
+  narrows its `on('sync')` re-render to the `pending` transition only, since that is the only one the panels
+  render differently; that was the second, independent source of the flicker. `prefers-reduced-motion`
+  needed no work — `reset.css:109` already clamps the wave. See DEC-037.
+- Verified: `tests/connectionStatus.test.js` 20 → 28 cases, covering the always-present dots, the
+  label-only-when-pending rule, the popover toggle and its `aria-expanded`, the unmount removing its own
+  `document` listeners, and `advanceAnnouncement`'s one-toast-per-outage rule. `npm run check` passes.
+  The pre-existing ISS-047 failure is unrelated and untouched.
 ### ISS-077 `reverseGeocode` posted lat/lon to Open-Meteo's forward-search endpoint
 - Reported by Hisham · 2026-10-17 · Owner: Hisham · Status: fixed
-- **ISS-076 is reserved by the unpushed `hisham/sync-indicator` branch.** Do not reuse it; the number
-  will appear when that PR merges.
-- Where: `js/services/geocodeApi.js` (`reverseGeocode`), `js/main.js` (`useDeviceLocation`)
+- Where: `js/services/geocodeApi.js` (`reverseGeocode`), `js/main.js` (`useDeviceLocation`, `bootWeather`)
 - Problem: every farm the game pins to the player's own coordinates is labelled **"Current location"**,
   on the weather board and in the success toast, instead of a place name. Reproduce on a clean profile:
   clear localStorage, open `index.html`, and read the place line on the board. Nothing needs to be

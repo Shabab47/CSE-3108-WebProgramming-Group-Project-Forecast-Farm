@@ -101,7 +101,7 @@ async function start() {
 
   // Boot 2
   mountToastStack();
-  mountConnectionStatus(qsOrNull('#connection-banner'));
+  mountConnectionStatus(qsOrNull('#sync-indicator'));
   mountShop(qsOrNull('#shop-root'), { ...shopActions(), backHref: farmHref(session) });
   loader.done();
 
