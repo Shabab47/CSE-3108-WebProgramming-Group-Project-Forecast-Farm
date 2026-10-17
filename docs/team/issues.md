@@ -83,6 +83,7 @@ current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
 | ISS-072 | The crop layer is still sized for the old, half-height plot box | Low | Kafi | open | T-06 |
 | ISS-073 | Two replacement characters survive in `issues.md` itself | Low | Jim | **fixed** | — |
 | ISS-075 | The shop does not match the agreed art direction | Low | Jim | fixing | T-57 |
+| ISS-077 | `reverseGeocode` posted lat/lon to Open-Meteo's forward-search endpoint, so every farm was named "Current location" | **High** | Hisham | **fixing** | T-59 |
 
 ---
 
@@ -1301,4 +1302,40 @@ current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
   model and its tests are unchanged); only their labels and markup change. The page widens to ~1400px for
   four columns, the purse stays as a small top-right pill, and unavailable crops stay listed in the same
   card shape, dimmed. The shop becomes painted art like `login.html` and does not read `data-theme`.
+
+### ISS-077 `reverseGeocode` posted lat/lon to Open-Meteo's forward-search endpoint
+- Reported by Hisham · 2026-10-17 · Owner: Hisham · Status: fixing
+- **ISS-076 is reserved by the unpushed `hisham/sync-indicator` branch.** Do not reuse it; the number
+  will appear when that PR merges.
+- Where: `js/services/geocodeApi.js` (`reverseGeocode`), `js/main.js` (`useDeviceLocation`)
+- Problem: every farm the game pins to the player's own coordinates is labelled **"Current location"**,
+  on the weather board and in the success toast, instead of a place name. Reproduce on a clean profile:
+  clear localStorage, open `index.html`, and read the place line on the board. Nothing needs to be
+  clicked — see "Why it was always broken" below.
+- Cause: `reverseGeocode()` sent `latitude`/`longitude` to `GEOCODE_URL`, which is
+  `https://geocoding-api.open-meteo.com/v1/search` — Open-Meteo's **forward search** endpoint. That
+  endpoint requires a `name` parameter and has no reverse mode at all, so the request can only ever
+  fail. Verified live, not inferred:
+  ```
+  GET …/v1/search?latitude=23.81&longitude=90.41&count=1&language=en&format=json
+  → 400 {"reason":"No value found (expected type 'String') at path 'name'. …","error":true}
+  ```
+  So `reverseGeocode` returned `{ok:false, reason:'http_400'}` for every coordinate on earth, and
+  `main.js` fell back to the literal string `'Current location'`. The search box was never affected —
+  `searchPlaces` sends `name=` correctly, which is why only this path shows the placeholder.
+- Why it was always broken, and why nobody noticed: it is not intermittent and not environment-specific.
+  A 400 looks identical to "the network is down" in a `catch`-and-fallback path, and the fallback is a
+  plausible-looking English phrase rather than a blank or an error. Worse, `bootWeather()` calls
+  `useDeviceLocation({announce:false})` automatically on first boot whenever `!saved.pinned`, so a brand
+  new farm silently took this path and stored the placeholder as its location name.
+- Cause of survival: **there is no `tests/geocodeApi.test.js`**. The module had zero coverage, and a
+  permanently-400ing request is invisible without either a test or a live call.
+- Fix: **in progress (T-59).** Point `reverseGeocode` at BigDataCloud's keyless
+  `reverse-geocode-client` endpoint (`REVERSE_GEOCODE_URL` in `js/config/api.js`), which returns a place
+  rather than the nearest building. Keep the existing `{ok, name, country, admin}` contract so
+  `main.js` and `locationLine()` are untouched, and map the name through
+  `city → locality → principalSubdivision → countryName → coordinates`. That last rung is the point:
+  the ladder always terminates in something truthful, so the `'Current location'` literal is deleted
+  rather than shrunk, and a farm pinned mid-ocean still says where it is. Nominatim and Photon were
+  measured and rejected — see DEC-038.
 
