@@ -1,24 +1,3 @@
-/* The shop: a painted market stall matching the Figma reference (frame 114:2002).
- *
- * The page paints the whole stall in CSS — grass floor, wood posts and beams,
- * a scalloped awning, a stone base, a hanging "FARM SHOP" sign, a dark-green
- * interior wall, golden seed cards and a footer hint bar. No new image assets;
- * everything decorative is CSS or inline SVG, same as `login.html` (DEC-027).
- * The shop does not read `data-theme`: a wooden stall is brown in any theme.
- *
- * Layout mirrors the Figma frame (1917 × 911):
- *   posts 88px wide at each side, full height
- *   awning 88px tall below the top beam
- *   stone base 60px tall at the bottom
- *   interior wall 640px tall behind the cards
- *   cards in a 4×2 grid, each 378 × 240
- *
- * Responsive: max-width ~1400px, four columns on desktop, fewer below.
- * shop.html loads css/fonts.css so Nunito is available for body text.
- */
-
-/* --- body: grass floor ------------------------------------------------------ */
-
 body.shop-page {
   background:
     radial-gradient(circle at 24px -8px, #4c8f3e 26px, transparent 27px) 0 0 /
@@ -71,11 +50,6 @@ body.shop-page::after {
   border-radius: 10px 0 0 10px;
   box-shadow: inset 4px 0 6px rgba(0, 0, 0, 0.25);
 }
-
-/* The sync indicator used to need an override here: as a full-width banner it sat
-   in flow above the stall and had to be lifted over the log columns with
-   `z-index: 1`. It is `position: fixed` at `z-index: 210` now, so it already
-   paints over them and that rule is gone — see ISS-076 and ISS-078. */
 
 /* --- the stall shell -------------------------------------------------------- */
 
