@@ -66,7 +66,12 @@ export function buildInitialState(session) {
     plots: buildPlots(),
     inventory: buildInventory(),
 
-    pump: { on: false },
+    // `target` is the plot the pump is pointed at — it waters **one** at a time, so a
+    // per-second bill cannot scale with how much land you own. `null` means "on but
+    // not aimed", which is the state an auto-off leaves behind: the toggle stays on
+    // so the player picks a plot and carries on, rather than finding it mysteriously
+    // off with no explanation.
+    pump: { on: false, target: null },
     location: { ...DEFAULT_LOCATION },
 
     selection: { plotId: null, cropId: null },
