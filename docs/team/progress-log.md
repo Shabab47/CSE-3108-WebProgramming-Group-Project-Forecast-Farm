@@ -7,6 +7,52 @@ The per-person weekly notes that used to live in the README table are now in `me
 
 ---
 
+## The field was rebuilt every second, re-decoding ~16 MB of PNG — Hisham
+
+- **Did:** fixed ISS-088, from the report "the whole system is super unresponsive". The cause was
+  not caching and not the network: `repaintFarm()` ran at 1 Hz into `mountFarmView()`, whose first
+  statement is `clear(root)`, rebuilding the card, `base.png`, `pump.png` and all sixteen plot
+  tiles — **~34 `<img>` elements over 313–712 KB of art, about 16.4 MB of PNG re-decoded every
+  second.** The images were already in the HTTP and memory caches; what a cache cannot help with is
+  **decoding**, because creating a fresh `<img>` re-decodes regardless of what the cache says. A
+  CSS `filter` on the fourteen locked tiles re-rastered on top of that.
+- **Three symptoms, one cause.** Constant lag; laggy clicks; and clicking land to buy it "shows
+  nothing then suddenly it is bought". That last one is the diagnostic: `domain/land.js`
+  `buyPlot()` is pure and synchronous with no network, so the click was never slow — it was queued
+  behind the decode, and because every tile was replaced there was nothing local to see.
+- **Why a repaint guard is nearly free.** Nothing the field shows moves at 1 Hz. A rice stage is
+  ~72 minutes apart (6 h over 5 stages), the growth bar is `Math.round(progress * 100)` at 1% per
+  ~3.6 min, the water bar is `Math.round(waterLevel)` at 1% per ~7.5 min, and `formatLeft()` already
+  rounds to whole minutes. An idle farm needs about **one** repaint a minute, not sixty.
+- **Touched:** `js/ui/farmView.js`, `js/main.js` (comment only), `tests/farmView.test.js`,
+  `tests/helpers/fakeDom.js`, `docs/architecture.md`, `tasks.md`, `issues.md`. **No new files** — the
+  guard is exported from `farmView.js` and its tests went into the existing suite.
+- **Two bugs my own tests caught, both of which would have shipped looking fine.** `repaint()`
+  closes over the mount's `state` parameter, so storing the new state on the controller left the
+  diff comparing the *old* state against itself — sixteen matches, no repaint, a frozen field. And
+  the reuse path **trusted** its cache: `tests/farmLoop.test.js` mounts the crop picker into the same
+  root, which clears the field, and reusing a detached card left the root holding a picker and
+  sixteen invisible tiles with nothing thrown. The guard now *verifies* its card is still standing
+  in the root.
+- **A harness defect, worth naming separately.** `fakeDom.replaceChildren()` dropped `childNodes`
+  without detaching the removed children, so they kept pointing at their old parent and
+  `contains()` answered `true` for nodes that were gone. That is how the second bug above hid from
+  the check meant to catch it. A fake DOM that lies makes every assertion written against it
+  worthless, so it is fixed and `replaceWith()` added.
+- **Tests:** `tests/farmView.test.js` 11 → 20. The load-bearing case asserts the signature **stays
+  equal** when nothing visible moved — a signature that drifted on every call would restore the whole
+  jank while still looking correct. Another asserts the water *threshold* is tracked separately from
+  the rounded water number, since 39 and 40 are one apart and crossing it swaps the ground sprite.
+  `npm run check` clean; `npm test` 474 pass.
+- **Deliberately not done, and reported alongside it.** **Slow first load is a separate problem and
+  is still open.** The game page pulls ~3.9 MB on first paint because the art is 1000×1000 for a
+  diamond roughly 55 px wide — about 300× the pixels needed. Invisible on localhost, slow on a hosted
+  build. The fix is downscaling the art, which collides with `AGENTS.md` §5's measured geometry, §7's
+  no-overwrite rule and DEC-010, so it needs its own decision rather than a footnote. **ISS-018**
+  stays open too: it is about image *flicker*, this was about decode *cost*.
+- **Next:** PR. Touches `js/ui/` and `js/main.js`, so Jim and Kafi are the reviewers who can judge it
+  by eye — someone should watch a rice sprite change stage before and after.
+
 ## main was committed with an unfinished merge in it — Hisham
 
 - **Did:** fixed ISS-078. Found while pulling: `origin/main` had moved `2802d1c` → `eddf829`, and four of
@@ -31,10 +77,10 @@ The per-person weekly notes that used to live in the README table are now in `me
 - **Tests:** 438 tests, 438 pass. `npm run check` clean. **ISS-047 is fixed upstream** — the duplicate
   flat-path rice sprites are gone and the asset registry is green, which was the last red test my own
   branch had been carrying.
-- **Next:** PR. Jim should sanity-check that his T-57 shop row and the `#connection-banner` removal are
-  what he expects, since the resolution touches his files.
+- **Next:** merged as PR #23. Jim should sanity-check that his T-57 shop row and the `#connection-banner`
+  removal are what he expects, since the resolution touched his files.
 
-## Shop repainted to the Figma reference (ISS-075) - Jim
+## Shop repainted to the Figma reference (ISS-075) — Jim
 
 - **Did:** rebuilt the shop page to match Figma frame 114:2002. `css/shop.css` now paints the whole
   stall — grass floor, wood posts and beams, scalloped awning, stone base, hanging `FARM SHOP` sign

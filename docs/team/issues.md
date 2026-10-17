@@ -23,7 +23,7 @@ current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
 
 ## ISS-088 The field was rebuilt from scratch once a second, re-decoding ~16 MB of PNG
 **Found:** 2026-10-17, reported from the running game as "the whole system is super
-unresponsive" · **Severity: High** · **Status: fixing**
+unresponsive" · **Severity: High** · **Status: fixed**
 
 Everything on the game page felt heavy, clicks felt like they waited, and — the
 symptom that identifies it — **clicking a plot to buy land showed nothing and then
@@ -58,11 +58,34 @@ stages are ~72 minutes apart for rice (6 h over 5 stages). The growth meter is
 already rounds to whole **minutes**. The ready rim, lock, price and selection change only
 on real player events. An idle farm needs about **one** repaint a minute, not sixty.
 
-**Fix:** in progress (T-61). A pure `fieldSignature(state)` at the resolution the field
-actually draws at, compared against the last painted one, so an unchanged repaint returns
-without touching the DOM. `mountFarmView` mounts the card, stage, base and pump once and
-re-renders only `#field-plots` afterwards. Tiles are diffed individually, so buying one
-plot replaces one tile instead of sixteen.
+**Fix: fixed in T-61.** Three changes, all inside `farmView.js` so `main.js` needed only a
+comment fix. A pure `fieldSignature()` / `plotSignature()`, compared before any DOM is
+touched, so an unchanged repaint returns immediately. The card, stage, `base.png` and
+`pump.png` are mounted once instead of every second. Tiles are diffed individually and
+swapped with `replaceWith`, so buying a plot rebuilds that tile **and** the one it hands
+the offer to — `nextUnlockable` counts owned plots, so the "next" marker moves as a side
+effect — and leaves the other fourteen untouched.
+
+**Two bugs the tests caught, both of which would have shipped silently and looked fine:**
+
+1. `repaint()` closes over `mountFarmView`'s `state` parameter, so storing the new state on
+   the controller instead of rebinding it left the diff comparing the *old* state against
+   itself — sixteen matches, no repaint, a permanently frozen field.
+2. The reuse path **trusted** its cache. `tests/farmLoop.test.js` mounts the crop picker
+   into the same root, which clears the field; reusing a detached card left the root
+   holding a picker and sixteen invisible tiles, with nothing thrown. The guard now
+   *verifies* its card is still standing in the root.
+
+The second one also exposed a defect in the harness itself: `fakeDom.replaceChildren()`
+dropped `childNodes` without detaching the removed children, so they kept pointing at their
+old parent and `contains()` returned `true` for nodes that were gone. A fake DOM that lies
+makes every assertion written against it worthless, so that is fixed too.
+
+**Verified:** `tests/farmView.test.js` 11 → 20 cases. The load-bearing one asserts the
+signature **stays equal** when nothing visible moved — a signature that drifted on every
+call would restore the entire jank while still looking correct. Another asserts the water
+*threshold* is tracked separately from the rounded water number, since 39 and 40 are one
+apart and crossing it swaps the ground sprite. `npm run check` clean; `npm test` 474 pass.
 
 **Deliberately not closed by this: ISS-018.** That issue is about image *flicker*; this one
 is about decode *cost*. They share a root cause but they are not the same defect, and the

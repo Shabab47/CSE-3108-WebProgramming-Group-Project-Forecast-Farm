@@ -68,6 +68,17 @@ services (fetch)  →  main.js  →  store.apply  →  domain (pure rules)  → 
    meters, envMetrics, toastStack, syncIndicator.
 4. Fetch weather for `state.location`, or the sample fallback. Repeat every `REFRESH_MS`.
 5. Start the simulator interval (`TICK_MS`) and the autosave interval (`AUTOSAVE_MS`).
+
+   The `TICK_MS` tick calls `repaintFarm()`, never `renderPanels()` — a repaint is not a
+   state change, and routing it through the full render rebuilt the forecast board sixty
+   times a minute (ISS-085). The tick is naive about *when* and not naive about *what*:
+   `mountFarmView` compares `fieldSignature(state)` against the last painted one and
+   returns without touching the DOM when nothing visible moved, which on an idle farm is
+   almost every tick. That guard is not an optimisation — it is the difference between
+   re-decoding ~16.4 MB of PNG every second and not, since rebuilding a tile recreates its
+   `<img>` elements and a fresh `<img>` re-decodes a 313–712 KB PNG even when the bitmap
+   is already in memory (ISS-088). Tiles that *did* move are swapped individually with
+   `replaceWith`, which preserves append order, because append order is the field's z-order.
 6. If `?debug=1`, mount the debug panel.
 
 Step 0 is new, added with login. It is why `login.html` is a separate page rather
@@ -791,7 +802,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── authViews.js        the login page's view graph — menu, forms, reset
 │   │   ├── cropPicker.js       which seed to sow on a plot
 │   │   ├── dangerAction.js     the arm-and-confirm control, with its password gate
-│   │   ├── farmView.js         the isometric field — geometry only
+│   │   ├── farmView.js         the isometric field — geometry, plus the repaint guard
 │   │   ├── plotLayers.js       what is painted inside one plot, back to front
 │   │   ├── plotLabel.js        a plot's accessible name — the whole of it
 │   │   ├── plotClick.js        plotAction(): what a click on a plot means
