@@ -726,6 +726,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   ├── services/               the only place that calls fetch
 │   │   ├── authApi.js          Supabase REST provider — live
 │   │   ├── accountApi.js       delete_my_account over PostgREST RPC
+│   │   ├── geocodeApi.js       place ⇄ coordinates — TWO different services, see below
 │   │   ├── gotrue.js           the GoTrue transport and error mapping
 │   │   ├── tokenStore.js       the only place a token is written to storage
 │   │   ├── saveApi.js          the farm_saves table — read, write, delete
@@ -875,6 +876,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 | `services/saveApi.js` | `readRemoteSave`, `writeRemoteSave`, `deleteRemoteSave`, `countRemoteSaves` | the server save; takes the token per call |
 | `remoteSave.js` | `buildServerSave` | the join, at the top of `js/` beside the entry points |
 | `connection.js` | `mountConnectionStatus`, `wireSaveOnExit` | the banner + retry wiring for all four pages. Top of `js/` because it needs `ui/` and `state/` at once |
+| `services/geocodeApi.js` | `reverseGeocode`, `searchPlaces`, `placeNameFrom`, `formatCoordinates` | **The two directions use two different services and must never share one.** Open-Meteo is forward-search only (`name=`); reverse goes to BigDataCloud (`latitude`/`longitude`). Posting coordinates to `/v1/search` is a guaranteed `400` — ISS-077, and every farm was labelled "Current location" because of it. Both answer `{ok, …}` and never throw. `placeNameFrom` and `formatCoordinates` are pure and exported so the name ladder is testable offline — DEC-038 |
 | `ui/blockedScreen.js` | `mountBlockedScreen`, `messageFor` | replaces the page when there is no session *because there is no connection* |
 | `ui/connectionBanner.js` | `mountConnectionBanner`, `copyFor`, `describeStaleFor` | persistent, never a toast |
 | `state/transfer.js` | `exportToText`, `exportFilename`, `readExport`, `rebaseState`, `importFromText`, `verifySignature`, `SAVE_EXTENSION` | pure; the caller passes `now` |

@@ -7,6 +7,61 @@ Format: who decided, the choice, why, and what was rejected.
 
 ---
 
+### DEC-038 Coordinates are named by BigDataCloud, and `locality` is not a place name
+**Decided by:** Hisham · 2026-10-17 · **decided and built — this is T-59**
+
+The reverse direction of geocoding — "these coordinates, what place is this?" — moves off Open-Meteo
+onto BigDataCloud's `reverse-geocode-client` endpoint, as `REVERSE_GEOCODE_URL` in `js/config/api.js`.
+It is keyless and CORS-open. Forward search stays on Open-Meteo. This adds a third-party service to a
+project that deliberately had two.
+
+**Why a new service at all.** Open-Meteo's geocoding API is **forward-search only** — it takes `name=`
+and has no reverse mode. `reverseGeocode()` was posting `latitude`/`longitude` at `/v1/search`, which
+returns `400` for every coordinate on earth. Verified live, not inferred. So this is not an
+optimisation; there is no way to get a place name out of the existing stack.
+
+**Measured, not assumed.** All three candidates were called live before choosing:
+
+| Service | Result | Verdict |
+| :--- | :--- | :--- |
+| **BigDataCloud** | `200`, `Access-Control-Allow-Origin: *`, no key, `city`/`countryName`/`principalSubdivision` | chosen |
+| Photon (`photon.komoot.io`) | `200`, but returned a **bank** at `housenumber 123`, locality in Bengali | rejected |
+| Nominatim | `200`, but returned a **playground**; usage policy needs a `User-Agent` a browser cannot set | rejected |
+
+The reason the two OSM-based services lose is not licensing, it is **what they answer**. Both are
+reverse geocoders in the "what is at these coordinates" sense, so they return the nearest addressable
+feature — a specific bank, a specific playground — which is useless as a place label. BigDataCloud
+returns the containing settlement. Nominatim is additionally what DEC-012 already removed.
+
+**`locality` was on the ladder and a test removed it.** The name ladder is
+`city → principalSubdivision → countryName → coordinates`, and `locality` is deliberately absent. It
+looks like the natural second rung but it is populated with *regions*, not settlements: `"City of
+Westminster"` for London, and `"Polynesian Triangle"` for a point in open ocean. A farm in the Atlantic
+labelled "Polynesian Triangle" is worse than no label, because it reads as authoritative. `city` was
+populated for every land coordinate probed — Dhaka, London, rural Iceland — so dropping `locality` costs
+nothing on land and only changes the no-place case, which is the one case the coordinate rung exists to
+handle honestly.
+
+**The ladder always terminates.** There is no placeholder string anywhere in the path: a farm that
+cannot be named for any reason, including the reverse service being down, is labelled with its own
+coordinates (`23.81° N, 90.41° E`). That is also the mitigation for this decision's main risk — a
+third-party service with no SLA. If BigDataCloud disappears tomorrow the game still tells the player
+where their farm is, which is strictly better than the "Current location" string it replaced.
+
+**Rejected:**
+
+- *Keep Open-Meteo and render coordinates only.* No new dependency, but it throws away real place names
+  the player wants — a farm is in a *place*, and the whole premise is that the game knows where you are.
+- *Put a reverse-geocoding proxy behind Supabase.* Cleaner dependency story, but it adds a server to a
+  client-only project for one GET request.
+- *Use `locality` as a fallback rung.* Rejected by test; see above.
+
+**Consequence:** `reverseGeocode()` now depends on a service outside the project's two. Anyone changing
+`js/config/api.js` should re-read this entry, and the coordinates fallback in `main.js` is load-bearing
+rather than decorative.
+
+---
+
 ### DEC-036 Land unlocks one plot at a time, in a fixed order, and "greyed" means "not yet"
 **Decided by:** Jim · 2026-10-16 · **decided, not built — this is T-56**
 

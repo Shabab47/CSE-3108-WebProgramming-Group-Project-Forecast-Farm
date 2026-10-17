@@ -83,7 +83,7 @@ current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
 | ISS-072 | The crop layer is still sized for the old, half-height plot box | Low | Kafi | open | T-06 |
 | ISS-073 | Two replacement characters survive in `issues.md` itself | Low | Jim | **fixed** | — |
 | ISS-075 | The shop does not match the agreed art direction | Low | Jim | fixing | T-57 |
-| ISS-077 | `reverseGeocode` posted lat/lon to Open-Meteo's forward-search endpoint, so every farm was named "Current location" | **High** | Hisham | **fixing** | T-59 |
+| ISS-077 | `reverseGeocode` posted lat/lon to Open-Meteo's forward-search endpoint, so every farm was named "Current location" | **High** | Hisham | **fixed** | T-59 |
 
 ---
 
@@ -1304,7 +1304,7 @@ current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
   card shape, dimmed. The shop becomes painted art like `login.html` and does not read `data-theme`.
 
 ### ISS-077 `reverseGeocode` posted lat/lon to Open-Meteo's forward-search endpoint
-- Reported by Hisham · 2026-10-17 · Owner: Hisham · Status: fixing
+- Reported by Hisham · 2026-10-17 · Owner: Hisham · Status: fixed
 - **ISS-076 is reserved by the unpushed `hisham/sync-indicator` branch.** Do not reuse it; the number
   will appear when that PR merges.
 - Where: `js/services/geocodeApi.js` (`reverseGeocode`), `js/main.js` (`useDeviceLocation`)
@@ -1330,12 +1330,22 @@ current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
   new farm silently took this path and stored the placeholder as its location name.
 - Cause of survival: **there is no `tests/geocodeApi.test.js`**. The module had zero coverage, and a
   permanently-400ing request is invisible without either a test or a live call.
-- Fix: **in progress (T-59).** Point `reverseGeocode` at BigDataCloud's keyless
+- Fix: **fixed in T-59.** Point `reverseGeocode` at BigDataCloud's keyless
   `reverse-geocode-client` endpoint (`REVERSE_GEOCODE_URL` in `js/config/api.js`), which returns a place
-  rather than the nearest building. Keep the existing `{ok, name, country, admin}` contract so
-  `main.js` and `locationLine()` are untouched, and map the name through
-  `city → locality → principalSubdivision → countryName → coordinates`. That last rung is the point:
-  the ladder always terminates in something truthful, so the `'Current location'` literal is deleted
-  rather than shrunk, and a farm pinned mid-ocean still says where it is. Nominatim and Photon were
-  measured and rejected — see DEC-038.
+  rather than the nearest building. Kept the existing `{ok, name, country, admin}` contract, so
+  `main.js`'s call site and `locationLine()` are untouched. The name ladder is
+  `city → principalSubdivision → countryName → coordinates`. That last rung is the point: the ladder
+  always terminates in something truthful, so the `'Current location'` literal is deleted rather than
+  shrunk, and a farm pinned mid-ocean still says where it is. Nominatim and Photon were measured and
+  rejected — both return the nearest building. See DEC-038.
+- **A test changed the design.** `locality` was on the first draft of the ladder and a test removed it:
+  it carries regions rather than settlements (`"City of Westminster"` for London, `"Polynesian
+  Triangle"` mid-ocean), so it would have put a plausible-sounding lie on the board in exactly the case
+  the coordinate rung exists to handle. `city` was populated for every land coordinate probed, so
+  dropping it costs nothing on land.
+- Verified: `tests/geocodeApi.test.js` added, 16 cases — the module had **no test file at all** before,
+  which is how this shipped. The load-bearing ones assert that the two directions do not share an
+  endpoint and that neither sends the other's parameter, so the exact mistake cannot recur silently.
+  `npm run check` passes. `locationLine()` is unchanged; its `'Unknown location'` guard (ISS-063) is now
+  even less reachable, since `name` always carries a value.
 

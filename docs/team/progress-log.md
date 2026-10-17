@@ -7,6 +7,36 @@ The per-person weekly notes that used to live in the README table are now in `me
 
 ---
 
+## Every farm was named "Current location" — Hisham
+
+- **Did:** fixed ISS-077. `reverseGeocode()` was posting `latitude`/`longitude` to Open-Meteo's
+  **forward search** endpoint (`/v1/search`), which takes `name=` and has no reverse mode — so the
+  request returned `400 {"reason":"No value found … at path 'name'."}` for every coordinate on earth,
+  verified live. `main.js` fell back to the literal string `'Current location'`. The search box was
+  never affected, which is why only this path showed the placeholder. Reverse geocoding now goes to
+  BigDataCloud's keyless `reverse-geocode-client` (new `REVERSE_GEOCODE_URL` in `js/config/api.js`);
+  forward search stays on Open-Meteo. DEC-038 records the three services measured before choosing one.
+- **The naming ladder:** `city → principalSubdivision → countryName → coordinates`, and it always
+  terminates. `locality` was on the first draft and **a test removed it** — it carries regions, not
+  settlements (`"City of Westminster"` for London, `"Polynesian Triangle"` mid-ocean), so a farm in open
+  water would have been labelled with a plausible-sounding region that means nothing. The
+  `'Current location'` literal is deleted rather than shrunk: a farm that cannot be named for any
+  reason, including the reverse service being down, now shows its own coordinates
+  (`23.81° N, 90.41° E`).
+- **Why nobody caught it:** there was no `tests/geocodeApi.test.js` at all, and a 400 inside a
+  `catch`-and-fallback path is indistinguishable from being offline. Worse, `bootWeather()` calls
+  `useDeviceLocation({announce:false})` automatically on first boot when `!saved.pinned`, so every new
+  farm took this path silently.
+- **Touched:** `js/config/api.js`, `js/services/geocodeApi.js`, `js/main.js`,
+  `tests/geocodeApi.test.js` (new), `docs/architecture.md` (its services tree was missing
+  `geocodeApi.js` entirely), `decisions.md`, `issues.md`, `tasks.md`.
+- **Tests:** `tests/geocodeApi.test.js` 16 cases — including the direct regression guard that the two
+  directions do not share an endpoint. `npm run check` passes. `npm test` is 360 tests / 359 pass; the
+  single failure is the pre-existing ISS-047 unregistered `rice_1.png`, untouched and unrelated.
+- **Note:** ISS-076 is reserved by the unpushed `hisham/sync-indicator` branch, so this is ISS-077 and
+  the number will look like a gap on `main` until both merge.
+- **Next:** clear localStorage, reload `index.html`, and the place line should read a real name.
+
 ## Shop polish: per-crop unit pill and BUY + button — Jim
 
 - **Did:** brought the seed cards closer to the reference mockup. Each crop now carries a
