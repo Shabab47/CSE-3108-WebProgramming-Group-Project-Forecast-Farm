@@ -125,6 +125,27 @@ function bootFailure() {
   return text.includes('could not start') ? text : null;
 }
 
+test('the right rail actually has the pump panel in it', () => {
+  // ISS-095. The pump panel was built into a bare `el('div')` that was never appended to
+  // `#right-rail`, so it rendered perfectly into a node belonging to nothing and the rail
+  // showed no pump at all. Nothing threw and this file passed, because every test here
+  // looked at the *field* or at the shell ids — and `right-rail` appeared in `PAGE_IDS`
+  // only so `qsOrNull('#right-rail')` would return a node to append to, which is a
+  // statement about the harness and not about the page.
+  //
+  // So this asserts on what is **in** the rail after boot. A panel that is not in the
+  // document is not a panel.
+  const rail = root.querySelector('#right-rail');
+  const text = rail.textContent;
+
+  assert.ok(text.includes('Pump'), `the rail should carry the pump panel, got: "${text}"`);
+  assert.ok(rail.querySelector('.pump-panel'), 'and the panel element itself');
+  assert.ok(
+    rail.querySelector('.pump-panel__toggle'),
+    'with a working toggle, because a read-only gauge cannot be turned on',
+  );
+});
+
 test('boot finishes without falling into the catch handler', () => {
   const failure = bootFailure();
 

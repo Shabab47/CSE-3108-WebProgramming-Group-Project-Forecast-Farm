@@ -139,7 +139,15 @@ function mountShell(session) {
   // The pump panel replaces the `Meters` placeholder, which is what it was reserved
   // for. It is the one panel whose read-out has to keep up with a per-second tick,
   // so it is the one that gets a `refresh()` rather than being rebuilt.
-  pumpPanel = mountPumpPanel(el('div'), {
+  //
+  // **The host is appended, and that is the whole bug.** The first version passed a bare
+  // `el('div')` straight into `mountPumpPanel` without ever adding it to the page: the
+  // panel built itself perfectly, into a div that belonged to nothing, and the right rail
+  // showed no pump at all. Nothing threw, and the boot test passed, because nothing in
+  // either was looking at the rail. A panel that is not in the document is not a panel.
+  const pumpHost = el('div');
+  qsOrNull('#right-rail').append(pumpHost);
+  pumpPanel = mountPumpPanel(pumpHost, {
     getState,
     onToggle: (on) => {
       apply((s) => ({ ok: true, state: setPump(s, on) }));

@@ -280,6 +280,30 @@ test('a planted plot renders its layers, and they are phrasing content', () => {
   );
 });
 
+test('an empty plot still shows a meter, because that is where a farm mostly is', () => {
+  // Reported as "no watering meter". The bar rendered, and rendered correctly: a plot at 0
+  // water drew a fill at `height:0%`, which is zero pixels tall. On a fresh farm, and on
+  // every square nobody has watered yet, that is what the meter looked like — absent.
+  //
+  // So the target zone is painted ON the track, which is there to be read at zero, and the
+  // state word is always shown rather than only when something is wrong. A gauge that
+  // says nothing is indistinguishable from a gauge that is broken.
+  const bare = buildPlots().map((p) => (p.id === 5 ? { ...p, owned: true, waterLevel: 0 } : p));
+  const { tiles } = mount({ plots: bare });
+
+  const meter = tiles[5].querySelector('.plot__water');
+  assert.ok(meter, 'the meter is there');
+
+  const band = meter.querySelector('.plot__water-band');
+  assert.ok(band, 'and the zone it is aiming for is painted on the track');
+  const style = band.getAttribute('style');
+  assert.ok(style.includes('height:') && style.includes('bottom:'),
+    `with both edges, not just a line: "${style}"`);
+
+  assert.equal(meter.querySelector('.plot__water-word').textContent, 'dry',
+    'and it says so in words at zero water');
+});
+
 test('bare ground carries a water meter, because that is when the pump is used', () => {
   // Reported as "clicking on ground not showing any water meter". The meter was gated on
   // `hasCrop`, so the sequence the pump actually drives - aim, watch the bar rise, plant -
