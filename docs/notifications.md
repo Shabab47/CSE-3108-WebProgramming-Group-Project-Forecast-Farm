@@ -161,3 +161,40 @@ both deliberate:
 `notified` map, rather than the window-start stamp the forecast half uses. A standing
 condition has no window to key on; the text changes when the plot count or the crop does,
 which is exactly when re-warning is correct. It persists, so a reload does not re-toast.
+
+### The watering warning — added after ISS-091
+
+**`wateringAdvice()` is the warning that should have existed before this section was needed.**
+ISS-091 arrived as *"2 crops died, watering could have saved them all this time"*, with the
+pump running — and the message was in the **past tense**, about a situation that had been
+visible on the board for hours. The player was told afterwards, by a game that had been
+showing them the answer the whole time.
+
+So the standing warning now has two shapes:
+
+| | function | says |
+| :--- | :--- | :--- |
+| **the weather sentence** | `currentTrouble()` | *"3 plots are running dry in a drought."* |
+| **the actionable list** | `wateringAdvice()` | *"The pump is on plot 3. Plots 1 and 2 need water too — move it or take the loss."* |
+
+**It names the plots by number**, because the pump waters one square at a time (DEC-040) and
+"some crops are dry" is not a decision anyone can make. It also says **where the pump is
+pointed**, so "turn the pump on" is never offered to a player whose pump is already on.
+
+It keys on the **set** of thirsty plot ids, so the toast re-fires when the set changes —
+one more plot going dry is new information, the same plot still being dry is not.
+
+And `currentTrouble()` moved off the flat `DRY_WATER` line onto each crop's own **band**,
+for the same reason the meter reads four states: 40 water is unremarkable for wheat and
+alarming for rice, and only `bandFor()` knows the difference.
+
+### Death messages
+
+`deathMessage()` in `main.js` branches on where the pump actually was, because one fixed
+string produced ISS-091. Three cases, three genuinely different situations:
+
+| the pump was | says | why |
+| :--- | :--- | :--- |
+| **off** | *"Turn the pump on and aim it at that plot."* | advice is fair |
+| **on, aimed elsewhere** | *"The pump was watering plot 3 — move it, or take the loss."* | one plot at a time always leaves somebody out, and the player is not at fault |
+| **aimed at this plot, and it died** | *"That is a bug — please tell us."* + `log.error` | blaming the player for a fault in the code is worse than silence |

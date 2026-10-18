@@ -9,36 +9,150 @@
 export const START_GOLD = 200;
 
 export const WATER = {
-  max: 100,
+  /**
+   * **100 → 120, to make over-watering a real state.**
+   *
+   * At 100 there was no way to over-water: rain and the pump both clamped to the
+   * same number that meant "perfectly watered", so *full* and *optimal* were the
+   * same thing and the meter had nothing to aim at. The headroom above 100 is what
+   * makes waterlogging reachable — rain can push a plot past its target, and
+   * sustained saturation is the only thing that causes water damage.
+   *
+   * The target sits well below this (85 for the thirstiest crop), so the extra 20
+   * is reachable but not trivially so.
+   */
+  max: 120,
   wateredThreshold: 40, // ground renders "watered" at or above this
   baseDecayPerHour: 8,
-  // **0.5 → 0.05, applying ISS-008's recommendation.** The old rate delivered
-  // 1800 water/hour against heavy rain's 50/hour — the 36× that issue was filed
-  // about. This delivers 180/hour, so the pump is 3.6× rain rather than 36×: still
-  // the faster option, but not the only one worth having.
+  // **0.05 → 0.028.** The rate is set by `OPTIMAL`, not by feel: a plot must take
+  // **30–60 real minutes** to reach its target, which is roughly a tenth of a crop's
+  // life. At 100.8 water/hour, and counting the evaporation happening the whole time
+  // it fills (net 89.2/h on rice in sun), that is **58 min for rice, 36 for wheat,
+  // 46 for corn** — inside the window, and only because the evaporation term is in
+  // the calculation. Ignoring it puts rice at 57 *looking* fine while the honest
+  // figure is 65, and the panel would be quoting a number the pump does not deliver.
   //
-  // At 0.05 a plot fills from empty in 2000 s, which is a real fraction of a
-  // six-hour crop rather than a 200 s afterthought.
-  pumpPerSecond: 0.05,
+  // This also improves ISS-008 again: 100.8/hour against heavy rain's 50/hour is
+  // **2×**, where it was 3.6× and before that 36×. Rain is free but you do not choose
+  // when it arrives; the pump costs gold and is always there. That trade is the game.
+  pumpPerSecond: 0.028,
   startLevel: 0,
 };
 
+/**
+ * The water a plot should hold, per crop.
+ *
+ * `target = base + perNeed × crop.waterNeed`, which turns a number that used to
+ * only scale evaporation into the thing the player is actually aiming for.
+ *
+ * | crop | waterNeed | target |
+ * | :--- | ---: | ---: |
+ * | rice | 0.9 | **85** |
+ * | corn | 0.7 | 70 |
+ * | wheat, potato, tomato | 0.5 | **55** |
+ * | bare soil | — | 60 |
+ *
+ * **Why a band and not a line.** `slack` is a fraction of the target, so the
+ * comfortable zone scales with how much water the crop wants at all: rice has 21
+ * units of give, wheat only 14. That is right — a thirsty crop can afford to be
+ * a bit low, a hardy one cannot.
+ *
+ * **The pump stops at the target**, not at `max`. Filling past the point of any use
+ * costs gold and buys nothing, so "water this plot for 30–60 minutes" is a promise
+ * the game can actually keep.
+ */
+export const OPTIMAL = {
+  base: 17.5,
+  perNeed: 75,
+  /** Fraction of the target below which the crop is no longer comfortable. */
+  slack: 0.25,
+  /** Bare soil, which has no crop to want anything. */
+  bareTarget: 60,
+};
+
 export const PUMP = {
-  // **0.05 → 0.01, to keep the pump's price proportionate after the rate cut.**
-  // At the old rate a full plot cost 10 gold; scaling the rate down 10× without
-  // scaling the upkeep down would have made one full plot cost 100 gold, which is
-  // the entire profit margin on a rice harvest.
+  // **0.01 → 0.0056, holding 5 water per gold.** `pumpPerSecond / upkeepPerSecond` is
+  // the price of a litre, and it has to move with the rate or the balance means
+  // nothing: holding 0.01 would have made a full rice watering 24 gold, a quarter of
+  // the harvest margin, for the same water.
   //
-  // At 0.01 the pump delivers **5 water per gold**, so filling one plot to 100 costs
-  // **20 gold** against a 200-gold rice harvest — a fifth of the margin, which is a
-  // real decision without being ruinous.
-  upkeepPerSecond: 0.01,
+  // At 5 water per gold a full rice watering to 85 costs **17 gold** against a
+  // 200-gold harvest, and a top-up from the dry line costs 11. Real, not ruinous.
+  upkeepPerSecond: 0.0056,
   price: 250, // not used in the MVP; the pump is pre-owned (DEC-008)
 };
 
 export const HEALTH = {
   max: 100,
   dryDrainPerHour: 5,
+};
+
+/**
+ * Damage, and why it is a latch rather than a reading.
+ *
+ * ## The rule
+ *
+ * **Water is a live number; damage is a committed fact.** A plot's `waterLevel`
+ * rises and falls every second, so it crosses any threshold repeatedly. A sprite
+ * or a caption driven straight off it would strobe between two pictures of the
+ * same crop — and `farmView.js` diffs tiles per frame, so the image `src` would
+ * swap over and over. So the moment a plot crosses a damage line the damage is
+ * **recorded on the plot** and never decreases.
+ *
+ * That is also the honest reading: a crop that has been through a real drought
+ * does not un-sunburn because you watered it afterwards. And because every input
+ * is ours — rain, evaporation and the pump are all numbers we add and subtract,
+ * not sensors we read — a latched record is exactly reproducible on reload and in
+ * an exported save.
+ *
+ * ## The three states
+ *
+ * | state | reached by | sprite |
+ * | :--- | :--- | :--- |
+ * | `dry` | at 0 water for long enough to matter | `<crop>_dry.png` |
+ * | `waterlogged` | held saturated for long enough | `<crop>_waterlogged.png` |
+ * | `dead` | health hit 0 | `<crop>_dead.png` |
+ *
+ * `dead` is `plot.dead`, which is a separate flag and takes priority.
+ *
+ * **Damage cuts the payout and never blocks the harvest.** `HEALTH.lossPerLatched`
+ * is subtracted from health every time damage is latched, so a damaged crop still
+ * harvests and is still worth picking — it is just worth less, permanently.
+ * Blocking the harvest instead would rebuild the ISS-006 trap: a plot with nothing
+ * to do until it is cleared by hand.
+ *
+ * The damage art is Zim's; see `cropFailureImg()` in `config/assets.js`.
+ */
+export const DAMAGE = {
+  /** Which latched damage, if any, a plot can carry. Never two. */
+  STATES: ['dry', 'waterlogged'],
+
+  /**
+   * Health removed each time damage is latched, on top of the per-hour drain.
+   *
+   * This is what makes damage permanent and worth avoiding rather than a cosmetic
+   * label — it is subtracted from `plot.health`, which is what `harvest()` pays
+   * out on.
+   */
+  lossPerLatched: 12,
+
+  /**
+   * Hours a plot must spend **below its optimal floor** before damage latches.
+   *
+   * The floor is per crop (`target × (1 - slack)`), so rice is held to 64 and wheat
+   * to 41. A flat line would put wheat at "damaged" while it was still comfortably
+   * optimal.
+   */
+  hoursBelowFloorToLatch: 1,
+
+  /**
+   * Hours a plot must hold **above its target** before waterlogging latches.
+   *
+   * Not instant. One shower must not cost a field — that is precisely what the
+   * one-time verdict at sowing exists to prevent, and a threshold of zero would
+   * undo that decision on every rain shower for the rest of the crop's life.
+   */
+  hoursAboveTargetToLatch: 2,
 };
 
 /** Simulator interval. Also how often the field redraws, so growth is visible. */

@@ -221,6 +221,29 @@ missing.
 Current rain probability and UV come from the hourly entry matching the current hour, since
 `current` does not carry them.
 
+### Dry drain and death — as implemented
+
+> The rules below were the specification. Three of them were **not what the code did**, and
+> ISS-091 is the result. The corrections are in this section rather than edited into the
+> bullets above, so the original intent stays readable next to what actually shipped.
+
+- **Dryness is charged for how long a plot was genuinely dry, not for the whole elapsed
+  period.** A plot at level `L` drying at `dry`/hour reaches 0 at `L / dry`, so it is dry
+  for `hours − that` and nothing at all before it. The original charged the full window
+  whenever a plot *ended* at 0, so a plot that got there in its last second was billed for
+  twelve hours — away 12 h cost 60 health instead of ~14, and 20 h killed a crop in a
+  single step with no chance to react.
+- **A plot the pump is holding never dries at all**, so it never takes dryness damage.
+  This falls out of the rate model rather than being special-cased: the pump delivers
+  100.8/h against a worst-case evaporation of 24/h, so the net is always positive.
+- **The dry drain triggers at `waterLevel == 0`, not below 30.** The `< 30` conditional in
+  the matrix above belongs to the **drought rating**, applied once at sowing by
+  `verdictFor()`. Conflating the two drained health on merely thirsty plots.
+- **Damage latches separately, on the crop's own band.** See `docs/crops.md` — the floor is
+  `target × 0.75`, so it is 64 for rice and 41 for wheat.
+
+---
+
 ## Balance note — resolved (T-09, ISS-008)
 
 > **This note is history.** It is kept because the arithmetic in it is where the fix came
@@ -239,10 +262,16 @@ It was also, until T-09, not observable — `waterLevel` was written once at plo
 nothing changed it, so none of the above actually happened in the running game. It was a
 description of a system that was not there.
 
-**Now:** `pumpPerSecond` is **0.05** (180/h, so **3.6×** heavy rain), `upkeepPerSecond` is
-**0.01** scaled with it (5 water per gold, so a full plot costs 20 gold against a 200-gold
-rice harvest), and the pump waters **one plot at a time**. A plot fills from empty in 2000 s —
-a real fraction of a six-hour crop rather than a 200 s afterthought. See DEC-040.
+**Now:** `pumpPerSecond` is **0.028** (100.8/h, so **2×** heavy rain),
+`upkeepPerSecond` is **0.0056**, holding **5 water per gold**, and the pump waters **one plot at
+a time**. It stops at that plot's **target**, not at `WATER.max`, so a full rice watering is
+17 gold and takes **58 minutes** rather than filling for no reason. See DEC-040 and
+`docs/crops.md`.
 
-**Re-open ISS-008 and check the 3.6× against the table above** rather than trusting the 36×,
+The rate is set by that promise rather than by feel: **30–60 real minutes** to reach optimal
+is roughly a tenth of a crop's life, and it only holds because `minutesToOptimal()` counts the
+evaporation happening while the pump runs. Ignore that term and rice reads 51 minutes while the
+honest figure is 58 — and the panel would be quoting a number the pump does not deliver.
+
+**Re-open ISS-008 and check the 2× against the table above** rather than trusting the 36×,
 now that both sides of the comparison exist and can be measured.

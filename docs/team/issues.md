@@ -67,6 +67,157 @@ is applied, and `upkeepPerSecond` scaled with it. See DEC-040.
 
 ---
 
+## ISS-094 The water meter only existed on plots that already had a crop
+- Reported by Hisham · Owner: Hisham · Status: **fixed**
+- Where: `js/ui/plotLayers.js`
+
+**Reported as** *"clicking on ground not showing any water meter"*, after the band-and-meter
+change went out.
+
+The meter's branch was gated on `isOwned && hasCrop && !plot.dead`, so a plot with nothing
+in it drew no water at all. That is the wrong gate, and it is wrong in a way only playing it
+shows: **the pump waters a plot before anything is planted.** The sequence the whole system
+drives is *aim at a square, watch the bar rise, plant* — and with the gate there was nothing
+to watch. The only readout of bare soil was `ground_watered.png`, which is a binary: wet or
+dry, with no "how far" and no "past it".
+
+**The fix** ungates it to `isOwned && !plot.dead`. Bare soil already had everything it
+needed — `OPTIMAL.bareTarget: 60` and a band at 45–60 — so all four states and the target
+tick mean something before a seed goes in. It also makes the ground sprite honest: the tile
+flips to `ground_watered.png` at 40 while the target is 60, so the two artefacts finally
+disagree for a reason rather than by accident.
+
+**Damage deliberately does not follow.** `damage.js` returns null without a `cropId`, so bare
+soil cannot latch dry or waterlogged damage. There is no crop to damage, and a plot that has
+never been sown has no health to spend.
+
+**One thing that looks wrong and is not:** bare soil above 60 reads `saturated`. That is the
+pump saying it has delivered everything the ground needs and any more is wasted gold — which
+is exactly what a player watering a plot in advance needs to be told.
+
+`growthMeter` shares the branch but guards on `grown?.planted`, so nothing regressed onto
+bare soil. Pinned by a test, because the natural way to break this later is to move the water
+meter out of the branch and forget what was sharing it.
+
+---
+
+## ISS-093 Tomato stage 5 is not square, and it is not registered
+- Reported by Hisham · Owner: Jim (art), Hisham (registry) · Status: **registry fixed, art open**
+- Where: `assets/images/crops/tomato/tomato_5.png`, `js/config/assets.js`
+
+**Found** while registering the tomato stages, which arrived in `d131de4` without a registry
+entry and left `tests/assets.test.js` red on `main` for everyone else.
+
+**Two problems, one of them mine to fix and one that is Jim's.**
+
+**1. Unregistered (fixed here).** Five files on disk, none in `ASSETS`. `assets.js` is my
+file per `ownership.md`, and the registry is the thing AGENTS §6 makes load-bearing, so the
+entries are added — with the dimensions the files **actually** have, read from the PNG IHDR
+rather than assumed from the rice pattern.
+
+**2. `tomato_5.png` is 1024×807 and the other four are 1024×1024. Still open.**
+
+That is not cosmetic. Every other stage in the game is square — rice is 1000×1000 and so is
+`base.png` — because the isometric geometry in `AGENTS.md` §5 was derived from square alpha
+bounding boxes, and `tileAspect: 0.538` is meaningless against a rectangle. A crop drawn from
+a 1024×807 source in a slot sized for a square **shrinks at stage 5**, so a tomato visibly
+gets smaller on the step that is supposed to be the biggest and nearly ripe.
+
+Worth measuring rather than eyeballing: the fix is either a re-export at 1024×1024, or a
+deliberate decision to allow non-square crop art — and the second needs a real answer about
+how `plotLayers.js` sizes a non-square sprite, because right now it does not have one.
+
+**Why it was not caught.** `assets.test.js` checks that files are *listed*, not that a
+listed entry's dimensions are consistent with its siblings. That check is worth adding, but
+it belongs with whoever owns the geometry rather than as a drive-by here.
+
+---
+
+## ISS-091 Crops died of thirst while the pump was running, and the game blamed the pump
+- Reported by Hisham · Owner: Hisham · Status: **fixed**
+- Where: `js/domain/water.js`, `js/main.js`, `js/ui/pumpPanel.js`
+
+**Reported as** *"the pump logic is completely broken, it is showing 2 crops died,
+watering could have saved them all this time"* — with the pump running.
+
+**It was.** Reproduced exactly:
+
+```
+pump.on = true, target = plot 0
+  plot 0 (PUMPED)   : water 95  health 100  dead false
+  plot 1 (not pumped): water  0  health   0  dead true
+  plot 2 (not pumped): water  0  health   0  dead true
+  -> toast: "2 crops died of thirst. The pump would have saved them."
+```
+
+Four independent defects, and **not one of them was the pump failing to deliver water**.
+
+1. **The death message was unconditional.** `main.js` emitted one fixed string for every
+   death and never asked whether the pump was on or where it was aimed. The pump was
+   running, aimed at plot 0, and the message told the player to use it.
+
+2. **`dryDamage` billed the whole elapsed period whenever a plot *ended* at 0 water.**
+   It never asked how long the plot had actually been dry. A plot that reached 0 in its
+   last second was charged for all twelve hours: away 12 h cost 60 health instead of ~14,
+   and away 20 h+ killed a crop **in a single step** with no chance to react.
+
+3. **The `moved` gate silently discarded damage.** `main.js` compared only `waterLevel`
+   and `spent` — never `health` or `dead`. So on a plot pinned at 0 with nothing else
+   changing, health loss was computed and then thrown away, and crops survived or died
+   depending on whether an *unrelated* plot's water happened to move.
+
+4. **The pump waters one plot** (DEC-040), so with three crops planted two are always
+   unserved. Defensible on its own — a per-second bill across 16 plots prices water by
+   land owned rather than by thirst — but it made deaths near-certain and "use the pump"
+   useless advice, which defect 1 then compounded.
+
+**Fix: T-09 follow-up.** Dry *duration* rather than dry *elapsed*, so a pump-fed plot
+never reaches 0 and never takes dryness damage; the `moved` gate compares `health` and
+`dead`; the death toast branches on the pump's real state, including a distinct message
+plus `log.error` for the case where a crop dies while the pump is aimed straight at it.
+
+---
+
+## ISS-092 Damage and water were the same thing, so neither could be drawn
+- Reported by Hisham · Owner: Hisham · Status: **fixed**
+- Where: `js/config/game.js`, `js/domain/water.js`, `js/ui/plotLayers.js`
+
+**There was no way to show a damaged crop, and no way to over-water.**
+
+- `WATER.max` was 100 and the pump stopped *at* 100, so **"full" and "perfectly
+  watered" were the same number**. There was nothing to aim at, and waterlogging was
+  unreachable — rain and the pump both clamped to the same value.
+- `cropFailureImg()` in `config/assets.js` existed and was **called by nobody**. Both
+  of its sprites (`<cropId>_rain_damaged.png`, `<cropId>_drought_killed.png`) are
+  0 bytes, so wiring it as-is would have put broken images on every damaged crop —
+  worse than the clean state it replaced.
+- `plot.dead` painted a `🥀` emoji (`plotLayers.js`), not a sprite.
+
+**The awkward part, and why the fix is a latch.** `waterLevel` changes every second, so
+it crosses any threshold repeatedly. Driving a sprite or a caption straight off it
+strobes — and `farmView.js` diffs tiles per frame, so the `src` would swap over and
+over. So **water is a live reading and damage is a committed fact**: the moment a plot
+crosses a damage line it records that on the plot, and it never decreases.
+
+That also matches what a player expects. A crop that has been through a real drought does
+not un-sunburn because you watered it afterwards, and because every input is ours — rain,
+evaporation and the pump are all numbers we add and subtract, never sensors we read — a
+latched record is exactly reproducible on reload and in an exported save.
+
+**Fix: T-09 follow-up.** `WATER.max` 100 → 120 so saturation is reachable;
+`OPTIMAL` in `config/game.js` gives each crop a target and a band (`base + perNeed ×
+waterNeed`), so `waterNeed` finally decides what the player is aiming for rather than
+only how fast the crop dries. `DAMAGE` latches `dry` and `waterlogged` onto the plot.
+`cropFailureImg()` is wired for real, against Zim's sprites — names are
+`<crop>_dry.png`, `<crop>_waterlogged.png`, `<crop>_dead.png`; if Zim is drawing
+different filenames these must be changed to match his, not the other way round.
+
+**Damage cuts the payout and never blocks the harvest.** A damaged crop still picks, and
+is permanently worth less. Blocking the harvest would rebuild the ISS-006 trap: a plot
+with nothing to do until cleared by hand.
+
+---
+
 ## ISS-089 The weather was fetched, classified, displayed — and did nothing to the farm
 **Found:** 2026-10-17, from the question "is the farm really influenced by the weather?" ·
 **Severity: High** · **Status: fixed**

@@ -23,10 +23,10 @@
  */
 
 import { cropOf } from '../config/crops.js';
-import { DRY_WATER } from '../config/weatherEvents.js';
 import { weatherRating } from '../config/cropWeatherMatrix.js';
 import { classifyHour } from '../config/weatherEvents.js';
 import { indexOfHour } from './weather.js';
+import { waterState } from './plotWater.js';
 
 /** How far ahead to look, in hours. The spec says 6 to 24. */
 export const LOOK_AHEAD_MIN = 6;
@@ -212,9 +212,14 @@ export function currentTrouble(state, now = Date.now()) {
     ? classifyHour(readHour(state.weather.hourly, indexOfHour(state.weather.hourly.time, now)))
     : 'cloudy';
 
-  const dry = state.plots.filter(
-    (p) => p.owned && p.cropId && !p.dead && (p.waterLevel ?? 0) < DRY_WATER,
-  );
+  // **Below the crop's own floor**, not below a flat line. `DRY_WATER` was the old
+  // threshold and it was the wrong shape: 40 water is unremarkable for wheat and
+  // alarming for rice, and only the band knows the difference. It is kept for the
+  // watering advice below, which is about the ground rather than about a crop.
+  const dry = state.plots.filter((p) => {
+    if (!p.owned || !p.cropId || p.dead) return false;
+    return waterState(p) === 'dry' || waterState(p) === 'low';
+  });
   const thirsty = dry.map((p) => p.cropId);
   const crop = cropOf(thirsty[0]);
 
@@ -231,6 +236,48 @@ export function currentTrouble(state, now = Date.now()) {
   }
 
   return null;
+}
+
+/**
+ * Which plots need water, and where the pump is pointing.
+ *
+ * **This is the warning the death message should have had.** ISS-091 arrived as "2 crops
+ * died, the pump would have saved them" with the pump running — the player was told after
+ * the fact, in the past tense, about a situation that was visible for hours. This says it
+ * while it is still a decision, and it names the plots by number, because "some crops are
+ * dry" is not actionable when the pump waters one square at a time.
+ *
+ * Distinct from `currentTrouble`, which is one sentence about the weather. This is a list
+ * the player can act on: plot 3 and plot 7 are low, the pump is on plot 1.
+ *
+ * @param {object} state
+ * @returns {{key: string, message: string, plots: number[], aimedAt: number|null}|null}
+ */
+export function wateringAdvice(state) {
+  const thirsty = (state?.plots ?? []).filter((p) => {
+    if (!p.owned || !p.cropId || p.dead) return false;
+    const s = waterState(p);
+    return s === 'dry' || s === 'low';
+  });
+  if (thirsty.length === 0) return null;
+
+  const ids = thirsty.map((p) => p.id);
+  const aimed = state.pump?.on ? (state.pump.target ?? null) : null;
+  const others = ids.filter((id) => id !== aimed);
+
+  const list = (arr) => arr.map((id) => `plot ${id + 1}`).join(', ');
+  let message;
+  if (aimed == null) {
+    message = others.length === 1
+      ? `${list(others)} needs water. Turn the pump on and click it.`
+      : `${list(others)} need water. Turn the pump on and click one.`;
+  } else if (others.length === 0) {
+    message = `The pump is watering ${list(ids)} - that is the only plot it can do.`;
+  } else {
+    message = `The pump is on ${list([aimed])}. ${others.length === 1 ? list(others) + ' needs' : list(others) + ' need'} water too - move it or take the loss.`;
+  }
+
+  return { key: `watering:${ids.join(',')}`, message, plots: ids, aimedAt: aimed };
 }
 
 /** One hour of forecast as a reading, for `classifyHour`. */

@@ -1,39 +1,35 @@
 /**
  * Water: the medium — evaporation, rain, and what a plot holds afterwards.
  *
- * ## Why this is a module and not part of `farm.js`
+ * ## What lives here and what does not
  *
- * `farm.js` sows and harvests. This is the third thing — the one that makes a crop
- * worth planting — and it is a different responsibility with different inputs: the
- * clock, the weather, and the gold balance rather than the bag.
+ * This is the **tick**: it advances every plot from the clock, the sky and the pump, and
+ * it is the only writer of `waterLevel`, `health`, `damage` and `dead`.
  *
- * ## Why the pump is not in here
+ * The **vocabulary** — the target, the band, the four states, the rates — is in
+ * `plotWater.js`, because those are questions about a single plot rather than about a
+ * whole farm. Importing them from here is what keeps that split from becoming a cycle.
  *
- * Because it is a different responsibility, and it is a **machine** rather than a medium.
- * Whether it is on, which square it points at and what that costs is `pump.js`; this file
- * decides what a plot *holds* once the sky and the pump have both had their say.
+ * The **machine** — whether the pump is on, where it points, what it costs — is
+ * `pump.js`. And the **committed** half, damage that never clears, is `damage.js`.
  *
  * ## Why everything is computed over *elapsed* time
  *
- * Nothing here runs on a timer that can be missed. `tick(state)` is given how long
- * it is and derives the change from that, so a tab that was closed for six hours
- * dries and waters exactly as it would have while open. A per-second `setInterval`
- * would silently under-apply after a sleep, and a farm that stops evaporating while
- * you are asleep is not a farm — it is a bug with good PR.
+ * Nothing here runs on a timer that can be missed. `tick(state)` is given how long it
+ * is and derives the change from that, so a tab that was closed for six hours dries and
+ * waters exactly as it would have while open. A per-second `setInterval` would silently
+ * under-apply after a sleep, and a farm that stops evaporating while you are asleep is
+ * not a farm — it is a bug with good PR.
  *
  * `lastTickAt` on the state is what makes that work, and it already existed.
  */
 
 import { HEALTH, WATER } from '../config/game.js';
-import { cropOf } from '../config/crops.js';
-import {
-  EVAPORATION_PER_HOUR,
-  RAIN_WATER_PER_HOUR,
-  classifyHour,
-  rateFor,
-} from '../config/weatherEvents.js';
+import { classifyHour } from '../config/weatherEvents.js';
 import { indexOfHour } from './weather.js';
 import { pumpRun } from './pump.js';
+import { bandFor, pumpedWindow, ratesFor, targetFor, timeOutsideBand } from './plotWater.js';
+import { applyDamage, damageFor } from './damage.js';
 
 /**
  * The weather in the hour containing `now`, as an event id.
@@ -59,44 +55,6 @@ export function currentEvent(state, now) {
   });
 }
 
-/**
- * How fast one plot dries and fills, in units per hour.
- *
- * Two halves that are deliberately not symmetric:
- *
- * - **Drying scales with the crop's `waterNeed`.** Rice is 0.9 and wheat 0.5, so the
- *   thirsty crop needs the pump more often — which is the whole reason `waterNeed`
- *   exists as a number rather than a word. **Bare soil counts as `1`** and so dries
- *   fastest, per `docs/crops.md`.
- * - **Rain does not.** Rain falls on the plot, not on the crop, so every plot fills at
- *   the event's rate regardless of what is growing in it.
- *
- * The formula is the one in `docs/crops.md`, and the table's Evaporation column is a
- * **multiplier** on `WATER.baseDecayPerHour`, not an absolute rate:
- *
- * ```
- * water lost per hour = WATER.baseDecayPerHour * waterNeed * event.evaporation
- * ```
- *
- * That distinction is the difference between a plot drying in 8 hours of sun (the spec's
- * 12/h, roughly one crop life) and one drying in 133 hours (the same table read as an
- * absolute rate), and only the first makes watering a decision.
- *
- * @param {object} plot
- * @param {string} eventId
- * @returns {{dry: number, rain: number}} units per hour
- */
-export function ratesFor(plot, eventId) {
-  const crop = cropOf(plot.cropId);
-  const thirst = typeof crop?.waterNeed === 'number' ? crop.waterNeed : 1;
-  const evaporation = rateFor(EVAPORATION_PER_HOUR, eventId);
-
-  return {
-    dry: WATER.baseDecayPerHour * thirst * evaporation,
-    rain: rateFor(RAIN_WATER_PER_HOUR, eventId),
-  };
-}
-
 /** One plot's water after `hours`, before any pumping. */
 function settlePlot(plot, eventId, hours) {
   if (hours <= 0) return plot.waterLevel ?? 0;
@@ -111,7 +69,6 @@ function settlePlot(plot, eventId, hours) {
 
   return Math.max(0, Math.min(WATER.max, wet));
 }
-
 /**
  * Advance every plot's water to `now`, and bill for a pump that ran.
  *
@@ -137,58 +94,98 @@ export function tick(state, now = Date.now()) {
   const eventId = currentEvent(state, now);
 
   // The machine's business — is it on, where is it aimed, what does that cost — is
-  // `pump.js`. This is the medium: it decides what a plot *holds* once the sky and the
-  // pump have both had their say.
-  const run = pumpRun(state, hours);
+  // `pump.js`, and the target is handed in rather than looked up there: the pump
+  // imports nothing from this file, so there is no cycle and each module knows exactly
+  // what it depends on.
+  const aimed = state.plots.find((p) => p.id === state.pump?.target);
+  const run = pumpRun(
+    state,
+    hours,
+    aimed ? targetFor(aimed) : WATER.max,
+    aimed ? ratesFor(aimed, eventId).dry : 0,
+  );
   const pumpedId = run.plot ? run.plot.id : null;
 
   const plots = state.plots.map((plot) => {
-    let level = settlePlot(plot, eventId, hours);
+    const rates = ratesFor(plot, eventId);
+    const before = plot.waterLevel ?? 0;
+    const isPumped = pumpedId !== null && plot.id === pumpedId && run.autoOff !== 'gold';
 
-    // Pumped plots are topped up *after* the weather, so a pump running through rain
-    // does not appear to lose the race.
-    if (pumpedId !== null && plot.id === pumpedId && run.autoOff !== 'gold') {
-      level = Math.min(WATER.max, level + run.watered);
+    let level;
+    let dryHours;
+
+    if (isPumped) {
+      // **The pump is modelled as a rate against evaporation, not as one lump at the
+      // end of the window.** This is the fix for the second half of ISS-091: delivering
+      // 85 units *after* a 30-hour dry spell says the plot spent 22 hours at zero and
+      // was then watered, which is not what a pump running for 30 hours does. Filled at
+      // 90/h against 10.8/h of evaporation the plot simply never dips — and since 90/h
+      // beats the worst possible evaporation (24/h, bare soil in drought) the net is
+      // always positive, so a pumped plot is **never dry at all**.
+      const net = run.grossPerHour + rates.rain - rates.dry;
+      level = Math.min(
+        aimed ? targetFor(plot) : WATER.max,
+        WATER.max,
+        Math.max(0, before + net * hours),
+      );
+      dryHours = 0;
+    } else {
+      level = settlePlot(plot, eventId, hours);
+
+      // **Dry *duration*, not dry elapsed.** A plot at level `L` drying at `dry`/hour
+      // reaches 0 at `L / dry`, so it is genuinely dry for `hours - that`, and nothing at
+      // all before it. The old code charged the whole period whenever the plot *ended*
+      // at 0, so a plot that got there in its last second was billed for all twelve
+      // hours: away 12 h cost 60 health instead of ~14, and 20 h killed a crop in one
+      // step with no chance to react.
+      dryHours = rates.dry > 0
+        ? Math.max(0, hours - (before / rates.dry))
+        : (before <= 0 ? hours : 0);
     }
 
-    const before = plot.waterLevel ?? 0;
-
-    // **Dryness damages health.** This is the mechanism behind "your crops are in
-    // drought", and it is the second way weather reaches a crop — the first being the
-    // verdict at sowing. It is the only path by which a planted crop can reach 0, since
-    // the sowing verdict is floored at `WEATHER_HEALTH_FLOOR` on purpose.
-    //
-    // **Rounded to a whole point, because this is persisted.** The tick runs once a
-    // second and multiplies two fractions, so unrounded it lands on values like
-    // `39.99999861111111` — which then go into the save, and drift accumulates over a
-    // long farm. Health is 0-100 and always was.
     const health = plot.health > 0
-      ? Math.max(0, Math.round(plot.health - dryDamage(plot, hours, level)))
+      ? Math.max(0, Math.round(plot.health - HEALTH.dryDrainPerHour * dryHours))
       : plot.health;
 
     // **Health 0 marks the crop `dead`.** Until this, nothing in the codebase ever set
     // `dead: true` — the dead sprite in `plotLayers.js`, the `plot--dead` class in
-    // `farmView.js`, the fifth click case in `plotClick.js` and the `<cropId>_drought_
-    // killed.png` assets were all wired and waiting for a writer that did not exist.
-    // Dryness is the writer, and this is the only place it should be: a domain function
-    // that owns the rule, rather than three readers inferring it.
+    // `farmView.js`, the fifth click case in `plotClick.js` and the `<cropId>_dead.png`
+    // assets were all wired and waiting for a writer that did not exist. Dryness is
+    // the writer, and this is the only place it should be: a domain function that owns
+    // the rule, rather than three readers inferring it.
     //
     // Only crops die. Bare soil at 0 health is not a thing to clear.
     const died = plot.cropId != null && !plot.dead && health <= 0;
-    if (level === before && health === plot.health && !died) return plot;
+
+    // **Damage latches here**, not in a reader, and it latches off *duration* — how
+    // long the plot spent outside its band — rather than off the endpoint. See
+    // `damage.js` for why that distinction is the whole point.
+    // **The pump gets its own window**, because a pumped plot climbs fast and then holds,
+    // and interpolating it across the whole period would report a drought it did not have.
+    const window = isPumped
+      ? pumpedWindow(plot, bandFor(plot), run.grossPerHour, rates, hours)
+      : timeOutsideBand(plot, bandFor(plot), before, level, hours);
+    const damaged = applyDamage({ ...plot, health, dead: died || plot.dead },
+      damageFor(plot, window));
+
+    if (level === before
+      && health === plot.health
+      && damaged.damage === plot.damage
+      && !died) return plot;
 
     // Water is rounded to a tenth for the same reason as health: this is saved every
     // second, and it is drawn as a percentage. `0.1` is finer than a player can see and
     // coarse enough not to drift.
     return {
-      ...plot,
+      ...damaged,
       waterLevel: Math.round(level * 10) / 10,
-      health,
-      dead: died || plot.dead,
     };
   });
 
   const deaths = plots.filter((p, i) => p.dead && !state.plots[i].dead && p.cropId != null);
+  const damaged = plots.filter(
+    (p, i) => p.damage && p.damage !== state.plots[i].damage && p.cropId != null,
+  );
   const pump = state.pump ?? { on: false, target: null };
 
   return {
@@ -206,34 +203,8 @@ export function tick(state, now = Date.now()) {
     watered: run.watered,
     autoOff: run.autoOff,
     deaths,
+    damaged,
   };
-}
-
-/**
- * Health lost to dryness over `hours`.
- *
- * Per `docs/weather-events.md` "Dry drain and death": a plot at **`waterLevel == 0`**
- * loses `HEALTH.dryDrainPerHour` (5) on top of the matrix rating, **whether or not a crop
- * is planted**. Zero, not "below the dry line" — the `< 30` conditional in that document
- * belongs to the **drought matrix row**, which is applied at sowing by `verdictFor()`, not
- * to the drain here. Conflating the two would have drained health on plots that were
- * merely thirsty.
- *
- * Health on bare soil is harmless: `farm.plant()` overwrites it at sowing, and only a
- * planted plot's health is ever paid out.
- *
- * `HEALTH.dryDrainPerHour` was defined from the start and read by nothing. This is its
- * first reader, which is what makes it the *only* way a crop can die of anything other
- * than the weather forecast at planting.
- *
- * @param {object} plot
- * @param {number} hours
- * @param {number} endLevel water after this tick
- * @returns {number}
- */
-function dryDamage(plot, hours, endLevel) {
-  if (endLevel > 0) return 0;
-  return HEALTH.dryDrainPerHour * hours;
 }
 
 /**
@@ -251,3 +222,4 @@ export function elapsedHours(state, now) {
   if (!Number.isFinite(last)) return 0;
   return Math.max(0, (now - last) / 3_600_000);
 }
+

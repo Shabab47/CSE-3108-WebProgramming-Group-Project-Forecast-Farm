@@ -2,6 +2,7 @@ import { el, clear } from '../utils/dom.js';
 import { plotToScreen, pumpBox, frameY } from '../utils/iso.js';
 import { FIELD } from '../config/field.js';
 import { WATER } from '../config/game.js';
+import { waterState } from '../domain/plotWater.js';
 import { harvestsIn, isNextUnlockable } from '../land_squares/index.js';
 import { plotName } from './plotLabel.js';
 import { plotLayers } from './plotLayers.js';
@@ -70,6 +71,13 @@ export function plotSignature(plot, state) {
     // The threshold is tracked separately from the rounded number: 39 and 40 are one
     // apart, and crossing it swaps the ground sprite.
     (plot.waterLevel ?? 0) >= WATER.wateredThreshold,
+    // **The band and the damage, or the tile diff misses both.** The meter's colour and
+    // its target tick come from the band, and the sprite and the word come from the
+    // latched damage - and ISS-088's whole saving is that this string is compared before
+    // any DOM is touched. A field that moves without moving this string is a field that
+    // does not repaint, which is the bug that cost 16 MB of PNG decoding a second.
+    waterState(plot),
+    plot.damage ?? '',
     state?.nextPrice ?? 0,
   ].join('|');
 }

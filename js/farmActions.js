@@ -27,7 +27,8 @@ import { apply, emit, getState } from './state/store.js';
 import { clearPlot, harvest, plant } from './domain/farm.js';
 import { buyPlot } from './domain/land.js';
 import { verdictFor } from './domain/weather.js';
-import { aimPump } from './domain/pump.js';
+import { aimPump, setPump } from './domain/pump.js';
+import { mountPlotInspector } from './ui/plotInspector.js';
 import { isSeedUnlocked } from './utils/seedUnlocks.js';
 import { nextUnlockable } from './land_squares/index.js';
 import { plotAction } from './ui/plotClick.js';
@@ -73,23 +74,30 @@ export function onPlotClick(plotId) {
   const state = getState();
   if (!state) return;
 
-  // **A running pump claims the click first.** Watering is what the player is doing,
-  // so it must not be swallowed by "this plot has a crop in it and would open the
-  // picker" — the pump is aimed by clicking a plot, and a planted plot is the most
-  // common thing to want to water. Only an owned, living plot is accepted, so a
-  // padlocked square still falls through to its own rules below.
-  if (state.pump?.on) {
-    const aimed = aimPump(state, plotId);
-    if (aimed.ok) {
-      apply((s) => ({ ok: true, state: aimed.state }));
-      emit('toast', {
-        message: `Pump on — watering plot ${plotId + 1}.`,
-        tone: 'info',
-      });
-      return;
-    }
-    log.trace('pump is on but that plot cannot take water', plotId);
+  // **A click opens the plot's own inspector**, whatever state the plot is in. It used to
+  // be: a running pump claimed the click and aimed itself, bare land opened the seed
+  // picker, and a growing crop did nothing at all — so "how wet is this square, and can I
+  // water it" was only answerable from the right rail, which describes whichever plot the
+  // pump happens to be pointed at and no other.
+  //
+  // The plot is the unit the player is thinking in, so the plot is what gets opened. Every
+  // action the old switch handled is a button in there, so nothing that was one click away
+  // is now two — it is one click and then one button, on a surface that also tells you what
+  // you are about to do.
+  if (plotAction(state, plotId) === 'locked') {
+    log.trace('plot clicked, and it is not available yet', plotId);
+    return;
   }
+
+  closePicker();
+  openPlot = plotId;
+  mountPlotInspector(pickerHost(), getState(), plotId, inspectorActions());
+}
+
+/** The old switch, now one action of the inspector rather than the click itself. */
+function runPlotAction(plotId) {
+  const state = getState();
+  if (!state) return;
 
   switch (plotAction(state, plotId)) {
     case 'harvest': {
@@ -101,25 +109,95 @@ export function onPlotClick(plotId) {
         const earned = getState().gold - state.gold;
         emit('toast', { message: `Harvested — ${earned} gold.`, tone: 'success' });
       }
+      closePicker();
       break;
     }
 
     case 'plant':
+      // The seed picker takes the host over. `closePicker` first, because the DOM is the
+      // state here and two overlays in one host is neither of them.
+      closePicker();
       openPicker(plotId);
       break;
 
     case 'clear':
       apply(clearPlot, plotId);
+      closePicker();
       break;
 
     case 'buy':
       buyNextPlot(plotId);
+      closePicker();
       break;
 
     default:
-      log.trace('plot clicked, nothing to do', plotId);
+      log.trace('plot action requested, nothing to do', plotId);
   }
 }
+
+/**
+ * Re-render the inspector against current state.
+ *
+ * Needed because the pump runs on its own clock: leaving the panel open while it fills
+ * means the gauge, the countdown and the gold estimate have to move under the player's
+ * hand, or the panel is a screenshot of a moment that has already passed.
+ */
+function refreshInspector() {
+  const state = getState();
+  if (!state || openPlot == null) return;
+  if (!pickerHost().children.length) return;
+  mountPlotInspector(pickerHost(), state, openPlot, inspectorActions());
+}
+
+/**
+ * Re-render the open inspector, for whoever is driving the clock.
+ *
+ * `main.js` calls this from `renderPanels` so an open panel follows the pump instead of
+ * sitting there showing the water level from the moment it was opened.
+ */
+export function refreshInspectorOnTick() {
+  refreshInspector();
+}
+
+/**
+ * The inspector's callbacks.
+ *
+ * Held in one function so the buttons in the panel and the re-render after a click are
+ * the same code. Two copies of "what does the pump button do" is how the panel and the
+ * rail would end up disagreeing about whether the pump is on.
+ */
+function inspectorActions() {
+  return {
+    onClose: closePicker,
+
+    // The pump button. Aiming and switching on in one step, because "water this plot" is
+    // one intent, and asking for it in two was only ever a consequence of the pump living
+    // on the rail instead of on the plot it waters.
+    onPump: (id, on) => {
+      const current = getState();
+      if (!current) return;
+
+      if (on) {
+        const aimed = aimPump(current, id);
+        if (!aimed.ok) {
+          emit('toast', { message: 'That plot cannot take water.', tone: 'error' });
+          return;
+        }
+        apply(() => ({ ok: true, state: aimed.state }));
+        emit('toast', { message: `Pump on — watering plot ${id + 1}.`, tone: 'info' });
+      } else {
+        apply((s) => ({ ok: true, state: setPump(s, false) }));
+        emit('toast', { message: 'Pump off.', tone: 'success' });
+      }
+      refreshInspector();
+    },
+
+    onAction: (id) => runPlotAction(id),
+  };
+}
+
+/** Which plot the inspector is showing, or null. The DOM says whether one is open. */
+let openPlot = null;
 
 /**
  * Buy the plot that was clicked.
@@ -206,6 +284,11 @@ function openPicker(plotId) {
  * who is mid-choice.
  */
 export function closePicker() {
+  // Forget which plot the inspector was showing. Without this, a closed inspector would
+  // leave `openPlot` set and the next `renderPanels()` would mount it again into an empty
+  // host — a panel nobody clicked on, reappearing on every state change.
+  openPlot = null;
+
   const host = pickerHost();
   if (host) clear(host);
 }

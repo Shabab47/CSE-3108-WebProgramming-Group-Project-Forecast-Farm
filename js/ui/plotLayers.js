@@ -23,7 +23,10 @@
 
 import { el } from '../utils/dom.js';
 import { cropOf } from '../config/crops.js';
-import { cropStageImg, groundTile } from '../config/assets.js';
+import { WATER } from '../config/game.js';
+import { cropFailureImg, cropStageImg, groundTile } from '../config/assets.js';
+import { bandFor, waterState } from '../domain/plotWater.js';
+import { damageSprite, damageWord } from '../domain/damage.js';
 import { growthMeter } from './growthMeter.js';
 
 /**
@@ -109,15 +112,78 @@ export function plotLayers(plot, { isOwned, isNext, isReady, grown, isWatered, p
     }
   }
 
-  if (plot.dead) {
-    layers.push(el('span', { class: 'plot__dead', text: '🥀', 'aria-hidden': 'true' }));
-  }
+  // **Damage, then death.** `damageSprite()` already resolves the priority — `dead` wins,
+    // because a dead crop is dead whatever else was wrong with it — so this is one
+    // branch and the ordering lives in one place.
+    //
+    // **The word comes out too, and it is not a fallback.** The sprites are 0 bytes
+    // until Zim's art lands, and AGENTS.md fact 4 says text carries the meaning in the
+    // meantime. The caption is also the part a screen reader gets, and the part that
+    // survives a file that never arrives.
+    const damage = damageSprite(plot);
+    const word = damageWord(plot);
+    if (damage) {
+      layers.push(
+        el('img', {
+          class: 'plot__damage',
+          src: cropFailureImg(plot.cropId, damage),
+          alt: '',
+          'aria-hidden': 'true',
+        }),
+        el('span', { class: 'plot__damage-word', text: word, 'aria-hidden': 'true' }),
+      );
+    }
 
-  if (isOwned && hasCrop && !plot.dead) {
-    const waterPct = Math.round(plot.waterLevel);
+    // **Any owned plot shows the meter, planted or not.**
+    //
+    // This used to require a crop, and that was wrong in a way only playing it would show:
+    // the pump waters a plot *before* anything is in it, so the sequence is aim, watch the
+    // bar rise, plant. With the gate on `hasCrop` there was nothing to watch, and the only
+    // readout of bare ground was `ground_watered.png` — a binary that says wet or dry and
+    // nothing about which, or how far.
+    //
+    // Bare soil has its own target (`OPTIMAL.bareTarget: 60`), so the band and the four
+    // states all still mean something before a seed goes in. Damage does not: `damage.js`
+    // returns null without a `cropId`, so bare soil cannot latch it.
+    if (isOwned && !plot.dead) {
+    // The meter, normalised against `WATER.max` rather than printed as a raw percentage.
+    // `max` is 120, not 100, so that over-watering is a reachable state — which means a
+    // bar drawn as `waterLevel%` would overflow its own track on a rainy day.
+    const level = plot.waterLevel ?? 0;
+    const fill = Math.max(0, Math.min(100, (level / WATER.max) * 100));
+    const state = waterState(plot);
+    const { floor, target } = bandFor(plot);
+
     layers.push(
-      el('span', { class: 'plot__water', title: `Water: ${waterPct}%`, 'aria-hidden': 'true' }, [
-        el('span', { class: 'plot__water-fill', style: `height:${waterPct}%` }),
+      el('span', {
+        class: 'plot__water',
+        'data-state': state,
+        title: `Water: ${Math.round(level)} of ${WATER.max} - ${state}`,
+        'aria-hidden': 'true',
+      }, [
+        el('span', { class: 'plot__water-fill', style: `height:${fill.toFixed(1)}%` }),
+        // **The target zone, drawn as a band on the track.**
+        //
+        // This is what makes the meter readable on an *empty* plot, which is where a
+        // fresh farm and every unwatered square actually are. A fill at `height:0%` is
+        // zero pixels tall: there was nothing to see, and the report was "there is no
+        // water meter". Painting the band the plot is aiming for means an empty bar still
+        // answers the question — *how much do I want, and where on this scale is that*.
+        // The ticks were not enough on their own; two hairlines at 6px read as dirt.
+        el('span', {
+          class: 'plot__water-band',
+          style: `bottom:${((floor / WATER.max) * 100).toFixed(1)}%;`
+            + `height:${(((target - floor) / WATER.max) * 100).toFixed(1)}%`,
+        }),
+        // A tick at the target, so the bar shows *where to aim* rather than only how far
+        // along it is. And a shaded zone above it, because everything past the target is
+        // water the player is paying for and getting nothing from.
+        el('span', {
+          class: 'plot__water-target',
+          style: `bottom:${((target / WATER.max) * 100).toFixed(1)}%`,
+        }),
+        el('span', { class: 'plot__water-floor', style: `bottom:${((floor / WATER.max) * 100).toFixed(1)}%` }),
+        el('span', { class: 'plot__water-word', text: word ?? state, 'aria-hidden': 'true' }),
       ]),
     );
 

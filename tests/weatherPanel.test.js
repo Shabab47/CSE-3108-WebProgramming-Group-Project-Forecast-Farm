@@ -361,11 +361,19 @@ test('no forecast means no verdict, rather than a verdict of "fine"', () => {
  * `ground_watered.png` was a registered asset that could never be seen.
  */
 
-import { tick, elapsedHours, ratesFor } from '../js/domain/water.js';
+import { elapsedHours, tick } from '../js/domain/water.js';
+import {
+  bandFor, flowFor, minutesToOptimal, pumpedWindow, ratesFor, targetFor,
+  timeOutsideBand, waterState,
+} from '../js/domain/plotWater.js';
 import { aimPump, setPump, costOf, pumpRun } from '../js/domain/pump.js';
-import { alertsToRaise, currentTrouble, forProjection, plantedCrops } from '../js/domain/notifications.js';
+import { applyDamage, damageFor, damageSprite, damageWord } from '../js/domain/damage.js';
+import { alertsToRaise, currentTrouble, forProjection, plantedCrops, wateringAdvice } from '../js/domain/notifications.js';
+import {
+  FROST_C, HIGH_HUMIDITY, STRONG_WIND_KMH, environmentFacts,
+} from '../js/domain/environment.js';
 import { buildInitialState } from '../js/state/initialState.js';
-import { HEALTH, WATER } from '../js/config/game.js';
+import { DAMAGE, HEALTH, OPTIMAL, WATER } from '../js/config/game.js';
 import { EVAPORATION_PER_HOUR, RAIN_WATER_PER_HOUR } from '../js/config/weatherEvents.js';
 
 const SESSION = { status: 'authed', userId: 'acc_test', email: 'a@b.c' };
@@ -462,16 +470,27 @@ test('the pump waters one plot and bills for exactly what it delivered', () => {
   assert.equal(result.state.plots[0].waterLevel, 0, 'and the others did not');
   assert.ok(result.spent > 0, 'it was billed for it');
   assert.equal(result.state.gold, state.gold - result.spent);
-  // 60 s x 0.05/s = 3 water, and 5 water per gold, so 3 water is 0.6 gold.
-  assert.ok(Math.abs(result.spent - 0.6) < 0.01, `billed ${result.spent}, expected 0.60`);
+  // 60 s x 0.028/s = 1.68 water, and 5 water per gold, so that is 0.336 -> 0.34 gold.
+  assert.ok(Math.abs(result.spent - 0.34) < 0.01, `billed ${result.spent}, expected 0.34`);
 });
 
-test('filling one plot costs about a fifth of a rice harvest', () => {
-  // Rice is 100 in and 200 out, so the margin is 100. A full plot at 20 gold keeps
-  // water a real decision instead of a rounding error.
-  const cost = costOf(WATER.max);
-  assert.ok(cost > 10 && cost < 30, `a full plot costs ${cost} gold, which should be 10–30`);
-  assert.equal(cost, 20, 'and the derived rate is 5 water per gold');
+test('watering a crop to its target costs a real slice of the harvest margin', () => {
+  // Rice is 100 in and 200 out, so the margin is 100 gold. The pump charges 5 water per
+  // gold and rice's target is 85, so a full watering is 17 — about a sixth of the
+  // margin. Real enough to decide on, cheap enough not to be a punishment.
+  assert.equal(costOf(10), 2, 'the rate is 5 water per gold');
+
+  const rice = targetFor({ cropId: 'rice' });
+  assert.equal(rice, 85, 'rice wants the most water');
+  assert.equal(costOf(rice), 17, 'and a full watering costs 17 gold');
+
+  const wheat = targetFor({ cropId: 'wheat' });
+  assert.equal(wheat, 55, 'wheat wants much less');
+  assert.equal(costOf(wheat), 11, 'and costs 11');
+
+  // Not `WATER.max`. The pump stops at the target, so paying for water past the point
+  // of any use is not something the player can be talked into, by design.
+  assert.ok(costOf(WATER.max) > costOf(rice), 'filling to max would cost more, and never happens');
 });
 
 test('the pump stops itself when the plot is full and when the gold is gone', () => {
@@ -531,20 +550,31 @@ test('standing at zero costs health, which is what makes drought matter', () => 
   state.lastTickAt = Date.now() - HOUR;
 
   const result = tick(state, Date.now());
+  // An hour at zero costs the per-hour drain — **and** latches dry damage, because an
+  // hour under the floor is the documented threshold. 5 + 12 = 17.
   assert.equal(
     result.state.plots[0].health,
-    HEALTH.max - HEALTH.dryDrainPerHour,
-    'an hour at zero costs exactly dryDrainPerHour',
+    HEALTH.max - HEALTH.dryDrainPerHour - DAMAGE.lossPerLatched,
+    'an hour at zero costs the drain, plus the damage it latches',
   );
+  assert.equal(result.state.plots[0].damage, 'dry');
 
-  // A plot that is dry but not bone dry keeps its health. At 40 °C rice loses
-  // 8 * 0.9 * 3 = 21.6/h, so 25 ends the hour at ~3.4 and is spared.
+  // A plot that is dry but not bone dry is spared the **drain**, but not the **latch**.
+  // At 40 °C rice loses 8 * 0.9 * 3 = 21.6/h, so 25 ends the hour at ~3.4 — above
+  // zero, so no drain. It started below its floor of 64 and stayed there, so it latches
+  // damage instead. Two rules, two thresholds: the floor asks how the crop is faring,
+  // zero asks whether it is dying.
   const damp = farmWith({ cropId: 'rice', weather: sky({ code: 0, temp: 40 }), count: 1 });
   damp.plots[0].waterLevel = 25;
   damp.lastTickAt = Date.now() - HOUR;
   const damped = tick(damp, Date.now());
-  assert.ok(damped.state.plots[0].waterLevel > 0, 'it ends the hour wet enough to be spared');
-  assert.equal(damped.state.plots[0].health, HEALTH.max);
+  assert.ok(damped.state.plots[0].waterLevel > 0, 'it ends the hour wet enough to skip the drain');
+  assert.equal(damped.state.plots[0].damage, 'dry', 'but an hour under the floor still latches');
+  assert.equal(
+    damped.state.plots[0].health,
+    HEALTH.max - DAMAGE.lossPerLatched,
+    'and it costs the latch, and only the latch',
+  );
 });
 
 test('health reaching zero kills the crop, and bare soil never does', () => {
@@ -661,4 +691,536 @@ test('a plot already running dry is a condition, not a forecast', () => {
   const watered = farmWith({ cropId: 'rice', count: 1, weather: sky({ code: 0, temp: 38 }) });
   watered.plots[0].waterLevel = 90;
   assert.equal(currentTrouble(watered, Date.now()), null, 'a watered plot in the heat is fine');
+});
+
+/* --- ISS-091 / ISS-092: the optimal band, the pump, and damage ----------------- */
+
+test('each crop has its own target, and the thirsty one wants the most', () => {
+  // `waterNeed` was a number that only scaled evaporation. Now it decides what the
+  // player is aiming at, which is what makes it a rule rather than a modifier.
+  assert.equal(targetFor({ cropId: 'rice' }), 85, 'waterNeed 0.9 wants the most');
+  assert.equal(targetFor({ cropId: 'corn' }), 70, 'waterNeed 0.7 is in the middle');
+  assert.equal(targetFor({ cropId: 'wheat' }), 55, 'waterNeed 0.5 wants the least');
+  assert.equal(targetFor({ cropId: null }), OPTIMAL.bareTarget, 'bare soil has no crop');
+
+  // And the target must follow the documented formula, not drift away from it.
+  const crop = cropOf('rice');
+  assert.equal(targetFor({ cropId: 'rice' }), Math.round(OPTIMAL.base + OPTIMAL.perNeed * crop.waterNeed));
+});
+
+test('the band scales with the target, so a hardy crop has less room to sag', () => {
+  const rice = bandFor({ cropId: 'rice' });
+  const wheat = bandFor({ cropId: 'wheat' });
+
+  assert.equal(rice.target, 85);
+  assert.equal(rice.floor, 64, 'a quarter below 85');
+  assert.equal(wheat.floor, 41, 'a quarter below 55');
+
+  assert.ok(rice.target - rice.floor > wheat.target - wheat.floor,
+    'rice has more units of give than wheat, because it wants more water at all');
+});
+
+test('water reads as one of four states, and the middle one is the one that matters', () => {
+  const rice = { cropId: 'rice' };
+  assert.equal(waterState({ ...rice, waterLevel: 0 }), 'dry');
+  assert.equal(waterState({ ...rice, waterLevel: 63 }), 'low');
+  assert.equal(waterState({ ...rice, waterLevel: 64 }), 'optimal', 'the floor is inclusive');
+  assert.equal(waterState({ ...rice, waterLevel: 85 }), 'optimal', 'the target is inclusive');
+  assert.equal(waterState({ ...rice, waterLevel: 86 }), 'saturated');
+  assert.equal(waterState({ ...rice, waterLevel: WATER.max }), 'saturated');
+});
+
+test('the time-to-optimal estimate lands in the 30-60 minute window', () => {
+  // The number the whole pump design rests on, so it is pinned rather than described.
+  for (const cropId of ['rice', 'corn', 'wheat']) {
+    const { minutes, gold } = minutesToOptimal({ cropId, waterLevel: 0 }, 'sunny');
+    assert.ok(minutes >= 30 && minutes <= 60,
+      `${cropId} takes ${minutes} min from empty, which must be 30-60`);
+    assert.ok(gold >= 10 && gold <= 20, `${cropId} costs ${gold} gold, which must be 10-20`);
+  }
+});
+
+test('the estimate counts evaporation, so it is not short by the time it takes to dry', () => {
+  // Filling at 90/h against 10.8/h of drying nets 79.2/h. Ignoring the evaporation term
+  // would understate the wait by about 12% on rice in sun, and more in drought, which is
+  // the weather where the number matters most.
+  const sun = minutesToOptimal({ cropId: 'rice', waterLevel: 0 }, 'sunny').minutes;
+  const drought = minutesToOptimal({ cropId: 'rice', waterLevel: 0 }, 'drought').minutes;
+  assert.ok(drought > sun, 'a drought must take longer to water for, because it dries harder');
+});
+
+test('the estimate is null when there is nothing to do', () => {
+  assert.equal(minutesToOptimal({ cropId: 'rice', waterLevel: 85 }, 'sunny'), null,
+    'already at target, so the panel says so rather than "0 min"');
+});
+
+test('the meter shows what is going in and what is coming out', () => {
+  // "Why is this bar falling" is answered by two numbers and a sign.
+  const sun = flowFor({ cropId: 'rice', waterLevel: 85 }, 'sunny');
+  assert.equal(sun.in, 0);
+  assert.ok(sun.out > 0);
+  assert.ok(sun.net < 0, 'nothing is coming in, so the net is negative');
+  assert.ok(sun.minutesToFull > 0, 'and it says how long until the plot needs attention');
+
+  const rain = flowFor({ cropId: 'rice', waterLevel: 20 }, 'heavyRain');
+  assert.ok(rain.in > 0, 'rain is coming in');
+  assert.ok(rain.net > 0);
+});
+
+test('the rates are rounded, because they are printed', () => {
+  // The panel offered the player "drying −5.760000000000001/h". `8 * 0.9 * 0.8` is
+  // 5.760000000000001 and it went straight into the DOM — the same lesson as `health` in
+  // `water.js`, arriving the same way: correct arithmetic, absurd output.
+  const cloudy = flowFor({ cropId: 'rice', waterLevel: 85 }, 'cloudy');
+  assert.equal(cloudy.out, 5.8, '5.760000000000001 is not a number anyone should read');
+
+  for (const event of ['sunny', 'cloudy', 'drought', 'heavyRain', 'lightRain', 'hail']) {
+    for (const crop of ['rice', 'wheat', null]) {
+      const f = flowFor({ cropId: crop, waterLevel: 40 }, event);
+      for (const key of ['in', 'out', 'net']) {
+        assert.equal(String(f[key]).length <= 5, true,
+          `${crop ?? 'bare'}/${event}.${key} = ${f[key]} should read as a short number`);
+      }
+    }
+  }
+});
+
+test('the pump stops at the crop target, and never pays for water past it', () => {
+  const state = farmWith({ weather: sky({ code: 0 }), count: 1 });
+  state.pump = { on: true, target: 0 };
+  state.plots[0].waterLevel = 0;
+  state.lastTickAt = Date.now() - 10 * HOUR; // far more than a fill needs
+
+  const result = tick(state, Date.now());
+  assert.equal(result.state.plots[0].waterLevel, 85, 'it stops at 85, not at max');
+  assert.equal(result.state.plots[0].waterLevel < WATER.max, true, 'and max is well above it');
+  assert.equal(result.autoOff, 'full');
+});
+
+test('a plot already at its target is not watered, and is not billed for watering it', () => {
+  // Not billed for *watering*, which is the shortfall — zero here. It is still billed for
+  // the evaporation the pump replaced, which is the next test and the whole point of
+  // splitting the two.
+  const rain = farmWith({ weather: sky({ code: 61, temp: 15, rain: 90 }), count: 1 });
+  rain.pump = { on: true, target: 0 };
+  rain.plots[0].waterLevel = 85;
+  rain.lastTickAt = Date.now() - 60_000;
+
+  const result = tick(rain, Date.now());
+  assert.equal(result.watered, 0, 'nothing was needed, so nothing was delivered');
+  assert.equal(result.spent, 0, 'and nothing to pay for');
+  assert.equal(result.autoOff, 'full');
+});
+
+test('a pump holding a plot is still billed for the water that dried up', () => {
+  // The bug this catches: billing only the shortfall gave free water. `missing` is zero
+  // on a plot already at target, so a pump holding it there cost nothing, forever.
+  const state = farmWith({ weather: sky({ code: 0, temp: 35 }), count: 1 });
+  state.pump = { on: true, target: 0 };
+  state.plots[0].waterLevel = 85;
+  state.lastTickAt = Date.now() - HOUR;
+
+  const result = tick(state, Date.now());
+  assert.equal(result.state.plots[0].waterLevel, 85, 'the pump holds it at target');
+  assert.ok(result.spent > 0, 'but holding it is not free - the sun kept taking water out');
+});
+
+/** A weather response shaped like `services/weatherApi.js` returns, for the env card. */
+function env({ temp = 30, temps, code = 0, humidity = 50, chance = 0, wind = 5, uv = 0 } = {}) {
+  const pad = (v) => String(v).padStart(2, '0');
+  const now = Date.now();
+  const stamp = (ms) => {
+    const d = new Date(ms);
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:00`;
+  };
+  const hours = 24;
+  return {
+    current: {
+      temperature: temp, feelsLike: temp, humidity, precipitation: 0,
+      isDay: true, weatherCode: code, windSpeed: wind, windDirection: 180,
+    },
+    hourly: {
+      time: Array.from({ length: hours }, (_, i) => stamp(now - HOUR * (3 - i))),
+      temperature: temps ?? Array(hours).fill(temp),
+      humidity: Array(hours).fill(humidity),
+      precipitationProbability: Array(hours).fill(chance),
+      weatherCode: Array(hours).fill(code),
+      windSpeed: Array(hours).fill(wind),
+      windDirection: Array(hours).fill(180),
+      uvIndex: Array(hours).fill(uv),
+    },
+  };
+}
+
+test('THE REPORTED BUG: a crop the pump is aimed at survives, and takes no damage', () => {
+  // "2 crops died of thirst, the pump would have saved them" - with the pump running.
+  // Two things were wrong: the death message ignored the pump, and the pump was modelled
+  // as delivering one lump at the END of the window while evaporation ran continuously,
+  // so a pumped plot was modelled as dry for 22 hours and then watered.
+  const state = farmWith({ weather: sky({ code: 0, temp: 40 }), count: 3, gold: 10000 });
+  state.pump = { on: true, target: 0 };
+  state.plots[0].waterLevel = 5;
+  state.plots[1].waterLevel = 0;
+  state.plots[2].waterLevel = 0;
+  state.lastTickAt = Date.now() - 30 * HOUR;
+
+  const result = tick(state, Date.now());
+  const pumped = result.state.plots[0];
+
+  assert.equal(pumped.dead, false, 'the pumped plot must survive');
+  assert.equal(pumped.damage, null, 'and must not latch damage it never suffered');
+  assert.ok(pumped.health > 50, `and keeps its health, had ${pumped.health}`);
+
+  // The two the pump was NOT aimed at legitimately died. That is the design, not a bug:
+  // one plot at a time (DEC-040), so there is always somebody left to move it.
+  assert.equal(result.state.plots[1].dead, true);
+  assert.equal(result.state.plots[2].dead, true);
+  assert.equal(result.deaths.length, 2);
+});
+
+test('the pump holds a plot indefinitely, and the bill scales with the hours', () => {
+  for (const hours of [1, 30, 300]) {
+    const state = farmWith({ weather: sky({ code: 0, temp: 35 }), count: 1, gold: 1e6 });
+    state.pump = { on: true, target: 0 };
+    state.plots[0].waterLevel = 85;
+    state.lastTickAt = Date.now() - hours * HOUR;
+
+    const result = tick(state, Date.now());
+    assert.equal(result.state.plots[0].waterLevel, 85, `held at target after ${hours}h`);
+    assert.equal(result.state.plots[0].dead, false, `and alive after ${hours}h`);
+    assert.ok(result.spent > 0, `and it cost gold after ${hours}h`);
+  }
+});
+
+test('dryness is charged for how long a plot was dry, not for the whole period', () => {
+  // The fix for ISS-091 defect 2. A plot at its target reaches 0 at 85/10.8 = 7.9h, so it
+  // is dry for whatever is left - not the whole window.
+  const healthAfter = (hours) => {
+    const state = farmWith({ weather: sky({ code: 0, temp: 35 }), count: 1 });
+    state.plots[0].waterLevel = 85;
+    state.lastTickAt = Date.now() - hours * HOUR;
+    return tick(state, Date.now()).state.plots[0].health;
+  };
+
+
+  const twelve = healthAfter(12);
+  assert.ok(healthAfter(6), '6h never reaches zero, so the dry drain costs nothing');
+
+  // 6 h of sun drops rice 64.8, from 85 to 20.2 — it never touches zero, so no drain.
+  // But it does cross **below its floor of 64** for the last 1.9 h, and that is what
+  // latches damage. The two are separate rules on separate thresholds: the floor is
+  // about how the crop is faring, zero is about whether it is dying.
+  const six = farmWith({ weather: sky({ code: 0, temp: 35 }), count: 1 });
+  six.plots[0].waterLevel = 85;
+  six.lastTickAt = Date.now() - 6 * HOUR;
+  const sixPlot = tick(six, Date.now()).state.plots[0];
+  assert.equal(sixPlot.damage, 'dry', '6h under the floor latches it');
+  assert.equal(sixPlot.health, HEALTH.max - DAMAGE.lossPerLatched, 'but the drain has not started');
+
+  // Rice at 85 reaches 0 at 85/10.8 = 7.87h, so 9h away means 1.13h genuinely dry and
+  // about 5 health — not the 45 the old whole-window charge cost.
+  const nine = healthAfter(9);
+  assert.ok(nine > 75 && nine < 90, `9h costs the drain and the latch, got ${nine}`);
+  // 12 h: dry for 4.13 h costs ~21 by the drain, plus the 12 for the latch that
+  // crossing the floor already triggered. Two separate charges, and the total is 67.
+  assert.ok(twelve > 60 && twelve < 75, `12h costs the drain and the latch, got ${twelve}`);
+  assert.ok(twelve > healthAfter(20), 'and more time away costs more');
+});
+
+test('damage latches on a plot left under its floor, and announces itself once', () => {
+  const state = farmWith({ weather: sky({ code: 0, temp: 35 }), count: 1 });
+  state.plots[0].waterLevel = 20;
+  state.lastTickAt = Date.now() - 3 * HOUR;
+
+  const result = tick(state, Date.now());
+  assert.equal(result.state.plots[0].damage, 'dry', '3h under the floor latches it');
+  assert.equal(result.damaged.length, 1, 'and the caller is told, once');
+  assert.ok(result.state.plots[0].health < HEALTH.max, 'and it cost health');
+});
+
+test('damage never clears and never downgrades', () => {
+  let state = farmWith({ weather: sky({ code: 0, temp: 35 }), count: 1 });
+  state.plots[0].waterLevel = 20;
+  state.lastTickAt = Date.now() - 3 * HOUR;
+  state = tick(state, Date.now()).state;
+
+  const hurt = state.plots[0].health;
+  state.plots[0].waterLevel = 85;
+  state.lastTickAt = Date.now() - HOUR;
+
+  const after = tick(state, Date.now());
+  assert.equal(after.state.plots[0].damage, 'dry', 'watering it again does not undo it');
+  assert.equal(after.state.plots[0].health, hurt, 'and does not give the health back');
+  assert.deepEqual(after.damaged, [], 'nor re-announce it');
+});
+
+test('one heavy shower is not waterlogging; hours of it is', () => {
+  // An instant threshold here would undo the one-time verdict at sowing, and cost a
+  // player a field every time it rained.
+  const soak = (hours) => {
+    const state = farmWith({ weather: sky({ code: 65, temp: 18, rain: 95 }), count: 1 });
+    state.plots[0].waterLevel = 85;
+    state.lastTickAt = Date.now() - hours * HOUR;
+    return tick(state, Date.now()).state.plots[0];
+  };
+
+  assert.equal(soak(1).damage, null, 'an hour of rain is weather, not damage');
+  assert.equal(soak(6).damage, 'waterlogged', 'six hours of it is');
+});
+
+test('a plot the pump is holding can never waterlog, because it is held AT the target', () => {
+  const state = farmWith({ weather: sky({ code: 65, temp: 18, rain: 95 }), count: 1, gold: 1e6 });
+  state.pump = { on: true, target: 0 };
+  state.plots[0].waterLevel = 85;
+  state.lastTickAt = Date.now() - 10 * HOUR;
+
+  const plot = tick(state, Date.now()).state.plots[0];
+  assert.equal(plot.waterLevel, 85, 'the pump caps it at the target, never past it');
+  assert.equal(plot.damage, null, 'so there is no over-watering to damage it with');
+});
+
+test('damage words and sprites cover three states, and dead wins', () => {
+  const plot = { cropId: 'rice', health: 40 };
+
+  assert.equal(damageWord(plot), null, 'undamaged says nothing');
+  assert.equal(damageSprite(plot), null);
+  assert.equal(damageWord({ ...plot, damage: 'dry' }), 'Dry');
+  assert.equal(damageSprite({ ...plot, damage: 'dry' }), 'dry');
+  assert.equal(damageWord({ ...plot, damage: 'waterlogged' }), 'Waterlogged');
+  assert.equal(damageSprite({ ...plot, damage: 'waterlogged' }), 'waterlogged');
+
+  const dead = { ...plot, damage: 'dry', dead: true };
+  assert.equal(damageWord(dead), 'Dead', 'a dead crop is dead whatever else was wrong');
+  assert.equal(damageSprite(dead), 'dead');
+});
+
+test('a plot with no crop cannot be damaged', () => {
+  assert.equal(damageSprite({ cropId: null, damage: 'dry' }), null);
+  assert.equal(damageFor({}, { belowFloor: 99, aboveTarget: 0 }), 'dry',
+    'the rule still answers; water.js is what declines to apply it to bare soil');
+});
+
+test('applyDamage returns the same object when nothing changes', () => {
+  // Identity matters: `tick` uses it to decide whether to hand back a new plot at all,
+  // and a fresh object every tick would make the field repaint forever.
+  const plot = { cropId: 'rice', health: 90, damage: 'dry' };
+  assert.equal(applyDamage(plot, 'dry'), plot, 'already this damage');
+  assert.equal(applyDamage(plot, null), plot, 'nothing to apply');
+  assert.notEqual(applyDamage(plot, 'waterlogged'), plot, 'a real change is a new object');
+});
+
+test('pumpedWindow is not the same rule as timeOutsideBand, and that is the point', () => {
+  // A pumped plot climbs fast and then HOLDS. Interpolating it across the whole period
+  // says a plot the pump rescued in forty minutes spent the other twenty-nine under its
+  // floor - which is the same defect as the death message, one layer down, and it is what
+  // made a rescued crop read as a drought victim.
+  const band = bandFor({ cropId: 'rice' }); // floor 64, target 85
+  const plot = { cropId: 'rice', waterLevel: 5 };
+  const rates = ratesFor(plot, 'drought'); // dry 21.6/h
+  const gross = 100.8;
+
+  const window = pumpedWindow(plot, band, gross, rates, 30);
+  const climb = (band.floor - 5) / (gross - rates.dry);
+  assert.ok(window.belowFloor < 1, `it should be rescued in under an hour, got ${window.belowFloor}h`);
+  assert.ok(Math.abs(window.belowFloor - climb) < 0.01, 'and the time is exactly the climb');
+  assert.equal(window.aboveTarget, 0, 'and never above the target, because the pump stops at it');
+
+  // The two rules disagree, deliberately, and this is the case that proves it.
+  assert.ok(
+    timeOutsideBand(plot, band, 5, 85, 30).belowFloor > 20,
+    'the plain interpolation would call it over twenty hours of drought',
+  );
+});
+
+test('timeOutsideBand measures the crossing, not the whole period', () => {
+  // Two bugs pinned here. First: a plot below the floor that is being *filled* was under
+  // it only until it arrived — reading the whole period counted a pump rescue as thirty
+  // hours of drought. Second: the function takes the start and end levels, because the
+  // water moves linearly and that makes the crossing exact.
+  const band = bandFor({ cropId: 'rice' }); // floor 64, target 85
+  const plot = { cropId: 'rice', waterLevel: 5 };
+
+  // 5 -> 85 over 30 h is 2.67/h, and it reaches the floor of 64 at (64-5)/2.67 = 22.1h,
+  // so it was under the floor for those 22.1h. Not 30h, and not 0.
+  const rising = timeOutsideBand(plot, band, 5, 85, 30);
+  assert.ok(rising.belowFloor > 22 && rising.belowFloor < 22.5,
+    `a filling plot is under the floor until it arrives, got ${rising.belowFloor}`);
+
+  // Drying from 85 to 20 over 30 h crosses 64 at 9.7h, so 20.3h under it.
+  const falling = timeOutsideBand(plot, band, 85, 20, 30);
+  assert.ok(falling.belowFloor > 20 && falling.belowFloor < 21, 'and the reverse for a drying one');
+
+  assert.equal(timeOutsideBand(plot, band, 20, 0, 30).belowFloor, 30,
+    'a plot that starts and stays below the floor is under it for everything');
+  assert.equal(timeOutsideBand(plot, band, 85, 85, 30).aboveTarget, 0,
+    'a plot held at its target by the pump is not over it');
+  assert.equal(timeOutsideBand(plot, band, 64, 85, 30).belowFloor, 0,
+    'a plot that starts exactly on the floor and rises is never under it');
+  assert.equal(timeOutsideBand(plot, band, 85, 120, 30).aboveTarget, 30,
+    'a plot sitting on the target while the rain comes is over it for everything');
+  assert.ok(timeOutsideBand(plot, band, 20, 120, 30).aboveTarget < 15,
+    'and one that climbs through the target is only over it for the tail');
+});
+
+test('DAMAGE thresholds and the health cost are the documented numbers', () => {
+  assert.equal(DAMAGE.hoursBelowFloorToLatch, 1);
+  assert.equal(DAMAGE.hoursAboveTargetToLatch, 2);
+  assert.ok(DAMAGE.lossPerLatched > 0, 'damage must cost something or it is decorative');
+  assert.ok(DAMAGE.lossPerLatched < HEALTH.max / 4, 'but not enough to be a death sentence');
+});
+
+test('every plot carries a damage field, including a fresh farm', () => {
+  // Added in `buildPlots` rather than in sixteen files, and it doubles as the migration
+  // for a save written before damage existed.
+  for (const plot of buildInitialState(SESSION).plots) {
+    assert.equal(plot.damage, null, 'a new plot is undamaged, not undefined');
+  }
+});
+
+test('the player is told which plots need water, and where the pump is', () => {
+  // ISS-091 arrived as a message about the past tense - "2 crops died" - for a situation
+  // that had been visible for hours. This is the warning that should have come first, and
+  // it has to name the plots, because the pump waters one square at a time and "some
+  // crops are dry" is not actionable.
+  const state = farmWith({ weather: sky({ code: 0, temp: 40 }), count: 3 });
+  state.plots[0].waterLevel = 2;
+  state.plots[1].waterLevel = 20;
+  state.plots[2].waterLevel = 85;
+
+  const off = wateringAdvice(state);
+  assert.ok(off, 'there is something to say');
+  assert.deepEqual(off.plots, [0, 1], 'both dry plots are named');
+  assert.match(off.message, /plot 1, plot 2/, 'and listed by number');
+  assert.match(off.message, /Turn the pump on/, 'with the action');
+
+  state.pump = { on: true, target: 2 }; // aimed at the healthy one
+  const elsewhere = wateringAdvice(state);
+  assert.equal(elsewhere.aimedAt, 2);
+  assert.match(elsewhere.message, /on plot 3/, 'and says where the pump is pointed');
+  assert.match(elsewhere.message, /move it/, 'and that it has to move');
+
+  const healthy = farmWith({ weather: sky({ code: 0, temp: 40 }), count: 1 });
+  healthy.plots[0].waterLevel = 85;
+  assert.equal(wateringAdvice(healthy), null, 'a comfortable plot says nothing');
+});
+
+test('a dead crop is not on the watering list', () => {
+  const state = farmWith({ weather: sky({ code: 0, temp: 40 }), count: 2 });
+  state.plots[0].waterLevel = 0;
+  state.plots[0].dead = true;
+  state.plots[1].waterLevel = 85;
+  assert.equal(wateringAdvice(state), null, 'there is nothing left to water');
+});
+
+/* --- T-11 the environment card ------------------------------------------------- */
+
+test('the environment card answers what the weather is doing to the farm', () => {
+  // The board *reports* the weather; this says what it costs. Drying is always shown,
+  // because it is the number every water decision is made against, and it is bare-soil
+  // evaporation — the fastest anything on the farm dries.
+  const facts = environmentFacts({ weather: env({ temp: 32, humidity: 45 }) });
+  const drying = facts.find((f) => f.id === 'drying');
+
+  assert.ok(drying, 'drying is always reported');
+  assert.equal(drying.value, '12 /h', '8 x waterNeed 1 x sunny evaporation 1.5');
+  assert.equal(drying.tone, 'warn');
+});
+
+test('every threshold on the card is the one the game already uses', () => {
+  // Frost 2, wind 40, humidity 85 — the same comparisons `classifyHour` makes. A card
+  // that invents its own numbers can tell a player a day is frost-free while
+  // `verdictFor` is charging them for frost.
+  assert.equal(FROST_C, 2);
+  assert.equal(STRONG_WIND_KMH, 40);
+  assert.equal(HIGH_HUMIDITY, 85);
+});
+
+test('a hot dry day warns about the things that cost you, and says what to do', () => {
+  const facts = environmentFacts({ weather: env({ temp: 42, humidity: 20, uv: 9 }) });
+  const by = Object.fromEntries(facts.map((f) => [f.id, f]));
+
+  assert.equal(by.drying.tone, 'danger', 'drought evaporation is 24/h and it is the top row');
+  assert.equal(by.drying.value, '24 /h');
+  assert.ok(by.humidity, 'dry air is called out, because it compounds the drying');
+  assert.ok(by.uv, 'and high UV, because a player stands in a field');
+  assert.match(by.uv.note, /very high|high/);
+});
+
+test('every reading is reported, always, and the tone is what changes', () => {
+  // Reported as "just this nothing else" — the card showed a single row on an ordinary
+  // day, so it read as broken rather than as quiet. There is no way for a player to tell
+  // "the sky is fine" from "this panel has failed" if the only thing it says when nothing
+  // is wrong is nothing at all.
+  const facts = environmentFacts({ weather: env({ temp: 16, code: 3, humidity: 70, uv: 2 }) });
+
+  assert.deepEqual(
+    facts.map((f) => f.id),
+    ['drying', 'frost', 'rain', 'wind', 'humidity', 'uv'],
+    'all six, in a fixed order',
+  );
+  assert.ok(facts.every((f) => f.value !== '' && f.note !== ''), 'each has a value and a note');
+  assert.ok(facts.every((f) => f.tone === 'calm'), 'and on a mild day they are all calm');
+});
+
+test('a missing reading keeps its row rather than vanishing', () => {
+  // The card must not reflow when the API omits a field, or the player loses their place
+  // in it on every refresh.
+  const facts = environmentFacts({ weather: env({ temp: 20, humidity: 50, uv: 0, wind: 5 }) });
+  const uv = facts.find((f) => f.id === 'uv');
+
+  assert.equal(uv.value, '—', 'UV reads as absent rather than being dropped');
+  assert.equal(uv.tone, 'calm');
+  assert.equal(facts.length, 6, 'and the row count never changes');
+});
+
+test('frost is reported even when it is far away, because the row is always there', () => {
+  // The row always exists now, so it reports the coldest hour of the next 12 and lets the
+  // tone carry the urgency — rather than the row disappearing when there is nothing to say.
+  const warm = environmentFacts({ weather: env({ temp: 32 }) });
+  const frost = warm.find((f) => f.id === 'frost');
+  assert.equal(frost.value, '32°C');
+  assert.equal(frost.tone, 'calm', 'and it is calm, not alarming');
+
+  const cold = environmentFacts({ weather: env({ temp: 6, temps: [6, 5, 4, 3, 2, 3, 5, 7] }) });
+  assert.equal(cold.find((f) => f.id === 'frost').tone, 'warn', 'at 2C it is worth reading');
+});
+
+test('a storm says the wind will damage crops and that rain is coming', () => {
+  const facts = environmentFacts({
+    weather: env({ code: 95, temp: 18, humidity: 90, chance: 90, wind: 45, uv: 1 }),
+  });
+  const by = Object.fromEntries(facts.map((f) => [f.id, f]));
+
+  assert.equal(by.wind.tone, 'danger');
+  assert.match(by.wind.note, /damage/, 'and says what it does, not just the number');
+  assert.ok(by.rain, 'rain is worth mentioning at 90%');
+  assert.equal(by.humidity.tone, 'calm', 'saturated air is good news, so it is calm');
+});
+
+test('the most urgent fact sorts to the top', () => {
+  const facts = environmentFacts({ weather: env({ temp: 3, temps: [3, 2, 1, -3, 0, 2, 4, 6], humidity: 20 }) });
+  const tones = facts.map((f) => f.tone);
+  const rank = { danger: 0, warn: 1, calm: 2 };
+  const sorted = [...tones].sort((a, b) => rank[a] - rank[b]);
+  assert.deepEqual(tones, sorted, `expected most-urgent first, got ${tones.join(', ')}`);
+});
+
+test('no forecast means no facts, and not an error', () => {
+  assert.deepEqual(environmentFacts({ weather: null }), []);
+  assert.deepEqual(environmentFacts(null), []);
+  assert.deepEqual(environmentFacts({ weather: { hourly: {} } }), []);
+});
+
+test('a save written before damage existed still reads as undamaged', () => {
+  const legacy = buildInitialState(SESSION);
+  delete legacy.plots[0].damage;
+
+  const state = farmWith({ weather: sky({ code: 0, temp: 35 }), count: 1 });
+  state.plots[0] = legacy.plots[0];
+  state.plots[0].cropId = 'rice';
+  state.plots[0].waterLevel = 20;
+  state.lastTickAt = Date.now() - 3 * HOUR;
+
+  assert.equal(damageWord(state.plots[0]), null, 'absent is not the same as damaged');
+  assert.equal(tick(state, Date.now()).state.plots[0].damage, 'dry', 'and it still latches');
 });

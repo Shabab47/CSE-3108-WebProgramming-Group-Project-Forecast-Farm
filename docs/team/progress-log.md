@@ -7,6 +7,51 @@ The per-person weekly notes that used to live in the README table are now in `me
 
 ---
 
+## The pump was running and the game blamed it — Hisham
+
+- **Did:** rebuilt the water system around an **optimal band**, from the report *"the pump
+  logic is completely broken, 2 crops died, watering could have saved them all this time"* —
+  **with the pump running.** It was not broken in the way it looked. Four defects around a
+  pump that was delivering water perfectly well.
+- **The four:** (1) the death toast was **one fixed string** that never asked where the pump
+  was; (2) `dryDamage` billed the **whole elapsed period** whenever a plot *ended* at 0
+  water, so 12 h cost 60 health instead of 14 and 20 h killed a crop in one step; (3) the
+  `moved` gate in `main.js` compared only `waterLevel` and `spent`, so damage was computed and
+  then **discarded**; (4) the pump delivered its water as one lump at the **end** of the
+  window while evaporation ran continuously, which modelled a pumped plot as dry for 22
+  hours and then watered — the same defect as (2), one layer down.
+- **The model now:** `OPTIMAL` gives each crop a target from its `waterNeed` (rice 85, corn
+  70, wheat 55) and a band at its bottom quarter. `WATER.max` 100 → 120 so over-watering is
+  reachable at all. **Damage latches** onto the plot and never clears — water is a live
+  reading, damage is a committed fact, and a sprite driven off a value that changes every
+  second strobes. Damage **cuts the payout and never blocks the harvest**, so it cannot
+  rebuild the ISS-006 trap.
+- **The pump stops at the target**, so "30–60 minutes" is a promise it keeps: 58 min rice, 46
+  corn, 36 wheat, counting the evaporation that happens while it fills. Rate 0.05 → **0.028**
+  (2× rain, was 36×), upkeep scaled to hold 5 water per gold.
+- **Touched:** new `js/domain/damage.js` and `js/domain/plotWater.js` (split out of a
+  492-line `water.js`); `pump.js`, `config/game.js`, `config/assets.js`,
+  `land_squares/index.js`, `ui/{plotLayers,pumpPanel,farmView}.js`, `main.js`,
+  **`css/scene.css` (Kafi's folder)**; tests appended to `weatherPanel` and `farmView`, no new
+  test files.
+- **Broke:** three real bugs **I** introduced, all caught before commit. `minutesToOptimal`
+  *added* the dry rate instead of subtracting it, so a drought read as *faster* to water for.
+  `timeOutsideBand` returned 0 for a plot that started below the floor, and then had the
+  rising/falling branch inverted. And the pumped plot latched `dry` damage it never suffered,
+  because the band check was interpolating it across the whole period instead of modelling
+  "fills fast, then holds".
+- **Broke, and it was mine to own:** a `WriteAllLines` after a PowerShell `Get-Content` read
+  two files as ANSI and wrote them back as UTF-8, turning 44 em-dashes into `â€”`. Found by
+  a `SyntaxError` on a doc comment that lost its `/**`. Repaired by codepoint with node; the
+  lesson is the third time in this repo that PowerShell text surgery has cost more than the
+  edit tool would have.
+- **Tests:** 540 pass (was 537), `npm run check` clean.
+- **Next:** Zim's damage sprites, named in `cropFailureImg()` — the logic is wired and the
+  word renders, so the files can land with no code change. Worth **opening ISS-008 and
+  measuring** the 2× now that both sides of the comparison run.
+
+---
+
 ## The pump was a picture of a pump — Hisham
 
 - **Did:** built T-09 and T-13 together, from the question "will drainage or add water by pump

@@ -24,6 +24,7 @@ import { installDom, uninstallDom, visibleText } from './helpers/fakeDom.js';
 import { el } from '../js/utils/dom.js';
 import { fieldSignature, mountFarmView, plotSignature } from '../js/ui/farmView.js';
 import { FIELD, STARTER_PLOT_ID, UNLOCK_ORDER } from '../js/config/field.js';
+import { WATER } from '../js/config/game.js';
 
 let root;
 
@@ -271,9 +272,79 @@ test('a planted plot renders its layers, and they are phrasing content', () => {
   assert.equal(tile.querySelector('.plot__water').tagName, 'SPAN');
   assert.equal(
     tile.querySelector('.plot__water-fill').getAttribute('style'),
-    'height:60%',
+    // Normalised against `WATER.max`, which is 120 — not a raw percentage of 100.
+    // Drawing 60 as `height:60%` would fill the whole track at 60 water, leaving
+    // nowhere for over-watering to go and making the top of the meter meaningless.
+    `height:${((60 / WATER.max) * 100).toFixed(1)}%`,
     'the water bar keeps its level',
   );
+});
+
+test('an empty plot still shows a meter, because that is where a farm mostly is', () => {
+  // Reported as "no watering meter". The bar rendered, and rendered correctly: a plot at 0
+  // water drew a fill at `height:0%`, which is zero pixels tall. On a fresh farm, and on
+  // every square nobody has watered yet, that is what the meter looked like — absent.
+  //
+  // So the target zone is painted ON the track, which is there to be read at zero, and the
+  // state word is always shown rather than only when something is wrong. A gauge that
+  // says nothing is indistinguishable from a gauge that is broken.
+  const bare = buildPlots().map((p) => (p.id === 5 ? { ...p, owned: true, waterLevel: 0 } : p));
+  const { tiles } = mount({ plots: bare });
+
+  const meter = tiles[5].querySelector('.plot__water');
+  assert.ok(meter, 'the meter is there');
+
+  const band = meter.querySelector('.plot__water-band');
+  assert.ok(band, 'and the zone it is aiming for is painted on the track');
+  const style = band.getAttribute('style');
+  assert.ok(style.includes('height:') && style.includes('bottom:'),
+    `with both edges, not just a line: "${style}"`);
+
+  assert.equal(meter.querySelector('.plot__water-word').textContent, 'dry',
+    'and it says so in words at zero water');
+});
+
+test('bare ground carries a water meter, because that is when the pump is used', () => {
+  // Reported as "clicking on ground not showing any water meter". The meter was gated on
+  // `hasCrop`, so the sequence the pump actually drives - aim, watch the bar rise, plant -
+  // had nothing to watch. The only readout of bare soil was `ground_watered.png`, a binary
+  // that says wet or dry and nothing about how far.
+  const bare = buildPlots().map((p) => (p.id === 5 ? { ...p, owned: true, waterLevel: 30 } : p));
+  const { tiles } = mount({ plots: bare });
+
+  const meter = tiles[5].querySelector('.plot__water');
+  assert.ok(meter, 'bare owned soil has a meter');
+  assert.equal(meter.getAttribute('data-state'), 'low',
+    'and it reads against bare soil\'s own band, which is 45 to 60');
+  assert.equal(
+    meter.querySelector('.plot__water-fill').getAttribute('style'),
+    `height:${((30 / WATER.max) * 100).toFixed(1)}%`,
+  );
+});
+
+test('the meter never appears on a locked plot, and never on a dead crop', () => {
+  // buildPlots() leaves 15 of the 16 unowned, and none of them have a crop - so a locked
+  // square is the default state of most of the field and must stay silent.
+  const { tiles } = mount({ plots: buildPlots() });
+  const locked = tiles.find((t, i) => !buildPlots()[i].owned);
+  assert.equal(locked.querySelector('.plot__water'), null,
+    'a padlocked square has nothing to say about water');
+
+  const died = buildPlots().map((p) => (
+    p.id === 5 ? { ...p, owned: true, cropId: 'rice', plantedAt: Date.now(), dead: true, waterLevel: 5 } : p
+  ));
+  const { tiles: withDead } = mount({ plots: died });
+  assert.equal(withDead[5].querySelector('.plot__water'), null,
+    'a dead crop is past watering');
+});
+
+test('widening the water gate does not drag the growth meter onto bare soil', () => {
+  // The two meters sit in one branch, and `growthMeter` guards on `grown?.planted` rather
+  // than on anything the water gate can influence. Worth pinning, because the natural way
+  // to break this is to move the water meter out and forget what was sharing the branch.
+  const bare = buildPlots().map((p) => (p.id === 5 ? { ...p, owned: true, waterLevel: 30 } : p));
+  const { tiles } = mount({ plots: bare });
+  assert.equal(tiles[5].querySelector('.plot__grow'), null, 'nothing is growing on bare soil');
 });
 
 test('a growing crop carries a green meter with the time left', () => {

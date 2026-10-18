@@ -12,14 +12,16 @@ import { mountNavbar } from './ui/navbar.js';
 import { mountShopLauncher } from './ui/shopLauncher.js';
 import { mountInventoryLauncher } from './ui/inventoryLauncher.js';
 import { mountSeasonCard } from './ui/seasonCard.js';
-import { mountPumpPanel } from './ui/pumpPanel.js';
+import { mountEnvMetrics } from './ui/envMetrics.js';
 import { tick } from './domain/water.js';
 import { setPump } from './domain/pump.js';
-import { alertsToRaise, currentTrouble } from './domain/notifications.js';
+import { damageWord } from './domain/damage.js';
+import { alertsToRaise, currentTrouble, wateringAdvice } from './domain/notifications.js';
 import { mountWeatherPanel } from './ui/weatherPanel.js';
 import { mountFarmView } from './ui/farmView.js';
 import { mountLocationBar } from './ui/locationBar.js';
 import { nextUnlockable } from './land_squares/index.js';
+import * as farmActions from './farmActions.js';
 import { onPlotClick } from './farmActions.js';
 import { fetchWeather } from './services/weatherApi.js';
 import { formatCoordinates, isPlaceholderName, placeLabel, reverseGeocode, searchPlaces } from './services/geocodeApi.js';
@@ -132,22 +134,40 @@ function mountShell(session) {
       el('div', { class: 'card__head' }, [el('span', { class: 'card__title', text: 'Gold' })]),
       el('p', { id: 'gold-value', text: '—' }),
     ]),
-    placeholder('Environment', 'Humidity and wind — T-11'),
   );
 
-  // The pump panel replaces the `Meters` placeholder, which is what it was reserved
-  // for. It is the one panel whose read-out has to keep up with a per-second tick,
-  // so it is the one that gets a `refresh()` rather than being rebuilt.
-  pumpPanel = mountPumpPanel(el('div'), {
-    getState,
-    onToggle: (on) => {
-      apply((s) => ({ ok: true, state: setPump(s, on) }));
-      emit('toast', {
-        message: on ? 'Pump on. Click one of your plots to water it.' : 'Pump off.',
-        tone: on ? 'info' : 'success',
-      });
-    },
-  });
+  // **No Environment placeholder.** It was reserved for exactly this card, and mounting the
+  // card and then removing the placeholder was the first version of this — which left both
+  // on the page, because `:last-of-type` is not something the fake DOM can select and a
+  // selector that only works in a browser is a selector nobody can test. The card is
+  // appended instead, so the thing that is not wanted is never created.
+  //
+  // The pump card that used to live here is gone too. It repeated the aimed plot's water,
+  // which the plot inspector now shows far better, and it was a card about a *machine* on a
+  // rail whose job is the sky. What replaces it answers a different question: what the
+  // weather is doing to the farm, which is the half of the API the board never shows — the
+  // board reports 32°C, this reports the 10.8 units an hour that costs you.
+  //
+  // The pump is still controlled, and better: click any plot and its inspector carries the
+  // gauge, the countdown and the button. Nothing is lost by taking the card out, because the
+  // card was a read-out of something the click already owns.
+  envCard = mountEnvMetrics(qsOrNull('#right-rail'), getState());
+
+  // The pump panel is **gone from the rail**, and `mountPumpPanel` is no longer called
+  // here. It showed the aimed plot's water, which the plot inspector now shows properly —
+  // a large gauge with its band, the countdown and the gold, on the plot you clicked.
+  //
+  // The lesson from the first version is kept, because it is the one that cost a round:
+  // **the host is appended, and that is the whole bug.** It passed a bare `el('div')`
+  // straight into the mount without ever adding it to the page. The panel built itself
+  // perfectly, into a div that belonged to nothing, and the rail showed no pump at all.
+  // Nothing threw and the boot test passed, because nothing in either was looking at the
+  // rail. A panel that is not in the document is not a panel.
+  //
+  // `ui/pumpPanel.js` is still on disk and still tested. It is not mounted anywhere, which
+  // is a deliberate leftover rather than dead code to be cleaned up on a quiet evening: it
+  // is the rail-shaped version of a panel whose job the click now does, and deleting it
+  // would throw away the pump-panel tests along with it.
 }
 
 /**
@@ -164,8 +184,63 @@ function mountShell(session) {
  * `mountFarmView()` clears `#farm-view` wholesale, so nothing that is not the field may
  * be mounted inside it — the seed picker's host is a sibling for exactly that reason.
  */
-/** The pump panel, mounted once and refreshed thereafter. See `renderPanels`. */
-let pumpPanel = null;
+/**
+ * The words for crops that just died, and they depend on where the pump was.
+ *
+ * **This is ISS-091, and it was one fixed string.** It said *"The pump would have saved
+ * it"* to a player whose pump had been running the whole time, pointed at the plot that
+ * died. Advice that ignores the board is worse than no advice, because it teaches the
+ * player that the words are not about their farm.
+ *
+ * Three cases, because there are three genuinely different situations:
+ *
+ *  - **The pump was off.** Advice is fair. It is the ordinary death.
+ *  - **The pump was on, aimed elsewhere.** The crop was not being watered — but the
+ *    player is not at fault either, because one plot at a time (DEC-040) means there is
+ *    always somebody the pump is not on. Saying so is the difference between a lesson
+ *    and a scolding.
+ *  - **The pump was aimed at this plot and it died anyway.** That is a bug. It is logged
+ *    as one and it says so, instead of blaming the player for a fault in the code.
+ *
+ * @param {object} before the state this tick ran against
+ * @param {object[]} deaths the plots that just died
+ * @returns {{message: string, bug: boolean}}
+ */
+function deathMessage(before, deaths) {
+  const n = deaths.length;
+  const aimed = before.pump?.on ? before.pump.target : null;
+  const aimedHere = deaths.filter((p) => p.id === aimed);
+
+  if (aimedHere.length > 0) {
+    log.error('[water] a crop died while the pump was aimed straight at it', {
+      plotIds: aimedHere.map((p) => p.id),
+      deaths: n,
+    });
+    return {
+      bug: true,
+      message: `${n === 1 ? 'A crop died' : `${n} crops died`} while the pump was watering `
+        + `${n === 1 ? 'it' : 'them'}. That is a bug - please tell us.`,
+    };
+  }
+
+  if (aimed == null) {
+    return {
+      bug: false,
+      message: n === 1
+        ? 'A crop died of thirst. Turn the pump on and aim it at that plot.'
+        : `${n} crops died of thirst. Turn the pump on - it waters one plot at a time.`,
+    };
+  }
+
+  return {
+    bug: false,
+    message: `${n === 1 ? 'A crop' : `${n} crops`} died of thirst - the pump was watering `
+      + `plot ${aimed + 1}. Move it, or take the loss on ${n === 1 ? 'this one' : 'these'}.`,
+  };
+}
+
+/** The environment card, mounted once and refreshed when the forecast moves. */
+let envCard = null;
 
 /**
  * Raise a toast for each crop that has bad weather in the next 6–24 hours.
@@ -220,7 +295,11 @@ function renderPanels(state) {
   });
 
   repaintFarm(state);
-  pumpPanel?.refresh();
+  // The environment card reads the forecast, so it moves when the forecast does and not
+  // every second — and the inspector follows the pump, so its gauge and countdown under the
+  // player's hand are current rather than a photograph of the moment it opened.
+  envCard?.refresh(Date.now());
+  refreshInspector?.();
 
   const goldEl = qsOrNull('#gold-value');
   if (goldEl && state) goldEl.textContent = `${state.gold} gold`;
@@ -238,13 +317,37 @@ function renderPanels(state) {
  * forecast, and a player who plants into a heatwave should not wait a quarter of an
  * hour to be told.
  */
+/**
+ * Re-render whichever plot the inspector is showing, if it is showing one.
+ *
+ * Optional-chained because `farmActions` is a module with its own state and this file does
+ * not hold a reference to it — but an open panel that does not follow the pump is worse
+ * than no panel, because it looks authoritative.
+ */
+function refreshInspector() {
+  farmActions.refreshInspectorOnTick?.();
+}
+
 function tickFarm() {
   const before = getState();
   if (!before) return;
 
   const result = tick(before, Date.now());
+
+  // **Every field the tick can move, or the movement is thrown away.**
+  //
+  // This used to compare `waterLevel` and `spent` only, so a plot sitting at 0 with
+  // nothing else changing computed its health loss and then discarded it: `moved` was
+  // false, `apply()` was never called, and the state never advanced. Crops survived or
+  // died depending on whether an *unrelated* plot's water happened to move. Health,
+  // damage and the dead flag all belong here.
   const moved = result.spent > 0
-    || result.state.plots.some((plot, i) => plot.waterLevel !== before.plots[i].waterLevel);
+    || result.state.plots.some((p, i) => (
+      p.waterLevel !== before.plots[i].waterLevel
+      || p.health !== before.plots[i].health
+      || p.damage !== before.plots[i].damage
+      || p.dead !== before.plots[i].dead
+    ));
 
   if (moved) apply(() => ({ ok: true, state: result.state }));
 
@@ -252,21 +355,35 @@ function tickFarm() {
     emit('toast', { message: 'Pump stopped — you are out of gold.', tone: 'error' });
   }
 
-  // A crop that died of thirst is the most consequential thing this tick can do, and
-  // `domain/water.js` is the only thing in the codebase that can do it. Say so, or the
-  // player finds greyed-out ground and works out why on their own.
   if (result.deaths.length > 0) {
-    const n = result.deaths.length;
+    emit('toast', { ...deathMessage(before, result.deaths), tone: 'error' });
+  }
+
+  if (result.damaged.length > 0) {
+    const word = damageWord(result.damaged[0]);
+    const n = result.damaged.length;
     emit('toast', {
       message: n === 1
-        ? 'A crop died of thirst. The pump would have saved it.'
-        : `${n} crops died of thirst. The pump would have saved them.`,
-      tone: 'error',
+        ? `A crop is ${word.toLowerCase()}. That damage is permanent - it will harvest for less.`
+        : `${n} crops are damaged. The damage is permanent - they will harvest for less.`,
+      tone: 'warning',
     });
   }
 
   const now = getState();
   if (!now) return;
+
+  // **Warn before, not after.** ISS-091 arrived as a message about the past tense -
+  // "2 crops died" - for a situation that had been visible for hours. This names the
+  // plots and says where the pump is pointing, while it is still a decision.
+  const advice = wateringAdvice(now);
+  if (advice && now.notified[advice.key] !== advice.message) {
+    apply((s) => ({
+      ok: true,
+      state: { ...s, notified: { ...s.notified, [advice.key]: advice.message } },
+    }));
+    emit('toast', { message: advice.message, tone: 'warning' });
+  }
 
   const trouble = currentTrouble(now, Date.now());
   if (trouble && now.notified[trouble.key] !== trouble.message) {
