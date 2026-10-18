@@ -35,7 +35,16 @@ export const ASSETS = [
   { path: 'assets/images/crops/rice/rice_2.png', name: 'Rice — stage 2', size: 712164, dimensions: '1000x1000', status: 'done', category: 'crop-sprite', page: 'field' },
   { path: 'assets/images/crops/rice/rice_3.png', name: 'Rice — stage 3', size: 557278, dimensions: '1000x1000', status: 'done', category: 'crop-sprite', page: 'field' },
   { path: 'assets/images/crops/rice/rice_4.png', name: 'Rice — stage 4', size: 646392, dimensions: '1000x1000', status: 'done', category: 'crop-sprite', page: 'field' },
-  { path: 'assets/images/crops/rice/rice_5.png', name: 'Rice — stage 5', size: 589773, dimensions: '1000x1000', status: 'done', category: 'crop-sprite', page: 'field' },
+  { path: 'assets/images/crops/rice/rice_5.png', name: 'Rice - stage 5', size: 589773, dimensions: '1000x1000', status: 'done', category: 'crop-sprite', page: 'field' },
+  // Tomato stages, added in d131de4. The first four are square at 1024x1024; **stage 5 is
+  // 1024x807**, which is not — see ISS-093. Registered with the dimensions the files
+  // actually have rather than the ones the rice pattern would suggest, because the whole
+  // point of the registry is to be the thing you can trust.
+  { path: 'assets/images/crops/tomato/tomato_1.png', name: 'Tomato - stage 1', size: 557156, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
+  { path: 'assets/images/crops/tomato/tomato_2.png', name: 'Tomato - stage 2', size: 780860, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
+  { path: 'assets/images/crops/tomato/tomato_3.png', name: 'Tomato - stage 3', size: 1132288, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
+  { path: 'assets/images/crops/tomato/tomato_4.png', name: 'Tomato - stage 4', size: 1112306, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
+  { path: 'assets/images/crops/tomato/tomato_5.png', name: 'Tomato - stage 5 (ISS-093: not square)', size: 1125057, dimensions: '1024x807', status: 'do', category: 'crop-sprite', page: 'field' },
 
   // Flat copies of the five rice sprites, delivered at this path before the per-crop
   // folder convention existed. Byte-identical to `crops/rice/rice_N.png` and kept,

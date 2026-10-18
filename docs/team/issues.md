@@ -67,6 +67,38 @@ is applied, and `upkeepPerSecond` scaled with it. See DEC-040.
 
 ---
 
+## ISS-093 Tomato stage 5 is not square, and it is not registered
+- Reported by Hisham · Owner: Jim (art), Hisham (registry) · Status: **registry fixed, art open**
+- Where: `assets/images/crops/tomato/tomato_5.png`, `js/config/assets.js`
+
+**Found** while registering the tomato stages, which arrived in `d131de4` without a registry
+entry and left `tests/assets.test.js` red on `main` for everyone else.
+
+**Two problems, one of them mine to fix and one that is Jim's.**
+
+**1. Unregistered (fixed here).** Five files on disk, none in `ASSETS`. `assets.js` is my
+file per `ownership.md`, and the registry is the thing AGENTS §6 makes load-bearing, so the
+entries are added — with the dimensions the files **actually** have, read from the PNG IHDR
+rather than assumed from the rice pattern.
+
+**2. `tomato_5.png` is 1024×807 and the other four are 1024×1024. Still open.**
+
+That is not cosmetic. Every other stage in the game is square — rice is 1000×1000 and so is
+`base.png` — because the isometric geometry in `AGENTS.md` §5 was derived from square alpha
+bounding boxes, and `tileAspect: 0.538` is meaningless against a rectangle. A crop drawn from
+a 1024×807 source in a slot sized for a square **shrinks at stage 5**, so a tomato visibly
+gets smaller on the step that is supposed to be the biggest and nearly ripe.
+
+Worth measuring rather than eyeballing: the fix is either a re-export at 1024×1024, or a
+deliberate decision to allow non-square crop art — and the second needs a real answer about
+how `plotLayers.js` sizes a non-square sprite, because right now it does not have one.
+
+**Why it was not caught.** `assets.test.js` checks that files are *listed*, not that a
+listed entry's dimensions are consistent with its siblings. That check is worth adding, but
+it belongs with whoever owns the geometry rather than as a drive-by here.
+
+---
+
 ## ISS-091 Crops died of thirst while the pump was running, and the game blamed the pump
 - Reported by Hisham · Owner: Hisham · Status: **fixed**
 - Where: `js/domain/water.js`, `js/main.js`, `js/ui/pumpPanel.js`

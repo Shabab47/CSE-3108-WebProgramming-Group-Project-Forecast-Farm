@@ -105,7 +105,7 @@ Weeks are in `goals.md`. Week 1 was planning; T-02 onward belong to weeks 2–5.
 
 | ID | Task | Owner | Status | Phase | Updated |
 | :--- | :--- | :--- | :--- | ---: | :--- |
-| T-14 | Other crops: flip `available: true` as art arrives, no code changes expected | Shabab | todo | 4 | — |
+| T-14 | Other crops: flip `available: true` as art arrives, no code changes expected | Shabab | todo | 4 | - | **But ISS-093 says otherwise for tomato**: the five stage sprites landed in `d131de4` and `tomato_5.png` is **1024×807** while stages 1–4 are 1024×1024, so the plant shrinks at the last growth step. Registered in `assets.js` with the dimensions the files actually have, but the art needs re-exporting or `plotLayers.js` needs a real answer about non-square crop art. The `available: true` flip is safe to do now — nothing else about the stages is code-coupled. |
 | T-26 | Missing art per `docs/asset-checklist.md` — 2 rice failure sprites, 28 for the other 4 crops, 14 icons, 2 pump frames | Kafi | todo | 4 | — |
 | T-15 | Polish: almanac content, empty/loading/error states, keyboard focus, image size review | Kafi | todo | 4 | Page-level loading states done (ISS-043); per-panel empty/error states still open |
 | T-16 | Handover: `architecture.md`, `tasks.md`, final `progress-log` entry, tag `v0.1` | Shabab | todo | 4 | — |
@@ -127,6 +127,9 @@ nobody discovers them mid-build.
 | ISS-012 geocode `results` key absent when empty | T-04, T-11 | 0 |
 | ISS-006 dead crops brick a plot | T-08 | 2 ✅ |
 | ISS-007 pump transparent canvas eats clicks | T-06 | 1 |
-| ISS-008 pump 36× stronger than rain | T-09 | 2 ✅ now **3.6×**, and measurable |
+| ISS-008 pump 36× stronger than rain | T-09 | 2 ✅ now **2×**, and measurable |
+| ISS-091 crops died while the pump ran, and the game blamed the pump | T-09 | 2 ✅ |
+| ISS-092 damage and water were one number, so neither could be drawn | T-09 | 2 ✅ |
+| ISS-093 `tomato_5.png` is 1024×807 while stages 1–4 are square | **T-14** | **open** |
 | ISS-013 no state field for alert dedupe | T-13 | 3 ✅ field + reader both landed |
 | ISS-015 drought conditional has no home | T-12 | 3 |
