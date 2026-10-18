@@ -28,6 +28,7 @@ import { PUMP, WATER } from '../config/game.js';
 import { currentEvent } from '../domain/water.js';
 import { bandFor, flowFor, minutesToOptimal, waterState } from '../domain/plotWater.js';
 import { damageWord } from '../domain/damage.js';
+import { formatGold } from '../utils/formatGold.js';
 
 const WORDS = {
   dry: 'Dry',
@@ -113,7 +114,7 @@ export function mountPumpPanel(root, actions = {}) {
 
     const eta = minutesToOptimal(plot, event);
     setText(estimate, eta
-      ? `${eta.minutes} min to optimal · ${eta.gold} gold`
+      ? `${eta.minutes} min to optimal · ${formatGold(eta.gold)} gold`
       : `At optimal · nothing left to do`);
     card.dataset.eta = eta ? 'true' : 'false';
 

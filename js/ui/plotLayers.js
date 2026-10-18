@@ -21,7 +21,7 @@
  * none of it needs an `alt` that carries information.
  */
 
-import { el } from '../utils/dom.js';
+import { el, setText } from '../utils/dom.js';
 import { cropOf } from '../config/crops.js';
 import { WATER } from '../config/game.js';
 import { cropFailureImg, cropStageImg, groundTile } from '../config/assets.js';
@@ -43,6 +43,106 @@ export function fieldSpriteFor(cropId, stage) {
   if (!crop) return { src: cropStageImg('rice', stage), fallback: true };
   if (crop.available === true) return { src: cropStageImg(cropId, stage), fallback: false };
   return { src: cropStageImg('rice', stage), fallback: true };
+}
+
+/**
+ * One tile's water meter.
+ *
+ * Split out of `plotLayers` so `farmView` can find and patch it on an existing tile
+ * rather than rebuilding the tile. That distinction is the whole reason this is a
+ * function: `.plot__water-fill` has a `transition: height`, and a transition only runs
+ * when the *same element* changes value, so a meter inside a rebuilt tile jumps.
+ *
+ * The band is drawn even at zero water, which is what makes an empty bar readable — it
+ * answers "how much do I want and where is that on this scale" rather than reporting
+ * that there is no meter.
+ *
+ * @param {object} plot
+ * @param {string} [word] a damage word that overrides the plain water state
+ */
+export function waterMeter(plot, word) {
+  const level = plot.waterLevel ?? 0;
+  const fill = Math.max(0, Math.min(100, (level / WATER.max) * 100));
+  const state = waterState(plot);
+  const { floor, target } = bandFor(plot);
+
+  return el('span', {
+    class: 'plot__water',
+    'data-state': state,
+    title: `Water: ${Math.round(level)} of ${WATER.max} - ${state}`,
+    'aria-hidden': 'true',
+  }, [
+    el('span', { class: 'plot__water-fill', style: `height:${fill.toFixed(1)}%` }),
+    // **The target zone, drawn as a band on the track.**
+    //
+    // This is what makes the meter readable on an *empty* plot, which is where a fresh
+    // farm and every unwatered square actually are. A fill at `height:0%` is zero pixels
+    // tall: there was nothing to see, and the report was "there is no water meter".
+    el('span', {
+      class: 'plot__water-band',
+      style: `bottom:${((floor / WATER.max) * 100).toFixed(1)}%;`
+        + `height:${(((target - floor) / WATER.max) * 100).toFixed(1)}%`,
+    }),
+    // A tick at the target, so the bar shows *where to aim* rather than only how far
+    // along it is. And a shaded zone above it, because everything past the target is
+    // water the player is paying for and getting nothing from.
+    el('span', {
+      class: 'plot__water-target',
+      style: `bottom:${((target / WATER.max) * 100).toFixed(1)}%`,
+    }),
+    el('span', { class: 'plot__water-floor', style: `bottom:${((floor / WATER.max) * 100).toFixed(1)}%` }),
+    el('span', { class: 'plot__water-word', text: word ?? state, 'aria-hidden': 'true' }),
+  ]);
+}
+
+/**
+ * Move an existing tile's meter to match a new water level, in place.
+ *
+ * Assigning to `style.height` on the node already in the document is what lets the CSS
+ * transition interpolate; rebuilding the tile would not. Returns false when there is no
+ * meter to patch — an unowned plot, or a dead one — so the caller knows it must rebuild
+ * the tile instead rather than silently leaving a stale bar.
+ *
+ * @param {HTMLElement} tile
+ * @param {object} plot
+ * @param {string} [word]
+ * @returns {boolean} whether a meter was found and updated
+ */
+export function patchWaterMeter(tile, plot, word) {
+  const meter = tile?.querySelector?.('.plot__water');
+  if (!meter) return false;
+
+  const level = plot.waterLevel ?? 0;
+  const fill = Math.max(0, Math.min(100, (level / WATER.max) * 100));
+  const state = waterState(plot);
+  const { floor, target } = bandFor(plot);
+
+  const bandBottom = `${((floor / WATER.max) * 100).toFixed(1)}%`;
+
+  // **This assignment is the animation.** Everything else here is bookkeeping that used to
+  // be done by rebuilding the tile — and rebuilding is what stopped the bar moving.
+  const fillEl = meter.querySelector('.plot__water-fill');
+  if (fillEl) fillEl.style.height = `${fill.toFixed(1)}%`;
+
+  const bandEl = meter.querySelector('.plot__water-band');
+  if (bandEl) {
+    bandEl.style.bottom = bandBottom;
+    bandEl.style.height = `${(((target - floor) / WATER.max) * 100).toFixed(1)}%`;
+  }
+
+  const targetEl = meter.querySelector('.plot__water-target');
+  if (targetEl) targetEl.style.bottom = `${((target / WATER.max) * 100).toFixed(1)}%`;
+
+  const floorEl = meter.querySelector('.plot__water-floor');
+  if (floorEl) floorEl.style.bottom = bandBottom;
+
+  meter.dataset.state = state;
+  meter.setAttribute?.('title', `Water: ${Math.round(level)} of ${WATER.max} - ${state}`);
+
+  const wordEl = meter.querySelector('.plot__water-word');
+  if (wordEl) setText(wordEl, word ?? state);
+
+  return true;
 }
 
 /**
@@ -149,43 +249,7 @@ export function plotLayers(plot, { isOwned, isNext, isReady, grown, isWatered, p
     // The meter, normalised against `WATER.max` rather than printed as a raw percentage.
     // `max` is 120, not 100, so that over-watering is a reachable state — which means a
     // bar drawn as `waterLevel%` would overflow its own track on a rainy day.
-    const level = plot.waterLevel ?? 0;
-    const fill = Math.max(0, Math.min(100, (level / WATER.max) * 100));
-    const state = waterState(plot);
-    const { floor, target } = bandFor(plot);
-
-    layers.push(
-      el('span', {
-        class: 'plot__water',
-        'data-state': state,
-        title: `Water: ${Math.round(level)} of ${WATER.max} - ${state}`,
-        'aria-hidden': 'true',
-      }, [
-        el('span', { class: 'plot__water-fill', style: `height:${fill.toFixed(1)}%` }),
-        // **The target zone, drawn as a band on the track.**
-        //
-        // This is what makes the meter readable on an *empty* plot, which is where a
-        // fresh farm and every unwatered square actually are. A fill at `height:0%` is
-        // zero pixels tall: there was nothing to see, and the report was "there is no
-        // water meter". Painting the band the plot is aiming for means an empty bar still
-        // answers the question — *how much do I want, and where on this scale is that*.
-        // The ticks were not enough on their own; two hairlines at 6px read as dirt.
-        el('span', {
-          class: 'plot__water-band',
-          style: `bottom:${((floor / WATER.max) * 100).toFixed(1)}%;`
-            + `height:${(((target - floor) / WATER.max) * 100).toFixed(1)}%`,
-        }),
-        // A tick at the target, so the bar shows *where to aim* rather than only how far
-        // along it is. And a shaded zone above it, because everything past the target is
-        // water the player is paying for and getting nothing from.
-        el('span', {
-          class: 'plot__water-target',
-          style: `bottom:${((target / WATER.max) * 100).toFixed(1)}%`,
-        }),
-        el('span', { class: 'plot__water-floor', style: `bottom:${((floor / WATER.max) * 100).toFixed(1)}%` }),
-        el('span', { class: 'plot__water-word', text: word ?? state, 'aria-hidden': 'true' }),
-      ]),
-    );
+    layers.push(waterMeter(plot, word));
 
     // The growth meter floats above the crop: a green bar plus `3h 20m left`.
     // Same gate as the water bar, plus `grown` itself decides — `growthMeter`

@@ -24,6 +24,7 @@
 
 import { cropOf, requiredPlotsFor } from '../config/crops.js';
 import { isSeedUnlocked, ownedPlots } from '../utils/seedUnlocks.js';
+import { formatGold } from '../utils/formatGold.js';
 
 /** Quantities the shop offers, cheapest decision first. */
 export const BUY_STEPS = [1, 5, 10];
@@ -33,7 +34,10 @@ export const SHOP_REASONS = {
   badQuantity: 'Pick how many seeds you want before buying.',
   locked: (name, need, owned) =>
     `${name} unlocks when you own ${need} plots (you own ${owned}). Buy more land first.`,
-  tooExpensive: (cost, gold) => `That costs ${cost} gold and you have ${gold}.`,
+  // The purse is formatted for the message only — the comparison in `buySeeds` is
+  // between exact numbers, so a purse of 99.9933 is still short of 100.
+  tooExpensive: (cost, gold) =>
+    `That costs ${formatGold(cost)} gold and you have ${formatGold(gold)}.`,
 };
 
 /**
@@ -81,6 +85,84 @@ export function buySeeds(state, cropId, quantity = 1) {
     state: {
       ...state,
       gold: state.gold - cost,
+      inventory: { ...state.inventory, seeds },
+    },
+  };
+}
+
+/**
+ * Whether a quantity can be afforded right now.
+ *
+ * Separate from `buySeeds` so the shop can grey out a button without asking the
+ * rule to refuse and toast about it. The two must agree: a button that is enabled
+ * and then refuses is a bug, and so is a button that is disabled but would have
+ * worked.
+ */
+/**
+ * What a seed sells for, as a fraction of what it cost.
+ *
+ * Sold in one place so the shop's button label and the rule that credits the
+ * gold cannot disagree. Changing this number changes the economy, which is a
+ * decision, not a tweak — hence a constant rather than a literal in each file.
+ */
+export const SELL_RATE = 0.75;
+
+export const SELL_REASONS = {
+  unknownCrop: 'There is no such seed to sell.',
+  badQuantity: 'Pick how many seeds you want before selling.',
+  notEnoughSeeds: (have, need) =>
+    `You only have ${have} seed${have === 1 ? '' : 's'} but tried to sell ${need}.`,
+};
+
+/**
+ * Sell seeds back to the shop for `SELL_RATE` of what they cost.
+ *
+ * No land-lock here, and that is deliberate: buying checks the unlock because a
+ * locked crop is a crop you cannot plant, but the gate is on *buying* land, not
+ * on holding seeds. A player who bought seeds and then, for any reason, cannot
+ * plant them should not be stuck holding them forever.
+ *
+ * @param {object} state
+ * @param {string} cropId
+ * @param {number} quantity whole number of seeds, at least 1
+ * @returns {{ok:true, state:object, payout:number}|{ok:false, reason:string}}
+ */
+export function sellSeeds(state, cropId, quantity = 1) {
+  const crop = cropOf(cropId);
+  if (!crop) return { ok: false, reason: SELL_REASONS.unknownCrop };
+
+  if (!Number.isInteger(quantity) || quantity < 1) {
+    return { ok: false, reason: SELL_REASONS.badQuantity };
+  }
+
+  // A save from before seeds were tracked has no bag, so it simply holds nothing
+  // to sell rather than throwing.
+  const bag = state.inventory?.seeds ?? {};
+  const have = bag[cropId] ?? 0;
+  if (have < quantity) {
+    return { ok: false, reason: SELL_REASONS.notEnoughSeeds(have, quantity) };
+  }
+
+  const payout = Math.round(crop.seedPrice * quantity * SELL_RATE);
+
+  const seeds = { ...bag };
+  const left = have - quantity;
+  // Drop the key rather than leaving a zero behind, so "have any seeds of this
+  // crop" stays one truth wherever it is read.
+  if (left === 0) {
+    delete seeds[cropId];
+  } else {
+    seeds[cropId] = left;
+  }
+
+  return {
+    ok: true,
+    payout,
+    cropId,
+    quantity,
+    state: {
+      ...state,
+      gold: (state.gold ?? 0) + payout,
       inventory: { ...state.inventory, seeds },
     },
   };

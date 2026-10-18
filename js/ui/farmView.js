@@ -5,7 +5,7 @@ import { WATER } from '../config/game.js';
 import { waterState } from '../domain/plotWater.js';
 import { harvestsIn, isNextUnlockable } from '../land_squares/index.js';
 import { plotName } from './plotLabel.js';
-import { plotLayers } from './plotLayers.js';
+import { patchWaterMeter, plotLayers } from './plotLayers.js';
 
 const PUMP_IMG = 'assets/images/pump.png';
 const BASE_IMG = 'assets/images/base.png';
@@ -90,6 +90,42 @@ export function plotSignature(plot, state) {
  * @param {object} state
  * @returns {string}
  */
+/**
+ * The *water* half of `plotSignature`, on its own.
+ *
+ * The tick raises a plot's water every second, so `plotSignature` changes every second
+ * and the tile is rebuilt — which re-decodes a 313–712 KB PNG per tile per second and,
+ * separately, means the meter's `transition: height` never runs because the node holding
+ * the fill is thrown away and a new one starts at the new value with nothing to move
+ * from. The bar jumped rather than swept.
+ *
+ * So the two questions are separated. `plotSignatureWithoutWater` is everything *except*
+ * water: growth stage, the crop, selection, damage. That changes rarely. When it has not
+ * changed and only water moved, `repaint` patches the existing meter in place — no PNG
+ * decoded, and the transition animates.
+ *
+ * This is the same trade `plotSignature` already makes one level up, where water is
+ * rounded to a whole number: a fill at 39.6% and at 39.9% are the same picture.
+ */
+export function plotSignatureWithoutWater(plot, state) {
+  const isOwned = Boolean(plot.owned);
+  const grown = isOwned ? harvestsIn(plot, nowOf(state)) : null;
+
+  return [
+    isOwned,
+    !isOwned && isNextUnlockable(state, plot.id),
+    state?.selection?.plotId === plot.id,
+    Boolean(plot.dead),
+    plot.cropId ?? '',
+    grown?.stage ?? '',
+    Boolean(grown?.ready),
+    Math.round(Math.min(Math.max(grown?.progress ?? 0, 0), 1) * 100),
+    Math.ceil(Math.max(0, grown?.msLeft ?? 0) / 60000),
+    plot.damage ?? '',
+    state?.nextPrice ?? 0,
+  ].join('|');
+}
+
 export function fieldSignature(state) {
   return (state?.plots ?? [])
     .map((plot) => plotSignature(plot, state))
@@ -222,11 +258,22 @@ export function mountFarmView(root, state) {
 
     for (const plot of state?.plots ?? []) {
       const signature = plotSignature(plot, state);
-      if (tiles.get(plot.id)?.signature === signature) continue;
+      const entry = tiles.get(plot.id);
+      if (entry?.signature === signature) continue;
+
+      // **The water-only case: patch the meter rather than rebuild the tile.** Only water
+      // moved, so nothing else in the tile can have changed — and rebuilding would re-decode
+      // the ground and crop sprites to change one bar's height. Returns false when there is
+      // no meter on this tile (unowned, or a dead plot), which falls through to a rebuild.
+      const structure = plotSignatureWithoutWater(plot, state);
+      if (entry && entry.structure === structure && patchWaterMeter(entry.node, plot)) {
+        entry.signature = signature;
+        continue;
+      }
 
       const node = renderPlot(plot);
-      tiles.get(plot.id)?.node?.replaceWith(node);
-      tiles.set(plot.id, { node, signature });
+      entry?.node?.replaceWith(node);
+      tiles.set(plot.id, { node, signature, structure });
     }
   }
   function renderPlot(plot) {

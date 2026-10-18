@@ -23,15 +23,34 @@
  * `farmActions.js` keeps no `isOpen` flag and no reference: the host has children while
  * something is up and none when it is not. A second source of truth there is what let the
  * field and the picker disagree in the first place.
+ *
+ * ## Why this builds once and then updates, rather than re-rendering
+ *
+ * The panel follows the pump on a 1 Hz tick, and it used to answer that by tearing the
+ * whole card down and building it again (`clear(root)` then re-`el()`). That is the
+ * obvious way to write it and it costs two things:
+ *
+ *  1. **The gauge could not animate.** `.inspector__fill` has a `transition: height`, and a
+ *     transition only runs when the *same element* changes value. A node destroyed and
+ *     recreated sixty times a minute has no previous height to move from, so the meter
+ *     jumped once a second and looked broken rather than busy.
+ *  2. The close button, the pump button and every text node were rebuilt at the same rate,
+ *     so focus and scroll on them died continuously.
+ *
+ * So this builds the card once and hands back an `update(state)` that mutates only what
+ * moved — the fill's height, the band's position, `data-state`, and the four readouts.
+ * Anything structural (the plot dying, being harvested, changing hands) still falls back
+ * to a full rebuild, because those genuinely change the shape of the card.
  */
 
-import { el, clear } from '../utils/dom.js';
+import { el, clear, setText } from '../utils/dom.js';
 import { cropOf } from '../config/crops.js';
 import { WATER } from '../config/game.js';
 import { plotAction } from './plotClick.js';
 import { bandFor, flowFor, minutesToOptimal, waterState } from '../domain/plotWater.js';
 import { damageWord } from '../domain/damage.js';
 import { currentEvent } from '../domain/water.js';
+import { formatGold } from '../utils/formatGold.js';
 
 const STATE_WORDS = {
   dry: 'Dry',
@@ -57,47 +76,99 @@ const ACTION_WORDS = {
 export function mountPlotInspector(root, state, plotId, actions = {}) {
   clear(root);
 
+  if (!state?.plots?.some((p) => p.id === plotId)) {
+    return { unmount() {}, update() {} };
+  }
+
+  const view = buildCard(plotId, actions);
+  root.append(el('div', { class: 'inspector__scrim' }, [view.card]));
+
+  view.update(state);
+
+  return {
+    /** Mutate in place, so the gauge's height transition actually runs. */
+    update(next) {
+      const plot = next?.plots?.find((p) => p.id === plotId);
+      // The plot went away entirely, or its *shape* changed — dead, harvested, or no
+      // longer ours. Those change which elements exist, so they need a real rebuild
+      // rather than a patch.
+      if (!plot || view.shape(next) !== view.lastShape) {
+        clear(root);
+        const rebuilt = buildCard(plotId, actions);
+        root.append(el('div', { class: 'inspector__scrim' }, [rebuilt.card]));
+        rebuilt.update(next);
+        return rebuilt;
+      }
+      view.update(next);
+      return view;
+    },
+    unmount() {
+      clear(root);
+    },
+  };
+}
+
+/**
+ * The parts of the plot that decide the card's *shape* — as opposed to its numbers.
+ *
+ * `update` compares this between ticks: if it is unchanged, every element the card needs
+ * already exists and can be patched. It deliberately excludes water, health and gold,
+ * which is the whole point — those change every tick and must *not* force a rebuild.
+ */
+function shapeOf(state, plotId) {
   const plot = state?.plots?.find((p) => p.id === plotId);
-  if (!plot) return { unmount() {} };
+  if (!plot) return 'missing';
+  return [
+    plot.owned ? 'owned' : 'not-owned',
+    plot.dead ? 'dead' : 'alive',
+    plot.cropId ?? 'bare',
+  ].join('|');
+}
 
-  const event = currentEvent(state, Date.now());
-  const level = plot.waterLevel ?? 0;
-  const { floor, target } = bandFor(plot);
-  const wState = plot.dead ? 'dry' : waterState(plot);
-  const crop = cropOf(plot.cropId);
-  const damage = damageWord(plot);
-  const eta = plot.dead ? null : minutesToOptimal(plot, event);
-  const flow = plot.dead ? null : flowFor(plot, event);
-
-  const pct = (v) => `${((v / WATER.max) * 100).toFixed(1)}%`;
-  const fill = Math.max(0, Math.min(100, (level / WATER.max) * 100));
-
-  // The gauge, drawn large enough to read. Same four states and same band as the sliver
-  // on the tile — the tile answers "which squares need me", this answers "how bad is it".
-  const gauge = el('div', { class: 'inspector__gauge', 'data-state': wState }, [
-    el('div', { class: 'inspector__band', style: `bottom:${pct(floor)};height:${pct(target - floor)}` }),
-    el('div', { class: 'inspector__fill', style: `height:${fill.toFixed(1)}%` }),
+/**
+ * Build the card once, capturing handles on the pieces `update` will mutate.
+ *
+ * Split out from `mountPlotInspector` so the rebuild path and the first paint are the
+ * same code — two builders would drift, and this is the shape of bug the codebase has
+ * already been bitten by (`docs/architecture.md`, the inspector/picker disagreement).
+ */
+function buildCard(plotId, actions) {
+  const gauge = el('div', { class: 'inspector__gauge', 'data-state': 'dry' }, [
+    el('div', { class: 'inspector__band' }),
+    el('div', { class: 'inspector__fill', style: 'height:0%' }),
   ]);
+  const gaugeFill = gauge.children[1];
+  const gaugeBand = gauge.children[0];
 
-  const pumpOn = Boolean(state.pump?.on);
-  const aimed = state.pump?.target ?? null;
-  const isAimed = pumpOn && aimed === plotId;
+  const stateLine = el('p', { class: 'inspector__state', 'data-state': 'dry' });
+  const levelLine = el('p', { class: 'inspector__level' });
+  const etaLine = el('p', { class: 'inspector__eta' });
+  const flowLine = el('p', { class: 'inspector__flow' });
 
-  const pumpButton = plot.owned && !plot.dead
-    ? el('button', {
-      type: 'button',
-      class: 'inspector__pump',
-      'data-on': isAimed ? 'true' : 'false',
-      text: isAimed ? 'Stop watering this' : (pumpOn ? 'Water this plot instead' : 'Water this plot'),
-      on: { click: () => actions.onPump?.(plotId, !isAimed) },
-    })
-    : null;
+  // The button reads its own `data-on` rather than capturing a value, because the same
+  // node survives every tick now and a captured `isAimed` would be stale by the time the
+  // player pressed it — the pump state moves underneath an open panel.
+  const pumpButton = el('button', {
+    type: 'button',
+    class: 'inspector__pump',
+    'data-on': 'false',
+    text: 'Water this plot',
+    on: { click: () => actions.onPump?.(plotId, pumpButton.dataset.on !== 'true') },
+  });
 
-  const actionWord = ACTION_WORDS[plotAction(state, plotId)];
+  const actionButton = el('button', {
+    type: 'button',
+    class: 'inspector__action',
+    text: '',
+    on: { click: () => actions.onAction?.(plotId) },
+  });
+
+  const cropLine = el('p', { class: 'inspector__crop' });
+  const title = el('h2', { class: 'inspector__title', text: `Plot ${plotId + 1}` });
 
   const card = el('div', { class: 'inspector', role: 'dialog', 'aria-label': `Plot ${plotId + 1}` }, [
     el('div', { class: 'inspector__head' }, [
-      el('h2', { class: 'inspector__title', text: `Plot ${plotId + 1}` }),
+      title,
       el('button', {
         type: 'button',
         class: 'inspector__close',
@@ -106,67 +177,90 @@ export function mountPlotInspector(root, state, plotId, actions = {}) {
         on: { click: () => actions.onClose?.() },
       }),
     ]),
-
-    plot.owned
-      ? el('p', {
-        class: 'inspector__crop',
-        text: plot.cropId
-          ? `${crop?.name ?? plot.cropId}${plot.dead ? ' (dead)' : ''}`
-          : 'Empty — nothing planted yet',
-      })
-      : el('p', { class: 'inspector__crop', text: 'Not yours yet' }),
-
-    plot.owned && !plot.dead
-      ? el('div', { class: 'inspector__water' }, [
-        gauge,
-        el('div', { class: 'inspector__readout' }, [
-          el('p', {
-            class: 'inspector__state',
-            'data-state': wState,
-            text: damage
-              ? `${STATE_WORDS[wState]} · ${damage}`
-              : STATE_WORDS[wState],
-          }),
-          el('p', {
-            class: 'inspector__level',
-            text: `${Math.round(level)} of ${WATER.max} water · target ${target}`,
-          }),
-          eta
-            ? el('p', {
-              class: 'inspector__eta',
-              text: eta.minutes > 0
-                ? `Pump: ${eta.minutes} min and ${eta.gold} gold to reach optimal`
-                : 'Already at optimal — nothing to do',
-            })
-            : null,
-          flow && (flow.in > 0 || flow.out > 0)
-            ? el('p', {
-              class: 'inspector__flow',
-              text: `rain +${flow.in}/h · drying −${flow.out}/h · net ${flow.net > 0 ? '+' : '−'}${Math.abs(flow.net)}/h`,
-            })
-            : null,
-        ]),
-      ])
-      : null,
-
-    el('div', { class: 'inspector__actions' }, [
-      pumpButton,
-      actionWord
-        ? el('button', {
-          type: 'button',
-          class: 'inspector__action',
-          text: actionWord,
-          on: { click: () => actions.onAction?.(plotId) },
-        })
-        : null,
+    cropLine,
+    el('div', { class: 'inspector__water' }, [
+      gauge,
+      el('div', { class: 'inspector__readout' }, [
+        stateLine,
+        levelLine,
+        etaLine,
+        flowLine,
+      ]),
     ]),
+    el('div', { class: 'inspector__actions' }, [pumpButton, actionButton]),
   ]);
 
-  root.append(el('div', { class: 'inspector__scrim' }, [card]));
+  const lastShape = { value: null };
 
   return {
-    unmount() {
-      clear(root);
+    card,
+    shape: (state) => shapeOf(state, plotId),
+    get lastShape() {
+      return lastShape.value;
+    },
+    update(state) {
+      const plot = state?.plots?.find((p) => p.id === plotId);
+      if (!plot) return;
+      lastShape.value = shapeOf(state, plotId);
+
+      const event = currentEvent(state, Date.now());
+      const level = plot.waterLevel ?? 0;
+      const { floor, target } = bandFor(plot);
+      const wState = plot.dead ? 'dry' : waterState(plot);
+      const crop = cropOf(plot.cropId);
+      const damage = damageWord(plot);
+      const eta = plot.dead ? null : minutesToOptimal(plot, event);
+      const flow = plot.dead ? null : flowFor(plot, event);
+      const pct = (v) => `${((v / WATER.max) * 100).toFixed(1)}%`;
+      const fill = Math.max(0, Math.min(100, (level / WATER.max) * 100));
+
+      // **The two writes that make the meter move.** Assigning to `style.height` on the
+      // element that is already on screen is what lets the CSS transition interpolate;
+      // rebuilding the node would not.
+      gaugeFill.style.height = `${fill.toFixed(1)}%`;
+      gaugeBand.style.bottom = pct(floor);
+      gaugeBand.style.height = pct(target - floor);
+      gauge.dataset.state = wState;
+      // So "it is filling" is legible without watching the number. Cosmetic only.
+      gauge.dataset.pumping = state.pump?.on && state.pump?.target === plotId ? 'true' : 'false';
+
+      setText(cropLine, plot.cropId
+        ? `${crop?.name ?? plot.cropId}${plot.dead ? ' (dead)' : ''}`
+        : 'Empty — nothing planted yet');
+
+      if (plot.owned && !plot.dead) {
+        setText(stateLine, damage ? `${STATE_WORDS[wState]} · ${damage}` : STATE_WORDS[wState]);
+        stateLine.dataset.state = wState;
+        setText(levelLine, `${Math.round(level)} of ${WATER.max} water · target ${target}`);
+        setText(etaLine, eta
+          ? (eta.minutes > 0
+            ? `Pump: ${eta.minutes} min and ${formatGold(eta.gold)} gold to reach optimal`
+            : 'Already at optimal — nothing to do')
+          : 'Already at optimal — nothing to do');
+        flow.hidden = !(flow && (flow.in > 0 || flow.out > 0));
+        if (!flow.hidden) {
+          setText(flowLine,
+            `rain +${flow.in}/h · drying −${flow.out}/h · net ${flow.net > 0 ? '+' : '−'}${Math.abs(flow.net)}/h`);
+        }
+
+        const isAimed = Boolean(state.pump?.on) && state.pump?.target === plotId;
+        pumpButton.hidden = false;
+        pumpButton.dataset.on = isAimed ? 'true' : 'false';
+        setText(pumpButton, isAimed
+          ? 'Stop watering this'
+          : (state.pump?.on ? 'Water this plot instead' : 'Water this plot'));
+      } else {
+        setText(stateLine, plot.owned ? 'Dead' : 'Not yours yet');
+        stateLine.dataset.state = 'dry';
+        setText(levelLine, plot.owned ? 'Clear the plot to use it again' : 'Buy this plot to farm it');
+        setText(etaLine, 'Nothing to water');
+        flowLine.hidden = true;
+        pumpButton.hidden = true;
+      }
+
+      const word = ACTION_WORDS[plotAction(state, plotId)];
+      actionButton.hidden = !word;
+      if (word) setText(actionButton, word);
     },
   };
 }

@@ -82,6 +82,23 @@ export function pumpRun(state, hours, target = WATER.max, dryRate = 0) {
 
   const missing = Math.max(0, target - (plot.waterLevel ?? 0));
   const capacity = grossPerHour * hours;
+
+  // **A plot that is already at its target is not watered and is not billed.**
+  //
+  // The bill is for water that actually lands, and `water.js` clamps the level to the
+  // crop's target. So once `missing` is zero there is nowhere for the pump's output to
+  // go: the delivered units are billed and then thrown away by that clamp.
+  //
+  // This is deliberately narrower than "bill the evaporation you replace", which is what
+  // an earlier version did. Billing replacement is right *while climbing* — the sun is
+  // taking water out the whole time the pump is filling, and the player is paying for
+  // the water that comes back in. It is wrong *after* arrival, where there is no
+  // shortfall left to justify any of it. Conflating the two charged a player 51.84 gold
+  // over 24 hours for a plot that never rose above its target.
+  if (missing <= 0) {
+    return { plot, watered: 0, spent: 0, autoOff: 'full', needed: 0, grossPerHour };
+  }
+
   const delivered = Math.min(missing + dryRate * hours, capacity);
 
   // Rounded to whole cents before it is compared against the purse. A bill of

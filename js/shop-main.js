@@ -27,7 +27,7 @@ import { farmHref, resolveSession } from './main.js';
 import { buildServerSave } from './remoteSave.js';
 import { mountConnectionStatus, wireSaveOnExit } from './connection.js';
 import { apply, emit, init, saveNow, subscribe } from './state/store.js';
-import { buySeeds } from './domain/shop.js';
+import { buySeeds, sellSeeds } from './domain/shop.js';
 import { mountShop } from './ui/shopView.js';
 import { mountBlockedScreen } from './ui/blockedScreen.js';
 import { mountBootLoader } from './ui/loadingTips.js';
@@ -56,6 +56,11 @@ function shopActions() {
     onState: subscribe,
     buy(cropId, quantity) {
       const result = apply(buySeeds, cropId, quantity);
+      if (result.ok) saveNow();
+      return result;
+    },
+    sell(cropId, quantity) {
+      const result = apply(sellSeeds, cropId, quantity);
       if (result.ok) saveNow();
       return result;
     },

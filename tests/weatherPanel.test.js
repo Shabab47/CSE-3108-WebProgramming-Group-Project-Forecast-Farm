@@ -500,7 +500,11 @@ test('the pump stops itself when the plot is full and when the gold is gone', ()
   full.lastTickAt = Date.now() - 10 * HOUR; // far more than a full plot needs
   const filled = tick(full, Date.now());
   assert.equal(filled.autoOff, 'full', 'a full plot stops the pump');
-  assert.equal(filled.state.pump.on, true, 'the toggle stays on so the player can re-aim');
+  // Both auto-offs turn it **off**. It used to stay on after a full plot, on the
+  // reasoning that the player should only have to pick the next square — but a toggle
+  // reading "on" while the machine delivers nothing is the lie the meter exists to
+  // prevent, and re-aiming is one click either way.
+  assert.equal(filled.state.pump.on, false, 'and turns itself off, like an empty purse');
 
   const broke = farmWith({ weather: sky({ code: 0 }), gold: 1 });
   broke.pump = { on: true, target: 0 };
@@ -754,6 +758,43 @@ test('the estimate is null when there is nothing to do', () => {
     'already at target, so the panel says so rather than "0 min"');
 });
 
+test('the quoted gold is what the pump actually bills for that estimate', () => {
+  // The promise the panel makes is "57 min and 19.05 gold". It used to quote 17 — the
+  // bare shortfall — while the pump went on to charge 19.05, because reaching the target
+  // takes 57 minutes and the sun takes 10.8/h of it back out throughout. A 12% gap, in
+  // full sun, on a dry plot: exactly the case where a player is deciding whether to spend.
+  //
+  // The check is against a real run, not a formula, so a change to either side that breaks
+  // the agreement fails here rather than quietly on a player's screen.
+  const plot = { cropId: 'rice', waterLevel: 0 };
+  for (const event of ['sunny', 'drought', 'rain']) {
+    const eta = minutesToOptimal(plot, event);
+    if (!eta) continue;
+
+    const dry = ratesFor(plot, event).dry;
+    const run = pumpRun(
+      { gold: 1e6, pump: { on: true, target: 0 }, plots: [{ ...plot, id: 0, owned: true }] },
+      eta.minutes / 60,
+      targetFor(plot),
+      dry,
+    );
+
+    assert.ok(
+      Math.abs(run.spent - eta.gold) <= 0.02,
+      `${event}: quoted ${eta.gold}, actually billed ${run.spent}`,
+    );
+  }
+});
+
+test('a dry, sunlit quote costs more than a cool one — the pump is paying off evaporation', () => {
+  const sun = minutesToOptimal({ cropId: 'rice', waterLevel: 0 }, 'sunny');
+  const rain = minutesToOptimal({ cropId: 'rice', waterLevel: 0 }, 'rain');
+  assert.ok(
+    sun.gold > rain.gold,
+    'more drying means the pump delivers more water to reach the same target',
+  );
+});
+
 test('the meter shows what is going in and what is coming out', () => {
   // "Why is this bar falling" is answered by two numbers and a sign.
   const sun = flowFor({ cropId: 'rice', waterLevel: 85 }, 'sunny');
@@ -798,9 +839,14 @@ test('the pump stops at the crop target, and never pays for water past it', () =
 });
 
 test('a plot already at its target is not watered, and is not billed for watering it', () => {
-  // Not billed for *watering*, which is the shortfall — zero here. It is still billed for
-  // the evaporation the pump replaced, which is the next test and the whole point of
-  // splitting the two.
+  // Not watered and not billed. `missing` is zero, and `water.js` clamps the level to the
+  // crop's target, so any unit the pump pushed would be charged for and then discarded.
+  //
+  // This used to bill the evaporation it "replaced" instead. That was wrong for a reason
+  // worth keeping: billing replacement is correct *while climbing* — the sun empties the
+  // plot the whole time the pump fills it, and the player is paying for what comes back
+  // in — but after arrival there is no shortfall left to justify any of it. Measuring it:
+  // 24 hours of sun on a plot already at 85 cost **51.84 gold** and the level never moved.
   const rain = farmWith({ weather: sky({ code: 61, temp: 15, rain: 90 }), count: 1 });
   rain.pump = { on: true, target: 0 };
   rain.plots[0].waterLevel = 85;
@@ -812,17 +858,39 @@ test('a plot already at its target is not watered, and is not billed for waterin
   assert.equal(result.autoOff, 'full');
 });
 
-test('a pump holding a plot is still billed for the water that dried up', () => {
-  // The bug this catches: billing only the shortfall gave free water. `missing` is zero
-  // on a plot already at target, so a pump holding it there cost nothing, forever.
+test('a pump on a plot that has reached its target switches itself off', () => {
+  // The other half of the same rule. Leaving the toggle reading "on" while the machine
+  // does nothing is the lie the meter exists to prevent, so reaching the target stops it
+  // exactly as an empty purse does.
   const state = farmWith({ weather: sky({ code: 0, temp: 35 }), count: 1 });
   state.pump = { on: true, target: 0 };
   state.plots[0].waterLevel = 85;
   state.lastTickAt = Date.now() - HOUR;
 
   const result = tick(state, Date.now());
-  assert.equal(result.state.plots[0].waterLevel, 85, 'the pump holds it at target');
-  assert.ok(result.spent > 0, 'but holding it is not free - the sun kept taking water out');
+  assert.equal(result.state.pump.on, false, 'the pump is off, not idle-but-on');
+  assert.equal(result.state.plots[0].waterLevel, 85, 'and the plot is untouched');
+});
+
+test('filling a plot from empty bills the water it replaces, and stops at the target', () => {
+  // The *climbing* half, which is where billing replacement is right. A plot dried to
+  // zero in the sun needs the pump to replace 10.8/h the whole time it fills, so the bill
+  // is the shortfall plus that replacement — and it must still stop rather than run on.
+  const state = farmWith({ weather: sky({ code: 0, temp: 35 }), count: 1 });
+  state.gold = 1000;
+  state.pump = { on: true, target: 0 };
+  state.plots[0].waterLevel = 0;
+  state.lastTickAt = Date.now() - HOUR;
+
+  const result = tick(state, Date.now());
+  assert.ok(result.spent > 17, `billed more than the bare shortfall (${result.spent})`);
+  assert.equal(result.state.plots[0].waterLevel, 85, 'it stops at the target');
+  assert.equal(result.state.pump.on, false);
+  assert.equal(
+    result.state.gold,
+    1000 - result.spent,
+    'and the purse matches the bill exactly',
+  );
 });
 
 /** A weather response shaped like `services/weatherApi.js` returns, for the env card. */
@@ -878,7 +946,16 @@ test('THE REPORTED BUG: a crop the pump is aimed at survives, and takes no damag
   assert.equal(result.deaths.length, 2);
 });
 
-test('the pump holds a plot indefinitely, and the bill scales with the hours', () => {
+test('a pump on a plot that is already at its target costs nothing, however long it is left', () => {
+  // The regression this whole change is about. A plot sitting at 85 with the pump aimed
+  // at it used to be billed for the water it "replaced" *forever*: `missing` is zero, so
+  // nothing was needed, but the bill was gross delivery and `water.js` clamped the level
+  // back to the target and threw the water away. Measured over 24 hours of full sun that
+  // was **51.84 gold** for a plot that never moved — roughly 20 gold/hour, silently,
+  // while the meter read "running".
+  //
+  // It now costs nothing and switches itself off, which is the honest reading: the machine
+  // has nothing left to do.
   for (const hours of [1, 30, 300]) {
     const state = farmWith({ weather: sky({ code: 0, temp: 35 }), count: 1, gold: 1e6 });
     state.pump = { on: true, target: 0 };
@@ -886,9 +963,11 @@ test('the pump holds a plot indefinitely, and the bill scales with the hours', (
     state.lastTickAt = Date.now() - hours * HOUR;
 
     const result = tick(state, Date.now());
+    assert.equal(result.spent, 0, `no gold for a plot already full, after ${hours}h`);
+    assert.equal(result.watered, 0, 'and nothing delivered');
     assert.equal(result.state.plots[0].waterLevel, 85, `held at target after ${hours}h`);
     assert.equal(result.state.plots[0].dead, false, `and alive after ${hours}h`);
-    assert.ok(result.spent > 0, `and it cost gold after ${hours}h`);
+    assert.equal(result.state.pump.on, false, 'with the pump switched itself off');
   }
 });
 

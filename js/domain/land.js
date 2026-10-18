@@ -25,6 +25,7 @@
 
 import { STARTER_PLOT_ID } from '../config/field.js';
 import { isNextUnlockable, nextUnlockable } from '../land_squares/index.js';
+import { formatGold } from '../utils/formatGold.js';
 
 export const LAND_REASONS = {
   unknownPlot: 'That is not one of your plots.',
@@ -32,7 +33,8 @@ export const LAND_REASONS = {
   notNext: 'That plot is not the next one to unlock.',
   alreadyOwned: 'You already own that plot.',
   forSale: 'That is your first plot. You will never need to buy it.',
-  tooExpensive: (cost, gold) => `That costs ${cost} gold and you have ${gold}.`,
+  tooExpensive: (cost, gold) =>
+    `That costs ${formatGold(cost)} gold and you have ${formatGold(gold)}.`,
 };
 
 /** The plot with this id, or null. */

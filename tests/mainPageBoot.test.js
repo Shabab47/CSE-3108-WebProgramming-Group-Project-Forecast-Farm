@@ -319,6 +319,77 @@ test('clicking your own empty plot opens a picker that stays open', async () => 
   assert.equal(getState().inventory.seeds.rice, 1, 'spending exactly one seed');
 });
 
+test('the water meter animates, because the same fill element survives a tick', async () => {
+  // **This is the assertion that matters, and it is about identity rather than a number.**
+  //
+  // `.inspector__fill` carries `transition: height`, and a CSS transition only runs when
+  // the *same element* changes value. The inspector used to answer every tick by clearing
+  // the host and building the whole card again — correct output, no animation ever, because
+  // a node that is destroyed and recreated has no previous height to move from. The bar
+  // jumped once a second and read as broken rather than busy.
+  //
+  // So the claim is: after a tick raises the water, the element holding the fill is *the
+  // same object*, and its height is a new value. Unit tests on the domain cannot see this
+  // at all — they never load a DOM — which is why it belongs here.
+  const { onPlotClick, refreshInspectorOnTick } = await import('../js/farmActions.js');
+  const { apply, getState } = await import('../js/state/store.js');
+
+  onPlotClick(0);
+  const host = document.querySelector('#farm-picker');
+
+  const fillBefore = host.querySelector('.inspector__fill');
+  assert.ok(fillBefore, 'the gauge has a fill element to animate');
+  const heightBefore = fillBefore.style.height;
+
+  // One tick's worth of pumping, through the real store so the real subscriber chain runs.
+  apply((state) => ({
+    ok: true,
+    state: {
+      ...state,
+      pump: { on: true, target: 0 },
+      plots: state.plots.map((p) => (p.id === 0 ? { ...p, waterLevel: 60 } : p)),
+    },
+  }));
+  refreshInspectorOnTick();
+
+  const fillAfter = host.querySelector('.inspector__fill');
+  assert.equal(
+    fillAfter,
+    fillBefore,
+    'the fill must be the SAME element after a tick - a new one cannot transition',
+  );
+  assert.notEqual(
+    fillAfter.style.height,
+    heightBefore,
+    'and its height must actually have changed, or there is nothing to animate',
+  );
+  assert.match(fillAfter.style.height, /%$/, 'a percentage, as the stylesheet expects');
+
+  // The band moves with the crop's target, so it is patched in the same pass.
+  const band = host.querySelector('.inspector__band');
+  assert.ok(band?.style.bottom, 'the band is positioned by the same update');
+});
+
+test('the gauge shows the pump running only for the plot the pump is aimed at', async () => {
+  // The sheen is the answer to "is *this* square filling". If it keyed off `pump.on` alone
+  // it would light up on every plot while the pump watered one of them, which is the
+  // confusion the attribute exists to avoid.
+  const { onPlotClick, refreshInspectorOnTick } = await import('../js/farmActions.js');
+  const { apply } = await import('../js/state/store.js');
+
+  onPlotClick(0);
+  const host = document.querySelector('#farm-picker');
+
+  const aimed = (target) => {
+    apply((state) => ({ ok: true, state: { ...state, pump: { on: true, target } } }));
+    refreshInspectorOnTick();
+    return host.querySelector('.inspector__gauge').dataset.pumping;
+  };
+
+  assert.equal(aimed(0), 'true', 'the plot it is pointed at');
+  assert.equal(aimed(1), 'false', 'and not a plot it is not pointed at');
+});
+
 test('the picker host is outside #farm-view, which a field render clears wholesale', async () => {
   // The structural half of the same bug. `mountFarmView()` calls `clear(root)` on
   // `#farm-view` before it draws, so anything mounted inside it is destroyed by any
@@ -369,7 +440,7 @@ test('the picker overlays the whole screen, not just the game column', () => {
   assert.match(overlay, /place-items:\s*center/, 'centring the card, which is the reported bug');
 });
 
-test('an empty picker host is inert, so it cannot dim the screen or eat clicks', () => {
+test('an empty picker host is inert, so it cannot dim the screen or eat clicks', async () => {
   // The bug this covers, and it is the reason this test exists. `#farm-picker` is
   // `position: fixed; inset: 0` with a dim background. That sizes and paints an element
   // whether or not it has children, so an **empty** host is a full-screen dim overlay
@@ -390,6 +461,13 @@ test('an empty picker host is inert, so it cannot dim the screen or eat clicks',
 
   // And the behaviour, on the real page: with nothing planted and nothing chosen, the
   // host must be empty, which is the state the guard is protecting.
+  //
+  // Closed explicitly first, because these tests share one DOM. An inspector left open by
+  // an earlier test would fail this one for a reason that has nothing to do with either —
+  // and a test that fails because of its neighbour is a test nobody trusts.
+  const { closePicker } = await import('../js/farmActions.js');
+  closePicker();
+
   const host = document.querySelector('#farm-picker');
   assert.ok(host, '#farm-picker is missing from the page');
   assert.equal(

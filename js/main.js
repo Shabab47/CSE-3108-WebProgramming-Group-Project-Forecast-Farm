@@ -1,5 +1,6 @@
 import { qsOrNull, el } from './utils/dom.js';
 import { createLog } from './utils/log.js';
+import { goldLabel } from './utils/formatGold.js';
 import { loadProvider } from './auth-main.js';
 import { signInAsGuest } from './services/localAuth.js';
 import { buildServerSave } from './remoteSave.js';
@@ -302,7 +303,7 @@ function renderPanels(state) {
   refreshInspector?.();
 
   const goldEl = qsOrNull('#gold-value');
-  if (goldEl && state) goldEl.textContent = `${state.gold} gold`;
+  if (goldEl && state) goldEl.textContent = goldLabel(state.gold);
 }
 
 /**

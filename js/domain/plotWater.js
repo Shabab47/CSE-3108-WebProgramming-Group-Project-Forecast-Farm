@@ -251,13 +251,29 @@ export function minutesToOptimal(plot, eventId) {
   const needed = Math.max(0, targetFor(plot) - (plot.waterLevel ?? 0));
   if (needed <= 0) return null;
 
-  const net = WATER.pumpPerSecond * 3600 - ratesFor(plot, eventId).dry;
+  const dry = ratesFor(plot, eventId).dry;
+  const net = WATER.pumpPerSecond * 3600 - dry;
   if (net <= 0) return null;
+
+  const minutes = Math.ceil((needed / net) * 60);
+
+  // **The quote has to pay for the evaporation too, or it is a lie.**
+  //
+  // Reaching the target takes `minutes`, and for every one of those minutes the sun is
+  // taking water back out — so the pump delivers `needed + dry × hours`, not `needed`.
+  // Quoting `costOf(needed)` undercounted by the replacement it would go on to charge
+  // for: 17 gold quoted against 19.05 actually spent on rice in full sun, a 12% gap in
+  // exactly the dry, bright case where a player most needs the number to be right.
+  //
+  // The bill itself rounds to whole cents per tick, so the quote is built from the same
+  // rounded total rather than a fresh unrounded division — otherwise the meter and the
+  // bill disagree in the last decimal, which is worse than either being slightly off.
+  const delivered = needed + dry * (minutes / 60);
 
   return {
     needed: Math.round(needed),
-    minutes: Math.ceil((needed / net) * 60),
-    gold: costOf(needed),
+    minutes,
+    gold: costOf(delivered),
   };
 }
 

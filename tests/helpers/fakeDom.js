@@ -21,6 +21,79 @@
  * that depends on real event dispatch semantics.
  */
 
+/**
+ * `element.style`, backed by the `style` attribute.
+ *
+ * Only the parts a test can actually assert on: reading a property, setting one, and
+ * `cssText`. Layout is explicitly out of scope for this harness, so a percentage height
+ * here is a string and nothing more — but it is the *same string* the real DOM would
+ * report, which is what makes "the fill is at 41.2%" a meaningful assertion.
+ */
+class InlineStyle {
+  constructor(node) {
+    this.node = node;
+  }
+
+  get _pairs() {
+    const raw = this.node.getAttribute('style') ?? '';
+    return raw
+      .split(';')
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .map((part) => {
+        const at = part.indexOf(':');
+        return [part.slice(0, at).trim(), part.slice(at + 1).trim()];
+      });
+  }
+
+  _write(pairs) {
+    this.node.setAttribute('style', pairs.map(([k, v]) => `${k}: ${v}`).join('; '));
+  }
+
+  getPropertyValue(name) {
+    const found = this._pairs.find(([key]) => key === name);
+    return found ? found[1] : '';
+  }
+
+  setProperty(name, value) {
+    const pairs = this._pairs.filter(([key]) => key !== name);
+    if (value !== '' && value != null) pairs.push([name, String(value)]);
+    this._write(pairs);
+  }
+
+  get cssText() {
+    return this.node.getAttribute('style') ?? '';
+  }
+
+  set cssText(value) {
+    this.node.setAttribute('style', String(value));
+  }
+}
+
+// Dash-case to camelCase, so `style.backgroundColor` and `background-color` are the
+// same property the way they are in a browser.
+function cssProp(name) {
+  return name.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+}
+
+/** A `style` object that accepts any property name and round-trips via the attribute. */
+function makeStyle(node) {
+  const inner = new InlineStyle(node);
+  return new Proxy(inner, {
+    get(target, prop) {
+      if (typeof prop !== 'string') return target[prop];
+      if (prop in target) return target[prop];
+      return target.getPropertyValue(cssProp(prop));
+    },
+    set(target, prop, value) {
+      if (typeof prop !== 'string') return true;
+      if (prop in target) { target[prop] = value; return true; }
+      target.setProperty(cssProp(prop), value);
+      return true;
+    },
+  });
+}
+
 class ClassList {
   constructor(node) {
     this.node = node;
@@ -67,6 +140,22 @@ export class FakeNode {
     this.disabled = false;
     this.hidden = false;
     this.value = '';
+    /**
+     * A live `style` object, so `el.style.height = '41.2%'` and reading it back both work,
+     * round-tripping through the `style` attribute as the browser does.
+     *
+     * Every real element has one, and the in-place water meter now depends on it:
+     * `plotInspector.js` assigns `fill.style.height` each tick rather than rebuilding the
+     * node, because a CSS transition only runs when the same element's value changes.
+     * Without this it threw `Cannot set properties of undefined` — a harness failure that
+     * reads exactly like a game failure, which is the worst kind of both, and the reason
+     * it is added here rather than the production code being bent to suit the harness.
+     *
+     * A `Proxy` rather than a fixed list of properties, so this does not have to be taught
+     * each new CSS property the game styles. That is how a harness silently goes stale and
+     * throws on the next one.
+     */
+    this.style = makeStyle(this);
     /** Replaced per node below — see `installDom`. */
     this._text = '';
     this.focusCount = 0;

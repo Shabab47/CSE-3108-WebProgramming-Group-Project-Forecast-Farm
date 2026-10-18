@@ -193,10 +193,15 @@ export function tick(state, now = Date.now()) {
       ...state,
       plots,
       gold: Math.max(0, (state.gold ?? 0) - run.spent),
-      // An empty purse turns it **off**, not merely idle: it cannot restart itself, and a
-      // toggle that reads "on" while billing nothing is a lie. A full plot leaves it on,
-      // so the player only has to pick the next square.
-      pump: run.autoOff === 'gold' ? { ...pump, on: false } : pump,
+      // **The pump stops itself at a full plot and at an empty purse** — the two reasons
+      // it would otherwise be charging for water nobody can use. An empty purse cannot
+      // restart itself, and a full plot has nothing left to deliver, so neither leaves the
+      // toggle reading "on" while billing nothing. That was a lie the meter used to tell:
+      // the plot sat at its target and the gold kept falling.
+      //
+      // Both auto-offs are the same event to the player — the machine did its job — so the
+      // `autoOff` code is returned either way and `farmActions` says which.
+      pump: run.autoOff ? { ...pump, on: false } : pump,
       lastTickAt: now,
     },
     spent: run.spent,

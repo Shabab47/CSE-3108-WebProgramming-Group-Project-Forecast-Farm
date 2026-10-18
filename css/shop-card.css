@@ -201,6 +201,52 @@
   cursor: not-allowed;
 }
 
+/* --- sell button -------------------------------------------------------------*/
+
+/* One button, sitting immediately left of BUY. Deliberately quieter than the
+   buy row: selling is the corrective action, not the one the card is selling. */
+.shop-sell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #7a4a12;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #f2d9a4 0%, #d9ab5c 100%);
+  color: #4a2c08;
+  font-family:
+    irish grover,
+    var(--font-ui);
+  font-weight: 400;
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  box-shadow: 0 3px 0 0 #8a5a1c;
+  transition:
+    transform var(--speed) var(--ease),
+    filter var(--speed) var(--ease);
+}
+
+.shop-sell:hover {
+  filter: brightness(1.06);
+}
+
+.shop-sell:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 0 #8a5a1c;
+}
+
+.shop-sell--primary {
+  padding: 8px 12px;
+  height: 39px;
+}
+
+.shop-sell[disabled] {
+  opacity: 0.5;
+  filter: grayscale(0.4);
+  cursor: not-allowed;
+}
+
 /* --- locked crops -----------------------------------------------------------*/
 
 .shop-card--locked {

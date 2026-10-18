@@ -30,6 +30,7 @@ import { verdictFor } from './domain/weather.js';
 import { aimPump, setPump } from './domain/pump.js';
 import { mountPlotInspector } from './ui/plotInspector.js';
 import { isSeedUnlocked } from './utils/seedUnlocks.js';
+import { formatGold } from './utils/formatGold.js';
 import { nextUnlockable } from './land_squares/index.js';
 import { plotAction } from './ui/plotClick.js';
 import { mountCropPicker } from './ui/cropPicker.js';
@@ -63,6 +64,21 @@ function pickerHost() {
 }
 
 /**
+ * The open inspector, if there is one.
+ *
+ * **A reference, and not a second source of truth.** The comment above says there is no
+ * `isOpen` flag because the DOM is the state; this does not contradict that. It holds the
+ * handle the panel itself handed back, purely so `refreshInspector` can patch it in place
+ * instead of tearing the card down. It is set on open and cleared on close, and
+ * `refreshInspector` still asks the host whether it has children — so if they ever
+ * disagree, the host wins and the panel is rebuilt rather than patched into nothing.
+ *
+ * This exists because `mountPlotInspector` now returns `{update}`, and a re-mount throws
+ * the old node away, which is the thing that stopped the gauge animating.
+ */
+let inspectorView = null;
+
+/**
  * Handle a click on a plot.
  *
  * **One place decides this**, and it asks `plotAction()` rather than re-deriving the
@@ -91,7 +107,7 @@ export function onPlotClick(plotId) {
 
   closePicker();
   openPlot = plotId;
-  mountPlotInspector(pickerHost(), getState(), plotId, inspectorActions());
+  inspectorView = mountPlotInspector(pickerHost(), getState(), plotId, inspectorActions());
 }
 
 /** The old switch, now one action of the inspector rather than the click itself. */
@@ -107,7 +123,7 @@ function runPlotAction(plotId) {
       // a harvest that silently pays reads as a bug rather than as a payout.
       if (result.ok) {
         const earned = getState().gold - state.gold;
-        emit('toast', { message: `Harvested — ${earned} gold.`, tone: 'success' });
+        emit('toast', { message: `Harvested — ${formatGold(earned)} gold.`, tone: 'success' });
       }
       closePicker();
       break;
@@ -141,12 +157,27 @@ function runPlotAction(plotId) {
  * Needed because the pump runs on its own clock: leaving the panel open while it fills
  * means the gauge, the countdown and the gold estimate have to move under the player's
  * hand, or the panel is a screenshot of a moment that has already passed.
+ *
+ * **This patches the open panel rather than rebuilding it.** Re-mounting was correct and
+ * looked correct — the numbers moved — but it destroyed and recreated the fill element
+ * every second, and a CSS `transition` only runs when the *same* element changes value.
+ * So the gauge jumped instead of sweeping. `update()` writes `style.height` on the node
+ * that is already on screen and the transition does its job.
  */
 function refreshInspector() {
   const state = getState();
   if (!state || openPlot == null) return;
-  if (!pickerHost().children.length) return;
-  mountPlotInspector(pickerHost(), state, openPlot, inspectorActions());
+  const host = pickerHost();
+  if (!host || !host.children.length) return;
+
+  if (inspectorView?.update) {
+    inspectorView = inspectorView.update(state) ?? inspectorView;
+    return;
+  }
+
+  // No handle — someone mounted it another way. Fall back to a full build rather than
+  // leaving a panel that silently stops following the pump.
+  inspectorView = mountPlotInspector(host, state, openPlot, inspectorActions());
 }
 
 /**
@@ -288,6 +319,9 @@ export function closePicker() {
   // leave `openPlot` set and the next `renderPanels()` would mount it again into an empty
   // host — a panel nobody clicked on, reappearing on every state change.
   openPlot = null;
+  // The handle goes with it. Left set, it would let a later `refreshInspector` patch a
+  // panel whose DOM `clear` has already removed.
+  inspectorView = null;
 
   const host = pickerHost();
   if (host) clear(host);

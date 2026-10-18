@@ -40,7 +40,8 @@ import { clear, el, setText } from '../utils/dom.js';
 import { createLog } from '../utils/log.js';
 import { cropSeedImg } from '../config/assets.js';
 import { requiredPlotsFor, shopCrops } from '../config/crops.js';
-import { BUY_STEPS, canAfford } from '../domain/shop.js';
+import { BUY_STEPS, SELL_RATE, canAfford } from '../domain/shop.js';
+import { formatGold } from '../utils/formatGold.js';
 import { isSeedUnlocked, ownedPlots } from '../utils/seedUnlocks.js';
 import {
   coinEl,
@@ -51,7 +52,11 @@ import {
 
 const log = createLog('shopView');
 
-/** Thousands separators, because a corn packet is 5,000 gold and 5000 reads as a typo. */
+/**
+ * Whole numbers — seed counts and seed prices, which are integers by
+ * construction. Gold *amounts* go through `formatGold` instead, because the
+ * purse holds a fraction once the pump has been running.
+ */
 function format(n) {
   return Number(n).toLocaleString('en-US');
 }
@@ -100,6 +105,31 @@ function buildCard(crop, actions) {
     };
   });
 
+  // One sell button, not a row of steps. It sells a single seed, and it sits
+  // immediately left of BUY so the two read as one decision: BUY adds, SELL
+  // takes away. A bulk sell is a second decision, and the card does not need it.
+  const payout = Math.round(crop.seedPrice * SELL_RATE);
+  const sellButton = el(
+    'button',
+    {
+      class: 'shop-sell shop-sell--primary',
+      type: 'button',
+      'aria-label': `Sell 1 seed of ${crop.name} for ${format(payout)} gold`,
+      title: `${format(payout)} gold`,
+      on: {
+        click: () => {
+          const result = actions.sell(crop.id, 1);
+          if (result?.ok) {
+            log.info(`sold 1 ${crop.id} seed for ${payout}`);
+            actions.toast?.(`Sold 1 seed of ${crop.name}.`, 'success');
+          }
+          // On refusal `store.apply` has already emitted the reason as a toast.
+        },
+      },
+    },
+    'SELL',
+  );
+
   const owned = el('p', { class: 'shop-card__owned', text: 'None in your bag' });
 
   // The note is filled per render: land-lock beats art-lock beats the blurb,
@@ -138,7 +168,10 @@ function buildCard(crop, actions) {
           coinEl(),
           el('span', { class: 'shop-card__price-num', text: format(crop.seedPrice) }),
         ]),
-        el('span', { class: 'shop-card__actions' }, buyButtons.map((entry) => entry.node)),
+        el('span', { class: 'shop-card__actions' }, [
+          sellButton,
+          ...buyButtons.map((entry) => entry.node),
+        ]),
       ]),
     ]),
   ]);
@@ -168,6 +201,9 @@ function buildCard(crop, actions) {
       for (const entry of buyButtons) {
         entry.node.disabled = !canAfford(state, crop.id, entry.quantity);
       }
+      // Disabled when the bag is empty, so the button agrees with the rule
+      // rather than refusing after being pressed.
+      sellButton.disabled = (state?.inventory?.seeds?.[crop.id] ?? 0) < 1;
     },
   };
 }
@@ -241,7 +277,7 @@ export function mountShop(root, actions) {
   // without a separate call — and every later change lands in the same place.
   const off = actions.onState((state) => {
     if (!state) return;
-    setText(gold, format(state.gold));
+    setText(gold, formatGold(state.gold));
     for (const card of cards) card.update(state);
   });
 

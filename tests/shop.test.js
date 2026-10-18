@@ -11,7 +11,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { buildInitialState } from '../js/state/initialState.js';
-import { BUY_STEPS, SHOP_REASONS, buySeeds, canAfford } from '../js/domain/shop.js';
+import { BUY_STEPS, SELL_RATE, SHOP_REASONS, SELL_REASONS, buySeeds, sellSeeds, canAfford } from '../js/domain/shop.js';
 import { isSeedUnlocked, ownedPlots } from '../js/utils/seedUnlocks.js';
 import { CROPS, CROP_UNLOCK_PLOTS, SHOP_ORDER, cropOf, harvestValue, requiredPlotsFor, shopCrops } from '../js/config/crops.js';
 import { cropSeedImg } from '../js/config/assets.js';
@@ -214,4 +214,84 @@ test('one seed unlocks every four plots owned, in shop order', () => {
   // Unknown ids stay unknown rather than unlocking at some default.
   assert.equal(requiredPlotsFor('truffle'), Infinity);
   assert.equal(isSeedUnlocked(farmWithPlots(16), 'truffle'), false);
+});
+
+test('seeds sell back for 75% of what they cost', () => {
+  assert.equal(SELL_RATE, 0.75);
+});
+
+test('selling seeds returns 75% of buying price, rounds, and debits bag + credits gold', () => {
+  let st = farmWith(400); // enough to buy 4 rice
+  const b = buySeeds(st, 'rice', 4);
+  assert.equal(b.ok, true);
+  st = b.state;
+  assert.equal(st.gold, 0);
+  assert.equal(st.inventory.seeds.rice, 4);
+  const sell = sellSeeds(st, 'rice', 4);
+  assert.equal(sell.ok, true);
+  assert.equal(sell.payout, Math.round(100 * 4 * 0.75));
+  assert.equal(sell.state.gold, sell.payout);
+  assert.ok(!('rice' in sell.state.inventory.seeds));
+});
+
+test('selling partial seeds keeps remainder and gives correct payout', () => {
+  let st = farmWithPlots(4, 2000);
+  st = buySeeds(st, 'potato', 10).state;
+  const res = sellSeeds(st, 'potato', 3);
+  assert.equal(res.ok, true);
+  assert.equal(res.payout, Math.round(200 * 3 * 0.75));
+  assert.equal(res.state.inventory.seeds.potato, 7);
+  assert.equal(res.state.gold, res.payout);
+});
+
+test('cannot sell more seeds than owned', () => {
+  let st = farmWith(100);
+  st = buySeeds(st, 'rice', 1).state;
+  const res = sellSeeds(st, 'rice', 5);
+  assert.equal(res.ok, false);
+  assert.equal(res.reason, SELL_REASONS.notEnoughSeeds(1, 5));
+  assert.equal(st.inventory.seeds.rice, 1);
+  assert.equal(st.gold, 0);
+});
+
+test('selling refuses unknown crop and invalid quantity', () => {
+  const s = farmWith(100);
+  let r = sellSeeds(s, 'unknown', 1);
+  assert.equal(r.ok, false);
+  assert.equal(r.reason, SELL_REASONS.unknownCrop);
+  r = sellSeeds(s, 'rice', 0);
+  assert.equal(r.ok, false);
+  assert.equal(r.reason, SELL_REASONS.badQuantity);
+  r = sellSeeds(s, 'rice', 2.5);
+  assert.equal(r.ok, false);
+  assert.equal(r.reason, SELL_REASONS.badQuantity);
+});
+
+test('selling is not land-gated — a locked crop can still be sold back', () => {
+  // The unlock gate is on *buying* land, not on holding seeds. A one-plot farm
+  // that somehow holds corn must not be stuck with it forever.
+  const state = farmWithPlots(1, 0);
+  state.inventory.seeds.corn = 2;
+
+  assert.equal(isSeedUnlocked(state, 'corn'), false, 'cannot be bought or planted');
+  const res = sellSeeds(state, 'corn', 1);
+  assert.equal(res.ok, true);
+  assert.equal(res.payout, Math.round(500 * SELL_RATE));
+  assert.equal(res.state.inventory.seeds.corn, 1);
+});
+
+test('a save with no seed bag has nothing to sell', () => {
+  const state = { ...farmWith(500), inventory: {} };
+  const res = sellSeeds(state, 'rice', 1);
+  assert.equal(res.ok, false);
+  assert.equal(res.reason, SELL_REASONS.notEnoughSeeds(0, 1));
+});
+
+test('sellSeeds does not mutate original state', () => {
+  const base = farmWith(200);
+  const afterBuy = buySeeds(base, 'rice', 2).state;
+  const before = structuredClone ? structuredClone(afterBuy) : JSON.parse(JSON.stringify(afterBuy));
+  const res = sellSeeds(afterBuy, 'rice', 1);
+  assert.equal(res.ok, true);
+  assert.deepEqual(afterBuy, before);
 });
