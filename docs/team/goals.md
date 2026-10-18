@@ -1,7 +1,14 @@
 # Team Goals — 5 Week Plan
 
-**Week 1 is done. Four weeks of building remain, eight goals, two per week.** Weeks are numbered,
-not dated — the order matters more than the calendar.
+**Weeks 1 and 2 are done, and week 3 closed on 18 October.** We are two weeks from v0.1 with one
+goal complete, five substantially built, and two still open. **What is left is the land economy
+and the market — and that belongs to all four of us**, because every plot, every price and every
+sale touches work three people have already done.
+
+The plan below is the plan as written in week 1. **Where the build went differently, the table
+records what shipped rather than what was forecast** — G-07 was scheduled for week 5 and landed in
+week 3, because the weather was being fetched and displayed while doing nothing to the farm, and
+that was not shippable. Weeks are numbered, not dated; the order mattered more than the calendar.
 
 Marking progress: change `- [ ]` to `- [x]` in this file. Nothing else. The checkbox is the
 single source of truth for "is this done", so it must be updated in the same commit as the work.
@@ -10,24 +17,65 @@ A goal is only `[x]` when every box under **Done when** is ticked.
 Goals are shared. Anyone can pick one up, and who is doing what is tracked in `tasks.md` rather
 than here — this file stays about the work, not the people.
 
-Weeks run in sequence: G-02 before G-03, and G-05 before G-07. If a week slips, slip the goal —
-do not reorder them.
+**The dependency order still holds and is still load-bearing:** G-05 before G-07. If a week slips,
+slip the goal — do not reorder them.
 
 ---
 
 ## Summary
 
-| ID | Week | Goal | Status |
-| :--- | :--- | :--- | :--- |
-| — | 1 | Planning, design and documentation | `- [x]` |
-| G-01 | 2 | Foundation: tooling, config, state, services | `- [ ]` |
-| G-02 | 2 | Field on screen: layout shell + isometric field | `- [ ]` |
-| G-03 | 3 | Land economy: buy plots, gold, prices | `- [ ]` |
-| G-04 | 3 | Plant to harvest: shop, inventory, growth, save | `- [ ]` |
-| G-05 | 4 | Pump, water and market: the full money loop | `- [ ]` |
-| G-06 | 4 | Live weather: search, forecast, metrics, fallback | `- [ ]` |
-| G-07 | 5 | Weather effects and crop alerts | `- [ ]` |
-| G-08 | 5 | Ship v0.1: more crops, polish, handover | `- [ ]` |
+| ID | Planned | Goal | Status | Where it actually landed |
+| :--- | :---: | :--- | :--- | :--- |
+| — | 1 | Planning, design and documentation | `- [x]` | as planned |
+| G-01 | 2 | Foundation: tooling, config, state, services | `- [~]` built, T-04 open | week 2 |
+| G-02 | 2 | Field on screen: layout shell + isometric field | `- [~]` built, T-06 open | weeks 2–3 |
+| G-03 | 3 | Land economy: buy plots, gold, prices | `- [~]` partly built | week 3 |
+| G-04 | 3 | Plant to harvest: shop, inventory, growth, save | `- [~]` built, T-08 open | weeks 2–3 |
+| G-05 | 4 | Pump, water and market: the full money loop | `- [~]` **water and pump done, market open** | week 3 |
+| G-06 | 4 | Live weather: search, forecast, metrics, fallback | `- [~]` built, T-11 open | weeks 2–3 |
+| G-07 | **5** | Weather effects and crop alerts | `- [x]` | **week 3, two weeks early** |
+| G-08 | 5 | Ship v0.1: more crops, polish, handover | `- [ ]` | — |
+
+`- [~]` is not a GitHub checkbox and does not render as one. It means **substantially built and
+not finished**, and the task id says what is outstanding. Only `- [x]` means done.
+
+**Where the remaining two weeks go.** Finish G-03 and the market half of G-05 — the whole team —
+then G-08. Nothing else is on the critical path.
+
+---
+
+## Where we actually are — 18 October 2026
+
+**The game runs, and the weather does something to it.** That was not true a fortnight ago: the
+forecast was fetched, classified and displayed while doing nothing whatsoever to the farm, which
+is the premise the whole project is built on. It now reaches crops through five channels — the
+water level, a verdict shown when you sow, health while the crop stands, a permanent damage latch,
+and the payout.
+
+**Three things a player can do today** that they could not a week ago: click any plot to see its
+own water gauge and water it; read an environment card that says what the weather is doing to the
+farm rather than what it is doing outside; and choose easy or normal.
+
+**What is not finished, in the order it matters.**
+
+1. **The land economy and the market.** Free first plot, price tags on locked plots and a growth
+   timer landed. Buying with a confirm step, the wallet's refusal when you cannot afford, and the
+   market's own tests have not. **This is everyone's** — it touches plots, gold, seeds, harvest
+   and the shop, which between them are four people's work. ISS-080 (no confirm step on buying
+   land) is the sharpest one.
+2. **Damage sprites.** The latch and the wording ship; the pictures do not exist. Three for rice,
+   fifteen across all crops, and until they land a damaged crop shows a hole with a word beside it.
+   That is [DEC-014](decisions.md)'s rule working as intended, not a bug — but it is the most
+   visible thing missing.
+3. **ISS-015**, the drought rating that ignores how wet the plot already is. Small, and the last
+   thing G-07 left open.
+4. **The three open weather gaps** — ISS-096 and ISS-097 in `issues.md`, both about rain and the
+   bill, plus the frozen `services/` cleanup in T-04 that `npm run check` reports as two known
+   violations.
+
+**Nothing on that list is architectural.** The layering holds, the suite is green, and the two
+weeks are enough — which is worth saying plainly, because week 3 was supposed to be the economy
+and the economy is the thing that slipped.
 
 ---
 
@@ -109,6 +157,10 @@ diamond, and there is no flicker when the pointer moves across overlapping plot 
 
 The economy. Nothing here reads the weather API.
 
+> **Closed 18 October, partly as written.** G-03 and G-04 are substantially built. G-05's pump and
+> water half **and G-07 in full** landed here too, two weeks early. The economy itself is what
+> carried over.
+
 ### G-03 Land economy `- [ ]`
 
 **Tasks:** T-07
@@ -158,6 +210,10 @@ runs, and harvest → gold → seeds → plant loops end to end.
 
 Real weather in, consequences out.
 
+> **Effectively done, ahead of schedule.** G-06 is built and G-07 shipped in week 3. What actually
+> occupies this week is the economy and market carried over from week 3 — **G-03 and G-05's second
+> half, both everyone's.**
+
 ### G-06 Live weather `- [ ]`
 
 **Tasks:** T-11
@@ -174,20 +230,40 @@ Real weather in, consequences out.
 **Done when:** searching "Rajshahi" updates every panel, and pulling the network falls back to
 sample data without breaking the page.
 
-### G-07 Weather effects and alerts `- [ ]`
+### G-07 Weather effects and alerts `- [x]`
 
-**Tasks:** T-12, T-13
+**Tasks:** T-12, T-13 · **landed week 3, two weeks early** · ISS-089, ISS-090, ISS-091, ISS-092
 
-- [ ] `domain/weather.js` `classify()` with the current-hour `startIndex` rule (ISS-009)
-- [ ] `ratingFor(plot, eventId)` with the drought water-level conditional (ISS-015)
-- [ ] `simulator.js` applies matrix, dry drain, death, rain water and evaporation
-- [ ] `state.notified` added for alert dedupe (ISS-013)
-- [ ] `notifications.forProjection()` and `toastStack`
-- [ ] Debug dropdown to force the current event
-- [ ] `simulator.test.js`: drought on a dry plot loses health, on a wet plot does not
+- [x] `domain/weather.js` `classify()` with the current-hour `startIndex` rule (ISS-009)
+- [~] `ratingFor(plot, eventId)` with the drought water-level conditional — **ISS-015 still open**;
+      the crop is judged by weather alone and ignores how wet the plot already is
+- [x] the tick applies the matrix, dry drain, death, rain water and evaporation
+- [x] `state.notified` added for alert dedupe (ISS-013)
+- [x] `notifications.forProjection()` and `toastStack`
+- [x] Debug dropdown to force the current event
+- [x] Tests: drought on a dry plot loses health, on a wet plot does not
 
 **Done when:** forcing `heavy-rain` waters the plots and rice survives while wheat takes damage,
-and forcing a rain forecast with rice planted raises *"Rain incoming — skip irrigation."*
+and a rain forecast with rice planted raises a warning **about that crop**.
+
+**Both met.** Measured on one rice plot at 85 water left for six hours: clear 32 °C → 20.2 water,
+health 88, dry damage; overcast 22 °C → 50.4; heavy rain → 120, waterlogged; drought 41 °C → 0
+water, health 78.
+
+**This goal's done-when was rewritten on 18 October.** It previously ended:
+
+> and forcing a rain forecast with rice planted raises *"Rain incoming — skip irrigation."*
+
+**That string does not and never did exist in the game.** It was an aspiration written in week 1,
+and it escaped into the README as though it were a shipped message, where a reviewer would
+reasonably have read it as a claim about the product. What ships is seven crop-specific lines —
+*"Heavy rain coming - rice thrives on it."*, *"Heavy rain coming - wheat rots in standing water."* —
+which warn about the crop without ever mentioning the pump.
+
+**Telling a player not to pay for rain is now ISS-097**, deliberately not ticked here: it was
+never part of this goal, and ticking a box because a related thing shipped is how a plan stops
+describing reality. The honest record is that the goal is met and the aspiration was quietly
+dropped, which is worth more than a tick that hides it.
 
 ---
 

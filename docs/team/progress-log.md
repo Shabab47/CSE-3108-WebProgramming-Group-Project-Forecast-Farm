@@ -7,6 +7,48 @@ The per-person weekly notes that used to live in the README table are now in `me
 
 ---
 
+## Week 3 closed, and the record was brought back in line — Hisham
+
+- **Did:** the README had drifted from what the game does. Four of its paragraphs were not
+  merely incomplete but **false** — *"the field itself is not on screen yet"* while sixteen
+  plots render; *"frost can kill them"* against a health floor of 25; a pump described as
+  keeping a crop alive when it waters **one plot and stops at its target**; and a quoted warning,
+  *"Rain incoming — skip irrigation"*, **that has never existed in the game**. That string was
+  `goals.md`'s G-07 acceptance criterion from week 1, read out into the README as though it were
+  a shipped message. Corrected all four, and wrote week 3 up properly.
+- **The plan is not the record.** Week 3 was labelled *"Land economy, then planting and
+  growth"* and week 4 *"Pump, water and market"*. What actually shipped is that **G-07 landed
+  two weeks early** — the weather was being fetched, classified and displayed while doing nothing
+  to the farm, which is not shippable. The table now carries a *"Where it actually landed"*
+  column, and the gaps row the README would have carried is **not** in it: ISS-096 and ISS-097
+  are in `issues.md` where they belong, not on a front page.
+- **Five new issues.** ISS-095 a typo'd asset status that shipped silently because nothing read
+  the field. ISS-096 the time-to-optimal quote ignoring rain — in the file that already knows the
+  rain rate, because `minutesToOptimal` destructures `ratesFor(...).dry` and drops `.rain` beside
+  it. ISS-097 no warning against paying for rain (measured: **13 gold** billed for water a storm
+  provided). ISS-098 `inventory.js` never written and `simulator.js` still 0 bytes. ISS-099 a
+  harvested crop cannot be sold, so the weather's effect on money **pays into nothing**.
+- **ISS-100, and the one worth knowing about.** DEC-039, DEC-040 and DEC-041 **each name two
+  different decisions** — allocated independently on two branches on 17 October and merged
+  without either side seeing it. About twenty-eight references across `js/`, `tests/` and `docs/`
+  now have to be read in context, including one where `DEC-040` means *the starter plot* and
+  another where it means *the pump*. Left with a warning block rather than renumbered: touching
+  thirty files for a numbering tidy on the day before a demo is a bad trade.
+- **The economy is the team's.** It is what slipped, it is the last thing between here and v0.1,
+  and it touches plots, gold, seeds, harvest and the shop — four people's work. Recorded as such
+  in the README, `goals.md`, `tasks.md` and ISS-099 rather than assigned to whoever is free.
+- **Touched:** `README.md`, `docs/{goals,tasks,issues,decisions,asset-checklist}.md` in
+  `docs/team/`, `js/config/assets.js`, `tests/assets.test.js`. **Deleted `fix-conflicts.mjs`** —
+  a 20-line one-shot for ISS-078, already run, superseded by `noConflictMarkers.test.js`.
+- **Also:** counted the assets properly for the first time. **65 registered, 36 done, 29
+  outstanding** — of which 5 are unused duplicates and 4 are placeholders, so **24 are art
+  somebody still has to draw.** `asset-checklist.md` had said 60/14/46 since week 1. Three
+  `rice_*.png` damage sprites are now registered as 0-byte placeholders so the count includes
+  them, and two tests guard the status vocabulary so ISS-095 cannot recur quietly.
+- **Next:** land economy and market, everyone's. Then damage sprites, ISS-015, and ISS-096/097.
+
+---
+
 ## The pump was running and the game blamed it — Hisham
 
 - **Did:** rebuilt the water system around an **optimal band**, from the report *"the pump
