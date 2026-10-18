@@ -30,7 +30,7 @@
  * on, rather than returning to find the pump mysteriously off with no explanation.
  */
 
-import { PUMP, WATER } from '../config/game.js';
+import { DIFFICULTY, PUMP, WATER } from '../config/game.js';
 
 /**
  * The pump as it actually stood at the start of `hours`, and what that cost.
@@ -104,7 +104,14 @@ export function pumpRun(state, hours, target = WATER.max, dryRate = 0) {
   // Rounded to whole cents before it is compared against the purse. A bill of
   // 0.4999999999 gold is not "more than half a gold", and letting binary floating point
   // decide whether the player can afford to switch the pump on is not a rule.
-  const spent = Math.round((delivered / WATER.pumpPerSecond) * PUMP.upkeepPerSecond * 100) / 100;
+  const gross = Math.round((delivered / WATER.pumpPerSecond) * PUMP.upkeepPerSecond * 100) / 100;
+
+  // **Easy mode runs the pump for nothing.** The water is still delivered — `watered` is
+  // unchanged, so the meter still fills and the plot is still watered — it is simply not
+  // billed. The decision lives here rather than in `water.js` because this is the module
+  // that owns what the pump costs, and a cost rule in a different file from the cost is
+  // how two halves of it drift apart.
+  const spent = state.difficulty === DIFFICULTY.easy ? 0 : gross;
 
   if (spent > (state.gold ?? 0)) {
     // Ran out mid-interval. Deliver only what the remaining gold actually pays for —

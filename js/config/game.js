@@ -197,6 +197,49 @@ export const SAVE_DEBOUNCE_MS = 800;
 /** Save payload version. */
 export const STATE_VERSION = 1;
 
+/**
+ * How the farm treats a crop that has finished growing.
+ *
+ * ## The two modes
+ *
+ * |                | Normal          | Easy                          |
+ * | :--- | :--- | :--- |
+ * | ripe crop      | dries, damages, dies | cannot be harmed          |
+ * | growing crop   | vulnerable      | **still vulnerable**            |
+ * | pump           | costs gold      | free                            |
+ *
+ * **Normal is the default, and that is the important part of the decision.** Every farm
+ * that exists today has no `difficulty` field in its save, so it reads as Normal — which
+ * means adding this setting changes nobody's game until they go and change it. See
+ * `ensureDifficulty` in `js/state/initialState.js`.
+ *
+ * ## Easy is narrower than its name
+ *
+ * **It protects a crop that has finished, and nothing else.** A crop still growing in easy
+ * mode dries, takes damage and dies exactly as it does in normal — so watering still
+ * matters and the pump is still the right button to press. What easy changes is the
+ * pressure on a player who has already done the waiting: a ripe crop is not a countdown
+ * to a shrinking payout, and the pump is free because there is no longer a risk to
+ * insure against.
+ *
+ * That asymmetry is deliberate rather than a half-finished implementation, and it is why
+ * the settings card states it in full. A player who reads "Easy" as "nothing can hurt my
+ * crops" would be wrong, and the copy exists to stop that.
+ *
+ * **Growth is identical in both modes.** `growthProgress(cropId, elapsedHours)` takes no
+ * health and no water, so a crop ripens on schedule either way. Easy never makes anything
+ * faster; it only stops a ripe crop from being punished for the player's absence.
+ */
+export const DIFFICULTY = { easy: 'easy', normal: 'normal' };
+
+/** Normal, so a save written before this setting existed behaves as it always has. */
+export const DEFAULT_DIFFICULTY = DIFFICULTY.normal;
+
+/** Whether a value is a difficulty this game knows about. Anything else is rejected. */
+export function isDifficulty(value) {
+  return value === DIFFICULTY.easy || value === DIFFICULTY.normal;
+}
+
 /* --- network ---------------------------------------------------------------- */
 
 /**

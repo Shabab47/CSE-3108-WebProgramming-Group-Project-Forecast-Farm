@@ -140,6 +140,193 @@ afterEach(() => {
   delete globalThis.__navigatedTo;
 });
 
+/* --- difficulty ---------------------------------------------------------- */
+
+/**
+ * Mount the settings page with a difficulty card wired to a recording stub.
+ *
+ * Every other test in this file mounts without `setDifficulty`, and that is deliberate —
+ * `difficultyCard` tolerates a missing one so an older call site cannot break the page.
+ * These tests pass one so the write can be observed.
+ */
+function mountWithDifficulty(overrides = {}) {
+  const root = installDom();
+  const calls = [];
+
+  const actions = {
+    session: SESSION,
+    deleteProgress: async () => ({ ok: true }),
+    requestAccountDeletion: async () => ({ ok: true }),
+    toast: (message, tone) => { calls.push({ toast: message, tone }); },
+    backHref: 'index.html',
+    difficulty: 'normal',
+    setDifficulty: (value) => {
+      calls.push({ setDifficulty: value });
+      return { ok: true };
+    },
+    ...saveActions(),
+    ...overrides,
+  };
+
+  const view = mountSettings(root, actions);
+  return { root, calls, view, actions };
+}
+
+function radioFor(root, value) {
+  const found = root.querySelectorAll('input')
+    .find((input) => input.getAttribute('value') === value);
+  assert.ok(found, `no difficulty radio for "${value}"`);
+  return found;
+}
+
+/** Whether a player could see this node: it and every ancestor must be un-hidden. */
+function isShown(node) {
+  for (let n = node; n; n = n.parentNode) {
+    if (n.hidden) return false;
+  }
+  return true;
+}
+
+/** The writes the card made, ignoring the toasts it said about them. */
+const writes = (calls) => calls.filter((c) => 'setDifficulty' in c);
+
+/**
+ * Choose a difficulty the way a browser does: the radio becomes checked, the rest of its
+ * group lets go, and only then does `change` fire.
+ *
+ * The fake DOM does none of that on its own, and the card's handler ignores a `change`
+ * from an unchecked radio — correctly, since a real browser never sends one. Dispatching
+ * a bare `change` therefore tests a click no player can make, and the card (rightly) does
+ * nothing with it.
+ */
+async function choose(root, value) {
+  for (const input of root.querySelectorAll('input')) {
+    if (input.getAttribute('name') === 'difficulty') input.checked = false;
+  }
+  const radio = radioFor(root, value);
+  radio.checked = true;
+  await radio.dispatch('change');
+}
+
+test('the difficulty card shows what each mode does, not just its name', () => {
+  const { root } = mountWithDifficulty();
+  const card = cardTitled(root, 'Difficulty');
+  // `visibleText` returns an array of sentences, so join before matching — the copy is
+  // split across nodes and a per-element match would miss most of it.
+  const text = visibleText(card).join(' ');
+
+  assert.match(text, /Normal/, 'both modes are named');
+  assert.match(text, /Easy/, 'both modes are named');
+
+  // The load-bearing part. "Easy" reads as a promise about the whole crop, and it is not
+  // one — a crop that has not ripened is still vulnerable. If this sentence goes, the
+  // card is misleading rather than merely terse.
+  assert.match(
+    text,
+    /not ripened yet are still\s+vulnerable/i,
+    'Easy must say that growing crops are still vulnerable',
+  );
+  assert.match(text, /pump is free/i, 'and that the pump is free');
+  assert.match(
+    text,
+    /loses value|dry/i,
+    'and Normal must say what leaving a ripe crop alone costs',
+  );
+});
+
+test('the difficulty card shows the mode actually in force', () => {
+  const normal = mountWithDifficulty().root;
+  assert.equal(radioFor(normal, 'normal').checked, true, 'a normal farm');
+  assert.equal(radioFor(normal, 'easy').checked, false);
+
+  uninstallDom();
+
+  const easy = mountWithDifficulty({ difficulty: 'easy' }).root;
+  assert.equal(radioFor(easy, 'easy').checked, true, 'an easy farm');
+  assert.equal(radioFor(easy, 'normal').checked, false);
+});
+
+test('choosing a difficulty does not write until it is confirmed', async () => {
+  // The reason this card is arm-then-confirm rather than a plain radio group: a setting
+  // that changes how the whole farm behaves must not change because a radio sat under the
+  // cursor. Selecting arms; confirming writes.
+  const { root, calls } = mountWithDifficulty();
+
+  await choose(root, 'easy');
+
+  assert.deepEqual(calls, [], 'selecting writes nothing');
+  assert.equal(isShown(button(root, 'Confirm')), true, 'and arms a visible Confirm instead');
+
+  await button(root, 'Confirm').click();
+
+  assert.deepEqual(writes(calls), [{ setDifficulty: 'easy' }], 'confirming writes exactly once');
+  assert.ok(
+    calls.some((c) => c.toast && /Easy/.test(c.toast) && c.tone === 'success'),
+    'and says so in a toast',
+  );
+});
+
+test('cancelling an armed change writes nothing and puts the old mode back', async () => {
+  const { root, calls } = mountWithDifficulty();
+
+  await choose(root, 'easy');
+  await button(root, 'Keep normal').click();
+
+  assert.deepEqual(calls, [], 'a cancelled choice leaves no trace — no write, no toast');
+  assert.equal(radioFor(root, 'normal').checked, true, 'and the radio is back where it was');
+  assert.equal(isShown(button(root, 'Confirm')), false, 'with the confirm pair hidden again');
+  assert.equal(isShown(button(root, 'Keep normal')), false);
+});
+
+test('after switching to easy, the way back offers to keep easy — not a stale label', async () => {
+  const { root } = mountWithDifficulty();
+
+  await choose(root, 'easy');
+  await button(root, 'Confirm').click();
+  await choose(root, 'normal');
+
+  assert.equal(isShown(button(root, 'Keep easy')), true, 'the cancel button names the mode in force');
+});
+
+test('choosing the mode already in force asks for no confirmation', async () => {
+  const { root, calls } = mountWithDifficulty();
+
+  await choose(root, 'normal');
+
+  assert.equal(isShown(button(root, 'Confirm')), false, 'nothing to confirm');
+  assert.deepEqual(calls, [], 'and nothing written');
+});
+
+test('a refused change is reported in the card rather than looking like it worked', async () => {
+  // The store toasts its own refusals; the card says so too, so a click that did not
+  // take cannot look like it did.
+  const { root } = mountWithDifficulty({
+    setDifficulty: () => ({ ok: false, reason: 'That is not a difficulty this game knows about.' }),
+  });
+
+  await choose(root, 'easy');
+  await button(root, 'Confirm').click();
+
+  const card = cardTitled(root, 'Difficulty');
+  assert.match(
+    visibleText(card).join(' '),
+    /not a difficulty/i,
+    'the card says the change was refused',
+  );
+});
+
+test('the difficulty card is above the danger cards', async () => {
+  // It is the only control on the page that is neither destructive nor about data, so it
+  // must not read as one more way to lose things.
+  const { root } = mountWithDifficulty();
+  const titles = root.querySelectorAll('span')
+    .map((n) => n.textContent)
+    .filter((t) => ['Difficulty', 'Erase progress', 'Delete account', 'Save data'].includes(t));
+
+  assert.deepEqual(titles, ['Difficulty', 'Erase progress', 'Delete account', 'Save data'],
+    'in that order, from the safe to the dangerous');
+});
+
 /* --- the bug this file was written for -------------------------------------- */
 
 test('erasing progress shows "Checking your password." in its own card', async () => {

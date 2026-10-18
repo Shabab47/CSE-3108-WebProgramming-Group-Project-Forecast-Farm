@@ -49,6 +49,7 @@ import { passwordGate } from './passwordGate.js';
 import { runDestructive } from './runDestructive.js';
 import { statusLine } from './statusLine.js';
 import { accountDeletionFailure, progressErasureFailure } from './dangerMessages.js';
+import { difficultyCard } from './difficultyCard.js';
 import { mountSavePanel } from './savePanel.js';
 
 const log = createLog('settingsView');
@@ -59,6 +60,8 @@ const log = createLog('settingsView');
  * @param {{status:string, farmerName:string, username?:string, email?:string}} actions.session
  * @param {() => Promise<{ok:boolean, reason?:string}>} actions.deleteProgress wipes the save
  * @param {() => Promise<{ok:boolean, reason?:string}>} [actions.requestAccountDeletion]
+ * @param {'easy'|'normal'} [actions.difficulty] the mode in force now
+ * @param {(value: string) => {ok: boolean, reason?: string}} actions.setDifficulty
  * @param {(msg:string, tone:string) => void} actions.toast
  * @param {string} actions.backHref
  * @returns {{unmount: () => void}}
@@ -93,6 +96,17 @@ export function mountSettings(root, actions) {
    * passwords would otherwise be asked to collect a credential nothing reads.
    */
   const asksForPassword = !isGuest;
+
+  /* --- difficulty ---------------------------------------------------------- */
+
+  // Above the danger cards, because it is the only control on this page that is neither
+  // destructive nor about data — it changes how the farm behaves, and burying it under
+  // "Erase progress" would make it read as one more way to lose things.
+  const difficulty = difficultyCard({
+    difficulty: actions.difficulty,
+    setDifficulty: actions.setDifficulty,
+    toast: actions.toast,
+  });
 
   /* --- erase all progress ------------------------------------------------ */
 
@@ -190,6 +204,7 @@ export function mountSettings(root, actions) {
         el('h1', { class: 'settings-top__title', text: 'Settings' }),
       ]),
     ]),
+    difficulty.node,
     el('div', { class: 'card card--danger' }, [
       el('div', { class: 'card__head' }, [el('span', { class: 'card__title', text: 'Erase progress' })]),
       el('div', { class: 'card__body' }, [
@@ -225,6 +240,12 @@ export function mountSettings(root, actions) {
     ]),
   );
 
-  return { unmount() { clear(root); } };
+  return {
+    unmount() { clear(root); },
+    /** Follow the store, so the card reflects a difficulty changed elsewhere. */
+    update(nextState) {
+      difficulty.update(nextState?.difficulty);
+    },
+  };
 }
 

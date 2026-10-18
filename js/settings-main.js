@@ -25,7 +25,7 @@ import { farmHref, resolveSession } from './main.js';
 import { buildServerSave } from './remoteSave.js';
 import { mountConnectionStatus, wireSaveOnExit } from './connection.js';
 import { deleteAccount, eraseProgress } from './services/accountApi.js';
-import { adoptState, clearLocalSave, emit, exportPayload, getState, init, readImport, reset, saveNow } from './state/store.js';
+import { adoptState, clearLocalSave, emit, exportPayload, getState, init, readImport, reset, saveNow, setDifficulty } from './state/store.js';
 import { buildInitialState } from './state/initialState.js';
 import { mountSettings } from './ui/settingsView.js';
 import { mountBlockedScreen } from './ui/blockedScreen.js';
@@ -202,6 +202,12 @@ function settingsActions(session, provider) {
     deleteProgress: makeDeleteProgress(provider),
     requestAccountDeletion: makeDeleteAccount(provider),
     canExport: () => getState()?.session?.status === 'authed',
+    // The difficulty card reads the mode from the store rather than being told it, so it
+    // shows what is actually in force on a page reload rather than what a prop said once.
+    difficulty: getState()?.difficulty,
+    // Through `setDifficulty`, so the save, the toast and the notification are the same
+    // path every other state change takes.
+    setDifficulty,
     now: () => Date.now(),
     exportPayload,
     readImport,

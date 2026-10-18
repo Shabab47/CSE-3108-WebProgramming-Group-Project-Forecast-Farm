@@ -7,6 +7,33 @@ Format: who decided, the choice, why, and what was rejected.
 
 ---
 
+### DEC-042 Difficulty: Normal and Easy, and Easy protects only a ripe crop
+**Decided by:** requested by the team · 2026-10-18
+
+**Choice:** Settings has a Difficulty card with two modes, each described on the card
+itself. `state.difficulty` is `'normal'` (the default) or `'easy'`
+(`DIFFICULTY` in `js/config/game.js`).
+
+- **Normal:** a ripe crop keeps drying, takes damage, loses value and can die. The pump
+  costs gold. This is how the game has always behaved.
+- **Easy:** once a crop is ripe, nothing can harm it. `isProtected()` in `domain/water.js`
+  makes `tick` return a ripe plot untouched, so no dryness, damage, health loss or death.
+  The pump is free (`domain/pump.js`).
+
+**Why Easy is narrow:** a crop still *growing* is exactly as vulnerable in Easy as in
+Normal, so watering still matters. Easy removes the pressure on a player who has already
+done the waiting. The card says this in its own sentence rather than leaving it to be
+discovered.
+
+**Also decided:** Normal is what an old save reads as (`ensureDifficulty`), with no
+`STATE_VERSION` bump. Changing mode is arm-then-confirm, like the danger actions. Switching
+to Easy does **not** repair a crop that is already damaged.
+
+**Rejected:** protecting every crop in Easy (a different game from the one described), and
+a plain radio group that writes on click.
+
+---
+
 ### DEC-041 One crop seed unlocks every four land segments owned
 **Decided by:** Jim · 2026-10-17 · **decided and built, fixed same day**
 

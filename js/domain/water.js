@@ -24,9 +24,10 @@
  * `lastTickAt` on the state is what makes that work, and it already existed.
  */
 
-import { HEALTH, WATER } from '../config/game.js';
+import { DIFFICULTY, HEALTH, WATER } from '../config/game.js';
 import { classifyHour } from '../config/weatherEvents.js';
 import { indexOfHour } from './weather.js';
+import { harvestsIn } from '../land_squares/index.js';
 import { pumpRun } from './pump.js';
 import { bandFor, pumpedWindow, ratesFor, targetFor, timeOutsideBand } from './plotWater.js';
 import { applyDamage, damageFor } from './damage.js';
@@ -53,6 +54,29 @@ export function currentEvent(state, now) {
     windSpeed: hourly.windSpeed?.[index],
     precipitationProbability: hourly.precipitationProbability?.[index],
   });
+}
+
+/**
+ * Is this plot one that nothing is allowed to hurt?
+ *
+ * True only in easy mode, and only for a crop that has finished growing — which is what
+ * `harvestsIn().ready` answers. Kept as its own function rather than inlined at the call
+ * site because "ripe **and** easy" is a rule with two halves, and a rule written twice is
+ * a rule that will be written one way in one place and another way in the other.
+ *
+ * The readiness half is what makes this narrow on purpose: `harvestsIn` also reports
+ * `ready: false` for a dead crop, so a dead crop is never "protected" — it is already
+ * past saving, and `clearPlot` is how it leaves.
+ *
+ * @param {object} state
+ * @param {object} plot
+ * @param {number} now
+ * @returns {boolean}
+ */
+export function isProtected(state, plot, now) {
+  if (state?.difficulty !== DIFFICULTY.easy) return false;
+  if (!plot?.cropId || plot.dead) return false;
+  return harvestsIn(plot, now).ready;
 }
 
 /** One plot's water after `hours`, before any pumping. */
@@ -107,6 +131,20 @@ export function tick(state, now = Date.now()) {
   const pumpedId = run.plot ? run.plot.id : null;
 
   const plots = state.plots.map((plot) => {
+    // **Easy mode: a ripe crop is untouchable.**
+    //
+    // Returned before anything below touches it, so it cannot dry, cannot latch damage,
+    // cannot lose health and cannot die. Its water meter holds where it was, too: with
+    // nothing left to protect from, there is no dryness to track on a ripe crop, and the
+    // meter comes back to life the moment the plot is harvested and replanted.
+    //
+    // **Ripe only, and that is the whole scope.** A crop still growing is *not* exempt:
+    // it dries, damages and dies in easy mode exactly as it does in normal. What easy
+    // removes is the pressure on someone who has already finished waiting — a ripe crop
+    // stops being a countdown to a silently shrinking payout. See `DIFFICULTY` in
+    // `js/config/game.js`, and the settings card, which says so in as many words.
+    if (isProtected(state, plot, now)) return plot;
+
     const rates = ratesFor(plot, eventId);
     const before = plot.waterLevel ?? 0;
     const isPumped = pumpedId !== null && plot.id === pumpedId && run.autoOff !== 'gold';

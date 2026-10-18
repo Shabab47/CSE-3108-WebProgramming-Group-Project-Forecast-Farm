@@ -8,9 +8,9 @@
  */
 
 import { createLog } from '../utils/log.js';
-import { SAVE_DEBOUNCE_MS, SAVE_RETRY_BACKOFF_MS } from '../config/game.js';
+import { SAVE_DEBOUNCE_MS, SAVE_RETRY_BACKOFF_MS, isDifficulty } from '../config/game.js';
 import { importFromText } from './transfer.js';
-import { buildInitialState, ensureStarterPlot, normaliseSession } from './initialState.js';
+import { buildInitialState, ensureDifficulty, ensureStarterPlot, normaliseSession } from './initialState.js';
 import { deleteSave, readSave, writeSave } from './saveFile.js';
 import { exportFilename, exportToText } from './transfer.js';
 
@@ -194,6 +194,14 @@ export async function init(session, build = buildInitialState, server = null) {
     log.info('granted the free starting plot to an older save');
   }
 
+  // Same reasoning for `difficulty`: a save from before the setting has no field, and
+  // "no field" has to mean Normal so that adding the setting changes nobody's farm.
+  const withDifficulty = ensureDifficulty(state);
+  if (withDifficulty !== state) {
+    state = withDifficulty;
+    log.info('older save has no difficulty; reading it as', state.difficulty);
+  }
+
   log.info(fromServer ? 'resumed farm from server' : saved ? 'resumed farm' : 'new farm', 'for', userId);
   notify();
 
@@ -201,6 +209,38 @@ export async function init(session, build = buildInitialState, server = null) {
   // lost if the tab closed in the next 800 ms.
   await saveNow();
   return { state, loaded: Boolean(saved), fromServer };
+}
+
+/**
+ * Change the difficulty.
+ *
+ * Through `apply`, so the save, the notification and the toast all behave exactly as they
+ * do for a purchase or a harvest — this is a state change like any other and the store
+ * should not need to know which.
+ *
+ * The domain function refuses an unknown mode, which means `apply` toasts the refusal in
+ * its own uniform style rather than this needing a second error path.
+ *
+ * **Note what it does not do: it does not repair anything already damaged.** Switching to
+ * easy stops future decay and stops the pump billing; a crop that already latched `dry`
+ * keeps it, because a setting that quietly handed back health would be a bonus rather
+ * than a difficulty, and the player did not ask for one.
+ *
+ * @param {'easy'|'normal'} value
+ * @returns {{ok:boolean, reason?:string}}
+ */
+export function setDifficulty(value) {
+  return apply(setDifficultyRule, value);
+}
+
+/** The pure rule behind `setDifficulty` — state in, state or a refusal out. */
+export function setDifficultyRule(state, value) {
+  if (!isDifficulty(value)) {
+    return { ok: false, reason: 'That is not a difficulty this game knows about.' };
+  }
+  if (state?.difficulty === value) return { ok: true, state };
+
+  return { ok: true, state: { ...state, difficulty: value } };
 }
 
 /**

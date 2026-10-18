@@ -13,7 +13,7 @@
 
 import { DEFAULT_LOCATION } from '../config/api.js';
 import { FIELD, STARTER_PLOT_ID } from '../config/field.js';
-import { START_GOLD, STATE_VERSION } from '../config/game.js';
+import { DEFAULT_DIFFICULTY, isDifficulty, START_GOLD, STATE_VERSION } from '../config/game.js';
 import { buildPlots, PLOT_COUNT } from '../land_squares/index.js';
 
 export { buildPlots };
@@ -78,6 +78,12 @@ export function buildInitialState(session) {
     weather: null,
     clock: { timeOffsetMs: 0 },
     notified: {},
+
+    // Which way this farm treats a ripe crop. Normal unless the player says otherwise —
+    // see `DIFFICULTY` in `js/config/game.js`, and `ensureDifficulty` below for how an
+    // older save is read.
+    difficulty: DEFAULT_DIFFICULTY,
+
     lastTickAt: now,
   };
 }
@@ -103,6 +109,31 @@ export function normaliseSession(session) {
     farmerName: String(session.farmerName ?? ''),
     username: String(session.username ?? ''),
   };
+}
+
+/**
+ * Give a save written before difficulty existed a mode.
+ *
+ * Farms created before this setting have no `difficulty` key, so the question is what
+ * "undefined" means, and the answer has to be `normal`: that is the behaviour every one
+ * of those farms was created under and has been playing. Defaulting to easy would
+ * silently switch a ripe crop from decaying to invulnerable under a player who never
+ * asked for anything of the sort.
+ *
+ * **And it does not bump `STATE_VERSION`**, for the same reason `ensureStarterPlot` does
+ * not: a version bump is how this codebase discards every farm, and one new key is not
+ * worth that. An unrecognised value is repaired too — a hand-edited save, or an import
+ * from a future version — because a farm whose difficulty is nonsense should not be one
+ * where the setting silently does nothing.
+ *
+ * @param {object} state a loaded farm
+ * @returns {object} the same farm, or a copy carrying a known difficulty
+ */
+export function ensureDifficulty(state) {
+  if (!state || typeof state !== 'object') return state;
+  if (isDifficulty(state.difficulty)) return state;
+
+  return { ...state, difficulty: DEFAULT_DIFFICULTY };
 }
 
 /**

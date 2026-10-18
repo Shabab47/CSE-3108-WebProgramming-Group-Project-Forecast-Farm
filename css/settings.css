@@ -84,3 +84,91 @@
   flex-direction: column;
   gap: 8px;
 }
+
+/* --- difficulty ---------------------------------------------------------- */
+
+/* A radio group where the *explanation* is the point.
+ *
+ * Each option is a label wrapping its input and its text, so the whole panel is the
+ * click target — a 16px radio in a settings card is a small thing to aim at, and the
+ * sentence explaining the mode is the part a player actually wants to click on.
+ *
+ * The native radio is kept and merely hidden rather than replaced with a styled span:
+ * it brings keyboard behaviour, arrow-key navigation within the group, and a real form
+ * control to screen readers, none of which a div would have. `sr-only`-style clipping
+ * rather than `display: none`, because a hidden input is removed from the tab order.
+ */
+.settings-radio {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settings-radio__option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border: 2px solid rgb(0 0 0 / 12%);
+  border-radius: 10px;
+  background: rgb(0 0 0 / 2%);
+  cursor: pointer;
+  transition:
+    border-color var(--speed, 160ms) var(--ease, ease-in-out),
+    background var(--speed, 160ms) var(--ease, ease-in-out);
+}
+
+.settings-radio__option:hover {
+  border-color: rgb(0 0 0 / 26%);
+}
+
+.settings-radio__input {
+  /* Visually gone, still focusable and still announced. `position: absolute` with a
+   * 1px box rather than `display: none`, which would drop it out of the tab order and
+   * out of the accessibility tree entirely. */
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.settings-radio__body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.settings-radio__label {
+  font-weight: 700;
+}
+
+.settings-radio__detail {
+  font-size: var(--text-sm, 0.875rem);
+  color: var(--text-muted, #5d6a61);
+  line-height: 1.45;
+}
+
+/* The selected option is marked by the panel as well as the dot, so the choice does not
+ * depend on seeing a small circle of colour — and so it survives a stylesheet that fails
+ * to load, which the tile meters in `scene.css` already guard against the same way. */
+.settings-radio__option:has(.settings-radio__input:checked) {
+  border-color: #2f8f4f;
+  background: rgb(47 143 79 / 8%);
+}
+
+/* The focus ring lives on the panel, because the input itself is 1px and clipped. */
+.settings-radio__option:has(.settings-radio__input:focus-visible) {
+  outline: 2px solid #2f8f4f;
+  outline-offset: 2px;
+}
+
+.settings-radio + .settings-action {
+  margin-top: 12px;
+}

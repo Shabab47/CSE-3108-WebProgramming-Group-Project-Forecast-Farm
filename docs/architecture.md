@@ -816,6 +816,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── authViews.js        the login page's view graph — menu, forms, reset
 │   │   ├── cropPicker.js       which seed to sow on a plot
 │   │   ├── dangerAction.js     the arm-and-confirm control, with its password gate
+│   │   ├── difficultyCard.js   the Normal / Easy setting, with what each mode does
 │   │   ├── farmView.js         the isometric field — geometry, plus the repaint guard
 │   │   ├── plotLayers.js       what is painted inside one plot, back to front
 │   │   ├── plotLabel.js        a plot's accessible name — the whole of it
