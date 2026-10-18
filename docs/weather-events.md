@@ -159,21 +159,23 @@ Because a matrix cell can only hold one rating, this conditional cannot live in
 
 ### What a damaged crop looks like
 
-Two failure sprites per crop, chosen by cause:
+**Three sprites per crop**, chosen by `damage.js`, which resolves exactly one — **dead** wins,
+because a dead crop is dead whatever else was wrong with it:
 
 | Cause | Sprite |
 | :--- | :--- |
-| Heavy rain, or a waterlogged plot | `<crop>_rain_damaged.png` |
-| Drought, frost, hail, or health reaching 0 | `<crop>_drought_killed.png` |
+| Water below the crop's damage floor for two hours | `<crop>_dry.png` |
+| Water above the crop's target for two hours | `<crop>_waterlogged.png` |
+| Health reaching 0 | `<crop>_dead.png` |
 
-None of these sprites exist yet. Until they do, a dead crop renders with
-`filter: grayscale(1) brightness(.6)` so the state is still readable. **The fallback stays in the
-code after the sprites land**, so a failed image load still shows something is wrong. Art is
-tracked in [`asset-checklist.md`](asset-checklist.md).
+**None of these exist yet.** Until they do, `plotLayers.js` draws the `damageWord()` text beside
+the sprite and the sprite is a hole — [DEC-014](team/decisions.md)'s rule, and the reason there is
+no CSS fallback layer. Art is tracked in [`asset-checklist.md`](asset-checklist.md).
 
 ### Frost is a drain, not an instant kill
 
-The README says frost *kills* warm-season crops. In the MVP there is no frost-cover action, so
+The README used to say frost *kills* warm-season crops; **it does not**, and as of 18 October it
+does not say so either. In the MVP there is no frost-cover action, so
 `severe` frost is implemented as −30 health per hour instead: about 3.3 hours from full health
 to dead. This is a deliberate softening so an unattended farm is not wiped out by one cold
 night. When the cover mechanic lands, revisit the `severe` value.

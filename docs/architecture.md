@@ -660,11 +660,16 @@ farm and still reported that nothing had changed.
 | pump cost / water speed | `js/config/game.js` (`PUMP`, `WATER`, `OPTIMAL`, `DAMAGE`) |
 | the pump's own rules | `js/domain/pump.js` (`pumpRun`, `setPump`, `aimPump`) |
 | the pump's control and meter | `js/ui/pumpPanel.js` |
+| **what the weather is doing *to the farm*** | `js/domain/environment.js` (`environmentFacts`) |
+| **the environment card in the rail** | `js/ui/envMetrics.js` |
+| **what a click on a plot does** | `js/farmActions.js` (`onPlotClick`) → `js/ui/plotInspector.js` |
 | evaporation / rain-water rates | `js/config/weatherEvents.js` (`EVAPORATION_PER_HOUR`, `RAIN_WATER_PER_HOUR`) |
 | plant / harvest / clear rules | `js/domain/farm.js` |
-| buying land | `js/domain/plots.js` |
-| seeds, harvest, selling | `js/domain/inventory.js` |
-| gold maths | `js/domain/wallet.js` |
+| buying land | `js/domain/land.js` — **not** `plots.js`, which does not exist |
+| seeds, and selling them back | `js/domain/shop.js` (`buySeeds`, `SELL_RATE`) |
+| banking a harvest, and its quality-weighted price | `js/domain/farm.js` (`harvest`) |
+| gold maths | spread: `shop.js` (seeds), `land.js` (plots), `farm.js` (harvest). **There is no `wallet.js`** — `inventory.js` and `wallet.js` were planned and never written, see ISS-098 |
+| **selling a harvested crop** | **nowhere** — ISS-099 |
 | forecast → alert strings | `js/domain/notifications.js` |
 | what counts as a valid email or password | `js/domain/authRules.js` |
 | provider error code → player-facing sentence | `js/ui/authErrors.js` |
@@ -796,8 +801,9 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── damage.js           the latch: what damage is permanent
 │   │   ├── plotWater.js        the vocabulary: targetFor, bandFor, waterState, ratesFor
 │   │   ├── seasons.js          seasonFor — derived from latitude, not the month
-│   │   ├── simulator.js        empty ON PURPOSE, see below
+│   │   ├── simulator.js        0 bytes and superseded — delete it, see ISS-098
 │   │   ├── water.js            the tick: the only writer of water, health, damage, dead
+│   │   ├── environment.js      environmentFacts(): what the weather is doing TO the farm
 │   │   └── weather.js          forecastWindow, worstEventIn, verdictFor
 │   ├── services/               the only place that calls fetch
 │   │   ├── authApi.js          Supabase REST provider — live
@@ -821,7 +827,9 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── plotLayers.js       what is painted inside one plot, back to front
 │   │   ├── plotLabel.js        a plot's accessible name — the whole of it
 │   │   ├── plotClick.js        plotAction(): what a click on a plot means
+│   │   ├── plotInspector.js    the panel a click on a plot opens — gauge, pump, action
 │   │   ├── pumpPanel.js        the pump toggle, the time-to-optimal, and the rate readout
+│   │   ├── envMetrics.js       the environment card: the rail's six weather readings
 │   │   ├── loadingTips.js      the boot veil and its rotating facts
 │   │   ├── locationBar.js      the place search in the farm top bar
 │   │   ├── loginFields.js      labelled input builders, one form per mode
@@ -926,9 +934,11 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 
 ## Weather reaches a crop by two paths, and there is no simulator
 
-`js/domain/simulator.js` is **0 bytes and stays that way on purpose.** It was the plan's
-answer to "what weather does to crops", and it is empty because the real answer turned out to
-be two smaller answers rather than one loop:
+**The two-path design below is settled and should not be reopened.** The *file*
+`js/domain/simulator.js` is a separate question and is now open — see ISS-098.
+
+`js/domain/simulator.js` is **0 bytes.** It was the plan's answer to "what weather does to crops",
+and it is empty because the real answer turned out to be two smaller answers rather than one loop:
 
 | | At **sowing** | While the crop **stands** |
 | :--- | :--- | :--- |
@@ -951,6 +961,13 @@ are already deterministic from `(plantedAt, lastTickAt, forecast)`, so a loop ad
 the two to disagree without adding a decision.
 
 See `docs/weather-events.md` for the numbers and DEC-039 for the sowing rule.
+
+**One loose end: the empty file itself (ISS-098).** "Empty on purpose" was true when this was
+written, and the reasoning above still holds. What has weakened is the *marker*. Every other module
+in `domain/` is 4–13 KB, so a 0-byte file there reads as work in progress rather than as a settled
+decision — and `js/domain/inventory.js`, planned alongside it, does not exist at all. The
+recommended action is to **delete `simulator.js`** and let this section be the record. Nothing
+imports it. That is a DEC, not a cleanup, because it reverses a documented choice.
 
 ---
 
@@ -1207,6 +1224,51 @@ default, and a drag started on a plot is a click the player never meant.
 
 Plots are real buttons, so they get keyboard focus and keyboard activation for free. Do not replace them
 with divs.
+
+### What a click on a plot does — it opens a panel, and that is all
+
+**Changed in week 3. This is the single biggest behavioural change of the build, and it is easy to
+read past** because nothing about it is visible in the file tree.
+
+Before, one click on a plot meant one of three different things depending on what was on it: sow a
+crop, harvest a crop, or aim the pump. A player had to know the state of a square before they
+clicked it, and the game had no way to tell them what the click would do until after it had done
+it.
+
+**Now a click always does the same thing: it opens that plot's inspector.**
+
+```
+click a plot  →  farmActions.onPlotClick(plotId)
+              →  ui/plotInspector.js  — that plot's gauge, its target, the countdown,
+                                       what the pump would cost, and that plot's own action
+```
+
+The action the click used to perform is **inside** the panel, as a button labelled with what it will
+do — *"Sow rice"*, *"Harvest — 10 units"*, *"Aim the pump here"*, *"Clear this plot"*. The panel is
+also where the pump lives: the toggle, the time-to-optimal and the in/out rate all moved out of the
+rail and into the plot they apply to.
+
+**Why.** The rail can hold one pump readout. It cannot hold sixteen. Aiming at one plot and reading
+one plot's meter are the same decision, so they are now the same screen. And a button that says
+what it does removes the only class of mistake the old design invited — clicking a ripe crop and
+sowing over it, because both were "a click".
+
+`js/ui/plotClick.js` still owns `plotAction()`, the pure function that decides *which* action a plot
+offers. `farmActions.js` owns the wiring, `store.apply` for the mutation, and opening the panel.
+
+### The environment card replaced the pump card in the rail
+
+The rail used to carry a pump panel: a toggle and a rate. It now carries the **environment card**,
+`js/ui/envMetrics.js` over `js/domain/environment.js`.
+
+The division of labour is the point. **The board reports the weather; the card says what it is doing
+to the farm.** "31 °C" is a fact. *"Evaporating 12/h — rice wants 85 and this is at 41"* is a
+consequence, and the consequence is the part a player can act on.
+
+`environmentFacts()` returns **six readings**, all of them always shown, sorted by tone. All six,
+always, is deliberate: hiding the calm ones makes a card that changes shape harder to scan, and the
+tone carries the urgency instead. Each fact is the game's own threshold rather than the API's — it
+compares water against *that crop's* target, not against a number the weather service supplied.
 
 ## Known simplifications
 
