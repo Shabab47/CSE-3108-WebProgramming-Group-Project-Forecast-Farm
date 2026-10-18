@@ -156,7 +156,17 @@ export function cropStageImg(cropId, stage) {
   return `assets/images/crops/${cropId}/${cropId}_${stage}.png`;
 }
 
-/** A crop failure overlay: `rain_damaged` or `drought_killed`. */
+/**
+ * A crop damage overlay: `dry`, `waterlogged` or `dead`.
+ *
+ * **These are Zim's sprites and the names must match his.** `domain/damage.js` resolves
+ * the state and passes it here, so the two files are one contract: if the art arrives
+ * under different filenames, change this and the `damageSprite()` cases together, rather
+ * than leaving a sprite that never resolves.
+ *
+ * All three are 0 bytes until the art lands. `plotLayers.js` draws the word beside them
+ * precisely so a 0-byte file costs a missing picture rather than a missing fact.
+ */
 export function cropFailureImg(cropId, failure) {
   return `assets/images/crops/${cropId}/${cropId}_${failure}.png`;
 }

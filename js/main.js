@@ -15,6 +15,7 @@ import { mountSeasonCard } from './ui/seasonCard.js';
 import { mountPumpPanel } from './ui/pumpPanel.js';
 import { tick } from './domain/water.js';
 import { setPump } from './domain/pump.js';
+import { damageWord } from './domain/damage.js';
 import { alertsToRaise, currentTrouble } from './domain/notifications.js';
 import { mountWeatherPanel } from './ui/weatherPanel.js';
 import { mountFarmView } from './ui/farmView.js';
@@ -164,6 +165,61 @@ function mountShell(session) {
  * `mountFarmView()` clears `#farm-view` wholesale, so nothing that is not the field may
  * be mounted inside it — the seed picker's host is a sibling for exactly that reason.
  */
+/**
+ * The words for crops that just died, and they depend on where the pump was.
+ *
+ * **This is ISS-091, and it was one fixed string.** It said *"The pump would have saved
+ * it"* to a player whose pump had been running the whole time, pointed at the plot that
+ * died. Advice that ignores the board is worse than no advice, because it teaches the
+ * player that the words are not about their farm.
+ *
+ * Three cases, because there are three genuinely different situations:
+ *
+ *  - **The pump was off.** Advice is fair. It is the ordinary death.
+ *  - **The pump was on, aimed elsewhere.** The crop was not being watered — but the
+ *    player is not at fault either, because one plot at a time (DEC-040) means there is
+ *    always somebody the pump is not on. Saying so is the difference between a lesson
+ *    and a scolding.
+ *  - **The pump was aimed at this plot and it died anyway.** That is a bug. It is logged
+ *    as one and it says so, instead of blaming the player for a fault in the code.
+ *
+ * @param {object} before the state this tick ran against
+ * @param {object[]} deaths the plots that just died
+ * @returns {{message: string, bug: boolean}}
+ */
+function deathMessage(before, deaths) {
+  const n = deaths.length;
+  const aimed = before.pump?.on ? before.pump.target : null;
+  const aimedHere = deaths.filter((p) => p.id === aimed);
+
+  if (aimedHere.length > 0) {
+    log.error('[water] a crop died while the pump was aimed straight at it', {
+      plotIds: aimedHere.map((p) => p.id),
+      deaths: n,
+    });
+    return {
+      bug: true,
+      message: `${n === 1 ? 'A crop died' : `${n} crops died`} while the pump was watering `
+        + `${n === 1 ? 'it' : 'them'}. That is a bug - please tell us.`,
+    };
+  }
+
+  if (aimed == null) {
+    return {
+      bug: false,
+      message: n === 1
+        ? 'A crop died of thirst. Turn the pump on and aim it at that plot.'
+        : `${n} crops died of thirst. Turn the pump on - it waters one plot at a time.`,
+    };
+  }
+
+  return {
+    bug: false,
+    message: `${n === 1 ? 'A crop' : `${n} crops`} died of thirst - the pump was watering `
+      + `plot ${aimed + 1}. Move it, or take the loss on ${n === 1 ? 'this one' : 'these'}.`,
+  };
+}
+
 /** The pump panel, mounted once and refreshed thereafter. See `renderPanels`. */
 let pumpPanel = null;
 
@@ -243,8 +299,21 @@ function tickFarm() {
   if (!before) return;
 
   const result = tick(before, Date.now());
+
+  // **Every field the tick can move, or the movement is thrown away.**
+  //
+  // This used to compare `waterLevel` and `spent` only, so a plot sitting at 0 with
+  // nothing else changing computed its health loss and then discarded it: `moved` was
+  // false, `apply()` was never called, and the state never advanced. Crops survived or
+  // died depending on whether an *unrelated* plot's water happened to move. Health,
+  // damage and the dead flag all belong here.
   const moved = result.spent > 0
-    || result.state.plots.some((plot, i) => plot.waterLevel !== before.plots[i].waterLevel);
+    || result.state.plots.some((p, i) => (
+      p.waterLevel !== before.plots[i].waterLevel
+      || p.health !== before.plots[i].health
+      || p.damage !== before.plots[i].damage
+      || p.dead !== before.plots[i].dead
+    ));
 
   if (moved) apply(() => ({ ok: true, state: result.state }));
 
@@ -252,16 +321,18 @@ function tickFarm() {
     emit('toast', { message: 'Pump stopped — you are out of gold.', tone: 'error' });
   }
 
-  // A crop that died of thirst is the most consequential thing this tick can do, and
-  // `domain/water.js` is the only thing in the codebase that can do it. Say so, or the
-  // player finds greyed-out ground and works out why on their own.
   if (result.deaths.length > 0) {
-    const n = result.deaths.length;
+    emit('toast', { ...deathMessage(before, result.deaths), tone: 'error' });
+  }
+
+  if (result.damaged.length > 0) {
+    const word = damageWord(result.damaged[0]);
+    const n = result.damaged.length;
     emit('toast', {
       message: n === 1
-        ? 'A crop died of thirst. The pump would have saved it.'
-        : `${n} crops died of thirst. The pump would have saved them.`,
-      tone: 'error',
+        ? `A crop is ${word.toLowerCase()}. That damage is permanent - it will harvest for less.`
+        : `${n} crops are damaged. The damage is permanent - they will harvest for less.`,
+      tone: 'warning',
     });
   }
 

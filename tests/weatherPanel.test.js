@@ -361,10 +361,11 @@ test('no forecast means no verdict, rather than a verdict of "fine"', () => {
  * `ground_watered.png` was a registered asset that could never be seen.
  */
 
+import { elapsedHours, tick } from '../js/domain/water.js';
 import {
-  bandFor, elapsedHours, flowFor, minutesToOptimal, ratesFor, targetFor,
-  timeOutsideBand, tick, waterState,
-} from '../js/domain/water.js';
+  bandFor, flowFor, minutesToOptimal, pumpedWindow, ratesFor, targetFor,
+  timeOutsideBand, waterState,
+} from '../js/domain/plotWater.js';
 import { aimPump, setPump, costOf, pumpRun } from '../js/domain/pump.js';
 import { applyDamage, damageFor, damageSprite, damageWord } from '../js/domain/damage.js';
 import { alertsToRaise, currentTrouble, forProjection, plantedCrops } from '../js/domain/notifications.js';
@@ -958,6 +959,29 @@ test('applyDamage returns the same object when nothing changes', () => {
   assert.equal(applyDamage(plot, 'dry'), plot, 'already this damage');
   assert.equal(applyDamage(plot, null), plot, 'nothing to apply');
   assert.notEqual(applyDamage(plot, 'waterlogged'), plot, 'a real change is a new object');
+});
+
+test('pumpedWindow is not the same rule as timeOutsideBand, and that is the point', () => {
+  // A pumped plot climbs fast and then HOLDS. Interpolating it across the whole period
+  // says a plot the pump rescued in forty minutes spent the other twenty-nine under its
+  // floor - which is the same defect as the death message, one layer down, and it is what
+  // made a rescued crop read as a drought victim.
+  const band = bandFor({ cropId: 'rice' }); // floor 64, target 85
+  const plot = { cropId: 'rice', waterLevel: 5 };
+  const rates = ratesFor(plot, 'drought'); // dry 21.6/h
+  const gross = 100.8;
+
+  const window = pumpedWindow(plot, band, gross, rates, 30);
+  const climb = (band.floor - 5) / (gross - rates.dry);
+  assert.ok(window.belowFloor < 1, `it should be rescued in under an hour, got ${window.belowFloor}h`);
+  assert.ok(Math.abs(window.belowFloor - climb) < 0.01, 'and the time is exactly the climb');
+  assert.equal(window.aboveTarget, 0, 'and never above the target, because the pump stops at it');
+
+  // The two rules disagree, deliberately, and this is the case that proves it.
+  assert.ok(
+    timeOutsideBand(plot, band, 5, 85, 30).belowFloor > 20,
+    'the plain interpolation would call it over twenty hours of drought',
+  );
 });
 
 test('timeOutsideBand measures the crossing, not the whole period', () => {

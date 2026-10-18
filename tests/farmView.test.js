@@ -24,6 +24,7 @@ import { installDom, uninstallDom, visibleText } from './helpers/fakeDom.js';
 import { el } from '../js/utils/dom.js';
 import { fieldSignature, mountFarmView, plotSignature } from '../js/ui/farmView.js';
 import { FIELD, STARTER_PLOT_ID, UNLOCK_ORDER } from '../js/config/field.js';
+import { WATER } from '../js/config/game.js';
 
 let root;
 
@@ -271,7 +272,10 @@ test('a planted plot renders its layers, and they are phrasing content', () => {
   assert.equal(tile.querySelector('.plot__water').tagName, 'SPAN');
   assert.equal(
     tile.querySelector('.plot__water-fill').getAttribute('style'),
-    'height:60%',
+    // Normalised against `WATER.max`, which is 120 — not a raw percentage of 100.
+    // Drawing 60 as `height:60%` would fill the whole track at 60 water, leaving
+    // nowhere for over-watering to go and making the top of the meter meaningless.
+    `height:${((60 / WATER.max) * 100).toFixed(1)}%`,
     'the water bar keeps its level',
   );
 });

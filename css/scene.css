@@ -331,15 +331,22 @@
   filter: hue-rotate(140deg) saturate(0.8) brightness(0.92);
 }
 
-.plot__dead {
-  position: absolute;
-  top: 20%;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 1.2rem;
-  pointer-events: none;
-}
+/* Dead crops are drawn by the same damage path as everything else now — `plotLayers`
+ * asks `damageSprite()` for the state and `dead` wins there — so this emoji badge is
+ * gone rather than duplicated. Kept in the stylesheet only as the one place a note
+ * could be re-added if a dead crop ever needs its own marker.
+ */
 
+/* The water meter: a thin vertical gauge down the right edge of the diamond.
+ *
+ * It carries four states as well as a level, because a level alone cannot say
+ * "this is fine" — 40 water is comfortable for wheat and alarming for rice, and
+ * only the band can tell them apart. The target tick marks where the pump stops,
+ * so the bar shows where to aim rather than only how far along it is.
+ *
+ * `overflow: hidden` was dropped from the track so the tick and the word can sit
+ * outside the fill; the fill still rounds, and the track keeps its own outline.
+ */
 .plot__water {
   position: absolute;
   bottom: 4%;
@@ -348,7 +355,7 @@
   height: 30%;
   border-radius: 999px;
   background: var(--surface-sunken);
-  overflow: hidden;
+  border: 1px solid rgb(0 0 0 / 12%);
   pointer-events: none;
 }
 
@@ -357,9 +364,107 @@
   bottom: 0;
   left: 0;
   right: 0;
-  background: #4a9ede;
-  border-radius: inherit;
-  transition: height var(--speed) var(--ease);
+  border-radius: 999px;
+  transition: height var(--speed) var(--ease), background var(--speed) var(--ease);
+}
+
+/* Four states, and the colour is never the only channel — `plot__water-word`
+ * carries the same word in text, so this reads for anyone who cannot tell red
+ * from green and survives a stylesheet that fails to load. */
+.plot__water[data-state='dry'] .plot__water-fill {
+  background: #c0392b;
+}
+
+.plot__water[data-state='low'] .plot__water-fill {
+  background: #d68910;
+}
+
+.plot__water[data-state='optimal'] .plot__water-fill {
+  background: #2f8f4f;
+}
+
+.plot__water[data-state='saturated'] .plot__water-fill {
+  background: #3f6f9f;
+}
+
+/* Where the pump stops. A hairline, because it is a mark on the scale and not a
+ * value the player is reading. */
+.plot__water-target,
+.plot__water-floor {
+  position: absolute;
+  left: -2px;
+  right: -2px;
+  height: 1px;
+  pointer-events: none;
+}
+
+.plot__water-target {
+  background: rgb(0 0 0 / 55%);
+}
+
+.plot__water-floor {
+  background: rgb(0 0 0 / 25%);
+}
+
+/* The state word. Off the right edge of the track, in the plot's own margin, and
+ * it only shows when there is something worth saying — `dry`, `low`, `saturated`
+ * or a damage word. `optimal` is drawn subtly, because the good news is the
+ * state the player does not need to act on. */
+.plot__water-word {
+  position: absolute;
+  right: 10px;
+  bottom: 0;
+  font-size: 9px;
+  line-height: 1;
+  color: #24303f;
+  text-shadow: 0 1px 2px rgb(255 255 255 / 85%);
+  white-space: nowrap;
+  opacity: 0;
+}
+
+.plot__water[data-state='dry'] .plot__water-word,
+.plot__water[data-state='low'] .plot__water-word,
+.plot__water[data-state='saturated'] .plot__water-word {
+  opacity: 1;
+}
+
+.plot__water[data-state='dry'] .plot__water-word {
+  color: #8f2318;
+  font-weight: 700;
+}
+
+.plot__water[data-state='low'] .plot__water-word {
+  color: #8a5b08;
+  font-weight: 700;
+}
+
+/* Damage: Zim's sprite over the crop, and the word beside it.
+ *
+ * The word is not a fallback for the missing file — it is the primary channel.
+ * All three sprites are 0 bytes until the art lands, so a game that relied on the
+ * image alone would show a broken box on every damaged crop and say nothing.
+ */
+.plot__damage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.plot__damage-word {
+  position: absolute;
+  left: 4%;
+  top: 30%;
+  padding: 1px 4px;
+  font-size: 9px;
+  font-weight: 700;
+  color: #fff;
+  background: rgb(120 26 20 / 90%);
+  border-radius: 999px;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 /* The growth meter: a small green bar with the time left, floating above the
@@ -578,4 +683,81 @@
  * that starts without warning is the thing a player would stop trusting. */
 .pump-panel[data-on='true'] .pump-panel__target {
   color: var(--warning, #96690d);
+}
+
+/* --- T-09 the revised pump: the estimate, the rate, the four states ------------
+ *
+ * The panel now quotes two numbers instead of one — how long to optimal and what it
+ * costs — because "30 to 60 minutes" is a promise and a promise nobody can see is a
+ * rumour. `data-eta='false'` dims it once there is nothing left to do, so a finished
+ * job does not sit there looking like a pending one.
+ */
+
+.pump-panel__estimate {
+  margin: var(--space-2, 8px) 0 0;
+  font-size: var(--text-sm, 0.875rem);
+  font-weight: 700;
+  color: var(--text, #1f2a24);
+}
+
+.pump-panel[data-eta='false'] .pump-panel__estimate {
+  font-weight: 400;
+  color: var(--text-muted, #5d6a61);
+}
+
+/* In +20/h, out -10.8/h, net +9.2/h. The two rates and the sign between them is the
+ * whole answer to "why is this bar moving", so it gets its own line rather than being
+ * folded into the note. The minus sign is a real U+2212, not a hyphen, so the two
+ * directions are told apart at a glance. */
+.pump-panel__flow {
+  margin: 2px 0 0;
+  font-size: var(--text-xs, 0.75rem);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted, #5d6a61);
+}
+
+.pump-panel[data-state='dry'] .pump-panel__estimate {
+  color: #8f2318;
+}
+
+.pump-panel[data-state='low'] .pump-panel__estimate {
+  color: #8a5b08;
+}
+
+.pump-panel[data-state='optimal'] .pump-panel__estimate {
+  color: #22693c;
+}
+
+/* A tick on the panel track, matching the per-plot one. Same job, different scale. */
+.pump-panel__target-tick {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: rgb(0 0 0 / 45%);
+}
+
+.pump-panel__fill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  border-radius: var(--radius-chip, 999px);
+  transition: height var(--speed, 160ms) var(--ease, ease-in-out), background var(--speed, 160ms) var(--ease, ease-in-out);
+}
+
+.pump-panel[data-state='dry'] .pump-panel__fill {
+  background: #c0392b;
+}
+
+.pump-panel[data-state='low'] .pump-panel__fill {
+  background: #d68910;
+}
+
+.pump-panel[data-state='optimal'] .pump-panel__fill {
+  background: #2f8f4f;
+}
+
+.pump-panel[data-state='saturated'] .pump-panel__fill {
+  background: #3f6f9f;
 }
