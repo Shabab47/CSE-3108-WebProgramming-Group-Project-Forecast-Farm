@@ -280,6 +280,49 @@ test('a planted plot renders its layers, and they are phrasing content', () => {
   );
 });
 
+test('bare ground carries a water meter, because that is when the pump is used', () => {
+  // Reported as "clicking on ground not showing any water meter". The meter was gated on
+  // `hasCrop`, so the sequence the pump actually drives - aim, watch the bar rise, plant -
+  // had nothing to watch. The only readout of bare soil was `ground_watered.png`, a binary
+  // that says wet or dry and nothing about how far.
+  const bare = buildPlots().map((p) => (p.id === 5 ? { ...p, owned: true, waterLevel: 30 } : p));
+  const { tiles } = mount({ plots: bare });
+
+  const meter = tiles[5].querySelector('.plot__water');
+  assert.ok(meter, 'bare owned soil has a meter');
+  assert.equal(meter.getAttribute('data-state'), 'low',
+    'and it reads against bare soil\'s own band, which is 45 to 60');
+  assert.equal(
+    meter.querySelector('.plot__water-fill').getAttribute('style'),
+    `height:${((30 / WATER.max) * 100).toFixed(1)}%`,
+  );
+});
+
+test('the meter never appears on a locked plot, and never on a dead crop', () => {
+  // buildPlots() leaves 15 of the 16 unowned, and none of them have a crop - so a locked
+  // square is the default state of most of the field and must stay silent.
+  const { tiles } = mount({ plots: buildPlots() });
+  const locked = tiles.find((t, i) => !buildPlots()[i].owned);
+  assert.equal(locked.querySelector('.plot__water'), null,
+    'a padlocked square has nothing to say about water');
+
+  const died = buildPlots().map((p) => (
+    p.id === 5 ? { ...p, owned: true, cropId: 'rice', plantedAt: Date.now(), dead: true, waterLevel: 5 } : p
+  ));
+  const { tiles: withDead } = mount({ plots: died });
+  assert.equal(withDead[5].querySelector('.plot__water'), null,
+    'a dead crop is past watering');
+});
+
+test('widening the water gate does not drag the growth meter onto bare soil', () => {
+  // The two meters sit in one branch, and `growthMeter` guards on `grown?.planted` rather
+  // than on anything the water gate can influence. Worth pinning, because the natural way
+  // to break this is to move the water meter out and forget what was sharing the branch.
+  const bare = buildPlots().map((p) => (p.id === 5 ? { ...p, owned: true, waterLevel: 30 } : p));
+  const { tiles } = mount({ plots: bare });
+  assert.equal(tiles[5].querySelector('.plot__grow'), null, 'nothing is growing on bare soil');
+});
+
 test('a growing crop carries a green meter with the time left', () => {
   // Rice takes 6h. Planted 3h ago it is half grown: the bar reads 50% and the
   // label reads 3h — the same words the screen-reader name already says, so

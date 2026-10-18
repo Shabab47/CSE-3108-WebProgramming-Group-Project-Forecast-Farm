@@ -67,6 +67,40 @@ is applied, and `upkeepPerSecond` scaled with it. See DEC-040.
 
 ---
 
+## ISS-094 The water meter only existed on plots that already had a crop
+- Reported by Hisham · Owner: Hisham · Status: **fixed**
+- Where: `js/ui/plotLayers.js`
+
+**Reported as** *"clicking on ground not showing any water meter"*, after the band-and-meter
+change went out.
+
+The meter's branch was gated on `isOwned && hasCrop && !plot.dead`, so a plot with nothing
+in it drew no water at all. That is the wrong gate, and it is wrong in a way only playing it
+shows: **the pump waters a plot before anything is planted.** The sequence the whole system
+drives is *aim at a square, watch the bar rise, plant* — and with the gate there was nothing
+to watch. The only readout of bare soil was `ground_watered.png`, which is a binary: wet or
+dry, with no "how far" and no "past it".
+
+**The fix** ungates it to `isOwned && !plot.dead`. Bare soil already had everything it
+needed — `OPTIMAL.bareTarget: 60` and a band at 45–60 — so all four states and the target
+tick mean something before a seed goes in. It also makes the ground sprite honest: the tile
+flips to `ground_watered.png` at 40 while the target is 60, so the two artefacts finally
+disagree for a reason rather than by accident.
+
+**Damage deliberately does not follow.** `damage.js` returns null without a `cropId`, so bare
+soil cannot latch dry or waterlogged damage. There is no crop to damage, and a plot that has
+never been sown has no health to spend.
+
+**One thing that looks wrong and is not:** bare soil above 60 reads `saturated`. That is the
+pump saying it has delivered everything the ground needs and any more is wasted gold — which
+is exactly what a player watering a plot in advance needs to be told.
+
+`growthMeter` shares the branch but guards on `grown?.planted`, so nothing regressed onto
+bare soil. Pinned by a test, because the natural way to break this later is to move the water
+meter out of the branch and forget what was sharing it.
+
+---
+
 ## ISS-093 Tomato stage 5 is not square, and it is not registered
 - Reported by Hisham · Owner: Jim (art), Hisham (registry) · Status: **registry fixed, art open**
 - Where: `assets/images/crops/tomato/tomato_5.png`, `js/config/assets.js`

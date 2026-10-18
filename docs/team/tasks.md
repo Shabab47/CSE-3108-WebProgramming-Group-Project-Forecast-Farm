@@ -131,5 +131,6 @@ nobody discovers them mid-build.
 | ISS-091 crops died while the pump ran, and the game blamed the pump | T-09 | 2 ✅ |
 | ISS-092 damage and water were one number, so neither could be drawn | T-09 | 2 ✅ |
 | ISS-093 `tomato_5.png` is 1024×807 while stages 1–4 are square | **T-14** | **open** |
+| ISS-094 the water meter only existed on plots that had a crop | T-09 | 2 ✅ |
 | ISS-013 no state field for alert dedupe | T-13 | 3 ✅ field + reader both landed |
 | ISS-015 drought conditional has no home | T-12 | 3 |

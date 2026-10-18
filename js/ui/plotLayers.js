@@ -134,7 +134,18 @@ export function plotLayers(plot, { isOwned, isNext, isReady, grown, isWatered, p
       );
     }
 
-    if (isOwned && hasCrop && !plot.dead) {
+    // **Any owned plot shows the meter, planted or not.**
+    //
+    // This used to require a crop, and that was wrong in a way only playing it would show:
+    // the pump waters a plot *before* anything is in it, so the sequence is aim, watch the
+    // bar rise, plant. With the gate on `hasCrop` there was nothing to watch, and the only
+    // readout of bare ground was `ground_watered.png` — a binary that says wet or dry and
+    // nothing about which, or how far.
+    //
+    // Bare soil has its own target (`OPTIMAL.bareTarget: 60`), so the band and the four
+    // states all still mean something before a seed goes in. Damage does not: `damage.js`
+    // returns null without a `cropId`, so bare soil cannot latch it.
+    if (isOwned && !plot.dead) {
     // The meter, normalised against `WATER.max` rather than printed as a raw percentage.
     // `max` is 120, not 100, so that over-watering is a reachable state — which means a
     // bar drawn as `waterLevel%` would overflow its own track on a rainy day.
