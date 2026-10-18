@@ -82,7 +82,30 @@ export function segmentOf(plotId) {
  * @returns {object[]} sixteen plots, id 0..15, empty and dry
  */
 export function buildPlots() {
-  return BUILDERS.map((create) => create());
+  return BUILDERS.map((create) => withDamage(create()));
+}
+
+/**
+ * Stamp `damage` onto a plot that predates the field.
+ *
+ * **One place, not sixteen.** `createPlotN()` lives in sixteen separate files and the
+ * field is the same shape for all of them, so editing all sixteen would be sixteen
+ * chances to forget one — and a plot without the field reads as `undefined` rather than
+ * `null`, which is a distinction `damageSprite()` and the meter both have to care about.
+ *
+ * It is also the migration, not just an initialiser: a save written before damage
+ * existed has plots without the field, and `store.js` routes restores through here so
+ * old farms gain it rather than arriving undefined. Readers tolerate its absence
+ * anyway (`plot?.damage`), so this is belt and braces on purpose.
+ *
+ * `null` means "no damage yet", which is distinct from `false` and from a missing
+ * field: the damage that *is* possible is a string from `DAMAGE.STATES`.
+ *
+ * @param {object} plot
+ * @returns {object}
+ */
+function withDamage(plot) {
+  return plot.damage == null ? { ...plot, damage: null } : plot;
 }
 
 /**

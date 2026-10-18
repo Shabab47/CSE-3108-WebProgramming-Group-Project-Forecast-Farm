@@ -67,6 +67,91 @@ is applied, and `upkeepPerSecond` scaled with it. See DEC-040.
 
 ---
 
+## ISS-091 Crops died of thirst while the pump was running, and the game blamed the pump
+- Reported by Hisham · Owner: Hisham · Status: **fixed**
+- Where: `js/domain/water.js`, `js/main.js`, `js/ui/pumpPanel.js`
+
+**Reported as** *"the pump logic is completely broken, it is showing 2 crops died,
+watering could have saved them all this time"* — with the pump running.
+
+**It was.** Reproduced exactly:
+
+```
+pump.on = true, target = plot 0
+  plot 0 (PUMPED)   : water 95  health 100  dead false
+  plot 1 (not pumped): water  0  health   0  dead true
+  plot 2 (not pumped): water  0  health   0  dead true
+  -> toast: "2 crops died of thirst. The pump would have saved them."
+```
+
+Four independent defects, and **not one of them was the pump failing to deliver water**.
+
+1. **The death message was unconditional.** `main.js` emitted one fixed string for every
+   death and never asked whether the pump was on or where it was aimed. The pump was
+   running, aimed at plot 0, and the message told the player to use it.
+
+2. **`dryDamage` billed the whole elapsed period whenever a plot *ended* at 0 water.**
+   It never asked how long the plot had actually been dry. A plot that reached 0 in its
+   last second was charged for all twelve hours: away 12 h cost 60 health instead of ~14,
+   and away 20 h+ killed a crop **in a single step** with no chance to react.
+
+3. **The `moved` gate silently discarded damage.** `main.js` compared only `waterLevel`
+   and `spent` — never `health` or `dead`. So on a plot pinned at 0 with nothing else
+   changing, health loss was computed and then thrown away, and crops survived or died
+   depending on whether an *unrelated* plot's water happened to move.
+
+4. **The pump waters one plot** (DEC-040), so with three crops planted two are always
+   unserved. Defensible on its own — a per-second bill across 16 plots prices water by
+   land owned rather than by thirst — but it made deaths near-certain and "use the pump"
+   useless advice, which defect 1 then compounded.
+
+**Fix: T-09 follow-up.** Dry *duration* rather than dry *elapsed*, so a pump-fed plot
+never reaches 0 and never takes dryness damage; the `moved` gate compares `health` and
+`dead`; the death toast branches on the pump's real state, including a distinct message
+plus `log.error` for the case where a crop dies while the pump is aimed straight at it.
+
+---
+
+## ISS-092 Damage and water were the same thing, so neither could be drawn
+- Reported by Hisham · Owner: Hisham · Status: **fixed**
+- Where: `js/config/game.js`, `js/domain/water.js`, `js/ui/plotLayers.js`
+
+**There was no way to show a damaged crop, and no way to over-water.**
+
+- `WATER.max` was 100 and the pump stopped *at* 100, so **"full" and "perfectly
+  watered" were the same number**. There was nothing to aim at, and waterlogging was
+  unreachable — rain and the pump both clamped to the same value.
+- `cropFailureImg()` in `config/assets.js` existed and was **called by nobody**. Both
+  of its sprites (`<cropId>_rain_damaged.png`, `<cropId>_drought_killed.png`) are
+  0 bytes, so wiring it as-is would have put broken images on every damaged crop —
+  worse than the clean state it replaced.
+- `plot.dead` painted a `🥀` emoji (`plotLayers.js`), not a sprite.
+
+**The awkward part, and why the fix is a latch.** `waterLevel` changes every second, so
+it crosses any threshold repeatedly. Driving a sprite or a caption straight off it
+strobes — and `farmView.js` diffs tiles per frame, so the `src` would swap over and
+over. So **water is a live reading and damage is a committed fact**: the moment a plot
+crosses a damage line it records that on the plot, and it never decreases.
+
+That also matches what a player expects. A crop that has been through a real drought does
+not un-sunburn because you watered it afterwards, and because every input is ours — rain,
+evaporation and the pump are all numbers we add and subtract, never sensors we read — a
+latched record is exactly reproducible on reload and in an exported save.
+
+**Fix: T-09 follow-up.** `WATER.max` 100 → 120 so saturation is reachable;
+`OPTIMAL` in `config/game.js` gives each crop a target and a band (`base + perNeed ×
+waterNeed`), so `waterNeed` finally decides what the player is aiming for rather than
+only how fast the crop dries. `DAMAGE` latches `dry` and `waterlogged` onto the plot.
+`cropFailureImg()` is wired for real, against Zim's sprites — names are
+`<crop>_dry.png`, `<crop>_waterlogged.png`, `<crop>_dead.png`; if Zim is drawing
+different filenames these must be changed to match his, not the other way round.
+
+**Damage cuts the payout and never blocks the harvest.** A damaged crop still picks, and
+is permanently worth less. Blocking the harvest would rebuild the ISS-006 trap: a plot
+with nothing to do until cleared by hand.
+
+---
+
 ## ISS-089 The weather was fetched, classified, displayed — and did nothing to the farm
 **Found:** 2026-10-17, from the question "is the farm really influenced by the weather?" ·
 **Severity: High** · **Status: fixed**
