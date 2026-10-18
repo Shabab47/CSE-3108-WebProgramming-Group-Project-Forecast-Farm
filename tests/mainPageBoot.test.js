@@ -260,9 +260,32 @@ test('clicking your own empty plot opens a picker that stays open', async () => 
 
   onPlotClick(0); // plot 0: owned, empty, so `plotAction` says 'plant'
 
+  // **A click opens the plot's inspector**, not the seed picker. Clicking used to mean three
+  // different things depending on what was in the plot — and "how wet is this square" was
+  // not any of them. The inspector is the plot's own surface; the seed picker is one of
+  // its buttons.
+  assert.ok(
+    host.querySelector('.inspector'),
+    'clicking a plot did not open its inspector',
+  );
+  assert.ok(
+    host.querySelector('.inspector__gauge'),
+    'and the inspector carries a water gauge, because that is the thing you cannot see',
+  );
+  assert.ok(host.querySelector('.inspector__pump'), 'with a pump button for that plot');
+
+  // Now the old path: the inspector's own button opens the seed picker. Clicking the real
+  // button rather than calling the action function, because this is a test about what a
+  // player can reach, not about whether a function exists.
+  const plant = [...host.querySelectorAll('.inspector__action')]
+    .find((b) => /plant/i.test(b.textContent));
+  assert.ok(plant, 'the inspector offers a "Plant a seed" button on an empty plot');
+  await plant.click();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
   assert.ok(
     host.querySelector('.crop-picker'),
-    'clicking an empty plot did not open the seed picker',
+    'and that button did not open the seed picker',
   );
   assert.equal(
     host.querySelectorAll('.crop-picker__seed').length,

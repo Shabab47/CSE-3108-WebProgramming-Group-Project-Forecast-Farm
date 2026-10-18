@@ -764,6 +764,24 @@ test('the meter shows what is going in and what is coming out', () => {
   assert.ok(rain.net > 0);
 });
 
+test('the rates are rounded, because they are printed', () => {
+  // The panel offered the player "drying −5.760000000000001/h". `8 * 0.9 * 0.8` is
+  // 5.760000000000001 and it went straight into the DOM — the same lesson as `health` in
+  // `water.js`, arriving the same way: correct arithmetic, absurd output.
+  const cloudy = flowFor({ cropId: 'rice', waterLevel: 85 }, 'cloudy');
+  assert.equal(cloudy.out, 5.8, '5.760000000000001 is not a number anyone should read');
+
+  for (const event of ['sunny', 'cloudy', 'drought', 'heavyRain', 'lightRain', 'hail']) {
+    for (const crop of ['rice', 'wheat', null]) {
+      const f = flowFor({ cropId: crop, waterLevel: 40 }, event);
+      for (const key of ['in', 'out', 'net']) {
+        assert.equal(String(f[key]).length <= 5, true,
+          `${crop ?? 'bare'}/${event}.${key} = ${f[key]} should read as a short number`);
+      }
+    }
+  }
+});
+
 test('the pump stops at the crop target, and never pays for water past it', () => {
   const state = farmWith({ weather: sky({ code: 0 }), count: 1 });
   state.pump = { on: true, target: 0 };

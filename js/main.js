@@ -21,6 +21,7 @@ import { mountWeatherPanel } from './ui/weatherPanel.js';
 import { mountFarmView } from './ui/farmView.js';
 import { mountLocationBar } from './ui/locationBar.js';
 import { nextUnlockable } from './land_squares/index.js';
+import * as farmActions from './farmActions.js';
 import { onPlotClick } from './farmActions.js';
 import { fetchWeather } from './services/weatherApi.js';
 import { formatCoordinates, isPlaceholderName, placeLabel, reverseGeocode, searchPlaces } from './services/geocodeApi.js';
@@ -285,6 +286,9 @@ function renderPanels(state) {
 
   repaintFarm(state);
   pumpPanel?.refresh();
+  // The inspector follows the pump, so the gauge and the countdown under the player's
+  // hand are the current ones rather than a photograph of the moment it opened.
+  refreshInspector?.();
 
   const goldEl = qsOrNull('#gold-value');
   if (goldEl && state) goldEl.textContent = `${state.gold} gold`;
@@ -302,6 +306,17 @@ function renderPanels(state) {
  * forecast, and a player who plants into a heatwave should not wait a quarter of an
  * hour to be told.
  */
+/**
+ * Re-render whichever plot the inspector is showing, if it is showing one.
+ *
+ * Optional-chained because `farmActions` is a module with its own state and this file does
+ * not hold a reference to it — but an open panel that does not follow the pump is worse
+ * than no panel, because it looks authoritative.
+ */
+function refreshInspector() {
+  farmActions.refreshInspectorOnTick?.();
+}
+
 function tickFarm() {
   const before = getState();
   if (!before) return;

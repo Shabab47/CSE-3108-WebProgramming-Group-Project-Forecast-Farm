@@ -278,10 +278,15 @@ export function flowFor(plot, eventId) {
   const level = plot.waterLevel ?? 0;
   const net = rates.rain - rates.dry;
 
+  // **Rounded to a tenth, because this is printed.** `8 * 0.9 * 0.8` is 5.760000000000001
+  // and the panel was offering the player that. The same lesson as `health` in `water.js`,
+  // and it arrived the same way: correct arithmetic, absurd output.
+  const round = (n) => Math.round(n * 10) / 10;
+
   return {
-    in: rates.rain,
-    out: rates.dry,
-    net,
+    in: round(rates.rain),
+    out: round(rates.dry),
+    net: round(net),
     // How long until it hits the floor, and therefore when the player should care.
     minutesToFull: net < 0 && level > floor
       ? Math.ceil(((level - floor) / -net) * 60)
