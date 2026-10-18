@@ -31,6 +31,9 @@ import {
 export const FROST_C = 2;
 /** Above this the frost row is not worth a line on the card. See `environmentFacts`. */
 export const FROST_NEAR_C = 10;
+
+/** The fixed order of the calm rows, so the card does not reshuffle when nothing changes. */
+const ORDER = ['drying', 'frost', 'rain', 'wind', 'humidity', 'uv'];
 /** At or above this the wind counts as strong. Matches `classifyHour`. */
 export const STRONG_WIND_KMH = 40;
 /** At or above this the air counts as humid enough to matter. Matches `classifyHour`. */
@@ -45,10 +48,16 @@ export const UV_HIGH = 8;
  * `'danger'` — the card colours by tone **and** prints the note, because a red row that
  * says nothing is a red row that cannot be acted on.
  *
- * Facts that are calm and uninteresting are dropped rather than printed in grey: a list of
- * six rows where four say "fine" is a list nobody reads, and the ones that matter get lost
- * in it. Drying is the exception — it is always shown, because it is the number every
- * water decision is made against.
+ * **All six rows are always present.** The first version dropped anything calm, on the
+ * reasoning that a list where four rows say "fine" is a list nobody reads. That was a
+ * reasonable-sounding guess and it was wrong: on an ordinary day the card showed a single
+ * row, so it read as *broken* rather than as *quiet*. There is no way for a player to tell
+ * "the sky is fine" from "this panel has failed" if the only thing it says when nothing is
+ * wrong is nothing at all.
+ *
+ * So every reading is always there and the **tone** is what changes. Six rows, and the one
+ * that is red is the one to act on. Sorting still puts the urgent rows on top, so a calm
+ * card is all six in a fixed order and a dangerous one leads with what to do about.
  *
  * @param {object} state
  * @param {number} [now]
@@ -79,91 +88,95 @@ export function environmentFacts(state, now = Date.now()) {
   });
 
   // --- Frost. The coldest hour in the next twelve, not the current one. ---
-  // **Only when it is actually near.** A row reading "Frost 32°C — safe" is worse than no
-  // row: it makes the player scan past the one that said something true. The gate is 10°C,
-  // which is well above the 2°C the game calls frost, so the row appears while it is still
-  // a decision to think about rather than after it has already happened.
   const temps = numbers(window, 'temperature');
-  if (temps.length) {
-    const coldest = Math.min(...temps);
-    if (coldest <= FROST_NEAR_C) {
-      const at = temps.indexOf(coldest);
-      facts.push({
-        id: 'frost',
-        label: 'Frost',
-        value: `${Math.round(coldest)}°C`,
-        note: coldest <= FROST_C
-          ? `frost in ${describeAway(at)} — frost damages crops`
-          : 'cold enough to watch, not yet freezing',
-        tone: coldest <= 0 ? 'danger' : (coldest <= FROST_C ? 'warn' : 'calm'),
-      });
-    }
-  }
+  const coldest = temps.length ? Math.min(...temps) : null;
+  facts.push(coldest == null ? missing('frost', 'Frost') : {
+    id: 'frost',
+    label: 'Frost',
+    value: `${Math.round(coldest)}°C`,
+    note: coldest <= 0
+      ? `freezing in ${describeAway(temps.indexOf(coldest))} — frost damages crops`
+      : (coldest <= FROST_C
+        ? `frost in ${describeAway(temps.indexOf(coldest))} — frost damages crops`
+        : `coldest in the next 12h — nothing freezing`),
+    tone: coldest <= 0 ? 'danger' : (coldest <= FROST_C ? 'warn' : 'calm'),
+  });
 
-  // --- Rain. The chance in the next hour, and whether it is actually falling. ---
+  // --- Rain. The chance within the hour, and whether it is falling already. ---
   const chances = numbers(window, 'precipitationProbability').slice(0, 3);
-  const nowChance = chances.length ? Math.max(...chances) : null;
-  if (nowChance != null && nowChance >= 20) {
-    facts.push({
-      id: 'rain',
-      label: 'Rain',
-      value: `${Math.round(nowChance)}%`,
-      note: current?.precipitation > 0
-        ? 'and it is falling now — the pump is redundant'
-        : 'likely within the hour',
-      tone: 'calm',
-    });
-  }
+  const chance = chances.length ? Math.max(...chances) : null;
+  facts.push(chance == null ? missing('rain', 'Rain') : {
+    id: 'rain',
+    label: 'Rain',
+    value: `${Math.round(chance)}%`,
+    note: current?.precipitation > 0
+      ? 'and it is falling now — the pump is redundant'
+      : (chance >= 60
+        ? 'likely within the hour — the pump may not be needed'
+        : (chance >= 20 ? 'possible within the hour' : 'not expected')),
+    tone: 'calm',
+  });
 
   // --- Wind. The strongest gust coming, because that is what lays a crop flat. ---
   const winds = numbers(window, 'windSpeed');
-  if (winds.length) {
-    const strongest = Math.max(...winds);
-    if (strongest >= 20) {
-      facts.push({
-        id: 'wind',
-        label: 'Wind',
-        value: `${Math.round(strongest)} km/h`,
-        note: strongest >= STRONG_WIND_KMH
-          ? 'strong wind — crops take damage'
-          : 'breezy, nothing to worry about',
-        tone: strongest >= STRONG_WIND_KMH ? 'danger' : 'calm',
-      });
-    }
-  }
+  const strongest = winds.length ? Math.max(...winds) : null;
+  facts.push(strongest == null ? missing('wind', 'Wind') : {
+    id: 'wind',
+    label: 'Wind',
+    value: `${Math.round(strongest)} km/h`,
+    note: strongest >= STRONG_WIND_KMH
+      ? 'strong wind — crops take damage'
+      : (strongest >= 20 ? 'breezy, nothing to worry about' : 'calm'),
+    tone: strongest >= STRONG_WIND_KMH ? 'danger' : 'calm',
+  });
 
   // --- Humidity, and what it means rather than what it is. ---
   const hum = typeof current?.humidity === 'number' ? current.humidity : null;
-  if (hum != null && (hum >= HIGH_HUMIDITY || hum <= 35)) {
-    facts.push({
-      id: 'humidity',
-      label: 'Humidity',
-      value: `${Math.round(hum)}%`,
-      note: hum >= HIGH_HUMIDITY
-        ? 'the air is saturated — drying all but stops'
-        : 'dry air — plots lose water faster than the number above suggests',
-      tone: hum >= HIGH_HUMIDITY ? 'calm' : 'warn',
-    });
-  }
+  facts.push(hum == null ? missing('humidity', 'Humidity') : {
+    id: 'humidity',
+    label: 'Humidity',
+    value: `${Math.round(hum)}%`,
+    note: hum >= HIGH_HUMIDITY
+      ? 'the air is saturated — drying all but stops'
+      : (hum <= 35
+        ? 'dry air — plots lose water faster than the drying row suggests'
+        : 'ordinary'),
+    tone: hum >= HIGH_HUMIDITY ? 'calm' : (hum <= 35 ? 'warn' : 'calm'),
+  });
 
-  // --- UV. Only when it is worth standing in a field. ---
-  const uv = numbers(window, 'uvIndex').filter((n) => n > 0);
-  if (uv.length) {
-    const peak = Math.max(...uv);
-    if (peak >= UV_HIGH) {
-      facts.push({
-        id: 'uv',
-        label: 'UV',
-        value: String(Math.round(peak)),
-        note: peak >= 11 ? 'very high — avoid the field at midday' : 'high — sun on your neck',
-        tone: peak >= 11 ? 'danger' : 'warn',
-      });
-    }
-  }
+  // --- UV. The peak, not the current reading. ---
+  const uvs = numbers(window, 'uvIndex').filter((n) => n > 0);
+  const peak = uvs.length ? Math.max(...uvs) : null;
+  facts.push(peak == null ? missing('uv', 'UV') : {
+    id: 'uv',
+    label: 'UV',
+    value: String(Math.round(peak)),
+    note: peak >= 11
+      ? 'very high — avoid the field at midday'
+      : (peak >= UV_HIGH ? 'high — sun on your neck' : 'nothing to worry about'),
+    tone: peak >= 11 ? 'danger' : (peak >= UV_HIGH ? 'warn' : 'calm'),
+  });
 
-  // Most urgent first, so the card's top row is the one to act on.
+  // Most urgent first, so the card's top row is the one to act on. `drying` is pinned to
+  // the top when nothing is wrong, because on a calm day it is the row that is still
+  // telling you something: the number every water decision is made against.
   const rank = { danger: 0, warn: 1, calm: 2 };
-  return facts.sort((a, b) => rank[a.tone] - rank[b.tone]);
+  return facts.sort((a, b) => (
+    rank[a.tone] - rank[b.tone]
+    || (a.id === 'drying' ? -1 : 0) - (b.id === 'drying' ? -1 : 0)
+    || ORDER.indexOf(a.id) - ORDER.indexOf(b.id)
+  ));
+}
+
+/**
+ * A row for a reading the API did not send.
+ *
+ * Still a row, still in place, still in order — the shape of the card does not change
+ * because one field is missing, or the list visibly reflows and the player has to find
+ * their place in it again.
+ */
+function missing(id, label) {
+  return { id, label, value: '—', note: 'not reported right now', tone: 'calm' };
 }
 
 /* --- reading the forecast ----------------------------------------------------- */

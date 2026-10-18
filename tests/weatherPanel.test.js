@@ -1146,20 +1146,43 @@ test('a hot dry day warns about the things that cost you, and says what to do', 
   assert.match(by.uv.note, /very high|high/);
 });
 
-test('a calm sky reports the drying and nothing else', () => {
-  // Six rows where four say "fine" is a list nobody reads, and the frost line is easy to
-  // miss in it. So calm facts are dropped rather than printed in grey.
+test('every reading is reported, always, and the tone is what changes', () => {
+  // Reported as "just this nothing else" — the card showed a single row on an ordinary
+  // day, so it read as broken rather than as quiet. There is no way for a player to tell
+  // "the sky is fine" from "this panel has failed" if the only thing it says when nothing
+  // is wrong is nothing at all.
   const facts = environmentFacts({ weather: env({ temp: 16, code: 3, humidity: 70, uv: 2 }) });
-  assert.deepEqual(facts.map((f) => f.id), ['drying']);
+
+  assert.deepEqual(
+    facts.map((f) => f.id),
+    ['drying', 'frost', 'rain', 'wind', 'humidity', 'uv'],
+    'all six, in a fixed order',
+  );
+  assert.ok(facts.every((f) => f.value !== '' && f.note !== ''), 'each has a value and a note');
+  assert.ok(facts.every((f) => f.tone === 'calm'), 'and on a mild day they are all calm');
 });
 
-test('frost is only mentioned when it is near enough to act on', () => {
-  // "Frost 32C — safe" is worse than no row: it teaches the player to scan past it.
+test('a missing reading keeps its row rather than vanishing', () => {
+  // The card must not reflow when the API omits a field, or the player loses their place
+  // in it on every refresh.
+  const facts = environmentFacts({ weather: env({ temp: 20, humidity: 50, uv: 0, wind: 5 }) });
+  const uv = facts.find((f) => f.id === 'uv');
+
+  assert.equal(uv.value, '—', 'UV reads as absent rather than being dropped');
+  assert.equal(uv.tone, 'calm');
+  assert.equal(facts.length, 6, 'and the row count never changes');
+});
+
+test('frost is reported even when it is far away, because the row is always there', () => {
+  // The row always exists now, so it reports the coldest hour of the next 12 and lets the
+  // tone carry the urgency — rather than the row disappearing when there is nothing to say.
   const warm = environmentFacts({ weather: env({ temp: 32 }) });
-  assert.equal(warm.some((f) => f.id === 'frost'), false);
+  const frost = warm.find((f) => f.id === 'frost');
+  assert.equal(frost.value, '32°C');
+  assert.equal(frost.tone, 'calm', 'and it is calm, not alarming');
 
   const cold = environmentFacts({ weather: env({ temp: 6, temps: [6, 5, 4, 3, 2, 3, 5, 7] }) });
-  assert.ok(cold.some((f) => f.id === 'frost'), 'at 2C it is worth a line');
+  assert.equal(cold.find((f) => f.id === 'frost').tone, 'warn', 'at 2C it is worth reading');
 });
 
 test('a storm says the wind will damage crops and that rain is coming', () => {
