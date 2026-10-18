@@ -25,6 +25,22 @@
  * Owner: Hisham. See docs/team/ownership.md.
  */
 
+/**
+ * The only statuses an entry may carry. Exported so `tests/assets.test.js` can
+ * assert against the list rather than a second copy of it written in the test.
+ *
+ * This exists because of ISS-095: `tomato_5.png` was registered as `'do'` — a
+ * truncated `done` — and the whole suite stayed green, because nothing checked
+ * the vocabulary. A status the game never reads is indistinguishable from a typo
+ * until someone counts the assets by hand and gets the wrong answer.
+ *
+ * - `done`         the file is on disk, non-empty, and is the one the game loads
+ * - `empty`        registered, but 0 bytes. The game requests it and shows a hole
+ * - `placeholder`  a stand-in, not final art
+ * - `duplicate`    on disk, byte-identical to another entry, and loaded by nothing
+ */
+export const ASSET_STATUSES = ['done', 'empty', 'placeholder', 'duplicate'];
+
 export const ASSETS = [
   // --- Field (farm view) ---
   { path: 'assets/images/base.png', name: 'Base slab', size: 63740, dimensions: '1000x1000', status: 'done', category: 'environment', page: 'field' },
@@ -44,7 +60,17 @@ export const ASSETS = [
   { path: 'assets/images/crops/tomato/tomato_2.png', name: 'Tomato - stage 2', size: 780860, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
   { path: 'assets/images/crops/tomato/tomato_3.png', name: 'Tomato - stage 3', size: 1132288, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
   { path: 'assets/images/crops/tomato/tomato_4.png', name: 'Tomato - stage 4', size: 1112306, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
-  { path: 'assets/images/crops/tomato/tomato_5.png', name: 'Tomato - stage 5 (ISS-093: not square)', size: 1125057, dimensions: '1024x807', status: 'do', category: 'crop-sprite', page: 'field' },
+  { path: 'assets/images/crops/tomato/tomato_5.png', name: 'Tomato - stage 5 (ISS-093: not square)', size: 1125057, dimensions: '1024x807', status: 'done', category: 'crop-sprite', page: 'field' },
+
+  // Damage sprites, built by `cropFailureImg(cropId, failure)` with failure one of
+  // `dry`, `waterlogged`, `dead`. **All three are 0 bytes** — the latch and the wording
+  // ship in ISS-092, the art has not (T-26, Zim). Registered as `empty` so the count in
+  // `asset-checklist.md` is honest and so a damaged crop requests a known path rather
+  // than an unregistered 404. `plotLayers.js` draws the `damageWord()` text beside it,
+  // which is the DEC-014 rule: the text carries the meaning, the image is a hole for now.
+  { path: 'assets/images/crops/rice/rice_dry.png', name: 'Rice - dry damage (ISS-096: art missing)', size: 0, dimensions: '', status: 'empty', category: 'crop-sprite', page: 'field' },
+  { path: 'assets/images/crops/rice/rice_waterlogged.png', name: 'Rice - waterlogged damage (art missing)', size: 0, dimensions: '', status: 'empty', category: 'crop-sprite', page: 'field' },
+  { path: 'assets/images/crops/rice/rice_dead.png', name: 'Rice - dead (art missing)', size: 0, dimensions: '', status: 'empty', category: 'crop-sprite', page: 'field' },
 
   // Flat copies of the five rice sprites, delivered at this path before the per-crop
   // folder convention existed. Byte-identical to `crops/rice/rice_N.png` and kept,

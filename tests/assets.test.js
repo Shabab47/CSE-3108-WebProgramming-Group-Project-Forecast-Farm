@@ -6,6 +6,7 @@
  *   - A file exists on disk but is not in the registry
  *   - A registry entry points to a missing file
  *   - A file's size on disk does not match the registry
+ *   - An entry carries a status outside ASSET_STATUSES (ISS-095)
  *
  * This means: drop a new sprite into assets/, run npm test, and it will
  * tell you to add it to js/config/assets.js. No one has to remember.
@@ -17,7 +18,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { ASSETS } from '../js/config/assets.js';
+import { ASSETS, ASSET_STATUSES } from '../js/config/assets.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
@@ -76,5 +77,31 @@ test('file sizes match between disk and registry', () => {
         `${asset.path} size mismatch: registry says ${asset.size}, disk says ${diskSize} — update the size field`
       );
     }
+  }
+});
+
+/**
+ * ISS-095. `tomato_5.png` was registered as `'do'` and every test passed,
+ * because the three checks above only compare paths and sizes — a status is
+ * never read by the game, so a wrong one is invisible until somebody counts
+ * the assets by hand. `asset-checklist.md` quotes that count, so a typo here
+ * makes a published number wrong with nothing red.
+ */
+test('every entry carries a status from ASSET_STATUSES', () => {
+  for (const asset of ASSETS) {
+    assert.ok(
+      ASSET_STATUSES.includes(asset.status),
+      `${asset.path} has status '${asset.status}', which is not one of: ${ASSET_STATUSES.join(', ')}`
+    );
+  }
+});
+
+/** A `done` entry with 0 bytes on disk is the one combination that lies outright. */
+test('no entry is marked done while its file is empty', () => {
+  for (const asset of ASSETS) {
+    if (asset.status !== 'done') continue;
+    const fullPath = path.join(root, asset.path);
+    const size = fs.statSync(fullPath).size;
+    assert.ok(size > 0, `${asset.path} is marked done but is ${size} bytes on disk`);
   }
 });
