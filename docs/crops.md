@@ -408,25 +408,32 @@ Crop sprites are drawn slightly taller than the ground tile (h/w 0.589 against 0
 intentional: plants should stand proud of the soil. Do not "fix" it by scaling crop layers to
 match the ground, or the tops will be clipped.
 
-### Growth stages and failure states
+### Growth stages and damage states
 
-Seven sprites per crop: five growth stages, then two failure states.
+**Eight sprites per crop**: five growth stages, then three damage states. It was seven, and two
+failure states, until ISS-092 split water damage away from drought death.
 
 ```
-assets/images/crops/<cropId>/<cropId>_<stage>.png          stages 1 to 5
-assets/images/crops/<cropId>/<cropId>_rain_damaged.png    heavy rain, waterlogging
-assets/images/crops/<cropId>/<cropId>_drought_killed.png  drought, frost, hail, or health 0
+assets/images/crops/<cropId>/<cropId>_<stage>.png   stages 1 to 5
+assets/images/crops/<cropId>/<cropId>_dry.png        left dry past the damage floor
+assets/images/crops/<cropId>/<cropId>_waterlogged.png  left above the crop's target
+assets/images/crops/<cropId>/<cropId>_dead.png       health reached 0
 ```
 
-`rice_1.png` through `rice_5.png` exist. **Rice still needs both failure states**, as does every
+**`<stage>` is 1–5, not 1–7.** The damage states are named, not numbered — `cropFailureImg()`
+builds the path from `damage.js`, which resolves exactly one of the three, with **dead** winning.
+
+`rice_1.png` through `rice_5.png` exist. **Rice has no damage sprite at all**, and neither does any
 other crop. Track them in [`asset-checklist.md`](asset-checklist.md).
 
-Until a failure sprite exists the game falls back to a CSS filter, so the state is still readable:
+**Until a damage sprite exists the state is carried by a word, not an image.** `plotLayers.js`
+draws `damageWord()` beside the sprite and the sprite is a hole until the art lands. That is
+[DEC-014](team/decisions.md)'s rule and it is deliberate: **do not add a fallback layer.**
 
-```css
-/* dead crop, until <cropId>_drought_killed.png exists */
-filter: grayscale(1) brightness(.6);
-```
-
-**The fallback stays even once sprites land.** If an image fails to load, or a crop's art is late,
-the player still sees that something is wrong. Prefer the sprite, fall back to the filter.
+> **An earlier draft of this section described a CSS fallback and said it should stay permanently.**
+> ```css
+> filter: grayscale(1) brightness(.6);
+> ```
+> **That was never built, and building it was withdrawn.** A second way of showing the same thing
+> is a second thing that can be wrong — and it would have contradicted the sprite the moment the
+> sprite arrived.

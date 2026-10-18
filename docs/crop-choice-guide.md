@@ -57,6 +57,37 @@ Dhaka, the default location, falls in this band.
 Each season carries a `bestCrops` hint rendered on the season card. It is advice, not a lock —
 the player can plant anything they have seed for.
 
+## How thirsty each crop is
+
+The advice above says *"drought is not survivable"* and *"waterlogging; heavy rain damages
+everything except rice"*. Since week 3 both of those are **numbers you can read off a plot**, which
+is more use than a warning.
+
+Each crop aims at a **target** derived from its water need, and is watered properly inside a band
+at that target's bottom quarter. Two hours below the floor, or two hours above the target, and the
+crop **latches damage** that never comes off.
+
+| Crop | Target water | Playable | Cost to water from bone dry, full sun |
+| :--- | ---: | :--- | ---: |
+| Rice | **85** | yes | 17 gold · 51 min |
+| Corn | **70** | no | 14 gold · 42 min |
+| Wheat | **55** | no | 11 gold · 33 min |
+| Potato | 55 | no | — |
+| Tomato | 55 | no — art landed, blocked by ISS-093 | — |
+
+Measured from `minutesToOptimal(plot, 'clearSky')` on a plot at zero water, not scaled by hand.
+Full sun is the worst case: the pump fills while the sun empties, so shade is cheaper and quicker.
+
+**The line that changes a decision.** Rice wants 85 and wheat wants 55, so in the same weather a
+rice plot can be reading *dry* while a wheat plot beside it is reading *optimal*. "It has not rained"
+is not the same as "my crops are thirsty", and the per-plot gauge is how you tell them apart.
+
+**Rain counts.** A storm fills every plot at `RAIN_WATER_PER_HOUR` for free, so a plot can climb
+past its target and latch waterlogging damage without the pump running at all. Over-watering is
+reachable without spending anything — which is what makes the pump's target worth knowing.
+
+See `docs/crops.md` for the full band and `docs/weather-events.md` for the rates.
+
 ## Using the forecast
 
 **A planting is judged once, by the next six hours, and the seed picker shows you the verdict

@@ -21,6 +21,162 @@ current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
 
 ---
 
+## ISS-100 Three decision ids each name two different decisions
+- Reported by Hisham · Owner: Hisham · Status: **open** · **Severity: Medium**
+
+**DEC-039, DEC-040 and DEC-041 are each used twice in `decisions.md`, for unrelated choices.**
+
+| Id | Land and economy — Shabab, `29c8eb4` | Weather and water — Hisham, `e0cf285` / `a461548` |
+| :--- | :--- | :--- |
+| DEC-039 | One file per crop and per land segment | Weather judged once, at sowing, over six hours |
+| DEC-040 | The player starts owning one plot | The pump waters one plot |
+| DEC-041 | One seed unlocks every four land segments | The optimal band, and damage as a latch |
+
+**Cause.** Both allocated the same three ids on 17 October, on separate branches, and merged
+without either noticing. Numbering was done by counting up from the highest id each author could
+see, which is a process that only works when one person is writing.
+
+**Why it is worse than a cosmetic numbering slip.** These decisions are cited as authority. A
+reader who follows `DEC-040` to settle a question about the pump can land on the starter plot,
+which says nothing about the pump — and about twenty-eight references across `js/`, `tests/` and
+`docs/` have to be read in context to tell which of the two is meant, including three inside test
+files and four inside source comments. Nothing crashes. It just quietly makes the decision log
+unreliable at exactly the moment somebody needs it to settle an argument.
+
+**Partially mitigated in this branch.** A warning block at the top of `decisions.md` names both
+sides of each collision, so a reader is not misled while the renumber is outstanding.
+
+**Suggested fix.** Keep the land trio as 039/040/041 — it is the earlier commit — move the
+weather trio to 043/044/045 after DEC-042, and update all twenty-eight references to match. Each
+reference is unambiguous from its own context, so this is mechanical. **Do it as its own commit**,
+on its own branch, with nothing else in it: a numbering fix touching thirty files is exactly the
+kind of change that should not share a commit with anything.
+
+---
+
+## ISS-099 A harvested crop cannot be sold, so the quality-weighted payout pays into nothing
+- Reported by Hisham · Owner: **the whole team** · Status: **open** · **Severity: High**
+
+**`farm.js` computes a health-weighted price for a harvest, and there is no UI that reaches it.**
+
+- Harvesting calls `harvest()`, which adds `yield * sellPrice * (health / 100)` to the purse and
+  banks the crop. The arithmetic is correct and tested, and it is the game's only expression of
+  the weather's effect on money — a crop damaged in a drought pays 80 where a healthy one pays
+  200, from the same seed.
+- **There is no market module.** `js/ui/` contains nothing matching market, sell or harvest. The
+  shop sells *seeds* (Shabab, `SELL_RATE` at 75%), which is a different thing: seeds come out of
+  the bag, crops come off the field.
+- So the loop closes on seeds and not on crops. A player can sow, water, damage a crop and watch
+  the number that would have been paid go nowhere.
+
+**Why this is everyone's and not one person's.** It is four systems meeting: what a crop is worth
+(`config/crops.js`), what it yields (`domain/farm.js`), what the purse will accept
+(`domain/wallet.js`, still part of T-07), and the screen that asks (`js/ui/shopView.js`, rebuilt
+twice this quarter). Nobody can land it alone without touching somebody else's work, which is a
+signal about the boundary rather than an argument for routing around it.
+
+**Suggested fix.** Decide first whether selling is a tab on the existing shop or a fourth page —
+that choice is Shabab's and Jim's, not the implementer's. Then T-10 finishes.
+
+---
+
+## ISS-098 Two planned domain modules were never written, and nothing says so
+- Reported by Hisham · Owner: Hisham · Status: **open** · **Severity: Low**
+
+**`js/domain/inventory.js` does not exist. `js/domain/simulator.js` exists and is 0 bytes.**
+Neither is imported by anything, so nothing fails.
+
+- Both were specified in `goals.md` — `inventory.js` under G-04, `simulator.js` under G-07's
+  "applies matrix, dry drain, death, rain water and evaporation".
+- **The work they described was done, in other files.** Seeds and the shop are in `domain/shop.js`;
+  the weather's effect on a crop is in `domain/water.js`, `plotWater.js`, `damage.js` and
+  `environment.js`; the sowing verdict is `verdictFor()` in `domain/weather.js`. `simulator.js`'s
+  six-line description is now spread across five modules that each own a piece of it.
+- **A 0-byte file in `domain/` is indistinguishable from work in progress.** Every other module
+  there is 4–13 KB. Someone reading the tree has no way to tell that `simulator.js` was
+  superseded rather than started.
+
+**Suggested fix.** Delete both. Nothing imports them, `npm test` and `npm run check` will confirm,
+and the plan's description of what the weather does belongs in `docs/weather-events.md`, which
+already carries it. Keeping a planned module as an empty file is how a reader ends up believing
+the weather has no effect on crops — which was ISS-089, the largest bug of the project.
+
+---
+
+## ISS-097 Nothing tells the player to skip the pump when rain is coming
+- Reported by Hisham · Owner: Hisham · Status: **open** · **Severity: Medium**
+
+**The forecast announces rain, and the game never connects that to the bill.**
+
+- `notifications.js` raises seven crop-specific lines — *"Heavy rain coming - rice thrives on
+  it."*, *"Heavy rain coming - wheat rots in standing water."* — so the player is **told rain is
+  coming**. No line names the pump, and none says anything about not paying for water the sky
+  is about to provide free.
+- Measured: three hours of pumping through a storm billed **13 gold** for water that
+  `RAIN_WATER_PER_HOUR` delivered at no charge. The player paid for the sky's work.
+- The README advertised this warning before it existed — it quoted *"Rain incoming - skip
+  irrigation"*, which was `goals.md`'s G-07 acceptance criterion rather than any shipped string.
+  The quote has been corrected; the behaviour it promised has not been built.
+
+**Why it matters more than it looks.** Watering is the game's core decision, and the one input
+that makes it interesting is knowing when *not* to act. Without this the optimal play is "pump
+whenever a plot is below target", which is the strategy ISS-008 already identified as too cheap.
+
+**Suggested fix.** Have `wateringAdvice()` take the pump's aim and the next few hours of
+forecast, and add a line when rain is forecast to cover what the pump is aimed at. Pair it with
+ISS-096 — the two are the same omission seen from two directions.
+
+---
+
+## ISS-096 The time-to-optimal quote ignores rain, in the file that already knows the rain rate
+- Reported by Hisham · Owner: Hisham · Status: **open** · **Severity: Medium**
+
+**`minutesToOptimal()` destructures `ratesFor(...).dry` and throws away the `.rain` sitting
+next to it.**
+
+- `ratesFor()` returns `{ dry, rain }`, and `flowFor()` correctly uses both:
+  `const net = grossPerHour + rates.rain - rates.dry`. One function in the same file reads
+  rain, the other ignores half of its own input.
+- Measured under heavy rain: the inspector quoted **33 minutes to optimal** on a plot that rain
+  fills at `RAIN_WATER_PER_HOUR` for free. The honest answer is roughly zero — the crop will
+  reach target without the pump at all.
+- Shabab fixed the **cost** half of this same function in `0a15a56` (it quoted 17 gold against
+  19.05 actually spent, because it did not pay for the evaporation it was about to be charged
+  for). The rain half was never in scope and is still missing, so the quote is now correct about
+  money and still wrong about time.
+
+**Why it is not cosmetic.** This is the number a player reads to decide whether to spend. It is
+wrong in exactly the situation where being wrong costs the most — rain is on the way, and the
+game is quoting a long expensive pump run for water it is about to be handed.
+
+**Suggested fix.** `const { dry, rain } = ratesFor(plot, eventId)`, net the rain against the
+deficit, and return `null` when rain alone covers it — which the inspector already knows how to
+render, since `null` is what it shows for "no run needed".
+
+---
+
+## ISS-095 A typo in an asset status shipped silently, because nothing read the status
+- Reported by Hisham · Owner: Hisham · Status: **fixed** · **Severity: Low**
+
+**`tomato_5.png` was registered as `status: 'do'`.** The file is 1,125,057 bytes and was
+correctly registered for size and dimensions; only the status was truncated.
+
+- `tests/assets.test.js` compared paths, existence and sizes. **It never read `status`.** The
+  game never reads it either — nothing loads a status — so `'do'` was indistinguishable from
+  `'done'` until somebody counted the registry by hand to write a README sentence.
+- The count was wrong by one in the direction that matters: the file counted as outstanding when
+  it is finished art.
+
+**The durable half of the fix** is not the typo. `ASSET_STATUSES` is now exported from
+`js/config/assets.js` and two tests assert against it — one that every entry's status is in the
+list, one that nothing is marked `done` while its file is 0 bytes. A registry that documents what
+the team should draw needs to fail loudly when it is wrong, because the number it produces is
+quoted in `asset-checklist.md` and the README.
+
+- Fix: this branch.
+
+---
+
 ## ISS-090 The pump did nothing, and nothing ever changed a plot's water
 **Found:** 2026-10-17, from the question "will drainage or add water by pump work?" ·
 **Severity: High** · **Status: fixed**
@@ -733,6 +889,28 @@ or `assets.test.js` fails in the other direction.
 | ISS-076 | The connection banner is in flow above a 100dvh shell, so it jumps the whole page every autosave | Medium | Hisham | **fixed** | T-58 |
 | ISS-077 | `reverseGeocode` posted lat/lon to Open-Meteo's forward-search endpoint, so every farm was named "Current location" | **High** | Hisham | **fixed** | T-59 |
 | ISS-078 | A merge was committed to `main` with unresolved conflict markers still in it | Medium | Hisham | **fixing** | T-60 |
+| ISS-079 | The growth stage reached its last sprite at 80% and ignored the debug clock | Medium | Hisham | **fixed** | T-07 |
+| ISS-080 | Buying land has no confirm step | Medium | Hisham | **open** | T-07 |
+| ISS-081 | Six season images were never registered, so `npm test` failed before any of this | Low | Kafi | **fixed** | T-04 |
+| ISS-082 | Five duplicate rice sprites sit beside the real ones | Low | Kafi | **fixed** | T-06 |
+| ISS-083 | The game page failed to boot, and all 420 tests passed | **Critical** | Hisham | **fixed** | T-07 |
+| ISS-084 | Crop sprites were drawn at 70% of the plot they stand on | Medium | Hisham | **fixed** | T-06 |
+| ISS-085 | The seed picker vanished before a seed could be chosen | **High** | Hisham | **fixed** | T-08 |
+| ISS-086 | The seed picker was centred on the game column, not the screen | Medium | Hisham | **fixed** | T-08 |
+| ISS-087 | An empty overlay dimmed the whole screen and ate every click | **Critical** | Hisham | **fixed** | T-08 |
+| ISS-088 | The field was rebuilt from scratch once a second, re-decoding ~16 MB of PNG | **High** | Hisham | **fixed** | T-61 |
+| ISS-089 | The weather was fetched, classified, displayed — and did nothing to the farm | **High** | Shabab | **fixed** | T-12 |
+| ISS-090 | The pump did nothing, and nothing ever changed a plot's water | **High** | Hisham | **fixed** | T-09 |
+| ISS-091 | Crops died of thirst while the pump was running, and the game blamed the pump | **High** | Hisham | **fixed** | T-09 |
+| ISS-092 | Damage and water were the same thing, so neither could be drawn | **High** | Hisham | **fixed** | T-09 |
+| ISS-093 | Tomato stage 5 is not square (1024×807 against 1024×1024) | Low | Jim (art) | **art open** | T-26 |
+| ISS-094 | The water meter only existed on plots that already had a crop | Low | Hisham | **fixed** | T-09 |
+| ISS-095 | A typo in an asset status shipped silently, because nothing read the status | Low | Hisham | **fixed** | — |
+| ISS-096 | The time-to-optimal quote ignores rain, in the file that already knows the rain rate | Medium | Hisham | **open** | T-09 |
+| ISS-097 | Nothing tells the player to skip the pump when rain is coming | Medium | Hisham | **open** | T-13 |
+| ISS-098 | Two planned domain modules were never written, and nothing says so | Low | Hisham | **open** | T-04 |
+| ISS-099 | A harvested crop cannot be sold, so the quality-weighted payout pays into nothing | **High** | **whole team** | **open** | T-10 |
+| ISS-100 | Three decision ids each name two different decisions | Medium | Hisham | **open** | — |
 
 ---
 

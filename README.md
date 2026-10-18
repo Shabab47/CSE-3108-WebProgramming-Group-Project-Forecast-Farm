@@ -10,23 +10,28 @@ where you are and runs your farm on that place's live forecast.
 Forecast Farm is a browser game where the weather is real. The player allows the game to know
 their location, and from then on the farm belongs to that place — the weather on screen is the
 weather outside their window. Rain genuinely waters the crops, heat genuinely dries them out, and
-frost can kill them, because all of it comes from a live forecast rather than being invented.
+frost can wound them, because all of it comes from a live forecast rather than being invented.
+Weather never kills outright — it costs a crop its health and its payout, and only a plot left
+bone dry through a whole day actually dies.
 
 If you sow from one location and travel to another location before the harvest time comes, the game will still be locked with the previous location's real-time weather until it's been harvested.
 
 Play is one loop: **plant → water → wait → harvest.** Crops grow in real time, so a six-hour crop
-takes six hours whether or not the game is open. Spending is the tension — a water pump keeps a
-drying crop alive but charges gold every second it runs, and rain on the way means it might be
-better not to. The player is always reacting to genuine conditions, so decisions carry weight
-rather than luck.
+takes six hours whether or not the game is open. Every plot carries its own water meter, and
+clicking one opens that plot's gauge and the button that waters it. Spending is the tension — the
+pump waters **one plot at a time** and charges gold every second it runs until that plot reaches
+its target and no further, and rain on the way means it might be better not to. A crop left dry,
+or left drowned, is **damaged for good**: it still harvests, but for less. The player is always
+reacting to genuine conditions, so decisions carry weight rather than luck.
 
 The goal is to unlock all sixteen plots. The first is free, and each one after costs exactly twice
 the last, which turns the farm into something a player returns to over months rather than finishes
 in an afternoon.
 
-**The field itself is not on screen yet.** What exists today is the design, the artwork for rice
-and the farm ground, the service connections, the documentation, and a working sign-in and save
-system. Four weeks of building remain.
+**The farm is now on screen** — sixteen plots you can plant, water and harvest, each carrying its
+own water meter, inside a working shop, weather board and account system, in an easy or a normal
+mode. What is still missing is mostly artwork: the failure sprites a damaged crop needs, and the
+rest of the five crops. Two weeks of building remain.
 
 ---
 
@@ -37,11 +42,13 @@ system. Four weeks of building remain.
 - Play is one loop: **plant → water → wait → harvest**. Crops grow in real time, so a six-hour
   crop takes six hours whether the game is open or not. → [crops.md](docs/crops.md)
 - The weather acts on the field. Rain waters the soil, sun and heat dry it out, and wind, hail and
-  frost can damage or destroy a crop. → [weather-events.md](docs/weather-events.md)
-- A water pump saves a drying crop, but **costs gold every second it runs**, so watering well is a
-  real decision. → [weather-events.md](docs/weather-events.md)
-- The forecast warns you in advance — *"Rain incoming — skip irrigation"* — so checking tomorrow's
-  weather is worth doing. → [notifications.md](docs/notifications.md)
+  frost wound a crop — damage that stays. → [weather-events.md](docs/weather-events.md)
+- The pump **waters one plot at a time** and **bills nothing once that plot is full**, so which
+  square you aim it at is the decision, not whether to run it.
+  → [weather-events.md](docs/weather-events.md)
+- The forecast warns you in advance, crop by crop — *"Heavy rain coming — wheat rots in standing
+  water"* — so checking tomorrow's weather is worth doing.
+  → [notifications.md](docs/notifications.md)
 - **The goal is to unlock all sixteen plots.** Each costs exactly twice the last, so the farm is
   never finished. → [crops.md](docs/crops.md)
 - You sign in, or play without an account, and **your farm is saved for you** — and you can write it
@@ -186,6 +193,20 @@ environment, the database SQL, exporting and importing a farm, and the asset reg
 image now passes through. Four weeks of building remain: the economy, then live weather effects,
 then the finished release.
 
+Week three has made the weather actually reach the farm, which until now it did not. A planting is
+judged against the next six hours of real forecast for the player's own location, rain and
+evaporation move the water in the soil, and a crop left dry — or left drowned — is **damaged for
+good**: it still harvests, but for less rather than dying outright. **Shabab** made planting a
+decision by showing its forecast verdict in the seed picker and refusing to sow without one, then
+added easy and normal modes and a way to sell seeds back; **Hisham** built the water and pump
+system, and fixed a bug where crops died of thirst *while* the pump was running and the game
+blamed the pump; **Kafi** rebuilt the weather board and the shop to the design, and drew the
+game's second crop in five tomato stages; **Afif** made the location bar suggest places as you
+type. Sixty-six problems are logged and thirty-seven closed; of sixty-five registered assets,
+thirty-six are finished and twenty-four are still to draw. Two weeks of building remain, and the
+land economy and market belong to the whole team — that is the last thing between what is here
+now and a farm somebody can finish.
+
 <a id="progress"></a>
 
 ## 🛠️ Weekly Progress
@@ -206,9 +227,16 @@ Each week is broken out per person, because "all four" tells you nothing about w
 | 2 | Shop and username sign-in | ✅ Complete | Seed shop · `usernames` table | **Shabab** |
 | 2 | Erase progress and delete account | ✅ Complete | Both behind a password check, verified in the database | **Shabab** |
 | 2 | Weather on the game screen | ✅ Complete | Live weather for the player's location · weather panel and location bar | **Afif** |
-| 3 | Land economy, then planting and growth | ⬜ Planned | — | *Not Decided* |
-| 4 | Pump, water and market, then live weather | ⬜ Planned | — | *Not Decided* pump, market · **Afif** live weather |
-| 5 | Weather effects, crop alerts, then ship v0.1 | ⬜ Planned | — | *Not Decided* weather effects · **Kafi** polish, almanac · **Shabab** handover |
+| 3 | The weather reaches the farm | ✅ Complete | Plantings judged against 6 h of live forecast · seasons from latitude · the seed picker refuses without a verdict | **Shabab** |
+| 3 | Difficulty, and selling seeds | ✅ Complete | Easy and normal modes · existing saves read normal · seeds sell back at 75% | **Shabab** |
+| 3 | Free first plot, and what it unlocks | ✅ Complete | The first plot free · locked plots carry a price tag · seeds unlock every 4 plots · a growth timer on each crop | **Shabab**, **Hisham** |
+| 3 | Water, and a pump that works | ✅ Complete | Rain and evaporation · a water meter on every plot · the pump aimed at one plot · click a plot for its gauge · damage that is permanent | **Hisham** |
+| 3 | The pump stops billing for water it throws away | ✅ Complete | Nothing billed once a plot is full · the quote matches the bill · the meters animate | **Shabab** |
+| 3 | The environment card | ✅ Complete | The rail reports the weather and what it does to the farm · six readings, always all shown | **Hisham** |
+| 3 | Weather board and shop, rebuilt | ✅ Complete | Weather board to the design · shop repainted to the Figma reference · profile moved to its own page · five tomato growth stages | **Kafi** |
+| 3 | Place lookup you can type | ✅ Complete | Suggestions as you type · the farm named from its saved coordinates | **Afif** |
+| 4 | Land economy and market | ⬜ Planned | **Everyone** — the last piece between here and a farm that can be finished | *All four* |
+| 5 | Ship v0.1 | ⬜ Planned | Missing art · polish · handover · the tag | **Kafi**, **Shabab** |
 
 ### Accounts and saving — what works today
 

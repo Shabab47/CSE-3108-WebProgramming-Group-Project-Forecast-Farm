@@ -7,6 +7,29 @@ Format: who decided, the choice, why, and what was rejected.
 
 ---
 
+> ## ⚠️ Three ids are duplicated — ISS-100
+>
+> **DEC-039, DEC-040 and DEC-041 each name two unrelated decisions.** They were allocated
+> independently on two branches on the same day, 17 October, and neither could see the other's
+> numbering. All six entries are real and all six are in force; only the ids collide.
+>
+> | Id | Land and economy (Shabab) | Weather and water (Hisham) |
+> | :--- | :--- | :--- |
+> | DEC-039 | One file per crop and per land segment | Weather is judged once, at sowing, over six hours |
+> | DEC-040 | The player starts owning one plot | The pump waters one plot |
+> | DEC-041 | One seed unlocks every four land segments | The optimal band, and damage as a latch |
+>
+> **Do not follow a bare `DEC-040` reference until this is fixed.** About twenty-eight references
+> exist across `js/`, `tests/` and `docs/`, and each has to be read in context to know which of the
+> two it means. The renumber was not done here because touching that many files — code comments,
+> test names and docs — on the last day before a demo is a poor trade for a numbering tidy.
+>
+> The fix is mechanical and belongs to whoever picks up ISS-100: keep the land trio as
+> 039/040/041 (it is the older commit, `29c8eb4`), move the weather trio to 043/044/045 after
+> DEC-042, and update every reference to match. Nothing else changes.
+
+---
+
 ### DEC-042 Difficulty: Normal and Easy, and Easy protects only a ripe crop
 **Decided by:** requested by the team · 2026-10-18
 

@@ -25,26 +25,44 @@ plants stand proud of the soil. See `docs/architecture.md` for the geometry.
 
 ## Summary
 
+This file is the **plan** — what the game needs. `js/config/assets.js` is the **record** — what is
+on disk. The two answer different questions and will not have the same total: the checklist counts
+sprites nobody has drawn yet, which are by definition not in the registry. Where they overlap they
+agree, and `tests/assets.test.js` fails if the registry drifts from the filesystem.
+
+**Sixty-five files are registered: 36 finished, 29 outstanding.** Of those 29, five are unused
+duplicate copies of art that already exists elsewhere and four are metadata placeholders, so
+**24 are art somebody still has to draw.** Three of the 24 are rice's damage sprites, which the
+damage system needs today and which do not exist.
+
 | Group | Needed | Done | Remaining |
 | :--- | ---: | ---: | ---: |
-| Crop sprites, all 5 crops | 35 | 5 | **30** |
+| Growth stages — 5 per crop, 5 crops | 25 | 10 | **15** |
+| Damage sprites — dry / waterlogged / dead, 5 crops | 15 | 0 | **15** |
 | Weather icons | 9 | 0 | **9** |
 | Crop icons | 5 | 0 | **5** |
+| Metadata placeholders | 4 | 0 | **4** |
+| Pump animation frames | 3 | 1 | **2** |
 | Environment tiles | 4 | 4 | 0 |
 | Menu background + logo | 2 | 2 | 0 |
-| Display fonts | 2 | 2 | 0 |
-| Pump animation frames | 3 | 1 | **2** |
+| Display fonts | 6 | 6 | 0 |
+| Shop art, buttons, season art | 13 | 13 | 0 |
+| **Total in scope** | **86** | **36** | **50** |
 | Sounds — *out of scope* | 3 | 0 | — |
-| **Total in scope** | **60** | **14** | **46** |
 
-Rice is **not** finished. It has its five growth stages but is missing both failure states, which
-are per-crop like every other sprite.
+**Rice is not finished, and neither is tomato.** Between them they have ten growth stages, which
+is every stage every crop has. What no crop has is a single damage sprite.
 
 ---
 
 ## Crop sprites
 
-Seven per crop: five growth stages, then two failure states.
+**Eight per crop**: five growth stages, then three damage states. It was seven until ISS-092 split
+water damage away from drought death — a crop can now be dry-damaged, waterlogged, or dead, and the
+three are different pictures with different rules behind them.
+
+`js/domain/damage.js` resolves the priority, so exactly one is ever drawn: **dead wins**, because
+a dead crop is dead whatever else was wrong with it.
 
 ### Rice — the only playable crop
 
@@ -55,7 +73,9 @@ Seven per crop: five growth stages, then two failure states.
 | `rice_3.png` | Mid-sized | ✅ done |
 | `rice_4.png` | Mature, still green | ✅ done |
 | `rice_5.png` | Golden, ready to harvest | ✅ done |
-| `rice_6.png` | Sixth hour — **wanted, see below** | ⬜ **missing** |
+| `rice_dry.png` | Dry damage overlay | ⬜ **missing** — 0-byte placeholder registered |
+| `rice_waterlogged.png` | Waterlogged damage overlay | ⬜ **missing** — 0-byte placeholder registered |
+| `rice_dead.png` | Dead, collapsed | ⬜ **missing** — 0-byte placeholder registered |
 
 **Why `rice_6.png` is wanted.** Rice takes six hours and there are five sprites, so
 `stageMath.js` holds stage 5 for the whole of hours five and six. That is a deliberate
@@ -64,53 +84,60 @@ placeholder, not the design: the `min(..., STAGE_COUNT)` in `stageMath.js` is wh
 all it takes to make hour six use a sixth sprite. No crop file, UI change or formula edit is
 involved. A sixth sprite would let all six hours show distinct art, and would be the first crop
 to need it.
-| `rice_rain_damaged.png` | Rain-damaged overlay | ⬜ **missing** |
-| `rice_drought_killed.png` | Drought-killed dried texture | ⬜ **missing** |
 
-### Wheat, potato, corn, tomato — not yet playable
+### Wheat, potato, corn, tomato
 
-Each needs all seven. Until a crop's images exist it stays `available: false` and shows greyed
-with "coming soon" in the picker.
-
-| Crop | Stages 1–5 | Rain-damaged | Drought-killed | Folders |
+| Crop | Stages 1–5 | Damage sprites | Folders | Playable |
 | :--- | :--- | :--- | :--- | :--- |
-| Wheat | ⬜ | ⬜ | ⬜ | `wheat/` ready |
-| Potato | ⬜ | ⬜ | ⬜ | `potato/` ready |
-| Corn | ⬜ | ⬜ | ⬜ | `corn/` ready |
-| Tomato | ⬜ | ⬜ | ⬜ | `tomato/` ready |
+| Rice | ✅ 5 of 5 | ⬜ 0 of 3 | `rice/` ready | **yes** |
+| Tomato | ✅ 5 of 5 | ⬜ 0 of 3 | `tomato/` ready | no — see ISS-093 |
+| Wheat | ⬜ 0 of 5 | ⬜ 0 of 3 | `wheat/` ready | no |
+| Potato | ⬜ 0 of 5 | ⬜ 0 of 3 | `potato/` ready | no |
+| Corn | ⬜ 0 of 5 | ⬜ 0 of 3 | `corn/` ready | no |
 
-Empty folders already exist for all four, with a `.gitkeep`, so art can be dropped straight in.
+**Tomato's art has landed** and all five stages are registered. Two things stand between it and
+`available: true` (T-14): its damage sprites, and **ISS-093 — `tomato_5.png` is 1024×807 while
+stages 1–4 are 1024×1024**, so the plant visibly shrinks on the step that should be its biggest.
+That is Jim's file; the registry records the dimensions the file actually has rather than the ones
+the rice pattern suggests.
+
+Until a crop's images exist it stays `available: false` and shows greyed with "coming soon" in
+the picker. Empty folders already exist for all of them, with a `.gitkeep`, so art can be dropped
+straight in.
 
 ---
 
-## Failure states
+## Damage states
 
-These are the two the original brief called *"Special Failure States"*. They were in the art
-requirements but had been marked out of scope for version 1 — **they are now in scope**, because a
-crop that dies with no visual change gives the player nothing to read.
+These are the *"Special Failure States"* from the original brief, plus the third state the water
+model needed. **They are in scope**, because a crop that dies with no visual change gives the
+player nothing to read.
 
 | File | Shows | Replaces |
 | :--- | :--- | :--- |
-| `<crop>_rain_damaged.png` | A crop hit by heavy rain — lodging, rot, waterlogged | The standing crop, overlaid |
-| `<crop>_drought_killed.png` | A crop killed by drought — dried, brown, collapsed | The standing crop |
+| `<crop>_dry.png` | A crop left dry past the damage floor — scorched, wilted | The standing crop, overlaid |
+| `<crop>_waterlogged.png` | A crop left above its target — split fruit, drowned roots | The standing crop, overlaid |
+| `<crop>_dead.png` | A crop whose health reached 0 | The standing crop |
 
-Until a sprite exists, the game falls back to a CSS filter so the state is still readable:
+**Until a sprite exists the state is carried by a word, not an image.** `plotLayers.js` draws the
+`damageWord()` text beside the sprite and the sprite is a hole until the art lands. That is
+[DEC-014](team/decisions.md)'s rule and it is deliberate: **do not add a fallback layer.** An
+earlier draft of this file described a CSS `filter: grayscale(1) brightness(.6)` fallback and said
+it should stay permanently. That was never built, and the plan to build it was withdrawn — a second
+way of showing the same thing is a second thing that can be wrong.
 
-```css
-/* dead crop, until <crop>_drought_killed.png exists */
-filter: grayscale(1) brightness(.6);
-```
+### Which state shows when
 
-**The fallback stays in the code even after the sprites land.** If an image fails to load, or a
-crop's art is late, the player still sees that something is wrong. Prefer the sprite, fall back to
-the filter.
+| Cause | Sprite | Latches after |
+| :--- | :--- | :--- |
+| Water below the crop's damage floor | `<crop>_dry.png` | `DAMAGE.hoursBelowFloorToLatch` |
+| Water above the crop's target | `<crop>_waterlogged.png` | `DAMAGE.hoursAboveTargetToLatch` |
+| Health reaching 0 | `<crop>_dead.png` | immediately, and is not reversible |
 
-### Which failure shows when
-
-| Cause | Sprite |
-| :--- | :--- |
-| Heavy rain, or a waterlogged plot | `<crop>_rain_damaged.png` |
-| Drought, frost, hail, or health reaching 0 | `<crop>_drought_killed.png` |
+**Damage is a latch, not a reading.** It is recorded on the plot the moment the line is crossed and
+never decreases — a crop that has been through a real drought does not un-sunburn because you
+watered it afterwards. Water itself is a live reading and is drawn as one. See ISS-092 for why the
+two had to be split.
 
 ---
 
