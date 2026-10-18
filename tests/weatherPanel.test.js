@@ -368,7 +368,7 @@ import {
 } from '../js/domain/plotWater.js';
 import { aimPump, setPump, costOf, pumpRun } from '../js/domain/pump.js';
 import { applyDamage, damageFor, damageSprite, damageWord } from '../js/domain/damage.js';
-import { alertsToRaise, currentTrouble, forProjection, plantedCrops } from '../js/domain/notifications.js';
+import { alertsToRaise, currentTrouble, forProjection, plantedCrops, wateringAdvice } from '../js/domain/notifications.js';
 import { buildInitialState } from '../js/state/initialState.js';
 import { DAMAGE, HEALTH, OPTIMAL, WATER } from '../js/config/game.js';
 import { EVAPORATION_PER_HOUR, RAIN_WATER_PER_HOUR } from '../js/config/weatherEvents.js';
@@ -1027,6 +1027,41 @@ test('every plot carries a damage field, including a fresh farm', () => {
   for (const plot of buildInitialState(SESSION).plots) {
     assert.equal(plot.damage, null, 'a new plot is undamaged, not undefined');
   }
+});
+
+test('the player is told which plots need water, and where the pump is', () => {
+  // ISS-091 arrived as a message about the past tense - "2 crops died" - for a situation
+  // that had been visible for hours. This is the warning that should have come first, and
+  // it has to name the plots, because the pump waters one square at a time and "some
+  // crops are dry" is not actionable.
+  const state = farmWith({ weather: sky({ code: 0, temp: 40 }), count: 3 });
+  state.plots[0].waterLevel = 2;
+  state.plots[1].waterLevel = 20;
+  state.plots[2].waterLevel = 85;
+
+  const off = wateringAdvice(state);
+  assert.ok(off, 'there is something to say');
+  assert.deepEqual(off.plots, [0, 1], 'both dry plots are named');
+  assert.match(off.message, /plot 1, plot 2/, 'and listed by number');
+  assert.match(off.message, /Turn the pump on/, 'with the action');
+
+  state.pump = { on: true, target: 2 }; // aimed at the healthy one
+  const elsewhere = wateringAdvice(state);
+  assert.equal(elsewhere.aimedAt, 2);
+  assert.match(elsewhere.message, /on plot 3/, 'and says where the pump is pointed');
+  assert.match(elsewhere.message, /move it/, 'and that it has to move');
+
+  const healthy = farmWith({ weather: sky({ code: 0, temp: 40 }), count: 1 });
+  healthy.plots[0].waterLevel = 85;
+  assert.equal(wateringAdvice(healthy), null, 'a comfortable plot says nothing');
+});
+
+test('a dead crop is not on the watering list', () => {
+  const state = farmWith({ weather: sky({ code: 0, temp: 40 }), count: 2 });
+  state.plots[0].waterLevel = 0;
+  state.plots[0].dead = true;
+  state.plots[1].waterLevel = 85;
+  assert.equal(wateringAdvice(state), null, 'there is nothing left to water');
 });
 
 test('a save written before damage existed still reads as undamaged', () => {

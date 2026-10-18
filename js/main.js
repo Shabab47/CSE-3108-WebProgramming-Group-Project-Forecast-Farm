@@ -16,7 +16,7 @@ import { mountPumpPanel } from './ui/pumpPanel.js';
 import { tick } from './domain/water.js';
 import { setPump } from './domain/pump.js';
 import { damageWord } from './domain/damage.js';
-import { alertsToRaise, currentTrouble } from './domain/notifications.js';
+import { alertsToRaise, currentTrouble, wateringAdvice } from './domain/notifications.js';
 import { mountWeatherPanel } from './ui/weatherPanel.js';
 import { mountFarmView } from './ui/farmView.js';
 import { mountLocationBar } from './ui/locationBar.js';
@@ -338,6 +338,18 @@ function tickFarm() {
 
   const now = getState();
   if (!now) return;
+
+  // **Warn before, not after.** ISS-091 arrived as a message about the past tense -
+  // "2 crops died" - for a situation that had been visible for hours. This names the
+  // plots and says where the pump is pointing, while it is still a decision.
+  const advice = wateringAdvice(now);
+  if (advice && now.notified[advice.key] !== advice.message) {
+    apply((s) => ({
+      ok: true,
+      state: { ...s, notified: { ...s.notified, [advice.key]: advice.message } },
+    }));
+    emit('toast', { message: advice.message, tone: 'warning' });
+  }
 
   const trouble = currentTrouble(now, Date.now());
   if (trouble && now.notified[trouble.key] !== trouble.message) {
