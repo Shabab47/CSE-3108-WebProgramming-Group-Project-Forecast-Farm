@@ -1,18 +1,3 @@
-/* Page layout.
- *
- * The game shell is a three-column CSS grid, from
- * docs/reference/layout-wireframe.jpeg:
- *
- *   grid-template-areas:
- *     "top   top   top"
- *     "left  centre right"
- *
- * Moving a panel is one line here. Nothing else in the project sets a grid.
- *
- * The top bar and the field stage have their own files: css/navbar.css and
- * css/scene.css. This file is the shell they sit in.
- */
-
 .app {
   display: grid;
   grid-template-columns: var(--sidebar-width) minmax(0, 1fr) var(--rail-width);

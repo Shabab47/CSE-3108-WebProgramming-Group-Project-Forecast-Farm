@@ -1,5 +1,5 @@
 import { clear, el } from '../utils/dom.js';
-import { iconEl } from './icons.js';
+import { SHOP_IMG } from '../config/assets.js';
 
 export function mountShopLauncher(root, actions) {
   clear(root);
@@ -10,7 +10,12 @@ export function mountShopLauncher(root, actions) {
     'aria-label': 'Open the seed shop',
   });
 
-  link.append(iconEl('store', 'sidebar-btn__icon'));
+  link.append(el('img', {
+    class: 'sidebar-btn__img',
+    src: SHOP_IMG,
+    alt: '',
+    'aria-hidden': 'true',
+  }));
 
   root.append(link);
 

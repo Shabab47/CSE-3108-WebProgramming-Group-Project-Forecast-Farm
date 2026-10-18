@@ -1,69 +1,46 @@
-/* The game's three self-hosted faces.
- *
- *   Luckiest Guy  the logo wordmark, button labels, plank titles — `css/fonts.css`
- *   Irish Grover   field labels, body text, small links — `css/fonts.css`
- *   Nunito          shop body text — names, descriptions, prices — `css/fonts.css`
- *
- * All are self-hosted rather than linked from a font CDN, because the game has
- * no build step and no third-party runtime: a `<link>` to a font host would make
- * a page fail to look right on a bad connection, and would put another party
- * between the player and the page. The TTF files are ~55KB each, and
- * `font-display: swap` means text is readable in the fallback while they decode.
- *
- * `login.html` links this file directly, and so does `settings.html`. `shop.html`
- * now links it too — the shop's body text asks for Nunito, so the page needs the
- * `@font-face` behind it. The game page (`index.html`) does not link it, but
- * `css/navbar.css` `@import`s it so the navbar wordmark uses the display face.
- *
- * Luckiest Guy and Irish Grover are declared at `font-weight: 400` only. Nunito
- * ships four cuts (Regular 400, SemiBold 600, ExtraBold 800, Black 900) so the
- * shop's hierarchy — name over description over price — maps cleanly to real
- * font weights rather than synthesised bolding.
- */
-
 @font-face {
-  font-family: 'Luckiest Guy';
-  src: url('../assets/fonts/LuckiestGuy-Regular.ttf') format('truetype');
+  font-family: "Luckiest Guy";
+  src: url("../assets/fonts/LuckiestGuy-Regular.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 
 @font-face {
-  font-family: 'Irish Grover';
-  src: url('../assets/fonts/IrishGrover-Regular.ttf') format('truetype');
+  font-family: "Irish Grover";
+  src: url("../assets/fonts/IrishGrover-Regular.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 
 @font-face {
-  font-family: 'Nunito';
-  src: url('../assets/fonts/Nunito-Regular.ttf') format('truetype');
+  font-family: "Nunito";
+  src: url("../assets/fonts/Nunito-Regular.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 
 @font-face {
-  font-family: 'Nunito';
-  src: url('../assets/fonts/Nunito-SemiBold.ttf') format('truetype');
+  font-family: "Nunito";
+  src: url("../assets/fonts/Nunito-SemiBold.ttf") format("truetype");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
 }
 
 @font-face {
-  font-family: 'Nunito';
-  src: url('../assets/fonts/Nunito-ExtraBold.ttf') format('truetype');
+  font-family: "Nunito";
+  src: url("../assets/fonts/Nunito-ExtraBold.ttf") format("truetype");
   font-weight: 800;
   font-style: normal;
   font-display: swap;
 }
 
 @font-face {
-  font-family: 'Nunito';
-  src: url('../assets/fonts/Nunito-Black.ttf') format('truetype');
+  font-family: "Nunito";
+  src: url("../assets/fonts/Nunito-Black.ttf") format("truetype");
   font-weight: 900;
   font-style: normal;
   font-display: swap;

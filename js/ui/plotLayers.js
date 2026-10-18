@@ -249,7 +249,10 @@ export function plotLayers(plot, { isOwned, isNext, isReady, grown, isWatered, p
     // The meter, normalised against `WATER.max` rather than printed as a raw percentage.
     // `max` is 120, not 100, so that over-watering is a reachable state — which means a
     // bar drawn as `waterLevel%` would overflow its own track on a rainy day.
-    layers.push(waterMeter(plot, word));
+    // The damage word already names the plot "Dry" as a permanent badge above;
+    // the water meter should show the live water state instead, so "Dry" does not
+    // appear twice on the same tile and the meter can actually change as water rises.
+    layers.push(waterMeter(plot, damage ? null : word));
 
     // The growth meter floats above the crop: a green bar plus `3h 20m left`.
     // Same gate as the water bar, plus `grown` itself decides — `growthMeter`

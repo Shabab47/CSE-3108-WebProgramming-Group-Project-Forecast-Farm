@@ -125,6 +125,7 @@ export function plant(state, plotId, cropId) {
         plantedAt: now,
         health: verdict.ok ? verdict.verdict.health : HEALTH.max,
         forecast: verdict.ok ? verdict.verdict : null,
+        dead: false,
       }),
       inventory: {
         ...state.inventory,

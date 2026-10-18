@@ -2267,3 +2267,43 @@ or `assets.test.js` fails in the other direction.
   fails on any line starting with `<<<<<<<`, `=======` or `>>>>>>>`. That test is the durable half of
   this fix: it turns "somebody committed an unfinished merge" from a silent defect into a red suite.
 
+
+---
+
+### ISS-101 Water meter floats outside the diamond on the right side
+- Reported by user · 2026-10-18 · Owner: Hisham · Status: **open** · Severity: Medium
+- Where: `css/scene.css` (`.plot__water`)
+- Problem: `.plot__water` sits at `right: 6%` / `bottom: 26%`, which puts it at x ≈ 88–99% of the plot box. The diamond's right edge at those heights is much further left — at `bottom: 26%` the diamond's right vertex area is at x ≈ 53% — so the meter hangs outside the soil, floating to the right of the diamond. It is visible only because nothing clips it to the diamond shape.
+- Cause: the position was chosen to place the meter "down the right edge" but `right: 6%` is too close to the box's right corner, where the diamond has already tapered to a point.
+- Fix: move the meter inward — `right: 40%` and `bottom: 30%` — so it sits inside the diamond while still appearing on the right side of the soil. At `bottom: 30%` the meter spans y 64%–30%; the diamond's right edge at those heights runs from x ≈ 75% down to x ≈ 61%, and an 11px bar at right: 40% (x ≈ 57–60%) fits under both ends.
+
+---
+
+### ISS-102 Border-like ring around selected plot may be mistaken for a plot border
+- Reported by user · 2026-10-18 · Owner: Hisham · Status: **open** · Severity: Low
+- Where: `css/scene.css` (`.plot--selected::after`)
+- Problem: `.plot` itself has no `border`. The only border-like element is `.plot--selected::after`, which draws a 2px accent ring at `inset: -4px` around a selected plot. A player clicking a plot sees this ring and may describe it as "a border around plot." Unselected plots have no border at all — the empty space around the diamond is the transparent corners of `ground_*.png` (square canvas, diamond art only 53.8% tall).
+- Cause: no code defect; the selection ring is intentional. The question is one of discoverability — the ring's purpose is not obvious to a player who hasn't been told it marks selection.
+- Fix: documentation / clarification only. No CSS change needed unless the team decides the selection ring should be less prominent or more obviously a selection indicator.
+
+
+---
+
+### ISS-104 Plot button had no explicit `border: none` declaration
+- Reported by user · 2026-10-18 · Owner: Hisham · Status: **fixed** · Severity: Low
+- Where: `css/scene.css` (`.plot`), `css/reset.css` (`button`)
+- Problem: a user reported a visible border around plot buttons. `.plot` had no explicit `border` property, relying solely on `reset.css`'s `button { border: none; }`. While this worked, the absence of an explicit declaration made the intent unclear and left a theoretical gap if stylesheet load order ever changed.
+- Cause: `reset.css` sets `border: none` on all buttons, but `.plot` in `scene.css` did not re-declare it. The visible border the user saw was most likely either the `:focus-visible` outline (2px accent outline when keyboard-focused) or the `.plot--selected::after` selection ring (2px accent ring at `inset: -4px` when clicked) — neither of which is a CSS `border` property.
+- Fix: added explicit `border: none;` to `.plot` in `css/scene.css` to document the intent and make the rule self-contained.
+
+
+---
+
+### ISS-103 Dry damage word duplicated in the water meter
+- Reported by user · 2026-10-18 · Owner: Hisham · Status: **fixed** · Severity: Low
+- Where: `js/ui/plotLayers.js` (`plotLayers`, `waterMeter`)
+- Problem: a dry-damaged plot showed **"Dry" twice** — once as the permanent damage badge (`plot__damage-word`) and once as the water meter's state word (`plot__water-word`). Damage latches permanently, so neither ever changed, making the meter read as stuck.
+- Cause: `plotLayers` computed `word = damageWord(plot)` and passed it to `waterMeter(plot, word)`, which rendered `text: word ?? state`. When damage existed, `word` ("Dry") overrode the live water state.
+- Fix: when damage is present, pass `null` to `waterMeter` so it shows `state` from `waterState()` — the live reading that changes as water rises (dry → low → optimal → saturated). The damage word still appears once as the permanent badge above the meter.
+- Fix commit: `layers.push(waterMeter(plot, damage ? null : word))`
+
