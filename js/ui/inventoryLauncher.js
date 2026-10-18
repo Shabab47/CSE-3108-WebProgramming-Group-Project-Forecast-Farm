@@ -1,5 +1,5 @@
 import { clear, el } from '../utils/dom.js';
-import { iconEl } from './icons.js';
+import { cropSeedImg } from '../config/assets.js';
 
 export function mountInventoryLauncher(root, actions) {
   clear(root);
@@ -10,7 +10,12 @@ export function mountInventoryLauncher(root, actions) {
     'aria-label': 'Open inventory',
   });
 
-  link.append(iconEl('package', 'sidebar-btn__icon'));
+  link.append(el('img', {
+    class: 'sidebar-btn__img',
+    src: cropSeedImg('rice'),
+    alt: '',
+    'aria-hidden': 'true',
+  }));
 
   root.append(link);
 

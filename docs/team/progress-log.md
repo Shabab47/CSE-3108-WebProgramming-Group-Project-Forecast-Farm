@@ -7,6 +7,31 @@ The per-person weekly notes that used to live in the README table are now in `me
 
 ---
 
+
+## Explicit `border: none` on plot button — user-reported fix — 2026-10-18
+
+- **Did:** `.plot` had no explicit `border` property, relying solely on `reset.css`'s `button { border: none; }`. Added explicit `border: none;` to `.plot` in `css/scene.css` so the intent is self-documenting and not dependent on stylesheet load order. The visible border the user reported was most likely the `:focus-visible` outline (keyboard focus) or `.plot--selected::after` selection ring (click) — neither is a CSS `border` property.
+- **Also logged:** ISS-104 (plot border declaration).
+- **Touched:** `css/scene.css`, `docs/team/issues.md`
+- **Verified:** `npm test` 597/599 pass (2 pre-existing asset registration failures unrelated to this change), `npm run check` clean.
+
+
+## Duplicate "Dry" on dry plots removed — user-reported fix — 2026-10-18
+
+- **Did:** a dry-damaged plot showed "Dry" twice — once as the permanent damage badge (`plot__damage-word`) and once as the water meter's state word (`plot__water-word`). Changed `plotLayers.js` to pass `null` instead of the damage word to `waterMeter()` when damage exists, so the meter shows the live water state (`waterState()`) which can change (dry → low → optimal → saturated), while the damage word stays once as the permanent badge above it.
+- **Also logged:** ISS-103 (duplicate Dry indicator).
+- **Touched:** `js/ui/plotLayers.js`, `docs/team/issues.md`
+- **Verified:** `npm test` 599/599 pass, `npm run check` clean.
+
+
+## Water meter moved inside the diamond — user-reported fixes — 2026-10-18
+
+- **Did:** `.plot__water` was at `right: 6%` / `bottom: 26%`, which floats outside the diamond. First move to `right: 20%` was still outside (meter at x ≈ 80%, diamond's right edge at x ≈ 75–61%). Corrected to `right: 40%` / `bottom: 30%` so the 11px bar spans x ≈ 57–60%, inside the diamond's right edge (x ≈ 75% down to x ≈ 61% at those heights). Updated the CSS comment.
+- **Also logged:** ISS-101 (water meter placement) and ISS-102 (the "border around plot" is `.plot--selected::after`, the intentional selection ring; `.plot` itself has no border — the empty space around the diamond is `ground_*.png`'s transparent corners). Broken forecast-strip icons are already known (ISS-001 / DEC-014), no new issue needed.
+- **Touched:** `css/scene.css`, `docs/team/issues.md`
+- **Verified:** `npm test` 599/599 pass, `npm run check` clean.
+- **Next:** land economy and market.
+
 ## Week 3 closed, and the record was brought back in line — Hisham
 
 - **Did:** the README had drifted from what the game does. Four of its paragraphs were not

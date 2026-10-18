@@ -1,6 +1,6 @@
 import { qsOrNull, el } from './utils/dom.js';
 import { createLog } from './utils/log.js';
-import { goldLabel } from './utils/formatGold.js';
+import { formatGold } from './utils/formatGold.js';
 import { loadProvider } from './auth-main.js';
 import { signInAsGuest } from './services/localAuth.js';
 import { buildServerSave } from './remoteSave.js';
@@ -131,9 +131,10 @@ function mountShell(session) {
   mountInventoryLauncher(qsOrNull('#inventory-launch'), { href: farmHref(session) });
 
   qsOrNull('#right-rail').append(
-    el('div', { class: 'card' }, [
-      el('div', { class: 'card__head' }, [el('span', { class: 'card__title', text: 'Gold' })]),
-      el('p', { id: 'gold-value', text: '—' }),
+    el('div', { class: 'farm-gold' }, [
+      el('span', { class: 'farm-gold__coin', 'aria-hidden': 'true', html: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="12" r="10" fill="#e8b44c"/><circle cx="12" cy="12" r="9" fill="#f0c45f"/><text x="12" y="16" font-family="Luckiest Guy" font-size="14" text-anchor="middle" fill="#4a3418">G</text></svg>' }),
+      el('span', { class: 'farm-gold__label', text: 'Gold' }),
+      el('span', { id: 'gold-value', class: 'farm-gold__value', text: '—' }),
     ]),
   );
 
@@ -303,7 +304,7 @@ function renderPanels(state) {
   refreshInspector?.();
 
   const goldEl = qsOrNull('#gold-value');
-  if (goldEl && state) goldEl.textContent = goldLabel(state.gold);
+  if (goldEl && state) goldEl.textContent = formatGold(state.gold);
 }
 
 /**

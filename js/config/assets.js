@@ -62,15 +62,18 @@ export const ASSETS = [
   { path: 'assets/images/crops/tomato/tomato_4.png', name: 'Tomato - stage 4', size: 1112306, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
   { path: 'assets/images/crops/tomato/tomato_5.png', name: 'Tomato - stage 5 (ISS-093: not square)', size: 1125057, dimensions: '1024x807', status: 'done', category: 'crop-sprite', page: 'field' },
 
+  // Potato stages — only 1 and 2 exist so far. Stages 3-5 are 0 bytes / missing.
+  { path: 'assets/images/crops/potato/potato_1.png', name: 'Potato - stage 1', size: 393079, dimensions: '1000x1000', status: 'done', category: 'crop-sprite', page: 'field' },
+  { path: 'assets/images/crops/potato/potato_2.png', name: 'Potato - stage 2', size: 509140, dimensions: '1000x1000', status: 'done', category: 'crop-sprite', page: 'field' },
+
   // Damage sprites, built by `cropFailureImg(cropId, failure)` with failure one of
-  // `dry`, `waterlogged`, `dead`. **All three are 0 bytes** — the latch and the wording
-  // ship in ISS-092, the art has not (T-26, Zim). Registered as `empty` so the count in
-  // `asset-checklist.md` is honest and so a damaged crop requests a known path rather
-  // than an unregistered 404. `plotLayers.js` draws the `damageWord()` text beside it,
-  // which is the DEC-014 rule: the text carries the meaning, the image is a hole for now.
-  { path: 'assets/images/crops/rice/rice_dry.png', name: 'Rice - dry damage (ISS-096: art missing)', size: 0, dimensions: '', status: 'empty', category: 'crop-sprite', page: 'field' },
-  { path: 'assets/images/crops/rice/rice_waterlogged.png', name: 'Rice - waterlogged damage (art missing)', size: 0, dimensions: '', status: 'empty', category: 'crop-sprite', page: 'field' },
-  { path: 'assets/images/crops/rice/rice_dead.png', name: 'Rice - dead (art missing)', size: 0, dimensions: '', status: 'empty', category: 'crop-sprite', page: 'field' },
+  // `dry`, `waterlogged`, `dead`. Rice now has two of three: `rice_drought_killed.png`
+  // for dry and `rice_rain_damaged.png` for waterlogged. `dead` art has not landed yet;
+  // the entry is omitted until the file exists (see `cropFailureImg()` for the path).
+  // `plotLayers.js` draws the `damageWord()` text beside it, which is the DEC-014 rule:
+  // the text carries the meaning, the image is a hole for now.
+  { path: 'assets/images/crops/rice/rice_drought_killed.png', name: 'Rice - dry damage (drought killed)', size: 794692, dimensions: '1000x1000', status: 'done', category: 'crop-sprite', page: 'field' },
+  { path: 'assets/images/crops/rice/rice_rain_damaged.png', name: 'Rice - waterlogged damage (rain damaged)', size: 689884, dimensions: '1000x1000', status: 'done', category: 'crop-sprite', page: 'field' },
 
   // Flat copies of the five rice sprites, delivered at this path before the per-crop
   // folder convention existed. Byte-identical to `crops/rice/rice_N.png` and kept,
@@ -199,10 +202,15 @@ export function cropStageImg(cropId, stage) {
  * under different filenames, change this and the `damageSprite()` cases together, rather
  * than leaving a sprite that never resolves.
  *
- * All three are 0 bytes until the art lands. `plotLayers.js` draws the word beside them
- * precisely so a 0-byte file costs a missing picture rather than a missing fact.
+ * Rice uses custom filenames for dry/waterlogged: `rice_drought_killed.png` and
+ * `rice_rain_damaged.png`. Other crops follow the standard `<cropId>_<failure>.png` pattern.
+ * The `dead` sprite for rice is still 0 bytes.
  */
 export function cropFailureImg(cropId, failure) {
+  if (cropId === 'rice') {
+    if (failure === 'dry') return 'assets/images/crops/rice/rice_drought_killed.png';
+    if (failure === 'waterlogged') return 'assets/images/crops/rice/rice_rain_damaged.png';
+  }
   return `assets/images/crops/${cropId}/${cropId}_${failure}.png`;
 }
 

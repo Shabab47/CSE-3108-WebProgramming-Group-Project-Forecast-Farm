@@ -56,15 +56,20 @@ export function mountEnvMetrics(root, state, now = Date.now()) {
       return;
     }
 
-    card.append(el('ul', { class: 'env__list' }, facts.map((fact) => el('li', {
-      class: 'env__row',
-      'data-tone': fact.tone,
-      'data-id': fact.id,
-    }, [
-      el('span', { class: 'env__label', text: TITLES[fact.id] ?? fact.label }),
-      el('span', { class: 'env__value', text: fact.value }),
-      el('span', { class: 'env__note', text: fact.note }),
-    ]))));
+    card.append(el('div', { class: 'env__pills' }, facts.map((fact) =>
+      el('div', {
+        class: 'env__pill',
+        'data-tone': fact.tone,
+        'data-id': fact.id,
+      }, [
+        el('span', { class: 'env__pill-label', text: TITLES[fact.id] ?? fact.label }),
+        el('span', { class: 'env__pill-value', text: fact.value }),
+        el('span', { class: 'env__pill-note', text: fact.note }),
+      ])
+    )));
+
+    // Add a clear fix for the floated pills
+    card.append(el('div', { style: 'clear: both' }));
   }
 
   render();

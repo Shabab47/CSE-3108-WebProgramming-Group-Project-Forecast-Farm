@@ -200,11 +200,15 @@ export function tick(state, now = Date.now()) {
     // `damage.js` for why that distinction is the whole point.
     // **The pump gets its own window**, because a pumped plot climbs fast and then holds,
     // and interpolating it across the whole period would report a drought it did not have.
+    // **Only plots with a crop can latch damage.** Bare soil has no crop to damage,
+    // and a plot that was bare when damage latched must not carry that damage into a
+    // newly planted crop. See test "a plot with no crop cannot be damaged".
     const window = isPumped
       ? pumpedWindow(plot, bandFor(plot), run.grossPerHour, rates, hours)
       : timeOutsideBand(plot, bandFor(plot), before, level, hours);
-    const damaged = applyDamage({ ...plot, health, dead: died || plot.dead },
-      damageFor(plot, window));
+    const damaged = plot.cropId != null
+      ? applyDamage({ ...plot, health, dead: died || plot.dead }, damageFor(plot, window))
+      : { ...plot, health, dead: died || plot.dead };
 
     if (level === before
       && health === plot.health
