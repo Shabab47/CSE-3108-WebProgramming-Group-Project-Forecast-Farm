@@ -12,7 +12,7 @@ import { mountNavbar } from './ui/navbar.js';
 import { mountShopLauncher } from './ui/shopLauncher.js';
 import { mountInventoryLauncher } from './ui/inventoryLauncher.js';
 import { mountSeasonCard } from './ui/seasonCard.js';
-import { mountPumpPanel } from './ui/pumpPanel.js';
+import { mountEnvMetrics } from './ui/envMetrics.js';
 import { tick } from './domain/water.js';
 import { setPump } from './domain/pump.js';
 import { damageWord } from './domain/damage.js';
@@ -134,30 +134,40 @@ function mountShell(session) {
       el('div', { class: 'card__head' }, [el('span', { class: 'card__title', text: 'Gold' })]),
       el('p', { id: 'gold-value', text: '—' }),
     ]),
-    placeholder('Environment', 'Humidity and wind — T-11'),
   );
 
-  // The pump panel replaces the `Meters` placeholder, which is what it was reserved
-  // for. It is the one panel whose read-out has to keep up with a per-second tick,
-  // so it is the one that gets a `refresh()` rather than being rebuilt.
+  // **No Environment placeholder.** It was reserved for exactly this card, and mounting the
+  // card and then removing the placeholder was the first version of this — which left both
+  // on the page, because `:last-of-type` is not something the fake DOM can select and a
+  // selector that only works in a browser is a selector nobody can test. The card is
+  // appended instead, so the thing that is not wanted is never created.
   //
-  // **The host is appended, and that is the whole bug.** The first version passed a bare
-  // `el('div')` straight into `mountPumpPanel` without ever adding it to the page: the
-  // panel built itself perfectly, into a div that belonged to nothing, and the right rail
-  // showed no pump at all. Nothing threw, and the boot test passed, because nothing in
-  // either was looking at the rail. A panel that is not in the document is not a panel.
-  const pumpHost = el('div');
-  qsOrNull('#right-rail').append(pumpHost);
-  pumpPanel = mountPumpPanel(pumpHost, {
-    getState,
-    onToggle: (on) => {
-      apply((s) => ({ ok: true, state: setPump(s, on) }));
-      emit('toast', {
-        message: on ? 'Pump on. Click one of your plots to water it.' : 'Pump off.',
-        tone: on ? 'info' : 'success',
-      });
-    },
-  });
+  // The pump card that used to live here is gone too. It repeated the aimed plot's water,
+  // which the plot inspector now shows far better, and it was a card about a *machine* on a
+  // rail whose job is the sky. What replaces it answers a different question: what the
+  // weather is doing to the farm, which is the half of the API the board never shows — the
+  // board reports 32°C, this reports the 10.8 units an hour that costs you.
+  //
+  // The pump is still controlled, and better: click any plot and its inspector carries the
+  // gauge, the countdown and the button. Nothing is lost by taking the card out, because the
+  // card was a read-out of something the click already owns.
+  envCard = mountEnvMetrics(qsOrNull('#right-rail'), getState());
+
+  // The pump panel is **gone from the rail**, and `mountPumpPanel` is no longer called
+  // here. It showed the aimed plot's water, which the plot inspector now shows properly —
+  // a large gauge with its band, the countdown and the gold, on the plot you clicked.
+  //
+  // The lesson from the first version is kept, because it is the one that cost a round:
+  // **the host is appended, and that is the whole bug.** It passed a bare `el('div')`
+  // straight into the mount without ever adding it to the page. The panel built itself
+  // perfectly, into a div that belonged to nothing, and the rail showed no pump at all.
+  // Nothing threw and the boot test passed, because nothing in either was looking at the
+  // rail. A panel that is not in the document is not a panel.
+  //
+  // `ui/pumpPanel.js` is still on disk and still tested. It is not mounted anywhere, which
+  // is a deliberate leftover rather than dead code to be cleaned up on a quiet evening: it
+  // is the rail-shaped version of a panel whose job the click now does, and deleting it
+  // would throw away the pump-panel tests along with it.
 }
 
 /**
@@ -229,8 +239,8 @@ function deathMessage(before, deaths) {
   };
 }
 
-/** The pump panel, mounted once and refreshed thereafter. See `renderPanels`. */
-let pumpPanel = null;
+/** The environment card, mounted once and refreshed when the forecast moves. */
+let envCard = null;
 
 /**
  * Raise a toast for each crop that has bad weather in the next 6–24 hours.
@@ -285,9 +295,10 @@ function renderPanels(state) {
   });
 
   repaintFarm(state);
-  pumpPanel?.refresh();
-  // The inspector follows the pump, so the gauge and the countdown under the player's
-  // hand are the current ones rather than a photograph of the moment it opened.
+  // The environment card reads the forecast, so it moves when the forecast does and not
+  // every second — and the inspector follows the pump, so its gauge and countdown under the
+  // player's hand are current rather than a photograph of the moment it opened.
+  envCard?.refresh(Date.now());
   refreshInspector?.();
 
   const goldEl = qsOrNull('#gold-value');

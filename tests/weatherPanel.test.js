@@ -369,6 +369,9 @@ import {
 import { aimPump, setPump, costOf, pumpRun } from '../js/domain/pump.js';
 import { applyDamage, damageFor, damageSprite, damageWord } from '../js/domain/damage.js';
 import { alertsToRaise, currentTrouble, forProjection, plantedCrops, wateringAdvice } from '../js/domain/notifications.js';
+import {
+  FROST_C, HIGH_HUMIDITY, STRONG_WIND_KMH, environmentFacts,
+} from '../js/domain/environment.js';
 import { buildInitialState } from '../js/state/initialState.js';
 import { DAMAGE, HEALTH, OPTIMAL, WATER } from '../js/config/game.js';
 import { EVAPORATION_PER_HOUR, RAIN_WATER_PER_HOUR } from '../js/config/weatherEvents.js';
@@ -822,6 +825,33 @@ test('a pump holding a plot is still billed for the water that dried up', () => 
   assert.ok(result.spent > 0, 'but holding it is not free - the sun kept taking water out');
 });
 
+/** A weather response shaped like `services/weatherApi.js` returns, for the env card. */
+function env({ temp = 30, temps, code = 0, humidity = 50, chance = 0, wind = 5, uv = 0 } = {}) {
+  const pad = (v) => String(v).padStart(2, '0');
+  const now = Date.now();
+  const stamp = (ms) => {
+    const d = new Date(ms);
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:00`;
+  };
+  const hours = 24;
+  return {
+    current: {
+      temperature: temp, feelsLike: temp, humidity, precipitation: 0,
+      isDay: true, weatherCode: code, windSpeed: wind, windDirection: 180,
+    },
+    hourly: {
+      time: Array.from({ length: hours }, (_, i) => stamp(now - HOUR * (3 - i))),
+      temperature: temps ?? Array(hours).fill(temp),
+      humidity: Array(hours).fill(humidity),
+      precipitationProbability: Array(hours).fill(chance),
+      weatherCode: Array(hours).fill(code),
+      windSpeed: Array(hours).fill(wind),
+      windDirection: Array(hours).fill(180),
+      uvIndex: Array(hours).fill(uv),
+    },
+  };
+}
+
 test('THE REPORTED BUG: a crop the pump is aimed at survives, and takes no damage', () => {
   // "2 crops died of thirst, the pump would have saved them" - with the pump running.
   // Two things were wrong: the death message ignored the pump, and the pump was modelled
@@ -1080,6 +1110,82 @@ test('a dead crop is not on the watering list', () => {
   state.plots[0].dead = true;
   state.plots[1].waterLevel = 85;
   assert.equal(wateringAdvice(state), null, 'there is nothing left to water');
+});
+
+/* --- T-11 the environment card ------------------------------------------------- */
+
+test('the environment card answers what the weather is doing to the farm', () => {
+  // The board *reports* the weather; this says what it costs. Drying is always shown,
+  // because it is the number every water decision is made against, and it is bare-soil
+  // evaporation — the fastest anything on the farm dries.
+  const facts = environmentFacts({ weather: env({ temp: 32, humidity: 45 }) });
+  const drying = facts.find((f) => f.id === 'drying');
+
+  assert.ok(drying, 'drying is always reported');
+  assert.equal(drying.value, '12 /h', '8 x waterNeed 1 x sunny evaporation 1.5');
+  assert.equal(drying.tone, 'warn');
+});
+
+test('every threshold on the card is the one the game already uses', () => {
+  // Frost 2, wind 40, humidity 85 — the same comparisons `classifyHour` makes. A card
+  // that invents its own numbers can tell a player a day is frost-free while
+  // `verdictFor` is charging them for frost.
+  assert.equal(FROST_C, 2);
+  assert.equal(STRONG_WIND_KMH, 40);
+  assert.equal(HIGH_HUMIDITY, 85);
+});
+
+test('a hot dry day warns about the things that cost you, and says what to do', () => {
+  const facts = environmentFacts({ weather: env({ temp: 42, humidity: 20, uv: 9 }) });
+  const by = Object.fromEntries(facts.map((f) => [f.id, f]));
+
+  assert.equal(by.drying.tone, 'danger', 'drought evaporation is 24/h and it is the top row');
+  assert.equal(by.drying.value, '24 /h');
+  assert.ok(by.humidity, 'dry air is called out, because it compounds the drying');
+  assert.ok(by.uv, 'and high UV, because a player stands in a field');
+  assert.match(by.uv.note, /very high|high/);
+});
+
+test('a calm sky reports the drying and nothing else', () => {
+  // Six rows where four say "fine" is a list nobody reads, and the frost line is easy to
+  // miss in it. So calm facts are dropped rather than printed in grey.
+  const facts = environmentFacts({ weather: env({ temp: 16, code: 3, humidity: 70, uv: 2 }) });
+  assert.deepEqual(facts.map((f) => f.id), ['drying']);
+});
+
+test('frost is only mentioned when it is near enough to act on', () => {
+  // "Frost 32C — safe" is worse than no row: it teaches the player to scan past it.
+  const warm = environmentFacts({ weather: env({ temp: 32 }) });
+  assert.equal(warm.some((f) => f.id === 'frost'), false);
+
+  const cold = environmentFacts({ weather: env({ temp: 6, temps: [6, 5, 4, 3, 2, 3, 5, 7] }) });
+  assert.ok(cold.some((f) => f.id === 'frost'), 'at 2C it is worth a line');
+});
+
+test('a storm says the wind will damage crops and that rain is coming', () => {
+  const facts = environmentFacts({
+    weather: env({ code: 95, temp: 18, humidity: 90, chance: 90, wind: 45, uv: 1 }),
+  });
+  const by = Object.fromEntries(facts.map((f) => [f.id, f]));
+
+  assert.equal(by.wind.tone, 'danger');
+  assert.match(by.wind.note, /damage/, 'and says what it does, not just the number');
+  assert.ok(by.rain, 'rain is worth mentioning at 90%');
+  assert.equal(by.humidity.tone, 'calm', 'saturated air is good news, so it is calm');
+});
+
+test('the most urgent fact sorts to the top', () => {
+  const facts = environmentFacts({ weather: env({ temp: 3, temps: [3, 2, 1, -3, 0, 2, 4, 6], humidity: 20 }) });
+  const tones = facts.map((f) => f.tone);
+  const rank = { danger: 0, warn: 1, calm: 2 };
+  const sorted = [...tones].sort((a, b) => rank[a] - rank[b]);
+  assert.deepEqual(tones, sorted, `expected most-urgent first, got ${tones.join(', ')}`);
+});
+
+test('no forecast means no facts, and not an error', () => {
+  assert.deepEqual(environmentFacts({ weather: null }), []);
+  assert.deepEqual(environmentFacts(null), []);
+  assert.deepEqual(environmentFacts({ weather: { hourly: {} } }), []);
 });
 
 test('a save written before damage existed still reads as undamaged', () => {

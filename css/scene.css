@@ -994,3 +994,76 @@
   background: var(--surface-sunken, #eef1ec);
   border: 1px solid rgb(0 0 0 / 20%);
 }
+/* --- the environment card (T-11) ----------------------------------------------
+ *
+ * Replaces the pump card. The board *reports* the weather - 32 degrees, 50% humidity,
+ * 9 km/h. This card answers what that is *doing to the farm*, which is the half of the
+ * same API response nobody was showing: the 10.8 units an hour it costs you.
+ *
+ * Rows colour by tone AND print a note, because a red row that says nothing is a red row
+ * the player has to work out, and the whole value of this card is that it has already done
+ * the working out.
+ */
+
+.env__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.env__row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0 var(--space-2, 8px);
+  padding: 6px 0;
+  border-bottom: 1px solid rgb(0 0 0 / 8%);
+}
+
+.env__row:last-child {
+  border-bottom: 0;
+}
+
+.env__label {
+  font-size: var(--text-sm, 0.875rem);
+  color: var(--text-muted, #5d6a61);
+}
+
+.env__value {
+  font-size: var(--text-sm, 0.875rem);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--text, #1f2a24);
+}
+
+.env__note {
+  grid-column: 1 / -1;
+  font-size: var(--text-xs, 0.75rem);
+  line-height: 1.35;
+  color: var(--text-muted, #5d6a61);
+}
+
+/* Warn and danger differ in weight as well as hue, so the row still reads without colour
+ * and so "danger" cannot be mistaken for "warn" by anyone who cannot separate them. */
+.env__row[data-tone='warn'] .env__value {
+  color: #8a5b08;
+}
+
+.env__row[data-tone='warn'] .env__note {
+  color: #8a5b08;
+}
+
+.env__row[data-tone='danger'] .env__value {
+  color: #8f2318;
+}
+
+.env__row[data-tone='danger'] .env__note {
+  color: #8f2318;
+  font-weight: 700;
+}
+
+.env__empty {
+  margin: 0;
+  font-size: var(--text-sm, 0.875rem);
+  color: var(--text-muted, #5d6a61);
+}

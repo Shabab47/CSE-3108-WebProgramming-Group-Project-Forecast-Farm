@@ -125,24 +125,27 @@ function bootFailure() {
   return text.includes('could not start') ? text : null;
 }
 
-test('the right rail actually has the pump panel in it', () => {
-  // ISS-095. The pump panel was built into a bare `el('div')` that was never appended to
-  // `#right-rail`, so it rendered perfectly into a node belonging to nothing and the rail
-  // showed no pump at all. Nothing threw and this file passed, because every test here
-  // looked at the *field* or at the shell ids — and `right-rail` appeared in `PAGE_IDS`
-  // only so `qsOrNull('#right-rail')` would return a node to append to, which is a
-  // statement about the harness and not about the page.
+test('the right rail carries the environment card, and no stale placeholder', () => {
+  // ISS-095 started here: the pump panel was built into a bare `el('div')` that was never
+  // appended, so it rendered into a node belonging to nothing and the rail showed no pump
+  // at all. Nothing threw and this file passed, because `right-rail` appeared in
+  // `PAGE_IDS` only so `qsOrNull('#right-rail')` would return something to append to.
   //
-  // So this asserts on what is **in** the rail after boot. A panel that is not in the
-  // document is not a panel.
+  // The card has since become the Environment card, and the assertion is the same one: on
+  // what is **in** the rail after boot. A panel that is not in the document is not a panel.
   const rail = root.querySelector('#right-rail');
   const text = rail.textContent;
 
-  assert.ok(text.includes('Pump'), `the rail should carry the pump panel, got: "${text}"`);
-  assert.ok(rail.querySelector('.pump-panel'), 'and the panel element itself');
-  assert.ok(
-    rail.querySelector('.pump-panel__toggle'),
-    'with a working toggle, because a read-only gauge cannot be turned on',
+  assert.ok(text.includes('Environment'), `the rail should carry the environment card, got: "${text}"`);
+  assert.ok(rail.querySelector('.env'), 'and the card element itself');
+
+  // And the placeholder it replaced is gone. The first version mounted the card and *then*
+  // removed the placeholder with `:last-of-type`, which the fake DOM cannot select — so
+  // both were on the page, and only in a browser would it have looked right.
+  assert.equal(
+    /T-11/.test(text),
+    false,
+    'the "Humidity and wind — T-11" placeholder is still on the page',
   );
 });
 
