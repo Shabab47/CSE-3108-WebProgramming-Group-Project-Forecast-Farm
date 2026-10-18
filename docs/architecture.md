@@ -653,7 +653,11 @@ farm and still reported that nothing had changed.
 | what the veil looks like | `js/ui/loadingTips.js`, `.boot-loader` in `css/components.css` |
 | what weather does to crops **at sowing** | `js/config/cropWeatherMatrix.js`, `js/domain/weather.js` (`verdictFor`) |
 | what weather does to crops **while they stand** | `js/domain/water.js` (`tick`) — evaporation, rain, dryness |
-| pump cost / water speed | `js/config/game.js` (`PUMP`, `WATER`) |
+| what a plot is **aiming for** | `js/domain/plotWater.js` (`targetFor`, `bandFor`, `waterState`) |
+| what a plot's **drying and filling rates** are | `js/domain/plotWater.js` (`ratesFor`, `flowFor`) |
+| how long a pump takes, and what it costs | `js/domain/plotWater.js` (`minutesToOptimal`) |
+| what **damage** is, and whether it is permanent | `js/domain/damage.js` |
+| pump cost / water speed | `js/config/game.js` (`PUMP`, `WATER`, `OPTIMAL`, `DAMAGE`) |
 | the pump's own rules | `js/domain/pump.js` (`pumpRun`, `setPump`, `aimPump`) |
 | the pump's control and meter | `js/ui/pumpPanel.js` |
 | evaporation / rain-water rates | `js/config/weatherEvents.js` (`EVAPORATION_PER_HOUR`, `RAIN_WATER_PER_HOUR`) |
@@ -787,11 +791,13 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── shop.js             buySeeds, canAfford, the refusal reasons
 │   │   ├── farm.js             plant, harvest, clearPlot
 │   │   ├── land.js             buyPlot, canBuyPlot
-│   │   ├── notifications.js    forProjection, alertsToRaise, currentTrouble
+│   │   ├── notifications.js    forProjection, alertsToRaise, currentTrouble, wateringAdvice
 │   │   ├── pump.js             the machine: pumpRun, costOf, setPump, aimPump
+│   │   ├── damage.js           the latch: what damage is permanent
+│   │   ├── plotWater.js        the vocabulary: targetFor, bandFor, waterState, ratesFor
 │   │   ├── seasons.js          seasonFor — derived from latitude, not the month
 │   │   ├── simulator.js        empty ON PURPOSE, see below
-│   │   ├── water.js            the medium: tick — evaporation, rain, and the dry drain
+│   │   ├── water.js            the tick: the only writer of water, health, damage, dead
 │   │   └── weather.js          forecastWindow, worstEventIn, verdictFor
 │   ├── services/               the only place that calls fetch
 │   │   ├── authApi.js          Supabase REST provider — live
@@ -814,7 +820,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── plotLayers.js       what is painted inside one plot, back to front
 │   │   ├── plotLabel.js        a plot's accessible name — the whole of it
 │   │   ├── plotClick.js        plotAction(): what a click on a plot means
-│   │   ├── pumpPanel.js        the pump toggle, its price, and the aimed plot's meter
+│   │   ├── pumpPanel.js        the pump toggle, the time-to-optimal, and the rate readout
 │   │   ├── loadingTips.js      the boot veil and its rotating facts
 │   │   ├── locationBar.js      the place search in the farm top bar
 │   │   ├── loginFields.js      labelled input builders, one form per mode

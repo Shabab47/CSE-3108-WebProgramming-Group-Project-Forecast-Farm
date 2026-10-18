@@ -77,6 +77,52 @@ tooltip. The mechanical effect of weather on a crop lives in
 | Corn | Warm, sun, moderate rain | Drought, strong wind | Warm / Sunny |
 | Tomato | Warm, sun, steady water | Frost, extreme heat, heavy rain | Warm / Mild |
 
+## The optimal band
+
+Each crop has a **target** it is aiming for, and a **band** around it that counts as good
+enough. The target is derived from `waterNeed`, so the thirsty crop wants more and the
+hardy one wants less:
+
+```
+target = OPTIMAL.base + OPTIMAL.perNeed * waterNeed      →  rice 85, corn 70, wheat 55
+band   = [target × (1 - OPTIMAL.slack), target]          →  a quarter below target
+```
+
+| Crop | `waterNeed` | Target | Band | From empty | Cost |
+| :--- | ---: | ---: | :--- | ---: | ---: |
+| Rice | 0.9 | **85** | 64–85 | 58 min | 17 gold |
+| Corn | 0.7 | 70 | 53–70 | 46 min | 14 gold |
+| Wheat | 0.5 | **55** | 41–55 | 36 min | 11 gold |
+| Potato | 0.5 | 55 | 41–55 | 36 min | 11 gold |
+| Tomato | 0.5 | 55 | 41–55 | 36 min | 11 gold |
+| Bare soil | — | 60 | 45–60 | — | — |
+
+**`slack` is a fraction of the target, not a flat number.** Rice has 21 units of room to be
+a bit low; wheat only 14. That is the right shape — a thirsty crop can afford to sag, a
+hardy one cannot — and a single flat line would put wheat at "damaged" while it was still
+comfortably optimal.
+
+This is the payoff for `waterNeed` being a number rather than a word. Before this it only
+scaled how fast a crop dried; now it also decides what "done" looks like, which is the
+thing the meter, the pump and the warning all read from.
+
+**The pump stops at the target**, not at `WATER.max`. Filling past the point of any use
+costs gold and buys nothing, so "water this plot for 30–60 minutes" is a promise the game
+can keep. The estimate counts the evaporation happening while the pump runs, which is why
+rice takes 58 minutes rather than the 51 a naive `needed ÷ rate` would claim.
+
+### Four states, and the middle one is the point
+
+| State | Range | What it means |
+| :--- | :--- | :--- |
+| `dry` | `0` | dying, or nearly |
+| `low` | floor → band floor | **not in trouble yet, and about to be** |
+| `optimal` | floor → target | fine |
+| `saturated` | above target | past the point of any use |
+
+`low` is the state the meter exists for. `dry` is the state the notification exists for.
+A bar that only showed good/bad would be too late to act on and too noisy to read.
+
 ## Water need
 
 `waterNeed` is a 0–1 multiplier on evaporation. An empty plot counts as `1`, so bare soil dries
@@ -89,6 +135,38 @@ water lost per hour = WATER.baseDecayPerHour * waterNeed * event.evaporation
 - Sunny: `8 * 1 * 1.5` = 12/h on bare soil.
 - Drought: `8 * 1 * 3` = 24/h on bare soil, the worst case in the game.
 - Heavy rain: evaporation is 0, and rain adds water instead.
+
+### Damage, and why it is a latch
+
+**Water is a live reading. Damage is a committed fact.**
+
+`waterLevel` changes every second, so it crosses any threshold repeatedly. Anything drawn
+straight from it strobes — and `farmView.js` diffs tiles per frame, so the image `src`
+would swap over and over. So damage is recorded on the plot the first time a line is
+crossed, and never decreases:
+
+| Damage | Latches when | Costs | Sprite |
+| :--- | :--- | :--- | :--- |
+| `dry` | **below the crop's floor** for 1 h | 12 health | `<crop>_dry.png` |
+| `waterlogged` | **above the target** for 2 h | 12 health | `<crop>_waterlogged.png` |
+| `dead` | health reaches 0 | — | `<crop>_dead.png` |
+
+Two thresholds on purpose. The floor asks *how the crop is faring*; zero asks *whether it
+is dying*, and only the second drains health per hour. A plot can be badly faring and
+still perfectly alive.
+
+**Waterlogging needs a two-hour hold.** One shower must not cost a field — that is exactly
+what the one-time verdict at sowing exists to prevent, and an instant threshold would undo
+that decision on every rain shower for the rest of the crop's life.
+
+**Damage cuts the payout and never blocks the harvest.** The crop still picks, and is
+permanently worth less. Blocking the harvest would rebuild the ISS-006 trap: a plot with
+nothing to do until it is cleared by hand, and no second failure state available at that
+point.
+
+**The sprites are Zim's**, named in `cropFailureImg()`. All three are 0 bytes until the art
+lands, so `plotLayers.js` draws the word beside them — a missing picture rather than a
+missing fact.
 
 > **This is implemented (T-09).** Until then `plot.waterLevel` was `0` on every plot from
 > creation and nothing ever wrote it again, so the formula above described a system that was

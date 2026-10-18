@@ -96,6 +96,63 @@ a real gap — `docs/team/issues.md`.
 
 ---
 
+### DEC-041 The optimal band, and damage as a latch
+**Decided by:** Hisham · 2026-10-18 · **fixes ISS-091 and ISS-092** — T-09 follow-up
+
+**Choice.** Four linked decisions, because they only mean anything together.
+
+**1. `waterNeed` decides the target, not just the drying rate.**
+`target = 17.5 + 75 × waterNeed`, so rice 85, corn 70, wheat 55, and the band is the bottom
+quarter of it. `waterNeed` had been a number that only scaled evaporation, which made it a
+modifier rather than a rule. Now it decides what the player is aiming at, and every surface
+— meter, pump, warning, damage latch — reads from that one number.
+
+**Why the band scales with the target** rather than being a flat tolerance: rice gets 21
+units of room to be a bit low, wheat only 14. A thirsty crop can afford to sag; a hardy one
+cannot. A single flat line would have put wheat at "damaged" while it was still comfortably
+optimal — the kind of number that looks reasonable in a table and lies on the field.
+
+**2. `WATER.max` 100 → 120.** At 100 the pump stopped *at* the same number that meant
+"perfectly watered", so full and optimal were the same thing, there was nothing to aim at,
+and waterlogging was unreachable — rain and the pump both clamped to the same value.
+
+**3. Damage is a latch; water is a reading.** `plot.waterLevel` changes every second, so it
+crosses any threshold repeatedly. Anything drawn straight from it strobes, and `farmView.js`
+diffs tiles per frame, so the `src` would swap over and over. Damage is recorded on the plot
+and never decreases.
+
+**4. Damage cuts the payout and never blocks the harvest.** Latching subtracts 12 health, and
+`harvest()` pays on `health`. The crop still picks; it is just worth less, permanently.
+
+**Consequences worth stating:**
+
+- **The pump stops at the target, not at max.** Filling past the point of any use costs gold
+  and buys nothing, so "water this for 30–60 minutes" is a promise the game can keep — 58 min
+  rice, 46 corn, 36 wheat, counting the evaporation that happens while it fills.
+- **`pumpPerSecond` 0.05 → 0.028** (100.8/h, 2× heavy rain, where it was 36×) and
+  `upkeepPerSecond` 0.01 → 0.0056, holding 5 water per gold. The rate is set by the 30–60
+  minute window, not by feel, and only holds because `minutesToOptimal()` counts evaporation.
+- **A pumped plot never takes dryness damage**, and that falls out of the rate model rather
+  than being special-cased: 100.8/h beats the worst-case 24/h, so the net is always positive.
+- **The sprites are Zim's**, named in `cropFailureImg()`: `<crop>_dry.png`,
+  `<crop>_waterlogged.png`, `<crop>_dead.png`. All three are 0 bytes, so `plotLayers.js`
+  draws the word beside them — a missing picture rather than a missing fact, per AGENTS.md
+  fact 4.
+- **`damage.js` is its own module** because it decides a *fact* while `water.js` computes a
+  *number*, and those want different shapes. `plotWater.js` split out of `water.js` for the
+  same reason: questions about one plot are not questions about a whole farm.
+
+**Also rejected: a flat "under 50% = damaged" threshold.** It was suggested, and it is the
+wrong shape — see (1). The band floor is the same idea derived from the crop rather than
+typed in, and it is 64 for rice rather than 50, which is *more* forgiving for the thirsty
+crop and *stricter* for the hardy one.
+
+**Supersedes part of DEC-040**: the rate and upkeep numbers below, and "the pump stops at
+`WATER.max`". The one-plot decision stands — a per-second bill across sixteen plots prices
+water by how much land you own rather than by how thirsty you are.
+
+---
+
 ### DEC-040 The pump waters one plot, at 0.05/s, billed at 0.01/s
 **Decided by:** Hisham · 2026-10-17 · **applies ISS-008 and ISS-090** — T-09
 
