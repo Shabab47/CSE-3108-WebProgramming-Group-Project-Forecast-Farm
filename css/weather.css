@@ -3,13 +3,6 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  /* A centered billboard narrower than the field below it. The design board is
-     ~435px, so it clamps between 450 and 520px and scales a little with the
-     column rather than spanning it. align-self:center keeps it centred over the
-     field.
-
-     The floor was 420px, which left the meters column ~111px of inner width and
-     ellipsised the wind label to "W…". See ISS-061. */
   width: clamp(450px, 38%, 520px);
   max-width: 760px;
   align-self: center;
@@ -47,21 +40,9 @@
 
 .board-body {
   display: grid;
-  /* Fractional split so both columns scale with the board width. The design is
-     note ≈178px : meters ≈112px ≈ 61:39; the 1.6fr/1fr tracks that. A fixed px
-     meters column dominated the narrower board and squeezed the sticky note. */
   grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
   gap: 14px;
-  /* Fills whatever the one-third board has left after the search row and the
-     hour notes. Both items are pinned to row 1 below: without that, the meters
-     (appended first) took row 1 and the note was auto-placed into an implicit
-     row 2, which is what made the board look too tall and the meters too short.
-     See ISS-056.
-
-     `overflow: hidden` keeps a tall note from spilling past the wood, and it
-     also clips the last pill's `box-shadow: 0 3px 0`. `.board-meters` carries a
-     3px bottom padding so that edge has room inside the clip. See ISS-060. */
   flex: 1 1 0;
   min-height: 0;
   overflow: hidden;
@@ -80,10 +61,6 @@
   min-height: 0;
 }
 
-/* Explicit placement: the WIDE sticky note goes in column 1 (LEFT), the NARROW
-   meters in column 2 (RIGHT) - matching the design. Done by grid-column rather
-   than DOM order because the meters are appended to the grid before the note
-   (see weatherPanel.js), which would otherwise put them in the wide left slot. */
 .board-body > .note-current {
   grid-column: 1;
   grid-row: 1;
@@ -129,25 +106,6 @@
     0 1px 2px rgba(40, 24, 8, 0.45);
 }
 
-/* The big note is a grid, because the place name sits in the paper's right-hand
- * side rather than above the condition. That side was empty at every width — the
- * temperature row is the widest thing on the note and it stops well short of the
- * right edge — while the name was squeezed into a single ellipsised line at the
- * top. See DEC-033 and ISS-062.
- *
- * The condition keeps a row of its own, spanning both columns: at 15px with 0.1em
- * of letter-spacing, "Freezing drizzle" is wider than one column at the board's
- * 450px floor, so squeezing it into the left column would have clipped the one
- * word that says what the weather is doing.
- *
- * `auto minmax(0, 1fr)` rather than two percentages: the temperature asks for the
- * width it needs and the place takes what is left, so no window size can make the
- * two overlap. The left track keeps an explicit 0 minimum so it can still shrink
- * on a narrow board instead of overflowing the note.
- *
- * `align-content: center` is the old vertical centring, and the rows for the two
- * conditional lines (`.note-feels`, `.note-status`) collapse to nothing when
- * their elements are absent. */
 .note-current {
   display: grid;
   grid-template-columns: minmax(0, auto) minmax(0, 1fr);
@@ -164,15 +122,6 @@
   min-height: 0;
 }
 
-/* The place the numbers describe, in the note's right-hand column beside the
-   temperature. Right-aligned against the paper's edge, so a long name grows
-   inwards towards the reading rather than out of the note.
-
-   It **wraps** — `nowrap` and an ellipsis used to turn "Kuala Lumpur, Malaysia"
-   into "Kuala L…", and there is room for two lines beside the temperature. At the
-   450px board floor "Dhaka, Bangladesh" needs both of them; at the 520px ceiling
-   it fits on one. `overflow-wrap: anywhere` is for the single-word places that are
-   wider than the column on their own. */
 .note-loc {
   grid-area: loc;
   align-self: center;
@@ -308,16 +257,9 @@
 .board-meter {
   position: relative;
   display: grid;
-  /* The label track is a bare `1fr`, whose automatic minimum is `min-content`,
-     so "Wind" can never be ellipsised. `minmax(0, 1fr)` explicitly allowed
-     shrinking below that, and the label rendered as "W…". See ISS-061. */
   grid-template-columns: 16px 1fr auto;
   align-items: center;
   gap: 8px;
-  /* The `min-content` floor above means the row can now exceed the pill rather
-     than ellipsising. This clips that at the rounded border instead of letting
-     text land on the bare wood. It does not clip the pill's own `box-shadow`,
-     which is drawn outside the border box. */
   overflow: hidden;
   /* flex:1 1 0 makes the three pills share the note's height evenly, so the stack
      lines up with the sticky note top-to-bottom — the design's three thin bars. */

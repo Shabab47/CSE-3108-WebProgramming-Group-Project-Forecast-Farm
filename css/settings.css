@@ -85,19 +85,6 @@
   gap: 8px;
 }
 
-/* --- difficulty ---------------------------------------------------------- */
-
-/* A radio group where the *explanation* is the point.
- *
- * Each option is a label wrapping its input and its text, so the whole panel is the
- * click target — a 16px radio in a settings card is a small thing to aim at, and the
- * sentence explaining the mode is the part a player actually wants to click on.
- *
- * The native radio is kept and merely hidden rather than replaced with a styled span:
- * it brings keyboard behaviour, arrow-key navigation within the group, and a real form
- * control to screen readers, none of which a div would have. `sr-only`-style clipping
- * rather than `display: none`, because a hidden input is removed from the tab order.
- */
 .settings-radio {
   display: flex;
   flex-direction: column;

@@ -1,10 +1,3 @@
-/* Profile page — the account card and sign-out, moved off the settings page.
- *
- * Shaped like settings.css: one centred column, the display face on the heading,
- * and a card whose title matches the settings page's so the two read as a pair.
- * The body class keeps this file's type choices from leaking onto the farm page.
- */
-
 .profile-page {
   display: block;
   font-family: var(--font-ui);

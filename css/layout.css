@@ -6,10 +6,6 @@
     "top    top    top"
     "left   centre right";
   gap: 16px;
-  /* `height`, not `min-height`: the shell is confined to one screen, so the game
-     scene never scrolls. `dvh` so a collapsing mobile URL bar cannot clip the
-     field. Pages that need to scroll — inventory, shop, profile, settings — are
-     separate documents with their own shells and are unaffected. */
   height: 100dvh;
   overflow: hidden;
   padding: 16px;
@@ -31,20 +27,9 @@
   flex-direction: column;
   gap: 16px;
   min-width: 0;
-  /* Without this a flex child refuses to shrink below its content height, and the
-     column overflows the fixed-height shell no matter what the children say. */
   min-height: 0;
 }
 
-/* The forecast board takes one third of the column and the field the other two
-   thirds. A ratio rather than content-sized, on purpose: the board must not grow
-   with its content and squeeze the field.
-
-   The earlier overlap that made this look too small was not the ratio. The meters
-   and the note were both placed in `.board-body` without a grid row, so the note
-   fell into an implicit second row and the content looked twice as tall as it was.
-   With both pinned to row 1 in css/weather.css the content fits a third, and
-   `@media (max-height: 960px)` there compresses it on shorter screens. See ISS-055. */
 .app__centre > .board {
   flex: 0 0 33.333%;
   min-height: 0;
@@ -77,10 +62,6 @@
 /* Single column below 900px: navbar, forecast, farm, right column, sidebar as
    a bottom bar. Basic only, per the plan. */
 @media (max-width: 900px) {
-  /* Stacked to one column here, so the fixed height and the overflow clip are both
-     undone — a phone cannot show a 4x4 isometric field and a forecast panel in one
-     screen without either scrolling or shrinking the field to nothing. Desktop gets
-     the fit-to-viewport treatment; a phone scrolls. */
   .app {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto auto auto auto auto;

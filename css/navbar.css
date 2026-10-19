@@ -1,8 +1,3 @@
-/* The wordmark is styled to match login.html's top bar (css/auth.css
-   `.auth__bar` / `.auth__word`). Pulling in fonts.css here loads the display
-   face (Luckiest Guy) on the game page, which index.html does not link
-   directly. check-imports.mjs scans .js only, so this @import is invisible to
-   the layering check. */
 @import url("fonts.css");
 
 .navbar {
@@ -10,17 +5,9 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  /* 64px bar + the shell's 16px row-gap below it = an 80px header region, matching
-     the design. This is the whole header (bar + gap), not just the bar — the bar
-     element itself is 64px; the 16px is `.app`'s gap in css/layout.css. */
-  height: 64px;
   padding: 0 24px;
   background: #ffffff;
   box-shadow: 0 3px 0 rgba(43, 26, 12, 0.12);
-
-  /* The game shell (.app) pads 16px around every panel; the bar cancels it so
-     it runs full-bleed to the top and side edges, like login.html's .auth__bar.
-     The grid's 16px gap is preserved below, between the bar and the content. */
   margin: -16px -16px 0;
 }
 
@@ -64,10 +51,6 @@
   text-overflow: ellipsis;
 }
 
-/* The bar is always white (it mirrors login.html's bar), so the name must use a
-   fixed dark colour, not `--text` — in dark theme `--text` is near-white and
-   would vanish against the white bar. These are the light theme's text colours,
-   which is the look the white bar already matches. */
 .navbar__actions > .navbar__account-name {
   color: #1f2721;
   font-weight: 600;
@@ -86,11 +69,6 @@
   height: 20px;
 }
 
-/* Square icon tiles: sound, settings, account.
-   Pale green fill with no outline, as in the design. The bar is always white, so
-   the fill and the icon colour are fixed values rather than theme tokens — in the
-   dark theme `--surface` and `--text` would turn the tile dark with a near-white
-   icon on a white bar. */
 .navbar__tile {
   display: inline-flex;
   align-items: center;

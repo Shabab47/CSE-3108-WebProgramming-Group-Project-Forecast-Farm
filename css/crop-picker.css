@@ -1,41 +1,9 @@
-/**
- * The seed picker, and the overlay it sits in.
- *
- * `#farm-picker` is a body-level element from `index.html` and **is** the overlay —
- * `farmActions.js` mounts the card straight into it, so there is no wrapper class and
- * nothing to keep in sync. It is `position: fixed` over the viewport rather than
- * absolutely positioned inside the game shell, so the card is centred on the whole
- * screen. Anchoring it to `.app` instead would centre it on the middle column and leave
- * it visibly off-centre on a wide monitor; `.app` is also `overflow: hidden`, so an
- * overlay inside it could never reach the edges.
- *
- * `z-index: 300` is the repo's modal tier — above `.toast-stack`'s 200, so the picker is
- * never interrupted by a transient message, and above `.plot`'s 200 for the same reason.
- *
- * **An empty host must be `display: none`, and this is load-bearing.** `position: fixed`
- * with `inset: 0` sizes an element to the viewport whether or not it has children, and
- * `background` paints whether or not it has children — so without the guard below, the
- * host is a full-screen dim overlay from the moment the page loads, swallowing every
- * click. That is exactly what shipped: the whole screen dimmed and nothing answered,
- * including the plot click that was supposed to open the picker. Being "out of flow" only
- * means it takes no *layout* space; it says nothing about painting or hit-testing.
- *
- * `:empty` matches only when there are no child nodes at all, and `farmActions.js` keeps
- * the host truly empty when closed — `clear(host)` removes the card and nothing adds
- * whitespace — so the guard is reliable here. If a future change ever leaves a text node
- * in there, use a class toggle instead; `:empty` is a trap that way.
- */
-
 #farm-picker {
   position: fixed;
   inset: 0;
   z-index: 300;
   display: grid;
   place-items: center;
-  /* Dim rather than hide. The field underneath has to stay legible — the plot being
-   * planted on is the thing the player is deciding about — and `inset: 0` means this
-   * also swallows every click outside the card, which is what stops a stray click
-   * landing on a locked plot while a choice is open. */
   padding: var(--space-4, 1rem);
   background: rgba(20, 28, 22, 0.45);
 }
@@ -99,7 +67,7 @@
 }
 
 .crop-picker__name {
-  font-family: 'Luckiest Guy', var(--font-body);
+  font-family: "Luckiest Guy", var(--font-body);
   font-size: var(--text-md, 1rem);
 }
 
@@ -114,31 +82,22 @@
   color: var(--text-faint);
 }
 
-/* The forecast verdict: what the next six hours will do to this seed.
- *
- * Above the note in weight and below it in size, because it is the thing the player
- * is actually deciding on — `growNote` is flavour, this is the forecast.
- *
- * The colour is a second channel, never the only one: the rating word is in the text
- * too, so this still reads for a colour-blind player and in a forced-colours theme.
- * `data-rating` is the rating as a string, so `2` and `-2` cannot be confused with
- * `0` in a selector. */
 .crop-picker__weather {
   font-size: var(--text-xs, 0.75rem);
   font-weight: 600;
   color: var(--text-muted);
 }
 
-.crop-picker__weather[data-rating='2'],
-.crop-picker__weather[data-rating='1'] {
+.crop-picker__weather[data-rating="2"],
+.crop-picker__weather[data-rating="1"] {
   color: var(--success, #2f7d4f);
 }
 
-.crop-picker__weather[data-rating='-1'] {
+.crop-picker__weather[data-rating="-1"] {
   color: var(--warning, #96690d);
 }
 
-.crop-picker__weather[data-rating='-2'] {
+.crop-picker__weather[data-rating="-2"] {
   color: var(--danger, #b3392f);
 }
 
