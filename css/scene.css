@@ -187,7 +187,7 @@
 
 .field-stage__pump {
   position: absolute;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -55%);
   z-index: 20;
   pointer-events: none;
 }
@@ -301,10 +301,10 @@
 
 .plot__crop {
   position: absolute;
-  bottom: 7.5%;
-  left: 50%;
+  bottom: 6.5%;
+  left: 50.5%;
   transform: translateX(-50%);
-  width: 100%;
+  width: 93%;
   pointer-events: none;
 }
 
@@ -429,16 +429,6 @@
   font-weight: 700;
 }
 
-/* Damage: the failure sprite over the crop, and the word beside it.
- *
- * The word is not a fallback for a missing file — it is the primary channel. The art
- * has landed for rice and potato only; every crop without it (including all three
- * `dead` sprites so far) shows a hole where the image should be, and the word is what
- * keeps that from being a silent failure. DEC-014, ISS-106.
- *
- * The same nudge as `.plot__crop`, written as a transform so the box stays full-size:
- * the crop and its damage draw as a pair and must not drift apart (DEC-048).
- */
 .plot__damage {
   position: absolute;
   inset: 0;
@@ -463,19 +453,6 @@
   pointer-events: none;
 }
 
-/* The growth meter: a small green bar with the time left, floating above the
- * crop it belongs to.
- *
- * Top, not bottom: the lower half of the diamond is painted over by the plot
- * in front (the same reason the old "Buy" caption read "BU.." or "..UY" and
- * was removed). `bottom: 78%` sits it on the crop's head where no neighbour
- * reaches. Centred at 70% of the plot so it never touches the diamond's edge,
- * and `pointer-events: none` so it never steals the click the `.plot__hit`
- * layer below is waiting for.
- *
- * Hidden when ready on purpose — see `js/ui/growthMeter.js`. The gold rim
- * owns that moment alone.
- */
 .plot__grow {
   position: absolute;
   bottom: 78%;
