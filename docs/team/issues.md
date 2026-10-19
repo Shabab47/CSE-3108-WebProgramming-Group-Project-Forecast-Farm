@@ -911,6 +911,14 @@ or `assets.test.js` fails in the other direction.
 | ISS-098 | Two planned domain modules were never written, and nothing says so | Low | Hisham | **open** | T-04 |
 | ISS-099 | A harvested crop cannot be sold, so the quality-weighted payout pays into nothing | **High** | **whole team** | **open** | T-10 |
 | ISS-100 | Three decision ids each name two different decisions | Medium | Hisham | **open** | — |
+| ISS-101 | The water meter floats outside the diamond on the right | Medium | Hisham | **fixed** | — |
+| ISS-102 | The selection ring can read as a border around the plot | Low | Hisham | **open** | — |
+| ISS-103 | A dry-damaged plot said "Dry" twice | Low | Hisham | **fixed** | — |
+| ISS-104 | The plot button relied on `reset.css` for `border: none` | Low | Hisham | **fixed** | — |
+| ISS-105 | Potato stages 3–5 kept the rice placeholders' sizes in the registry | Low | Jim | **fixed** | T-63 |
+| ISS-106 | A damaged potato asked for a damage file that does not exist | Medium | Jim | **fixed** | T-63 |
+| ISS-107 | `--font-body` does not exist, so the gold text was never in the display face | Low | Jim | **fixed** | T-65 |
+| ISS-108 | The boot tip still says rice is the only crop you can plant | Low | Jim | **fixed** | T-65 |
 
 ---
 
@@ -2271,7 +2279,7 @@ or `assets.test.js` fails in the other direction.
 ---
 
 ### ISS-101 Water meter floats outside the diamond on the right side
-- Reported by user · 2026-10-18 · Owner: Hisham · Status: **open** · Severity: Medium
+- Reported by user · 2026-10-18 · Owner: Hisham · Status: **fixed** · Severity: Medium
 - Where: `css/scene.css` (`.plot__water`)
 - Problem: `.plot__water` sits at `right: 6%` / `bottom: 26%`, which puts it at x ≈ 88–99% of the plot box. The diamond's right edge at those heights is much further left — at `bottom: 26%` the diamond's right vertex area is at x ≈ 53% — so the meter hangs outside the soil, floating to the right of the diamond. It is visible only because nothing clips it to the diamond shape.
 - Cause: the position was chosen to place the meter "down the right edge" but `right: 6%` is too close to the box's right corner, where the diamond has already tapered to a point.
@@ -2306,4 +2314,63 @@ or `assets.test.js` fails in the other direction.
 - Cause: `plotLayers` computed `word = damageWord(plot)` and passed it to `waterMeter(plot, word)`, which rendered `text: word ?? state`. When damage existed, `word` ("Dry") overrode the live water state.
 - Fix: when damage is present, pass `null` to `waterMeter` so it shows `state` from `waterState()` — the live reading that changes as water rises (dry → low → optimal → saturated). The damage word still appears once as the permanent badge above the meter.
 - Fix commit: `layers.push(waterMeter(plot, damage ? null : word))`
+
+
+---
+
+### ISS-105 Potato stages 3–5 kept the rice placeholders' sizes in the registry
+- Reported: 2026-10-19 by Jim · Owner: Jim · Status: **fixed** · Severity: Low
+- Where: `js/config/assets.js` (potato stage entries), `js/crops_logics/potato.js`
+- Problem: `tests/assets.test.js` compares every registered `size` and `dimensions` against the file
+  on disk. Stages 3–5 arrived as rice art first and were replaced with the real sprites in `a02a62e`
+  **in place, under the same filenames**, so the registry still carried the rice files' byte counts
+  and could not pass against the new art.
+- Cause: the placeholder rows were written from the rice files, and nothing linked them to the art
+  they were borrowing.
+- Fix: all five potato entries re-measured from disk — 393079, 509140, 793150, 795681, 880078, every
+  one `1024x1024` — with a comment on the block recording why the numbers moved.
+
+---
+
+### ISS-106 A damaged potato asked for a file that does not exist
+- Reported: 2026-10-19 by Jim · Owner: Jim · Status: **fixed** · Severity: Medium
+- Where: `js/config/assets.js` (`CUSTOM_FAILURE_NAMES` / `cropFailureImg()`)
+- Problem: potato's damage sprites are named `potato_drought_killed.png` and
+  `potato_rain_damaged.png`, not the generic `<cropId>_<failure>.png`. `CUSTOM_FAILURE_NAMES` had an
+  entry for rice only, so a damaged potato resolved to `potato_dry.png` / `potato_waterlogged.png`,
+  which are not on disk — a 404 and a hole, with only the `damageWord()` caption left.
+- Cause: the custom-name table was written when rice was the only crop with damage art; potato's
+  arrived later under its own filenames.
+- Fix: a `potato` entry beside `rice`, pointing at the two delivered files. A crop without an entry
+  still uses the generic pattern, and a crop with no art still gets the caption (DEC-014).
+
+---
+
+### ISS-107 `--font-body` does not exist, so the gold text was never in the display face
+- Reported: 2026-10-20 by Jim · Owner: Jim · Status: **fixed** · Severity: Low
+- Where: `css/scene.css` (`.plot__price`), `css/crop-picker.css` (`.crop-picker__name`)
+- Problem: both rules declared `font-family: "Luckiest Guy", var(--font-body)`. No `--font-body`
+  custom property exists — `css/variables.css` defines `--font-sans`, `--font-display` and
+  `--font-ui`. An unresolved `var()` invalidates the declaration at computed-value time, so the
+  fallback face never applies either and both elements silently inherited the body face. The plot
+  price tag and the seed-picker names rendered in Nunito while every other gold amount did not.
+- Cause: a property name that was never defined, in a declaration with nothing else wrong. Nothing
+  throws and text still renders — just not the face the rule names.
+- Fix: `var(--font-display)` in both rules, matching `.farm-gold`. Fixed alongside: `COIN_SVG` in
+  `js/ui/shopArt.js` gained `font-family="Luckiest Guy"` on its `G`, so the shop's coin, the purse's
+  coin and the new plot price tag draw the same glyph.
+
+---
+
+### ISS-108 The boot tip still says rice is the only crop you can plant
+- Reported: 2026-10-20 by Jim · Owner: Jim · Status: **fixed** · Severity: Low
+- Where: `js/config/tips.js` (`rice-first`)
+- Problem: the loading veil's `rice-first` tip read "Rice is the only crop ready to plant so far.
+  The others are listed in the shop, and greyed out." Potato has been `available: true` since
+  `a02a62e`, so the first thing a new player reads contradicted the seed picker they were about to
+  open.
+- Cause: the copy was written when rice was the only crop with art, and nothing links `available` in
+  `js/config/crops.js` to the prose in `js/config/tips.js`.
+- Fix: "Rice and potato are ready to plant. Wheat, corn and tomato are in the shop, greyed out for
+  now." — no number, so it needs no edit when the shop ladder is tuned.
 

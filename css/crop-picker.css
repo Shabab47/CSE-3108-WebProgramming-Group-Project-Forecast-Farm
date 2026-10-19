@@ -67,7 +67,10 @@
 }
 
 .crop-picker__name {
-  font-family: "Luckiest Guy", var(--font-body);
+  /* `--font-body` does not exist; the theme defines `--font-display`. The unresolved
+   * `var()` invalidated the declaration, so this name was inheriting the body face.
+   * Same bug as the plot price tag — see ISS-107. */
+  font-family: var(--font-display);
   font-size: var(--text-md, 1rem);
 }
 

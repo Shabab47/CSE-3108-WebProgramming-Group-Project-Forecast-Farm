@@ -10,19 +10,31 @@
  * and a "G" gold mark. The sprout marks the footer hint. The arrow-left marks
  * the back button. The plus marks the "BUY +" button.
  *
+ * **The coin is not shop-only.** The field's plot price tag draws it too
+ * (`js/ui/plotLayers.js`), next to the number, so it stays an exported glyph
+ * rather than being inlined at its call site. Keep the two uses identical: a
+ * third coin drawing is how three gold markers start looking like three
+ * currencies.
+ *
  * They are filled shapes rather than the stroke paths in `js/ui/icons.js`,
  * because a stroked disc does not read as a coin.
  */
 
 import { el } from '../utils/dom.js';
 
-/** A gold coin: rim disc, lighter face, and a "G" mark — the shop's price marker. */
+/**
+ * A gold coin: rim disc, lighter face, and a "G" mark — the gold price marker.
+ *
+ * The `G` names its face. Without the `font-family` it renders in the SVG default
+ * (a serif), so the shop's coin lettered its G differently from the in-game purse
+ * coin, which has always set `Luckiest Guy` on its text. ISS-107.
+ */
 const COIN_SVG = `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
   <ellipse cx="12" cy="12" rx="12" ry="12" fill="#f6c445" />
   <ellipse cx="12" cy="12" rx="10" ry="10" fill="#eab32c" />
   <circle cx="12" cy="12" r="7.6" fill="none" stroke="#d9a421" stroke-width="1.2" />
-  <text x="12" y="15" text-anchor="middle" fill="#a96b16" font-size="11" font-weight="bold">G</text>
+  <text x="12" y="15" text-anchor="middle" fill="#a96b16" font-family="Luckiest Guy" font-size="11" font-weight="bold">G</text>
 </svg>`;
 
 /** Two leaves on a stem, for the footer hint. */

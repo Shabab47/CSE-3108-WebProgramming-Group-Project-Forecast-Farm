@@ -128,14 +128,14 @@ test('the box is inert and one clipped layer inside it takes the pointer', () =>
   assert.match(ruleFor('.plot__hit').exec(css)?.[0] ?? '', /pointer-events:\s*auto/);
 });
 
-test('a crop sprite is laid at the soil\'s size, then nudged onto it', () => {
-  // Measured from the alpha bounding boxes, in `css/scene.css`: the ground's art is
-  // 99.1% of its canvas and every rice stage is 97.4–99.8%. They were drawn as a
-  // matched pair of canvases — but the art inside them is not concentric. The rice
-  // patch centres at (499.5, 499.5) of the 1000 canvas against the ground's
-  // (504.2, 483.8): canvas-aligned, the grass sits ~15px low, spilling over the
-  // front edge with bare soil at the back corner. The nudge is what the two `bottom`
-  // / `left` assertions and the damage transform below pin (ISS-072, DEC-048).
+test('a crop sprite is scaled onto the soil, and the damage sprite takes the same box', () => {
+  // Measured from the alpha bounding boxes: the ground's art is ~99% of its canvas, the
+  // rice stages are 97–100%, and the crop art is taller than the soil diamond on purpose
+  // — 0.589 against 0.538. At full size the patch covers the tile and stages 3–4 hang
+  // 35–44 canvas px past its front vertex, so the layer is drawn at 93% and lifted 6.5%
+  // instead, with `left: 50.5%` putting it half a percent right of centre. Those numbers
+  // were tuned on the running page; what this pins is that the pair moves together
+  // (ISS-072, DEC-048).
   //
   // `.plot__crop` was `width: 70%`, which drew the plant at roughly 68% of the
   // diamond's width, and `bottom: 10%`, which floated it above the soil. Every stage
@@ -152,19 +152,22 @@ test('a crop sprite is laid at the soil\'s size, then nudged onto it', () => {
   const crop = ruleFor('.plot__crop');
   const damage = ruleFor('.plot__damage');
 
-  assert.equal(
-    decl(crop, 'width'),
-    decl(ground, 'width'),
-    'the crop canvas is the same size as the ground canvas — both are 1000x1000',
-  );
-  assert.equal(decl(crop, 'bottom'), '1.5%', 'nudged 15px of the canvas up, onto the soil');
-  assert.equal(decl(crop, 'left'), '49.5%', 'and the sub-pixel eyelash beside it');
+  assert.equal(decl(ground, 'width'), '100%', 'the ground fills the tile, edge to edge');
+  assert.equal(decl(crop, 'width'), '93%', 'the crop is drawn inside it, not stretched to it');
+  assert.equal(decl(crop, 'bottom'), '6.5%', 'lifted clear of the soil\'s front vertex');
+  assert.equal(decl(crop, 'left'), '50.5%', 'and half a percent right of centre');
   assert.match(decl(crop, 'transform') ?? '', /translateX\(-50%\)/);
-  assert.match(
-    decl(damage, 'transform') ?? '',
-    /translate\(-0\.5%,\s*-1\.5%\)/,
-    'the damage sprite takes the same nudge — the two draw as a pair',
-  );
+
+  // The damage art is a whole replacement patch on a 1024 canvas, not an overlay
+  // fragment, so it shares the crop's box exactly: retuning one retunes both.
+  for (const property of ['bottom', 'left', 'width']) {
+    assert.equal(
+      decl(damage, property),
+      decl(crop, property),
+      `the damage sprite takes the crop's ${property} — the two draw as a pair`,
+    );
+  }
+  assert.match(decl(damage, 'transform') ?? '', /translateX\(-50%\)/);
 
   // And nothing between the plot and the stage clips the extra height the crops are
   // drawn with on purpose — `docs/crops.md` says so, and clipping the tops is the one
@@ -230,14 +233,26 @@ test('the free plot is plain ground, and exactly one of the rest is for sale', (
     `Plot ${onOffer + 1}, 100 gold, buy this plot`,
     'and the name says what a click will do, in gold rather than an unlabelled number',
   );
-  assert.equal(withClass(next[0], 'plot__price')[0].textContent, '100');
+
+  // The tag is the gold coin and the number, in that order — the plot price reads like
+  // every other gold amount in the game rather than a floating digit. The coin is a
+  // sibling of the number, not part of its text, so a long price ellipsises beside the
+  // coin instead of through it.
+  const priceTag = withClass(next[0], 'plot__price')[0];
+  const [coin, number] = priceTag.children;
+  assert.equal(priceTag.children.length, 2, 'the tag is exactly a coin and a number');
+  assert.ok(coin.classList.contains('plot__price-coin'), 'the coin comes first');
+  assert.equal(coin.getAttribute('aria-hidden'), 'true', 'and is decorative, not read out');
+  assert.ok(number.classList.contains('plot__price-num'), 'then the number');
+  assert.equal(number.textContent, '100');
 });
 
 test('a seven-figure price is separated, because 1638400 is a smear at plot size', () => {
   const { tiles } = mount({ nextPrice: 1_638_400 });
 
   const next = tiles.filter((tile) => tile.classList.contains('plot--next'));
-  assert.equal(withClass(next[0], 'plot__price')[0].textContent, '1,638,400');
+  const priceTag = withClass(next[0], 'plot__price')[0];
+  assert.equal(withClass(priceTag, 'plot__price-num')[0].textContent, '1,638,400');
 });
 
 test('the word "Buy" is not rendered anywhere', () => {

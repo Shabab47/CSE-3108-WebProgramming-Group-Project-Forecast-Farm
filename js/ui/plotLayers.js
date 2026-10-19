@@ -28,6 +28,7 @@ import { cropFailureImg, cropStageImg, groundTile, lockPin } from '../config/ass
 import { bandFor, waterState } from '../domain/plotWater.js';
 import { damageSprite, damageWord } from '../domain/damage.js';
 import { growthMeter } from './growthMeter.js';
+import { coinEl } from './shopArt.js';
 
 /**
  * Which field sprite to draw for a crop stage.
@@ -287,16 +288,28 @@ export function plotLayers(plot, { isOwned, isNext, isReady, grown, isWatered, p
 
     if (isNext) {
       layers.push(
-        el('span', {
-          class: 'plot__price',
-          title: `${price} gold`,
-          // `1,638,400` rather than `1638400`. The ladder doubles all the way to seven
-          // figures, and an unseparated number that long is a smear at plot size — the
-          // separators keep the leading digits legible even when the CSS ellipsis takes
-          // the tail.
-          text: price.toLocaleString('en-US'),
-          'aria-hidden': 'true',
-        }),
+        el(
+          'span',
+          {
+            class: 'plot__price',
+            title: `${price} gold`,
+            'aria-hidden': 'true',
+          },
+          [
+            // The same coin the shop's price tags draw. It is a sibling of the number,
+            // not part of its text, so a seven-figure price can ellipsise without
+            // swallowing the coin — and the number span is what the tests read.
+            coinEl('plot__price-coin'),
+            // `1,638,400` rather than `1638400`. The ladder doubles all the way to seven
+            // figures, and an unseparated number that long is a smear at plot size — the
+            // separators keep the leading digits legible even when the CSS ellipsis takes
+            // the tail.
+            el('span', {
+              class: 'plot__price-num',
+              text: price.toLocaleString('en-US'),
+            }),
+          ],
+        ),
       );
     }
   }

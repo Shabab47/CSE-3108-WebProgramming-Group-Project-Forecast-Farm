@@ -220,7 +220,14 @@ test('the next plot carries a price, and the lock states are mutually exclusive'
   const next = tiles.filter((t) => t.classList.contains('plot--next'))[0];
   const price = next.querySelector('.plot__price');
   assert.ok(price, 'the plot on offer has no price tag');
-  assert.equal(price.textContent, '100', 'and the first plot costs 100 gold');
+  // The tag is the coin plus the number (T-65), so the value lives in
+  // `.plot__price-num`. Reading the tag's `textContent` only worked while the fake DOM
+  // left the coin's inline SVG unparsed; in a browser it would be "G100".
+  assert.equal(
+    price.querySelector('.plot__price-num')?.textContent,
+    '100',
+    'and the first plot costs 100 gold',
+  );
 });
 
 test('a fresh farm starts with 200 gold and no seeds planted', async () => {

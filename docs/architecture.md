@@ -829,7 +829,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── plotClick.js        plotAction(): what a click on a plot means
 │   │   ├── plotInspector.js    the panel a click on a plot opens — gauge, pump, action
 │   │   ├── pumpPanel.js        the pump toggle, the time-to-optimal, and the rate readout
-│   │   ├── envMetrics.js       the environment card: the rail's six weather readings
+│   │   ├── envMetrics.js       the environment card: the rail's three meters
 │   │   ├── loadingTips.js      the boot veil and its rotating facts
 │   │   ├── locationBar.js      the place search in the farm top bar
 │   │   ├── loginFields.js      labelled input builders, one form per mode
@@ -1265,10 +1265,18 @@ The division of labour is the point. **The board reports the weather; the card s
 to the farm.** "31 °C" is a fact. *"Evaporating 12/h — rice wants 85 and this is at 41"* is a
 consequence, and the consequence is the part a player can act on.
 
-`environmentFacts()` returns **six readings**, all of them always shown, sorted by tone. All six,
-always, is deliberate: hiding the calm ones makes a card that changes shape harder to scan, and the
-tone carries the urgency instead. Each fact is the game's own threshold rather than the API's — it
-compares water against *that crop's* target, not against a number the weather service supplied.
+`environmentFacts()` returns **three meters** — water loss, frost and heat (the UV peak) — each with a
+`fill` computed in the domain from the game's own constants (`MAX_DRY_PER_HOUR`,
+`FROST_NEAR_C` inverted, `UV_MAX`). Three, always, is deliberate: rain, wind and humidity are already
+on the weather board, so repeating them in the rail made the card longer without adding a decision.
+Hiding the calm meters instead would make a card that changes shape harder to scan, so the fill and
+the tone carry the urgency; a fact with no reading keeps its row and shows an empty bar. Sorting
+still puts the urgent row first, and calm rows keep a fixed order (`ORDER` in `environment.js`) so
+the card does not reshuffle while nothing changes. Each fact compares against *that crop's* target
+rather than a number the weather service supplied.
+
+`envMetrics.js` draws each fact as an `.env__pill`: label and value on the left, the note through the
+middle, the emoji on the right over the fill, so the text sits on the bar rather than beside it.
 
 ## Known simplifications
 
