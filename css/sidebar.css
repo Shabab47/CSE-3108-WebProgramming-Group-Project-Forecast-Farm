@@ -1,9 +1,3 @@
-/* The place search moved to the wooden forecast board and is styled with it, in
-   css/weather.css. It had no rules at all for most of its life, so the input was a
-   full-width block and the buttons wrapped onto lines below it — ~130px for a
-   control that fits in 38px. That space is the difference between a field that
-   fills the screen and one that has room for the farm. See ISS-046. */
-
 .season-card {
   display: flex;
   flex-direction: row;

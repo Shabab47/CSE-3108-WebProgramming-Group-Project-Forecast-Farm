@@ -15,12 +15,6 @@ body.shop-page {
     var(--font-ui);
 }
 
-/* Dead selector, deliberately not restored: `#connection-banner` was renamed
-   `#sync-indicator` in ISS-076 and no longer exists in any page. This rule came
-   back when `8cccedb` merged an unresolved conflict into `main` (ISS-078). The
-   sync chip is `position: fixed` at `z-index: 210`, so it already paints over the
-   log columns and needs no override at all. */
-
 /* Left and right wood posts — full-height columns framing the stall. */
 body.shop-page::before,
 body.shop-page::after {
