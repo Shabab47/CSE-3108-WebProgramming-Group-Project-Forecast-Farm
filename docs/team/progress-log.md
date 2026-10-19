@@ -8,6 +8,34 @@ The per-person weekly notes that used to live in the README table are now in `me
 ---
 
 
+## Gold coin on the plot price tag, and the `--font-body` that never existed — 2026-10-20
+
+- **Did:** the locked plot's price tag was a bare digit on a gold pill. It is now the same coin the
+  shop draws (`coinEl()` from `js/ui/shopArt.js`) plus a `.plot__price-num` span, so the price reads
+  like every other gold amount and a seven-figure price ellipsises beside the coin rather than
+  through it. The coin's `G` gained `font-family="Luckiest Guy"` — the purse's in-game coin had it,
+  this shared one did not, so the letterform differed. **ISS-107:** `.plot__price` and
+  `.crop-picker__name` both declared `var(--font-body)`, a property that does not exist, so the whole
+  declaration was invalid at computed-value time and both silently inherited Nunito. Now
+  `var(--font-display)`, matching `.farm-gold`.
+- **Also:** `c3f93d0` retuned `.plot__crop` to `93% / 6.5% / 50.5%` and left `.plot__damage` on the
+  old 100% box with `translate(-0.5%, -1.5%)`, so a damaged crop drew larger and lower than the
+  healthy one. The damage layer now repeats the crop's three numbers and `tests/farmView.test.js`
+  asserts they match. The test was red on `HEAD` against the old `100% / 1.5% / 49.5%`.
+- **Also logged:** ISS-105 (potato's registry kept the rice placeholders' sizes), ISS-106 (a damaged
+  potato asked for a file that does not exist) — both already fixed in the code and finally written
+  up — ISS-107, and ISS-108 (the `rice-first` boot tip still called rice the only plantable crop,
+  now that potato is available). Triage rows added for ISS-101–108; ISS-101's fix is visibly in
+  `css/scene.css` but its entry still said open.
+- **Touched:** `js/ui/plotLayers.js`, `js/ui/shopArt.js`, `js/config/tips.js`, `css/scene.css`,
+  `css/crop-picker.css`, `tests/farmView.test.js`, `tests/mainPageBoot.test.js`,
+  `docs/team/issues.md`, `docs/team/decisions.md`, `docs/team/tasks.md`, `docs/crops.md`,
+  `docs/asset-checklist.md`, `docs/architecture.md`, `docs/game-design/implementation-plan.md`,
+  `docs/team/goals.md`, `README.md`, `AGENTS.md`
+- **Verified:** `npm test` 603/603 pass, `npm run check` clean (2 known, awaited by T-04).
+- **Next:** land economy and market.
+
+
 ## Explicit `border: none` on plot button — user-reported fix — 2026-10-18
 
 - **Did:** `.plot` had no explicit `border` property, relying solely on `reset.css`'s `button { border: none; }`. Added explicit `border: none;` to `.plot` in `css/scene.css` so the intent is self-documenting and not dependent on stylesheet load order. The visible border the user reported was most likely the `:focus-visible` outline (keyboard focus) or `.plot--selected::after` selection ring (click) — neither is a CSS `border` property.

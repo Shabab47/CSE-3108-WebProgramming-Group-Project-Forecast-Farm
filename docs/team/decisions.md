@@ -54,33 +54,47 @@ not exist yet. When it does, these are the values it should open at.
 
 ---
 
-### DEC-048 Crop sprites are nudged onto the soil, on the art's own centre
-**Decided by:** Jim, from a user report · 2026-10-19
+### DEC-048 Crop sprites are scaled and lifted onto the soil, and the damage sprite shares their box
+**Decided by:** Jim, from a user report · 2026-10-19; retuned on the running page in `c3f93d0` · 2026-10-20
 
-**Choice:** `.plot__crop` sits at `bottom: 1.5%; left: 49.5%` in `css/scene.css`, and
-`.plot__damage` carries the same offset as `transform: translate(-0.5%, -1.5%)`, so the pair can
-never drift apart.
+**Choice:** `.plot__crop` sits at `width: 93%; bottom: 6.5%; left: 50.5%` in `css/scene.css`, and
+`.plot__damage` repeats **the same three numbers**, so the pair cannot drift apart.
 
-**Why a nudge is needed at all.** The layers are already full-size (`width: 100%`, `bottom: 0`
-since ISS-084) because the canvases are matched — both 1000×1000, art to the same edge. What is
-*not* matched is the art's centre inside those canvases: the crop art sits ~15 px of canvas lower
-than the ground art's own centre, so the plant spills over the front edge while the back corner
-shows bare soil. `bottom: 1.5%` is that offset given back.
+**Why the layer is scaled and lifted.** The canvases are matched — crop and ground are both
+1000×1000, art to the same edge — but each crop sprite is a whole soil diamond of its own, and a
+taller one: h/w 0.589 against the tile's 0.538. Canvas-aligned, the patch covers the tile and the
+taller stages hang over its front vertex (stage 3's art reaches y 792 of 1000 and stage 4's y 801,
+against the tile's 757). Drawn at 93% and lifted 6.5%, the patch seats inside the diamond. The scale
+is uniform, so the plant keeps its proportions — fitting a crop to the tile's *height* is what
+ISS-084 removed.
 
-**Why only 0.5% horizontally.** The alpha boxes alone read a few pixels the other way — under 1 px
-apart at stage sizes — so the horizontal shift is sub-pixel and was called by eye against the
-running page.
+**Why 50.5% and not 50%.** The alpha boxes alone read under 1 px apart at stage sizes, so the
+horizontal shift is sub-pixel and was called by eye against the running page.
 
-**Why the damage layer moves by `transform`, not by `bottom`/`left`.** It keeps `inset: 0`,
-`width/height: 100%` and `object-fit: contain`; moving it with `bottom`/`left` would change what
-its box means to every layer that anchors to it.
+**Why the damage layer takes the box, not a transform offset.** The damage files are 1024 canvases
+against the crop's 1000, and they are whole replacement patches, not overlay fragments. A fixed
+`translate` — the first attempt was `translate(-0.5%, -1.5%)` — stops matching the crop the moment
+either value is retuned, and the 6.5% lift did exactly that: the crop moved and the damage sprite
+stayed on the old 100% box, so it drew larger than the crop and lower on the tile. A shared box
+survives retuning, and `object-fit: contain` maps either canvas into it. `tests/farmView.test.js`
+asserts that the two rules carry the same `bottom`, `left` and `width`.
+
+**A correction to the first write-up.** It said the crop art's centre sits "~15 px of canvas lower"
+than the ground's. Re-measured from the alpha bounding boxes at threshold 8, the rice centres sit
+3.5–5 canvas px left of the ground's and 7–9.5 px lower — about half the claimed drop, and to the
+*left*, which is why the sub-pixel horizontal nudge points right. The overhang was real; a large
+centring error was not the cause. What the numbers fix is the patch's *size* against the tile's
+diamond.
 
 **Rejected:**
 - **ISS-072's suggested `width: 99%; bottom: 21%`.** It re-solved the whole layer against a reading
   of the CSS that ISS-084 had already fixed, and it would have shrunk the plant — exactly what
-  ISS-084 removed. The offset is 1.5%, not 21%.
-- **`object-position` on the `<img>`.** Same picture today, but the *box* would stay mis-centred
-  for anything that later anchors to it.
+  ISS-084 removed.
+- **`object-position` on the `<img>`.** Same picture today, but the *box* would stay mis-sized for
+  `.plot__damage`, which has to match it.
+- **Per-stage offsets (`data-stage`).** The stages' art bottoms differ by 34 canvas px (767…801), so
+  no single lift seats all five exactly. A per-stage patch would jump about 6 px at each growth step,
+  which reads as a glitch; one lift is the compromise.
 
 ---
 

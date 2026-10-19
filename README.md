@@ -232,7 +232,7 @@ Each week is broken out per person, because "all four" tells you nothing about w
 | 3 | Free first plot, and what it unlocks | ✅ Complete | The first plot free · locked plots carry a price tag · seeds unlock every 4 plots · a growth timer on each crop | **Shabab**, **Hisham** |
 | 3 | Water, and a pump that works | ✅ Complete | Rain and evaporation · a water meter on every plot · the pump aimed at one plot · click a plot for its gauge · damage that is permanent | **Hisham** |
 | 3 | The pump stops billing for water it throws away | ✅ Complete | Nothing billed once a plot is full · the quote matches the bill · the meters animate | **Shabab** |
-| 3 | The environment card | ✅ Complete | The rail reports the weather and what it does to the farm · six readings, always all shown | **Hisham** |
+| 3 | The environment card | ✅ Complete | The rail reports the weather and what it does to the farm · three meters — water loss, frost and heat — always all shown | **Hisham** |
 | 3 | Weather board and shop, rebuilt | ✅ Complete | Weather board to the design · shop repainted to the Figma reference · profile moved to its own page · five tomato growth stages | **Kafi** |
 | 3 | Place lookup you can type | ✅ Complete | Suggestions as you type · the farm named from its saved coordinates | **Afif** |
 | 4 | Land economy and market | ⬜ Planned | **Everyone** — the last piece between here and a farm that can be finished | *All four* |

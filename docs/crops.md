@@ -411,14 +411,16 @@ table nobody has thought through.
 ## Crop artwork
 
 Crop sprites are drawn slightly taller than the ground tile (h/w 0.589 against 0.538). That is
-intentional: plants should stand proud of the soil. Do not "fix" it by scaling crop layers to
-match the ground, or the tops will be clipped.
+intentional: plants stand proud of the soil. Do not stretch a crop layer to the tile's height, or
+the plant is squashed and its tops clipped.
 
-They are also **nudged** onto the soil: `.plot__crop` sits at `bottom: 1.5%; left: 49.5%` and
-`.plot__damage` carries the same offset as a transform, because the art's centre inside its canvas
-is ~15 px lower than the ground art's and the plant would otherwise spill over the front edge
-(ISS-072, DEC-048). A nudge, not a scale — the two layers move together, pinned by
-`tests/farmView.test.js`.
+They are **scaled and lifted** onto the soil: `.plot__crop` sits at `width: 93%; bottom: 6.5%;
+left: 50.5%` in `css/scene.css`, and `.plot__damage` repeats the same three numbers so the pair
+cannot drift apart. Each crop sprite carries a whole soil diamond of its own, taller than the
+tile's, so at full size the taller stages hang over the tile's front vertex — the lift gives that
+back, and 93% is a uniform scale that keeps the plant's proportions. The numbers were tuned on the
+running page; `tests/farmView.test.js` pins them and the damage layer's copy of them
+(ISS-072, DEC-048).
 
 ### Growth stages and damage states
 
@@ -435,8 +437,10 @@ assets/images/crops/<cropId>/<cropId>_dead.png       health reached 0
 **`<stage>` is 1–5, not 1–7.** The damage states are named, not numbered — `cropFailureImg()`
 builds the path from `damage.js`, which resolves exactly one of the three, with **dead** winning.
 
-`rice_1.png` through `rice_5.png` exist. **Rice has no damage sprite at all**, and neither does any
-other crop. Track them in [`asset-checklist.md`](asset-checklist.md).
+`rice_1.png` through `rice_5.png` exist, and so do rice's dry and waterlogged sprites
+(`rice_drought_killed.png`, `rice_rain_damaged.png` — custom names, see `CUSTOM_FAILURE_NAMES` in
+`js/config/assets.js`). **No crop has its `_dead` sprite yet.** Track the holes in
+[`asset-checklist.md`](asset-checklist.md).
 
 **Until a damage sprite exists the state is carried by a word, not an image.** `plotLayers.js`
 draws `damageWord()` beside the sprite and the sprite is a hole until the art lands. That is

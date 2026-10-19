@@ -166,7 +166,7 @@ The economy. Nothing here reads the weather API.
 **Tasks:** T-07
 
 - [ ] `domain/wallet.js` and `domain/plots.js`
-- [ ] Locked plots dimmed with a price tag
+- [x] Locked plots dimmed with a price tag
 - [ ] Click a locked plot → confirm popover → buy
 - [ ] `hud` shows gold
 - [ ] `plots.test.js`: price by purchase count, cannot buy twice, cannot afford

@@ -134,7 +134,7 @@ export const TIPS = [
   {
     id: 'rice-first',
     kind: 'game',
-    text: 'Rice is the only crop ready to plant so far. The others are listed in the shop, and greyed out.',
+    text: 'Rice and potato are ready to plant. Wheat, corn and tomato are in the shop, greyed out for now.',
   },
   {
     id: 'read-the-forecast',

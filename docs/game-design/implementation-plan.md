@@ -809,7 +809,8 @@ The CSS filter fallback stays in the code either way.
 
 1. Land prices double with every purchase, 100 to 1,638,400 gold (see `docs/crops.md`). Settled.
 2. The pump waters all owned plots; "selecting" a plot is for planting and harvesting.
-3. Rice is the only playable crop until other art exists.
+3. Rice and potato are playable; tomato's art is complete but it waits on its damage sprites and
+   ISS-093. Wheat and corn still show "coming soon".
 4. Balance numbers in 6.4 and 6.5 are placeholders.
 5. The ownership list in section 12 is a suggestion (ISS-025).
 6. Pump balance (ISS-008) is unresolved and needs a decision before step 9.

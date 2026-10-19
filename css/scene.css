@@ -233,14 +233,19 @@
 .plot__price {
   position: absolute;
   left: 50%;
-  bottom: 32%;
+  bottom: 36%;
   transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25em;
+  max-width: 86%;
   min-width: 1.6em;
   padding: 0.05em 0.3em;
   border-radius: 999px;
   background: var(--gold);
   color: #3a2a05;
-  font-family: "Luckiest Guy", var(--font-body);
+  font-family: var(--font-display);
   font-size: 0.58rem;
   line-height: 1.3;
   text-align: center;
@@ -248,8 +253,24 @@
   pointer-events: none;
 }
 
-.plot__price {
-  max-width: 86%;
+.plot__price-coin {
+  display: inline-flex;
+  flex: 0 0 auto;
+  width: 1.2em;
+  height: 1.2em;
+}
+
+.plot__price-coin svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Only the number may ellipsise. `text-overflow` acts on the box that holds the
+ * text, not on a flex container's own content, so the tail is cut here — beside the
+ * coin rather than through it. */
+.plot__price-num {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -314,7 +335,7 @@
 
 .plot__water {
   position: absolute;
-  bottom: 30%;
+  bottom: 36%;
   right: 40%;
   width: 11px;
   height: 34%;
@@ -336,12 +357,6 @@
     background var(--speed) var(--ease);
 }
 
-/* The zone this plot is aiming for, painted on the track.
- *
- * Without it, a plot at zero water has nothing to look at and the meter reads as absent.
- * With it, the bar answers "how much do I want" even before there is any — which is
- * exactly the moment a player decides whether to switch the pump on.
- */
 .plot__water-band {
   position: absolute;
   left: 0;
@@ -352,9 +367,6 @@
   pointer-events: none;
 }
 
-/* Four states, and the colour is never the only channel — `plot__water-word`
- * carries the same word in text, so this reads for anyone who cannot tell red
- * from green and survives a stylesheet that fails to load. */
 .plot__water[data-state="dry"] .plot__water-fill {
   background: #c0392b;
 }
@@ -390,19 +402,9 @@
   background: rgb(0 0 0 / 25%);
 }
 
-/* The state word, off the right edge of the track in the plot's own margin.
- *
- * **Always on.** It was previously hidden for `optimal`, on the reasoning that the good
- * news is the state a player does not need to act on — which is exactly backwards for a
- * gauge: a meter that says nothing is indistinguishable from a meter that is broken, and
- * that is how "there is no water meter" gets reported in the first place.
- */
 .plot__water-word {
   position: absolute;
   right: 13px;
-  /* Aligned to the track's own bottom, which moved up with it. This used to be `-1px`,
-     which put the label's baseline below the diamond's lower vertex — so the word stuck
-     out from under the land too, and was the more visible half of it, being text. */
   bottom: 0;
   padding: 0 3px;
   font-size: 9px;
@@ -431,11 +433,11 @@
 
 .plot__damage {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+  bottom: 6.5%;
+  left: 50.5%;
+  width: 93%;
   object-fit: contain;
-  transform: translate(-0.5%, -1.5%);
+  transform: translateX(-50%);
   pointer-events: none;
 }
 
@@ -494,50 +496,19 @@
   white-space: nowrap;
 }
 
-/* No scrim. The unowned ground stays visible and the pin sits on it, the way
- * `docs/reference` renders it. The old `rgba(0, 0, 0, 0.25)` wash hid the very thing
- * it was labelling and, at the plot sizes this field now uses, read as "disabled"
- * rather than "for sale".
- *
- * A plain centred box, not a column: the "Buy" caption that used to sit under the
- * pin is gone. It landed in the half of the diamond the plot in front paints over,
- * so it read "BU.." or "..UY" depending on the row. */
 .plot__lock {
   position: absolute;
   inset: 0;
   display: flex;
+  bottom: 25%;
   align-items: center;
   justify-content: center;
 }
 
-/* Sized off the plot, not off the root font size.
- *
- * `.plot` is a container (`container-type: inline-size` above), so `cqi` is a
- * percentage of the plot's own width and the pin holds its proportion at every stage
- * size. The art is 141x229 — taller than it is wide — so the **height** is the number
- * set here and the width follows the aspect ratio. The `rem` value is the fallback for
- * browsers without container queries.
- *
- * 40cqi is 78px in a 196px box at 1440×900. The pin's point lands about 39px below the
- * centre, and the diamond's own half-height is 52.5px, so it clears both the field in
- * front and the plot behind. */
 .plot__lock-icon {
   height: 1.9rem;
-  height: 40cqi;
+  height: 36cqi;
 }
-
-/* The scrim's hover rule (`.plot--unowned:hover .plot__lock`) went with the scrim, and
-   so did `.plot--unowned { cursor: pointer }`: every plot is a `<button>` now, and
-   `reset.css` gives buttons the pointer. Hover feedback is the `.plot:hover` scale,
-   which every plot already has. */
-
-/* --- the farm is the scene, not a card ------------------------------------
- *
- * index.html gives #farm-view the `.card` class and farmView.js renders a second
- * `.card.farm-view` inside it, so the field sat in a card inside a card. The inner
- * one had no definite height, which collapsed `.field-stage`'s `height: 100%` and
- * left a tiny field under a "YOUR FARM" header. The design has no card at all:
- * the field sits straight on the page. See ISS-055. */
 
 #farm-view,
 #farm-view .card.farm-view {
@@ -571,12 +542,7 @@
   white-space: nowrap;
 }
 
-/* --- pump panel -------------------------------------------------------------
- *
- * Lives in the right rail beside the gold card. `scene.css` because the pump is
- * part of the field's furniture, and a panel that sits next to the field should not
- * be the only one of its kind in `components.css`.
- */
+/* --- pump panel -------------------------------------------------------------*/
 
 .pump-panel__toggle {
   width: 100%;
@@ -655,13 +621,7 @@
   color: var(--warning, #96690d);
 }
 
-/* --- T-09 the revised pump: the estimate, the rate, the four states ------------
- *
- * The panel now quotes two numbers instead of one — how long to optimal and what it
- * costs — because "30 to 60 minutes" is a promise and a promise nobody can see is a
- * rumour. `data-eta='false'` dims it once there is nothing left to do, so a finished
- * job does not sit there looking like a pending one.
- */
+/* --- T-09 the revised pump: the estimate, the rate, the four states ------------*/
 
 .pump-panel__estimate {
   margin: var(--space-2, 8px) 0 0;
@@ -675,10 +635,6 @@
   color: var(--text-muted, #5d6a61);
 }
 
-/* In +20/h, out -10.8/h, net +9.2/h. The two rates and the sign between them is the
- * whole answer to "why is this bar moving", so it gets its own line rather than being
- * folded into the note. The minus sign is a real U+2212, not a hyphen, so the two
- * directions are told apart at a glance. */
 .pump-panel__flow {
   margin: 2px 0 0;
   font-size: var(--text-xs, 0.75rem);
@@ -733,16 +689,7 @@
 .pump-panel[data-state="saturated"] .pump-panel__fill {
   background: #3f6f9f;
 }
-/* --- the plot inspector -------------------------------------------------------
- *
- * The surface a click opens. It exists because clicking a plot used to mean three different
- * things depending on what was in it, and none of them was "tell me about this plot" --
- * so how wet a square was could only be read off the rail, which describes whichever plot
- * the pump happens to be aimed at.
- *
- * A scrim rather than a popover because the plot it is describing is underneath it, and the
- * player needs to keep seeing which square they clicked. Clicking the scrim closes.
- */
+/* --- the plot inspector -------------------------------------------------------*/
 
 .inspector__scrim {
   position: fixed;
@@ -799,12 +746,6 @@
   color: var(--text-muted, #5d6a61);
 }
 
-/* Water: a gauge and a readout side by side.
- *
- * Much larger than the sliver on the tile on purpose. The tile answers "which squares need
- * me"; this answers "how bad is this one and what will it cost", and that needs room for a
- * gauge you can read at a glance plus three lines of numbers under it.
- */
 .inspector__water {
   display: flex;
   gap: var(--space-3, 12px);
@@ -837,26 +778,11 @@
   left: 0;
   right: 0;
   background: #4a9ede;
-  /* The colour transitions too, so crossing from dry to low to optimal reads as the water
-   * rising rather than the bar being replaced by a differently-coloured one. The height
-   * transition is the one that matters — see `plotInspector.js` for why it needed the
-   * panel rewritten to run at all. */
   transition:
     height var(--speed, 160ms) var(--ease, ease-in-out),
     background var(--speed, 160ms) var(--ease, ease-in-out);
 }
 
-/* A sheen while the pump is actually filling this plot.
- *
- * `data-pumping` is set by `update()` from `state.pump.on && state.pump.target === plotId`,
- * so it is true only while this very plot is being watered — not merely because the pump
- * happens to be running somewhere else. That is the distinction that makes it worth
- * having: it answers "is *this* square filling", which is the question the gauge is open to
- * answer and which the number alone makes the player work out.
- *
- * A gradient rather than an opacity pulse, so the fill's colour still reads as the state
- * colour underneath. `prefers-reduced-motion` in `reset.css` already neutralises it.
- */
 .inspector__gauge[data-pumping="true"] .inspector__fill {
   background-image: linear-gradient(
     100deg,

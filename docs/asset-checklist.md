@@ -7,8 +7,8 @@ Owner: **Kafi**. Art direction: **Hisham**.
 > A test (`tests/assets.test.js`) scans the `assets/` directory and fails if any file is missing
 > from the registry, any registry entry points to a missing file, or any size does not match.
 
-Last reviewed at the end of week 1, planning phase. Tick a box when the file exists **and** has
-content — an empty placeholder file does not count.
+Last reviewed 2026-10-20, after potato's five stages and both pin sprites landed. Tick a box when
+the file exists **and** has content — an empty placeholder file does not count.
 
 **Naming rules.** One folder per crop. The folder name and the file prefix always match, so a
 misfiled sprite is obvious at a glance.
@@ -17,9 +17,10 @@ misfiled sprite is obvious at a glance.
 assets/images/crops/<cropId>/<cropId>_<stage>.png
 ```
 
-All art is 1000×1000 with transparent corners. Match the existing rice sprites for line weight,
-palette and perspective — the diamond is 0.538 h/w for ground tiles and 0.589 for crops, because
-plants stand proud of the soil. See `docs/architecture.md` for the geometry.
+All crop art is square with transparent corners — rice is 1000×1000, the newer potato, tomato and
+damage sprites are 1024×1024 (`tomato_5.png` is 1024×807, ISS-093). Match the existing rice sprites
+for line weight, palette and perspective — the diamond is 0.538 h/w for ground tiles and 0.589 for
+crops, because plants stand proud of the soil. See `docs/architecture.md` for the geometry.
 
 ---
 
@@ -30,28 +31,31 @@ on disk. The two answer different questions and will not have the same total: th
 sprites nobody has drawn yet, which are by definition not in the registry. Where they overlap they
 agree, and `tests/assets.test.js` fails if the registry drifts from the filesystem.
 
-**Sixty-five files are registered: 36 finished, 29 outstanding.** Of those 29, five are unused
-duplicate copies of art that already exists elsewhere and four are metadata placeholders, so
-**24 are art somebody still has to draw.** Three of the 24 are rice's damage sprites, which the
-damage system needs today and which do not exist.
+**Seventy-three files are registered: 47 finished, 26 outstanding.** Of those 26, five are unused
+duplicate copies of the rice sprites, four are `.gitkeep` placeholders, three are the out-of-scope
+sounds and fourteen are the 0-byte icon SVGs — so **17 registered files are still empty or unwritten**,
+none of them a crop sprite. The crop art still owed is *planned* rather than registered: eleven damage
+sprites (five crops × three states, less the four that exist) and ten growth stages (wheat and corn).
 
 | Group | Needed | Done | Remaining |
 | :--- | ---: | ---: | ---: |
-| Growth stages — 5 per crop, 5 crops | 25 | 10 | **15** |
-| Damage sprites — dry / waterlogged / dead, 5 crops | 15 | 0 | **15** |
+| Growth stages — 5 per crop, 5 crops | 25 | 15 | **10** |
+| Damage sprites — dry / waterlogged / dead, 5 crops | 15 | 4 | **11** |
 | Weather icons | 9 | 0 | **9** |
 | Crop icons | 5 | 0 | **5** |
 | Metadata placeholders | 4 | 0 | **4** |
 | Pump animation frames | 3 | 1 | **2** |
-| Environment tiles | 4 | 4 | 0 |
+| Environment tiles and pins | 6 | 6 | 0 |
 | Menu background + logo | 2 | 2 | 0 |
 | Display fonts | 6 | 6 | 0 |
 | Shop art, buttons, season art | 13 | 13 | 0 |
-| **Total in scope** | **86** | **36** | **50** |
+| **Total in scope** | **88** | **47** | **41** |
 | Sounds — *out of scope* | 3 | 0 | — |
 
-**Rice is not finished, and neither is tomato.** Between them they have ten growth stages, which
-is every stage every crop has. What no crop has is a single damage sprite.
+**Rice, potato and tomato each have all five growth stages.** Wheat and corn have none yet. Rice and
+potato have two of their three damage sprites each, under custom filenames (`rice_drought_killed`,
+`rice_rain_damaged`, `potato_drought_killed`, `potato_rain_damaged`); tomato has none, and no crop
+has its `_dead` sprite.
 
 ---
 
@@ -64,7 +68,7 @@ three are different pictures with different rules behind them.
 `js/domain/damage.js` resolves the priority, so exactly one is ever drawn: **dead wins**, because
 a dead crop is dead whatever else was wrong with it.
 
-### Rice — the only playable crop
+### Rice — the first playable crop
 
 | File | State | Status |
 | :--- | :--- | :--- |
@@ -73,9 +77,9 @@ a dead crop is dead whatever else was wrong with it.
 | `rice_3.png` | Mid-sized | ✅ done |
 | `rice_4.png` | Mature, still green | ✅ done |
 | `rice_5.png` | Golden, ready to harvest | ✅ done |
-| `rice_dry.png` | Dry damage overlay | ⬜ **missing** — 0-byte placeholder registered |
-| `rice_waterlogged.png` | Waterlogged damage overlay | ⬜ **missing** — 0-byte placeholder registered |
-| `rice_dead.png` | Dead, collapsed | ⬜ **missing** — 0-byte placeholder registered |
+| `rice_drought_killed.png` | Dry damage — the patch, dead | ✅ done — custom name, see `CUSTOM_FAILURE_NAMES` |
+| `rice_rain_damaged.png` | Waterlogged damage | ✅ done — custom name |
+| `rice_dead.png` | Dead, collapsed | ⬜ **missing** — no file, no entry |
 
 **Why `rice_6.png` is wanted.** Rice takes six hours and there are five sprites, so
 `stageMath.js` holds stage 5 for the whole of hours five and six. That is a deliberate
@@ -89,11 +93,16 @@ to need it.
 
 | Crop | Stages 1–5 | Damage sprites | Folders | Playable |
 | :--- | :--- | :--- | :--- | :--- |
-| Rice | ✅ 5 of 5 | ⬜ 0 of 3 | `rice/` ready | **yes** |
+| Rice | ✅ 5 of 5 | ✅ 2 of 3 | `rice/` ready | **yes** |
 | Tomato | ✅ 5 of 5 | ⬜ 0 of 3 | `tomato/` ready | no — see ISS-093 |
 | Wheat | ⬜ 0 of 5 | ⬜ 0 of 3 | `wheat/` ready | no |
-| Potato | ⬜ 0 of 5 | ⬜ 0 of 3 | `potato/` ready | no |
+| Potato | ✅ 5 of 5 | ✅ 2 of 3 | `potato/` ready | **yes** — behind the 4-plot land gate (DEC-041) |
 | Corn | ⬜ 0 of 5 | ⬜ 0 of 3 | `corn/` ready | no |
+
+**Potato's five stages and two damage sprites landed on 19 October** (`a02a62e`), and it is
+`available: true` behind the same land gate as every seed. Its stages 3–5 replaced rice placeholders
+in place under the same filenames, which is why the registry's sizes had to be re-measured (ISS-105)
+and why `cropFailureImg()` needed a `potato` entry for its custom damage filenames (ISS-106).
 
 **Tomato's art has landed** and all five stages are registered. Two things stand between it and
 `available: true` (T-14): its damage sprites, and **ISS-093 — `tomato_5.png` is 1024×807 while
@@ -118,6 +127,10 @@ player nothing to read.
 | `<crop>_dry.png` | A crop left dry past the damage floor — scorched, wilted | The standing crop, overlaid |
 | `<crop>_waterlogged.png` | A crop left above its target — split fruit, drowned roots | The standing crop, overlaid |
 | `<crop>_dead.png` | A crop whose health reached 0 | The standing crop |
+
+Rice's and potato's two delivered sprites are named `_drought_killed` and `_rain_damaged` rather than
+`_dry`/`_waterlogged`. `CUSTOM_FAILURE_NAMES` in `js/config/assets.js` maps those, so a new crop can
+use either the generic pattern or its own filenames — but the map has to know about it.
 
 **Until a sprite exists the state is carried by a word, not an image.** `plotLayers.js` draws the
 `damageWord()` text beside the sprite and the sprite is a hole until the art lands. That is
