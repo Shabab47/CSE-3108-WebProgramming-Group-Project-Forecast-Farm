@@ -4,12 +4,10 @@
  * One file per crop; `docs/crops.md` explains every number. The shape is identical
  * across all five files, and `config/crops.js` assembles them into `CROPS`.
  *
- * `available: false` because `assets/images/crops/potato/` holds only the seed
- * packet and a `.gitkeep`. The shop still lists it with its price and refuses to
- * sell it, rather than hiding it and leaving a player wondering where the second
- * seed went. Flip this to `true` when `potato_1.png` … `potato_5.png` land; no code
- * changes should be needed. If one is, that is an architecture bug — log it in
- * `docs/team/issues.md`.
+ * `available: true` — all five growth stages are on disk. Note that `potato_3..5.png`
+ * are currently rice sprites under potato names (see `config/assets.js`); they are
+ * placeholders and will be replaced in place, under the same filenames, so nothing
+ * here changes when the real art lands. The land gate (4 plots) still governs buying.
  *
  * `seedPrice * 2 = yield * sellPrice`: 200 in, 400 out at full health. That ratio is
  * the game's risk model, and the two columns are never tuned apart.
@@ -27,7 +25,7 @@ export const POTATO = {
   waterNeed: 0.5,
   yield: 10,
   growNote: 'The quickest to mature, and happy in cool, moist soil.',
-  available: false,
+  available: true,
 
   likes: 'Cool, moist',
   hates: 'Frost, heat, waterlogging',

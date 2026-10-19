@@ -62,9 +62,16 @@ export const ASSETS = [
   { path: 'assets/images/crops/tomato/tomato_4.png', name: 'Tomato - stage 4', size: 1112306, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
   { path: 'assets/images/crops/tomato/tomato_5.png', name: 'Tomato - stage 5 (ISS-093: not square)', size: 1125057, dimensions: '1024x807', status: 'done', category: 'crop-sprite', page: 'field' },
 
-  // Potato stages — only 1 and 2 exist so far. Stages 3-5 are 0 bytes / missing.
-  { path: 'assets/images/crops/potato/potato_1.png', name: 'Potato - stage 1', size: 393079, dimensions: '1000x1000', status: 'done', category: 'crop-sprite', page: 'field' },
-  { path: 'assets/images/crops/potato/potato_2.png', name: 'Potato - stage 2', size: 509140, dimensions: '1000x1000', status: 'done', category: 'crop-sprite', page: 'field' },
+  // Potato stages, all five now on disk. Stages 1-2 are the delivered potato art;
+  // **stages 3-5 are currently rice sprites under potato names** — byte-identical to
+  // `crops/rice/rice_3..5.png` — and are placeholders to be replaced in place (same
+  // filenames), so no code changes when the real art lands. Registered with the
+  // dimensions the files actually have: 1-2 are 1024x1024, 3-5 are 1000x1000.
+  { path: 'assets/images/crops/potato/potato_1.png', name: 'Potato - stage 1', size: 393079, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
+  { path: 'assets/images/crops/potato/potato_2.png', name: 'Potato - stage 2', size: 509140, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
+  { path: 'assets/images/crops/potato/potato_3.png', name: 'Potato - stage 3 (placeholder: rice_3 art)', size: 557278, dimensions: '1000x1000', status: 'placeholder', category: 'crop-sprite', page: 'field' },
+  { path: 'assets/images/crops/potato/potato_4.png', name: 'Potato - stage 4 (placeholder: rice_4 art)', size: 646392, dimensions: '1000x1000', status: 'placeholder', category: 'crop-sprite', page: 'field' },
+  { path: 'assets/images/crops/potato/potato_5.png', name: 'Potato - stage 5 (placeholder: rice_5 art)', size: 589773, dimensions: '1000x1000', status: 'placeholder', category: 'crop-sprite', page: 'field' },
 
   // Damage sprites, built by `cropFailureImg(cropId, failure)` with failure one of
   // `dry`, `waterlogged`, `dead`. Rice now has two of three: `rice_drought_killed.png`

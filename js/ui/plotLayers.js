@@ -32,8 +32,8 @@ import { growthMeter } from './growthMeter.js';
 /**
  * Which field sprite to draw for a crop stage.
  *
- * Only rice has its five sprites. A land-unlocked crop without art yet falls
- * back to the rice sprite at the same stage — the numbers (price, yield, grow
+ * Rice and potato have their five sprites. A land-unlocked crop without art yet
+ * falls back to the rice sprite at the same stage — the numbers (price, yield, grow
  * time) are its own, only the picture is borrowed. `plotLayers` marks the
  * image with `plot__crop--fallback` so the CSS tints it; when the real
  * sprites land, flip `available` and delete this branch — nothing else moves.
@@ -195,9 +195,9 @@ export function plotLayers(plot, { isOwned, isNext, isReady, grown, isWatered, p
       // of at maturity, and it read `Date.now()` directly, so a debug time-skip moved
       // the weather and not the crop.
       //
-      // The sprite may be borrowed: only rice has art, so a land-unlocked crop
-      // without sprites draws rice tinted by `plot__crop--fallback` until its
-      // own stages land. See `fieldSpriteFor` above.
+      // The sprite may be borrowed: rice and potato have their own art, so a
+      // land-unlocked crop without sprites draws rice tinted by
+      // `plot__crop--fallback` until its own stages land. See `fieldSpriteFor`.
       const stage = grown?.stage ?? 1;
       const sprite = fieldSpriteFor(plot.cropId, stage);
       layers.push(

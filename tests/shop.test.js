@@ -33,13 +33,12 @@ function farmWithPlots(count, gold = 999999) {
 test('a new farm can afford one rice packet and nothing more', () => {
   // The opening has to be a decision: START_GOLD buys two rice packets and a
   // fifth of a potato packet, so the first purchase is a real choice. Potato is
-  // priced within reach on purpose and still refused, because it cannot be
-  // planted yet.
+  // priced within reach, but a one-plot farm has not unlocked it yet.
   assert.equal(START_GOLD, 200);
   assert.equal(canAfford(farmWith(START_GOLD), 'rice', 1), true);
   assert.equal(canAfford(farmWith(START_GOLD), 'rice', 2), true);
   assert.equal(canAfford(farmWith(START_GOLD), 'rice', 5), false);
-  assert.equal(canAfford(farmWith(START_GOLD), 'potato', 1), false, 'unavailable, not unaffordable');
+  assert.equal(canAfford(farmWith(START_GOLD), 'potato', 1), false, 'locked by land, not by gold');
   assert.equal(canAfford(farmWith(START_GOLD), 'corn', 1), false);
 });
 
@@ -52,12 +51,13 @@ test('seed prices run 100 to 500 in steps of 100, cheapest first', () => {
   }
 });
 
-test('rice is the only crop available to plant', () => {
-  // The other four have a price and a packet but no growth art yet. The shop
-  // still lists them; the rule refuses them.
+test('rice and potato are the crops available to plant', () => {
+  // Rice and potato have their five growth sprites; the other three have a price
+  // and a packet but no growth art yet. The shop still lists all five; the field
+  // draws the rice fallback for the ones without art.
   assert.deepEqual(
     SHOP_ORDER.filter((id) => CROPS[id].available),
-    ['rice'],
+    ['rice', 'potato'],
   );
 });
 
@@ -124,17 +124,17 @@ test('exact change is affordable — the purse may reach zero', () => {
 });
 
 test('a land-unlocked crop without art can still be bought — land is the only gate', () => {
-  // Potato needs 4 plots. A 1-plot farm is refused with the plot count; a
-  // 4-plot farm buys, even though `available` is still false — the field draws
+  // Tomato needs 8 plots. A 1-plot farm is refused with the plot count; a
+  // 8-plot farm buys, even though `available` is still false — the field draws
   // the rice fallback until the real sprites land, so nothing 404s.
-  const small = buySeeds(farmWithPlots(1), 'potato', 1);
+  const small = buySeeds(farmWithPlots(1), 'tomato', 1);
   assert.equal(small.ok, false);
-  assert.equal(small.reason, SHOP_REASONS.locked('Potato', 4, 1));
+  assert.equal(small.reason, SHOP_REASONS.locked('Tomato', 8, 1));
 
-  const unlocked = buySeeds(farmWithPlots(4, 500), 'potato', 1);
+  const unlocked = buySeeds(farmWithPlots(8, 500), 'tomato', 1);
   assert.equal(unlocked.ok, true);
-  assert.equal(unlocked.state.inventory.seeds.potato, 1);
-  assert.equal(canAfford(farmWithPlots(4, 500), 'potato', 1), true);
+  assert.equal(unlocked.state.inventory.seeds.tomato, 1);
+  assert.equal(canAfford(farmWithPlots(8, 500), 'tomato', 1), true);
 });
 
 test('a crop that is not in the table is not sold', () => {

@@ -280,6 +280,27 @@ test('a planted plot renders its layers, and they are phrasing content', () => {
   );
 });
 
+test('a planted potato draws its own sprites, not the rice fallback', () => {
+  // Potato's five stages are on disk now, and `available: true` makes
+  // `fieldSpriteFor()` return the real path instead of the tinted rice fallback.
+  // The stage comes from the same `stageAt` formula as rice, so a potato two hours
+  // into a four-hour grow is on `potato_3.png` — the swap is the growth animation.
+  const HOUR = 3_600_000;
+  const planted = buildPlots().map((plot) =>
+    plot.id === 5
+      ? { ...plot, owned: true, cropId: 'potato', plantedAt: Date.now() - 2 * HOUR, waterLevel: 60 }
+      : plot,
+  );
+  const { tiles } = mount({ plots: planted });
+
+  const crop = tiles[5].querySelector('.plot__crop');
+  assert.match(crop.getAttribute('src'), /\/potato\/potato_3\.png$/, 'potato_3, its own art');
+  assert.ok(
+    !crop.classList.contains('plot__crop--fallback'),
+    'and not the rice fallback tint',
+  );
+});
+
 test('an empty plot still shows a meter, because that is where a farm mostly is', () => {
   // Reported as "no watering meter". The bar rendered, and rendered correctly: a plot at 0
   // water drew a fill at `height:0%`, which is zero pixels tall. On a fresh farm, and on
