@@ -39,8 +39,6 @@
   margin-right: 2px;
 }
 
-/* Environment pills — pill-like boxes for sidebar environment elements.
- * Same visual language as .farm-gold and .shop-purse: beige pill, brown border. */
 .env__pills {
   display: flex;
   flex-direction: column;
@@ -48,15 +46,44 @@
 }
 
 .env__pill {
-  display: inline-flex;
+  position: relative;
+  display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 12px;
+  padding: 8px 12px;
   border: 2px solid #6b431f;
-  border-radius: 999px;
-  background: #fbf3dd;
-  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.15);
+  border-radius: 12px;
+  background: #fffdf7;
+  overflow: hidden;
   max-width: 100%;
+}
+
+/* The meter. Left-anchored; the parent's radius and `overflow: hidden` shape it. */
+.env__pill-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0;
+}
+
+/* One tint per meter — blue for water loss, orange for heat, pale ice for frost. */
+.env__pill[data-id="drying"] .env__pill-fill {
+  background: var(--meter-water);
+}
+
+.env__pill[data-id="uv"] .env__pill-fill {
+  background: var(--meter-heat);
+}
+
+.env__pill[data-id="frost"] .env__pill-fill {
+  background: var(--meter-frost);
+}
+
+/* Everything above the fill. */
+.env__pill-label,
+.env__pill-value,
+.env__pill-note,
+.env__pill-icon {
+  position: relative;
 }
 
 .env__pill-label {
@@ -77,19 +104,25 @@
 }
 
 .env__pill-note {
+  flex: 1;
+  min-width: 0;
   font-size: 0.75rem;
   color: #6b431f;
-  max-width: none;
-  overflow: visible;
-  text-overflow: unset;
+  text-align: right;
   white-space: normal;
   line-height: 1.3;
+}
+
+/* The emoji is the last thing on the bar and never shrinks or wraps. */
+.env__pill-icon {
+  flex-shrink: 0;
+  font-size: 1.2rem;
+  line-height: 1;
 }
 
 /* Tone variants for pills */
 .env__pill[data-tone="warn"] {
   border-color: #96690d;
-  background: #fdf4e0;
 }
 
 .env__pill[data-tone="warn"] .env__pill-label {
@@ -102,7 +135,6 @@
 
 .env__pill[data-tone="danger"] {
   border-color: #b3392f;
-  background: #fbeceb;
 }
 
 .env__pill[data-tone="danger"] .env__pill-label {
@@ -186,17 +218,16 @@
 }
 
 .plot--locked {
-  filter: grayscale(0.7) brightness(0.62);
   cursor: not-allowed;
+}
+
+.plot--locked .plot__ground {
+  filter: grayscale(0.7) brightness(0.62);
 }
 
 .plot--locked:hover {
   transform: translate(-50%, -50%);
   z-index: 0;
-}
-
-.plot--next .plot__lock-icon {
-  opacity: 1;
 }
 
 .plot__price {
@@ -270,7 +301,7 @@
 
 .plot__crop {
   position: absolute;
-  bottom: 0;
+  bottom: 7.5%;
   left: 50%;
   transform: translateX(-50%);
   width: 100%;
@@ -398,11 +429,15 @@
   font-weight: 700;
 }
 
-/* Damage: Zim's sprite over the crop, and the word beside it.
+/* Damage: the failure sprite over the crop, and the word beside it.
  *
- * The word is not a fallback for the missing file — it is the primary channel.
- * All three sprites are 0 bytes until the art lands, so a game that relied on the
- * image alone would show a broken box on every damaged crop and say nothing.
+ * The word is not a fallback for a missing file — it is the primary channel. The art
+ * has landed for rice and potato only; every crop without it (including all three
+ * `dead` sprites so far) shows a hole where the image should be, and the word is what
+ * keeps that from being a silent failure. DEC-014, ISS-106.
+ *
+ * The same nudge as `.plot__crop`, written as a transform so the box stays full-size:
+ * the crop and its damage draw as a pair and must not drift apart (DEC-048).
  */
 .plot__damage {
   position: absolute;
@@ -410,6 +445,7 @@
   width: 100%;
   height: 100%;
   object-fit: contain;
+  transform: translate(-0.5%, -1.5%);
   pointer-events: none;
 }
 
@@ -481,13 +517,13 @@
   white-space: nowrap;
 }
 
-/* No scrim. The unowned ground stays visible and the padlock sits on it, the way
+/* No scrim. The unowned ground stays visible and the pin sits on it, the way
  * `docs/reference` renders it. The old `rgba(0, 0, 0, 0.25)` wash hid the very thing
  * it was labelling and, at the plot sizes this field now uses, read as "disabled"
  * rather than "for sale".
  *
  * A plain centred box, not a column: the "Buy" caption that used to sit under the
- * padlock is gone. It landed in the half of the diamond the plot in front paints over,
+ * pin is gone. It landed in the half of the diamond the plot in front paints over,
  * so it read "BU.." or "..UY" depending on the row. */
 .plot__lock {
   position: absolute;
@@ -500,20 +536,17 @@
 /* Sized off the plot, not off the root font size.
  *
  * `.plot` is a container (`container-type: inline-size` above), so `cqi` is a
- * percentage of the plot's own width and the padlock holds its proportion at every
- * stage size. 34% of a plot is about the padlock in the reference render. The `rem`
- * value is the fallback for browsers without container queries, and is the size that
- * was here before.
+ * percentage of the plot's own width and the pin holds its proportion at every stage
+ * size. The art is 141x229 — taller than it is wide — so the **height** is the number
+ * set here and the width follows the aspect ratio. The `rem` value is the fallback for
+ * browsers without container queries.
  *
- * `line-height: 1` is load-bearing, not tidying. The default for an emoji at this size is
- * about 1.3em, so the span's box was ~20% taller than the glyph it holds and `34cqi` was
- * sizing the line box rather than the art. With the caption gone the icon is 34cqi = 66.6px
- * in a 196px box at 1440×900, and its bottom corners clear the diamond's edge by about 3px
- * — tight enough that if it ever looks nibbled, `30cqi` is the number. */
+ * 40cqi is 78px in a 196px box at 1440×900. The pin's point lands about 39px below the
+ * centre, and the diamond's own half-height is 52.5px, so it clears both the field in
+ * front and the plot behind. */
 .plot__lock-icon {
-  font-size: 1.2rem;
-  font-size: 34cqi;
-  line-height: 1;
+  height: 1.9rem;
+  height: 40cqi;
 }
 
 /* The scrim's hover rule (`.plot--unowned:hover .plot__lock`) went with the scrim, and
@@ -962,77 +995,4 @@
   color: var(--text, #1f2a24);
   background: var(--surface-sunken, #eef1ec);
   border: 1px solid rgb(0 0 0 / 20%);
-}
-/* --- the environment card (T-11) ----------------------------------------------
- *
- * Replaces the pump card. The board *reports* the weather - 32 degrees, 50% humidity,
- * 9 km/h. This card answers what that is *doing to the farm*, which is the half of the
- * same API response nobody was showing: the 10.8 units an hour it costs you.
- *
- * Rows colour by tone AND print a note, because a red row that says nothing is a red row
- * the player has to work out, and the whole value of this card is that it has already done
- * the working out.
- */
-
-.env__list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.env__row {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 0 var(--space-2, 8px);
-  padding: 6px 0;
-  border-bottom: 1px solid rgb(0 0 0 / 8%);
-}
-
-.env__row:last-child {
-  border-bottom: 0;
-}
-
-.env__label {
-  font-size: var(--text-sm, 0.875rem);
-  color: var(--text-muted, #5d6a61);
-}
-
-.env__value {
-  font-size: var(--text-sm, 0.875rem);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-  color: var(--text, #1f2a24);
-}
-
-.env__note {
-  grid-column: 1 / -1;
-  font-size: var(--text-xs, 0.75rem);
-  line-height: 1.35;
-  color: var(--text-muted, #5d6a61);
-}
-
-/* Warn and danger differ in weight as well as hue, so the row still reads without colour
- * and so "danger" cannot be mistaken for "warn" by anyone who cannot separate them. */
-.env__row[data-tone="warn"] .env__value {
-  color: #8a5b08;
-}
-
-.env__row[data-tone="warn"] .env__note {
-  color: #8a5b08;
-}
-
-.env__row[data-tone="danger"] .env__value {
-  color: #8f2318;
-}
-
-.env__row[data-tone="danger"] .env__note {
-  color: #8f2318;
-  font-weight: 700;
-}
-
-.env__empty {
-  margin: 0;
-  font-size: var(--text-sm, 0.875rem);
-  color: var(--text-muted, #5d6a61);
 }

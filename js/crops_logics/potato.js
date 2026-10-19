@@ -4,10 +4,10 @@
  * One file per crop; `docs/crops.md` explains every number. The shape is identical
  * across all five files, and `config/crops.js` assembles them into `CROPS`.
  *
- * `available: true` — all five growth stages are on disk. Note that `potato_3..5.png`
- * are currently rice sprites under potato names (see `config/assets.js`); they are
- * placeholders and will be replaced in place, under the same filenames, so nothing
- * here changes when the real art lands. The land gate (4 plots) still governs buying.
+ * `available: true` — all five growth stages are on disk. Stages 3-5 arrived as rice-art
+ * placeholders in `54b5583` and were replaced with the real art in place, under the same
+ * filenames, in `a02a62e`; the registry kept the placeholder sizes until ISS-105. The
+ * land gate (4 plots) still governs buying.
  *
  * `seedPrice * 2 = yield * sellPrice`: 200 in, 400 out at full health. That ratio is
  * the game's risk model, and the two columns are never tuned apart.

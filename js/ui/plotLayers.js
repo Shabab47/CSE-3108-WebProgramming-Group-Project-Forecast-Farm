@@ -24,7 +24,7 @@
 import { el, setText } from '../utils/dom.js';
 import { cropOf } from '../config/crops.js';
 import { WATER } from '../config/game.js';
-import { cropFailureImg, cropStageImg, groundTile } from '../config/assets.js';
+import { cropFailureImg, cropStageImg, groundTile, lockPin } from '../config/assets.js';
 import { bandFor, waterState } from '../domain/plotWater.js';
 import { damageSprite, damageWord } from '../domain/damage.js';
 import { growthMeter } from './growthMeter.js';
@@ -263,16 +263,25 @@ export function plotLayers(plot, { isOwned, isNext, isReady, grown, isWatered, p
   }
 
   if (!isOwned) {
-    // The padlock, and centred. The "Buy" caption that used to sit under it is gone:
+    // The lock pin, and centred. The "Buy" caption that used to sit under it is gone:
     // it landed in the half of the diamond the plot in front paints over, so it read
-    // "BU.." or "..UY" depending on the row. The padlock says the same thing and
-    // survives every row.
+    // "BU.." or "..UY" depending on the row. The pin says the same thing and survives
+    // every row.
     //
-    // `plot--next` keeps it bright and `plot--locked` dims it, so the two unowned
-    // states are told apart at a glance without a second icon.
+    // The pin carries the state by **colour**, not by opacity: green on the one plot
+    // that can be bought next, red on the rest (DEC-047). That is why `plot--locked`
+    // dims the ground rather than the whole tile — a filter on the tile would grey the
+    // red pin into a second, muddier "off" state, and the two pins would stop being
+    // distinguishable at a glance.
     layers.push(
       el('span', { class: 'plot__lock' }, [
-        el('span', { class: 'plot__lock-icon', text: '🔒', 'aria-hidden': 'true' }),
+        el('img', {
+          class: 'plot__lock-icon',
+          src: lockPin(isNext),
+          alt: '',
+          draggable: 'false',
+          'aria-hidden': 'true',
+        }),
       ]),
     );
 

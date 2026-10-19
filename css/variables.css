@@ -31,6 +31,12 @@
   --gold: #f0a92e;
   --gold-glow: rgba(240, 169, 46, 0.45);
 
+  /* The Environment card's meter fills: water loss, UV heat, frost. Readable under
+   * the card's dark brown text, which is why they are pastels and not signals. */
+  --meter-water: #b7d9f2;
+  --meter-heat: #fbdcbd;
+  --meter-frost: #d8ecf7;
+
   --shadow-card:
     0 1px 2px rgba(31, 39, 33, 0.04), 0 8px 24px rgba(31, 39, 33, 0.06);
   --shadow-pop:

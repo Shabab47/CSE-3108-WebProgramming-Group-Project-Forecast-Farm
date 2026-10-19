@@ -5,12 +5,16 @@
  * which the plot inspector now shows far better — and it was a card about a *machine* on a
  * rail whose job is the sky.
  *
- * ## Why rows disappear
+ * ## Why rows are meters now
  *
- * `environmentFacts()` drops anything calm and unremarkable. Six rows where four say
- * "fine" is a list nobody reads and a list where the frost line is easy to miss. The one
- * row always kept is **drying**, because every water decision on the farm is made against
- * that number.
+ * Every row left on the card is a **meter**: a label, the number it is about, the note that
+ * says what to do, and a bar whose fill is that number against its own scale. The fill
+ * comes from `environmentFacts()` rather than this file — the bar must agree with the
+ * number printed beside it, and a UI that divides by its own maximum is a second rule that
+ * can disagree with the first.
+ *
+ * Rain, wind and humidity are not here because the board already reports them. What is
+ * left is what the board cannot show: water loss, heat and frost.
  *
  * ## Why the note is always printed
  *
@@ -22,13 +26,11 @@
 import { el, clear } from '../utils/dom.js';
 import { environmentFacts } from '../domain/environment.js';
 
-const TITLES = {
-  drying: 'Drying',
-  frost: 'Frost risk',
-  rain: 'Rain',
-  wind: 'Wind',
-  humidity: 'Humidity',
-  uv: 'UV',
+/** One emoji per meter, at the right end of the bar. Decorative; the label is the meaning. */
+const ICONS = {
+  drying: '💦',
+  frost: '❄️',
+  uv: '🔥',
 };
 
 /**
@@ -62,14 +64,21 @@ export function mountEnvMetrics(root, state, now = Date.now()) {
         'data-tone': fact.tone,
         'data-id': fact.id,
       }, [
-        el('span', { class: 'env__pill-label', text: TITLES[fact.id] ?? fact.label }),
+        el('span', {
+          class: 'env__pill-fill',
+          style: `width: ${fact.fill}%`,
+          'aria-hidden': 'true',
+        }),
+        el('span', { class: 'env__pill-label', text: fact.label }),
         el('span', { class: 'env__pill-value', text: fact.value }),
         el('span', { class: 'env__pill-note', text: fact.note }),
+        el('span', {
+          class: 'env__pill-icon',
+          text: ICONS[fact.id] ?? '',
+          'aria-hidden': 'true',
+        }),
       ])
     )));
-
-    // Add a clear fix for the floated pills
-    card.append(el('div', { style: 'clear: both' }));
   }
 
   render();

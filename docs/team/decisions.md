@@ -30,6 +30,121 @@ Format: who decided, the choice, why, and what was rejected.
 
 ---
 
+### DEC-049 The field fit is retuned by eye: `0.2320 / 0.502 / 0.466 / 0.2`
+**Decided by:** Jim, on the running page · 2026-10-19
+
+**Choice:** `tileScale: 0.2320`, `originX: 0.502`, `originY: 0.466`, `pumpScale: 0.2`.
+
+This supersedes DEC-034's **numbers**, not its reasoning: an even rim is still geometrically
+impossible — the solve is still `t ≈ 0.243`, `r ≈ -0.015` (ISS-071) — and the target changed.
+`0.2296` filled the top face front-to-back, exact on paper, and on the page it left the back rows
+reading low against the face's top edge. `0.2320` stands the front and back rows about 0.003 of the
+frame (~2 px at a 720 px stage) proud of the face and takes the side border to ~0.008; the origin
+moved to `(0.502, 0.466)` — a pixel left of, and 0.004 below, the face centre `(0.503, 0.462)` —
+which is what sits the cluster level **on the slab rather than on its solve**.
+
+`pumpScale` dropped `0.25 → 0.2`: `pump.png`'s art is 27.9% of its canvas, so the visible pump was
+~30% of a plot's width and is now ~24%, which stops it competing with the plots it stands between.
+The box is still ~3.6× wider than the art — that ratio is fixed by the canvas — which is why the
+pump layer carries `pointer-events: none` (ISS-007).
+
+**Why not re-solve.** The solver's values are exact against the art and were the wrong picture on
+the page, and the debug slider panel that would make retuning arithmetic rather than judgment does
+not exist yet. When it does, these are the values it should open at.
+
+---
+
+### DEC-048 Crop sprites are nudged onto the soil, on the art's own centre
+**Decided by:** Jim, from a user report · 2026-10-19
+
+**Choice:** `.plot__crop` sits at `bottom: 1.5%; left: 49.5%` in `css/scene.css`, and
+`.plot__damage` carries the same offset as `transform: translate(-0.5%, -1.5%)`, so the pair can
+never drift apart.
+
+**Why a nudge is needed at all.** The layers are already full-size (`width: 100%`, `bottom: 0`
+since ISS-084) because the canvases are matched — both 1000×1000, art to the same edge. What is
+*not* matched is the art's centre inside those canvases: the crop art sits ~15 px of canvas lower
+than the ground art's own centre, so the plant spills over the front edge while the back corner
+shows bare soil. `bottom: 1.5%` is that offset given back.
+
+**Why only 0.5% horizontally.** The alpha boxes alone read a few pixels the other way — under 1 px
+apart at stage sizes — so the horizontal shift is sub-pixel and was called by eye against the
+running page.
+
+**Why the damage layer moves by `transform`, not by `bottom`/`left`.** It keeps `inset: 0`,
+`width/height: 100%` and `object-fit: contain`; moving it with `bottom`/`left` would change what
+its box means to every layer that anchors to it.
+
+**Rejected:**
+- **ISS-072's suggested `width: 99%; bottom: 21%`.** It re-solved the whole layer against a reading
+  of the CSS that ISS-084 had already fixed, and it would have shrunk the plant — exactly what
+  ISS-084 removed. The offset is 1.5%, not 21%.
+- **`object-position` on the `<img>`.** Same picture today, but the *box* would stay mis-centred
+  for anything that later anchors to it.
+
+---
+
+### DEC-047 A locked plot's pin says which lock it is by colour
+**Decided by:** Jim · 2026-10-19
+
+**Choice:** one pin sprite in two colours. `lock_pin_green.png` marks the locked plot the next
+purchase unlocks; `lock_pin_red.png` marks every other locked plot. Both are 141×229, registered in
+`js/config/assets.js` (`environment`, `page: 'field'`), and rendered by `plotLayers.js`'s
+`lockPin(isNext)` inside `.plot__lock`, centred on the tile.
+
+**Why colour on one sprite.** The field's land states were already three (`owned` / `next` /
+`locked`), and the pin is the marker that survives at tile scale. Colour is the fastest way to split
+"buy this one" from "not yet", and it is one artwork rather than two.
+
+**Why the pin replaces the "Buy" caption, not joins it.** The caption sat in the lower half of the
+diamond — the half the plot in front paints over — so it read `BU..` or `..UY` depending on the row.
+The pin replaces it and survives every row. The price tag stays for the number.
+
+**Why a locked plot dims only its ground.** `.plot--locked` filters `.plot__ground`, not the tile:
+a filter on the whole tile would grey the red pin into a second, muddier "off" state and the two
+pins would stop being distinguishable at a glance. `plot--next` needs no rule of its own — the green
+pin is simply drawn at full colour.
+
+**Sizing:** `.plot__lock-icon` is `40cqi` tall — a percentage of the plot's own width, via
+`container-type: inline-size` — because the art is taller than it is wide: the height is the number
+and the width follows the aspect ratio. At 1440×900 the pin is ~78 px in a 196 px box, and its
+point clears the plots in front and behind.
+
+---
+
+### DEC-046 The environment card is three meters — water, frost, heat — and each bar's fill is the domain's
+**Decided by:** Jim + user · 2026-10-19
+
+**Choice:** `environmentFacts()` returns exactly three readings, always all three, most urgent
+first — **Water** (`drying`): how fast the ground is losing water this hour; **Frost**: the coldest
+hour of the next twelve; **Heat** (`uv`): the UV peak. Each renders as a meter: label and value on
+the left, the note through the middle, the emoji at the right end, and a bar whose fill comes from
+the fact itself.
+
+**Why these three.** The card used to republish rain, wind and humidity, which the weather board
+already prints — the same number twice, once with a sentence attached. What is left is the half of
+the API response the board *cannot* show.
+
+**Why the fill is computed in `domain/environment.js`.** A UI that divides by its own maximum is a
+second rule, one bug away from a bar that disagrees with the number printed beside it. The scales
+are the game's own constants, none invented here: the water bar is `dry / 24`, where 24/h is the
+fastest bare soil can dry (`baseDecayPerHour` × the top of `EVAPORATION_PER_HOUR`); the heat bar is
+`peak / 11`, the top of the UV index; the frost bar is `(10 − coldest) / 10`, inverted, so a full
+frost meter is a warning. Frost at 2 °C is the same line `classifyHour()` uses, so the card can
+never call a night frost-free while the simulator is charging for frost.
+
+**Why every row is always shown.** The first version dropped calm rows, and on an ordinary day that
+left a single row, which read as broken rather than quiet. The **tone** is what changes; the note
+says what to do and is printed even when calm. A red bar that says nothing is a bar the player has
+to work out. A missing API field keeps its row too — the card's shape does not reflow.
+
+**Rejected:**
+- **Six readings, all shown.** The card's first shape; three of the six were the board's numbers.
+- **Dropping calm rows.** See above — "nothing to flag" must be visible.
+- **Dividing in the UI (`value / max`).** A second source of truth for the same reading.
+
+---
+
 ### DEC-042 Difficulty: Normal and Easy, and Easy protects only a ripe crop
 **Decided by:** requested by the team · 2026-10-18
 
@@ -554,6 +669,11 @@ the one the reference has.
   one change that fixes the mismatch at its source, and it squashes every ground diamond by 2.7% —
   visible distortion of art that AGENTS.md section 5 records as measured. Wrong end of the problem:
   the art is the input and the fit is the output.
+
+**Superseded in part by DEC-049 (2026-10-19).** The values moved — `tileScale 0.2296 → 0.2320`,
+origin `(0.503, 0.462) → (0.502, 0.466)`, `pumpScale 0.25 → 0.2`. The reasoning above stands
+unchanged: there is no even rim, the solve is still `r = -0.015`, and the fit is still a choice —
+DEC-049 records the choice made against the running page rather than the solver.
 
 ---
 

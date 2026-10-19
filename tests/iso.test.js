@@ -118,13 +118,18 @@ test('base.png cannot give the cluster an even rim, at any tileScale', () => {
   assert.ok(FIELD.tileAspect > BASE.height / BASE.width, 'a cluster of these tiles is too tall');
 });
 
-test('tileScale fills the top face front-to-back and leaves a border at the sides', () => {
+test('tileScale covers the top face, standing slightly proud of it front-to-back', () => {
+  // Retuned to `0.2320` by eye on the running page (DEC-049). DEC-034's `0.2296`
+  // fitted the face front-to-back exactly; the bigger tiles give that up and stand
+  // ~0.0027 of the frame width proud at the back and front (~2px at a 720px stage),
+  // narrowing the side border from 0.013 to 0.0076. The slab cannot give an even rim
+  // either way — ISS-071 has the arithmetic.
   const box = clusterBox();
   const rimX = (BASE.width - box.width) / 2;
   const rimY = (BASE.height - box.height) / 2;
 
-  assert.ok(Math.abs(rimY) < 0.001, `the back and front rows reach the face's edge (rim ${rimY})`);
-  assert.ok(Math.abs(rimX - 0.0127) < 0.002, 'and the sides keep a border');
+  assert.ok(Math.abs(rimY + 0.0027) < 0.001, `the back and front rows stand ${-rimY} proud`);
+  assert.ok(Math.abs(rimX - 0.0076) < 0.002, 'and the sides keep a border');
   assert.ok(rimX > 0, 'which is the only rim this slab can give');
 });
 
@@ -144,10 +149,11 @@ test('frameY maps the base onto the frame, and crops nothing off the base', () =
   assert.ok(Math.abs(FIELD.baseArtTop - 0.202) < 1e-9, 'slab top');
   assert.ok(Math.abs(FIELD.baseArtTop + FIELD.baseArtHeight - 0.798) < 1e-9, 'slab bottom');
 
-  // The top face's centre, where the pump stands, therefore sits *above* the frame's
-  // midline: the skirt below it drags the frame down. Centring on the bounding box
-  // instead is exactly what ISS-069 was.
-  assert.ok(Math.abs(frameY(FIELD.originY) - 0.4362) < 0.001, 'the cross is 0.4362 down the frame');
+  // The origin, where the pump stands, therefore sits *above* the frame's midline: the
+  // skirt below it drags the frame down. Centring on the bounding box instead is
+  // exactly what ISS-069 was. `originY` is 0.004 below the face's measured centre of
+  // 0.462, by the same eyes-on retune as `tileScale` (DEC-049).
+  assert.ok(Math.abs(frameY(FIELD.originY) - 0.44295) < 0.001, 'the cross is 0.443 down the frame');
   assert.ok(frameY(FIELD.originY) < frameY(0.5), 'which is above the frame centre');
 });
 
@@ -263,9 +269,12 @@ test('the pump is the stage centre, sized by pumpScale', () => {
   assert.equal(pump.y, FIELD.originY);
   assert.equal(pump.size, FIELD.pumpScale);
 
-  // pump.png is 1000x1000 with 279x237 of art, so the visible pump is about three tenths
-  // of a plot's width. That ratio is why ISS-007 warns about the click target.
-  assert.ok(Math.abs((pump.size * 0.279) / FIELD.tileScale - 0.304) < 0.005);
+  // pump.png is 1000x1000 with 279x237 of art, so the visible pump is about a quarter
+  // of a plot's width at the shipped `pumpScale: 0.2` (0.2 x 0.279 / 0.2320 = 0.241).
+  // It was 0.25 / 0.304 before the eyes-on retune (DEC-049), and the ratio no longer
+  // carries the click problem it once did — the `<img>` is `pointer-events: none` and
+  // the button is clipped to the art (ISS-007).
+  assert.ok(Math.abs((pump.size * 0.279) / FIELD.tileScale - 0.2405) < 0.005);
 });
 
 test('the grid is mirror-symmetric: (col,row) and (row,col) straddle the vertical axis', () => {

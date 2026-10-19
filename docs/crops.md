@@ -151,6 +151,11 @@ crossed, and never decreases:
 | `waterlogged` | **above the target** for 2 h | 12 health | `<crop>_waterlogged.png` |
 | `dead` | health reaches 0 | — | `<crop>_dead.png` |
 
+**Rice and potato shipped under different names** for the first two states —
+`rice_drought_killed.png`, `rice_rain_damaged.png`, `potato_drought_killed.png`,
+`potato_rain_damaged.png`. `CUSTOM_FAILURE_NAMES` in `js/config/assets.js` is the one place that
+knows, and the generic names above are what every other crop will be asked for (ISS-106).
+
 Two thresholds on purpose. The floor asks *how the crop is faring*; zero asks *whether it
 is dying*, and only the second drains health per hour. A plot can be badly faring and
 still perfectly alive.
@@ -164,9 +169,10 @@ permanently worth less. Blocking the harvest would rebuild the ISS-006 trap: a p
 nothing to do until it is cleared by hand, and no second failure state available at that
 point.
 
-**The sprites are Zim's**, named in `cropFailureImg()`. All three are 0 bytes until the art
-lands, so `plotLayers.js` draws the word beside them — a missing picture rather than a
-missing fact.
+**The sprites are Zim's**, named in `cropFailureImg()`. Rice and potato's drought and rain sprites
+have landed (under the custom names above); **no crop has a `dead` sprite yet** — the file does not
+exist, and the state shows as a hole plus the word beside it. `plotLayers.js` draws that word for
+every crop still waiting on art: a missing picture rather than a missing fact.
 
 > **This is implemented (T-09).** Until then `plot.waterLevel` was `0` on every plot from
 > creation and nothing ever wrote it again, so the formula above described a system that was
@@ -407,6 +413,12 @@ table nobody has thought through.
 Crop sprites are drawn slightly taller than the ground tile (h/w 0.589 against 0.538). That is
 intentional: plants should stand proud of the soil. Do not "fix" it by scaling crop layers to
 match the ground, or the tops will be clipped.
+
+They are also **nudged** onto the soil: `.plot__crop` sits at `bottom: 1.5%; left: 49.5%` and
+`.plot__damage` carries the same offset as a transform, because the art's centre inside its canvas
+is ~15 px lower than the ground art's and the plant would otherwise spill over the front edge
+(ISS-072, DEC-048). A nudge, not a scale — the two layers move together, pinned by
+`tests/farmView.test.js`.
 
 ### Growth stages and damage states
 
