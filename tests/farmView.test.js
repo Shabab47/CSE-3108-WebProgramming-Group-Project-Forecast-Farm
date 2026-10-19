@@ -128,30 +128,43 @@ test('the box is inert and one clipped layer inside it takes the pointer', () =>
   assert.match(ruleFor('.plot__hit').exec(css)?.[0] ?? '', /pointer-events:\s*auto/);
 });
 
-test('a crop sprite is laid at the same size as the soil it stands on', () => {
+test('a crop sprite is laid at the soil\'s size, then nudged onto it', () => {
   // Measured from the alpha bounding boxes, in `css/scene.css`: the ground's art is
-  // 99.1% of its canvas and every rice stage is 97.4–99.8%, and all of them bottom
-  // out at y 757–801 against the ground's 757. They were drawn as a matched pair.
+  // 99.1% of its canvas and every rice stage is 97.4–99.8%. They were drawn as a
+  // matched pair of canvases — but the art inside them is not concentric. The rice
+  // patch centres at (499.5, 499.5) of the 1000 canvas against the ground's
+  // (504.2, 483.8): canvas-aligned, the grass sits ~15px low, spilling over the
+  // front edge with bare soil at the back corner. The nudge is what the two `bottom`
+  // / `left` assertions and the damage transform below pin (ISS-072, DEC-048).
   //
   // `.plot__crop` was `width: 70%`, which drew the plant at roughly 68% of the
   // diamond's width, and `bottom: 10%`, which floated it above the soil. Every stage
   // looked like a sprout on a dinner plate. Nothing throws, nothing is missing, and
   // no unit test can see a size — so the stylesheet is the assertion.
   const css = readFileSync(new URL('../css/scene.css', import.meta.url), 'utf8');
-  const ruleFor = (selector) => new RegExp(`${selector.replace(/[.]/g, '\\.')}\\s*\\{([^}]*)\\}`).exec(css)?.[1] ?? '';
+  // Anchored to the start of a line, and that is load-bearing: `\.plot__ground\s*\{`
+  // unanchored also matches the tail of `.plot--locked .plot__ground { ... }`, which is a
+  // descendant rule with no `width` in it, so the ground's width came back `undefined`.
+  const ruleFor = (selector) => new RegExp(`^\\s*${selector.replace(/[.]/g, '\\.')}\\s*\\{([^}]*)\\}`, 'm').exec(css)?.[1] ?? '';
   const decl = (rule, property) => new RegExp(`${property}\\s*:\\s*([^;]+)`).exec(rule)?.[1]?.trim();
 
   const ground = ruleFor('.plot__ground');
   const crop = ruleFor('.plot__crop');
+  const damage = ruleFor('.plot__damage');
 
   assert.equal(
     decl(crop, 'width'),
     decl(ground, 'width'),
     'the crop canvas is the same size as the ground canvas — both are 1000x1000',
   );
-  assert.equal(decl(crop, 'bottom'), '0', 'and shares its bottom edge, which is where the art sits');
-  assert.equal(decl(crop, 'left'), '50%', 'horizontally centred on the diamond');
+  assert.equal(decl(crop, 'bottom'), '1.5%', 'nudged 15px of the canvas up, onto the soil');
+  assert.equal(decl(crop, 'left'), '49.5%', 'and the sub-pixel eyelash beside it');
   assert.match(decl(crop, 'transform') ?? '', /translateX\(-50%\)/);
+  assert.match(
+    decl(damage, 'transform') ?? '',
+    /translate\(-0\.5%,\s*-1\.5%\)/,
+    'the damage sprite takes the same nudge — the two draw as a pair',
+  );
 
   // And nothing between the plot and the stage clips the extra height the crops are
   // drawn with on purpose — `docs/crops.md` says so, and clipping the tops is the one
@@ -194,6 +207,17 @@ test('the free plot is plain ground, and exactly one of the rest is for sale', (
   assert.equal(withClass(next[0], 'plot__lock').length, 1, 'and is still padlocked');
   assert.equal(withClass(next[0], 'plot__price').length, 1, 'the next plot carries its price');
   assert.equal(next[0].getAttribute('disabled'), null, 'and is clickable');
+
+  // The two unowned states are told apart by the pin's colour (DEC-047): green on the
+  // one plot that can be bought next, red on the fourteen that cannot. The old lock
+  // emoji carried the same distinction by brightness, which a red pin cannot do.
+  const pinSrc = (tile) => withClass(tile, 'plot__lock-icon')[0].getAttribute('src');
+  assert.match(pinSrc(next[0]), /lock_pin_green\.png$/, 'the plot on offer wears the green pin');
+  assert.ok(
+    locked.every((tile) => /lock_pin_red\.png$/.test(pinSrc(tile))),
+    'and every locked plot wears the red one',
+  );
+  assert.equal(pinSrc(next[0]).startsWith('/'), false, 'a relative path, so the game works under a subpath');
 
   const onOffer = UNLOCK_ORDER[1]; // index 0 is the free starter's own slot
   assert.equal(

@@ -27,21 +27,28 @@ export const FIELD = {
    * Up to T-54 the box was `tileScale * tileAspect` tall. That fits a square canvas to
    * the box's *height*, so every plot drew at half the size the geometry assumed and sat
    * in a gap twice `gap` wide. Over half the stage, that is the "doesn't fit properly"
-   * the field was reported for. ISS-070. */
-  tileScale: 0.2296,
+   * the field was reported for. ISS-070.
+   *
+   * Retuned `0.2296 -> 0.2320` by eye on the running page (DEC-049): ~2px bigger a plot
+   * at a 720px stage, at the cost of ~2px of overhang front-to-back that DEC-034's exact
+   * face fit did not have. An even rim was never available (ISS-071). */
+  tileScale: 0.2320,
   tileAspect: 0.538, // diamond height / width, measured from ground_unwatered.png
   gap: 0.03, // gap between plots, in tile units
   crossGap: 0.12, // extra gap at the centre cross, in tile units
 
-  /* The slab's **top face** centre — the surface the plots stand on — not the centre of
-   * its bounding box. `base.png` is an extruded slab: the top face is 992 x 520 centred
-   * at canvas (0.503, 0.462), and the ~72px skirt hanging below it drags the bounding box
+  /* The slab's **top face** — the surface the plots stand on — not the centre of its
+   * bounding box. `base.png` is an extruded slab: the top face is 992 x 520 centred at
+   * canvas (0.503, 0.462), and the ~72px skirt hanging below it drags the bounding box
    * centre down to y 0.4995. Using the bounding box centre put the whole field 3.7% of
-   * the frame too low, with the front row hanging off the bevel onto the skirt. ISS-069. */
-  originX: 0.503,
-  originY: 0.462,
+   * the frame too low, with the front row hanging off the bevel onto the skirt. ISS-069.
+   *
+   * The shipped origin is a pixel left of the measured face centre and 0.004 below it:
+   * the same eyes-on retune as `tileScale` (DEC-049). */
+  originX: 0.502,
+  originY: 0.466,
 
-  pumpScale: 0.25, // pump.png is 1000x1000 with the pump art 27.9% wide
+  pumpScale: 0.2, // pump art is 27.9% of its canvas — about a quarter of a plot here (DEC-049)
 };
 
 /** Zone names, by compass position on the isometric grid. */

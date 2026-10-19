@@ -96,9 +96,11 @@ export function plotToScreen(col, row) {
  * The pump: the same centre formula at `u = v = 0`, sized by `pumpScale`.
  *
  * `pump.png` is 1000×1000 with its art occupying only the middle 279×237, so `size`
- * describes the **box** and the visible pump is 27.9% of it — about a third of one
- * plot's width. That ratio is the whole of ISS-007: a pump click target as wide as
- * this box covers the tips of four neighbouring plots.
+ * describes the **box** and the visible pump is 27.9% of it — about a quarter of one
+ * plot's width at the shipped `pumpScale: 0.2`. That ratio was the whole of ISS-007:
+ * a pump click target as wide as this box covers the tips of four neighbouring plots.
+ * The box is now inert (`pointer-events: none`) and the button is clipped to the art,
+ * so the mismatch is visual only.
  *
  * `translate(-50%, -50%)` in `css/scene.css` puts the box centre on this point, and
  * the art is centred in its box, so the pump's art lands on the cross.

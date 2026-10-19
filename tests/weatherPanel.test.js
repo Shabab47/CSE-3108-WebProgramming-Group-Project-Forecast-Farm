@@ -370,9 +370,10 @@ import { aimPump, setPump, costOf, pumpRun } from '../js/domain/pump.js';
 import { applyDamage, damageFor, damageSprite, damageWord } from '../js/domain/damage.js';
 import { alertsToRaise, currentTrouble, forProjection, plantedCrops, wateringAdvice } from '../js/domain/notifications.js';
 import {
-  FROST_C, HIGH_HUMIDITY, STRONG_WIND_KMH, environmentFacts,
+  FROST_C, FROST_NEAR_C, UV_HIGH, UV_MAX, environmentFacts,
 } from '../js/domain/environment.js';
 import { buildInitialState } from '../js/state/initialState.js';
+import { cropFailureImg } from '../js/config/assets.js';
 import { DAMAGE, HEALTH, OPTIMAL, WATER } from '../js/config/game.js';
 import { EVAPORATION_PER_HOUR, RAIN_WATER_PER_HOUR } from '../js/config/weatherEvents.js';
 
@@ -1079,6 +1080,21 @@ test('a plot with no crop cannot be damaged', () => {
     'the rule still answers; water.js is what declines to apply it to bare soil');
 });
 
+test('damage sprites are asked for by the names that are on disk', () => {
+  // ISS-106. Rice and potato both delivered their dry/waterlogged art under custom names,
+  // and the generic `<cropId>_<failure>.png` for either is a file that does not exist —
+  // which shows as a broken image on the plot while nothing says why. The registry test
+  // proves the paths below are files; this proves the game asks for those paths.
+  assert.equal(cropFailureImg('rice', 'dry'), 'assets/images/crops/rice/rice_drought_killed.png');
+  assert.equal(cropFailureImg('rice', 'waterlogged'), 'assets/images/crops/rice/rice_rain_damaged.png');
+  assert.equal(cropFailureImg('potato', 'dry'), 'assets/images/crops/potato/potato_drought_killed.png');
+  assert.equal(cropFailureImg('potato', 'waterlogged'), 'assets/images/crops/potato/potato_rain_damaged.png');
+
+  // Everything else follows the documented pattern, including the art that has not landed.
+  assert.equal(cropFailureImg('wheat', 'dry'), 'assets/images/crops/wheat/wheat_dry.png');
+  assert.equal(cropFailureImg('tomato', 'dead'), 'assets/images/crops/tomato/tomato_dead.png');
+});
+
 test('applyDamage returns the same object when nothing changes', () => {
   // Identity matters: `tick` uses it to decide whether to hand back a new plot at all,
   // and a fresh object every tick would make the field repaint forever.
@@ -1194,24 +1210,28 @@ test('a dead crop is not on the watering list', () => {
 /* --- T-11 the environment card ------------------------------------------------- */
 
 test('the environment card answers what the weather is doing to the farm', () => {
-  // The board *reports* the weather; this says what it costs. Drying is always shown,
-  // because it is the number every water decision is made against, and it is bare-soil
-  // evaporation — the fastest anything on the farm dries.
+  // The board *reports* the weather; this says what it costs. The water meter is always
+  // shown, because it is the number every water decision is made against, and it is
+  // bare-soil evaporation — the fastest anything on the farm dries.
   const facts = environmentFacts({ weather: env({ temp: 32, humidity: 45 }) });
   const drying = facts.find((f) => f.id === 'drying');
 
-  assert.ok(drying, 'drying is always reported');
+  assert.ok(drying, 'the water meter is always reported');
+  assert.equal(drying.label, 'Water');
   assert.equal(drying.value, '12 /h', '8 x waterNeed 1 x sunny evaporation 1.5');
   assert.equal(drying.tone, 'warn');
+  assert.equal(drying.fill, 50, 'half of the 24/h a drought can reach');
 });
 
-test('every threshold on the card is the one the game already uses', () => {
-  // Frost 2, wind 40, humidity 85 — the same comparisons `classifyHour` makes. A card
-  // that invents its own numbers can tell a player a day is frost-free while
-  // `verdictFor` is charging them for frost.
+test('every threshold and scale on the card is one the game already uses', () => {
+  // Frost 2 is the comparison `classifyHour` makes; the meter scales are the game's own
+  // ranges — 24/h is the fastest bare soil dries, 11 is the top of the UV index, and 10°C
+  // is where frost stops being worth a bar. A card that invents its own numbers can tell a
+  // player a day is frost-free while `verdictFor` is charging them for frost.
   assert.equal(FROST_C, 2);
-  assert.equal(STRONG_WIND_KMH, 40);
-  assert.equal(HIGH_HUMIDITY, 85);
+  assert.equal(UV_HIGH, 8);
+  assert.equal(UV_MAX, 11);
+  assert.equal(FROST_NEAR_C, 10);
 });
 
 test('a hot dry day warns about the things that cost you, and says what to do', () => {
@@ -1220,8 +1240,9 @@ test('a hot dry day warns about the things that cost you, and says what to do', 
 
   assert.equal(by.drying.tone, 'danger', 'drought evaporation is 24/h and it is the top row');
   assert.equal(by.drying.value, '24 /h');
-  assert.ok(by.humidity, 'dry air is called out, because it compounds the drying');
-  assert.ok(by.uv, 'and high UV, because a player stands in a field');
+  assert.equal(by.drying.fill, 100, 'the bar is full when the ground is losing everything');
+  assert.equal(by.uv.label, 'Heat');
+  assert.equal(by.uv.fill, 82, 'UV 9 against the top of the index, 11');
   assert.match(by.uv.note, /very high|high/);
 });
 
@@ -1230,15 +1251,18 @@ test('every reading is reported, always, and the tone is what changes', () => {
   // day, so it read as broken rather than as quiet. There is no way for a player to tell
   // "the sky is fine" from "this panel has failed" if the only thing it says when nothing
   // is wrong is nothing at all.
-  const facts = environmentFacts({ weather: env({ temp: 16, code: 3, humidity: 70, uv: 2 }) });
+  const facts = environmentFacts({
+    weather: env({ temp: 16, code: 3, humidity: 70, uv: 2, chance: 20, wind: 12 }),
+  });
 
   assert.deepEqual(
     facts.map((f) => f.id),
-    ['drying', 'frost', 'rain', 'wind', 'humidity', 'uv'],
-    'all six, in a fixed order',
+    ['drying', 'frost', 'uv'],
+    'all three, in a fixed order',
   );
   assert.ok(facts.every((f) => f.value !== '' && f.note !== ''), 'each has a value and a note');
   assert.ok(facts.every((f) => f.tone === 'calm'), 'and on a mild day they are all calm');
+  assert.ok(facts.every((f) => f.fill >= 0 && f.fill <= 100), 'with a fill inside the bar');
 });
 
 test('a missing reading keeps its row rather than vanishing', () => {
@@ -1247,9 +1271,10 @@ test('a missing reading keeps its row rather than vanishing', () => {
   const facts = environmentFacts({ weather: env({ temp: 20, humidity: 50, uv: 0, wind: 5 }) });
   const uv = facts.find((f) => f.id === 'uv');
 
-  assert.equal(uv.value, '—', 'UV reads as absent rather than being dropped');
+  assert.equal(uv.value, '—', 'heat reads as absent rather than being dropped');
   assert.equal(uv.tone, 'calm');
-  assert.equal(facts.length, 6, 'and the row count never changes');
+  assert.equal(uv.fill, 0, 'and the meter is empty, not broken');
+  assert.equal(facts.length, 3, 'and the row count never changes');
 });
 
 test('frost is reported even when it is far away, because the row is always there', () => {
@@ -1259,21 +1284,49 @@ test('frost is reported even when it is far away, because the row is always ther
   const frost = warm.find((f) => f.id === 'frost');
   assert.equal(frost.value, '32°C');
   assert.equal(frost.tone, 'calm', 'and it is calm, not alarming');
+  assert.equal(frost.fill, 0, 'and its meter is empty this far from freezing');
 
   const cold = environmentFacts({ weather: env({ temp: 6, temps: [6, 5, 4, 3, 2, 3, 5, 7] }) });
   assert.equal(cold.find((f) => f.id === 'frost').tone, 'warn', 'at 2C it is worth reading');
+  assert.equal(cold.find((f) => f.id === 'frost').fill, 80, 'and the bar is nearly full');
 });
 
-test('a storm says the wind will damage crops and that rain is coming', () => {
+test('a freezing night fills the frost bar, and colder cannot overflow it', () => {
+  const fill = (temps) => environmentFacts({ weather: env({ temp: temps[0], temps }) })
+    .find((f) => f.id === 'frost').fill;
+
+  assert.equal(fill([10, 11]), 0, 'exactly at the near point is an empty bar');
+  assert.equal(fill([5, 6]), 50, 'halfway down to freezing is half a bar');
+  assert.equal(fill([0, 1]), 100, 'freezing is a full bar');
+  assert.equal(fill([-8, -4]), 100, 'and colder than freezing does not push it past full');
+});
+
+test('the card carries only the farm readings, even in a storm', () => {
+  // Wind and rain used to have rows here, saying what the board's own meters and the
+  // forecast strip already say. They are gone; what the farm feels from a storm is still
+  // on the card.
   const facts = environmentFacts({
     weather: env({ code: 95, temp: 18, humidity: 90, chance: 90, wind: 45, uv: 1 }),
   });
   const by = Object.fromEntries(facts.map((f) => [f.id, f]));
 
-  assert.equal(by.wind.tone, 'danger');
-  assert.match(by.wind.note, /damage/, 'and says what it does, not just the number');
-  assert.ok(by.rain, 'rain is worth mentioning at 90%');
-  assert.equal(by.humidity.tone, 'calm', 'saturated air is good news, so it is calm');
+  assert.deepEqual(
+    Object.keys(by).sort(),
+    ['drying', 'frost', 'uv'],
+    'three meters, none of them the board numbers',
+  );
+  assert.equal(by.drying.value, '12 /h', 'strong wind still dries the ground');
+  assert.equal(by.drying.tone, 'warn');
+});
+
+test('rain that is falling is still said, in the water meter note', () => {
+  const facts = environmentFacts({ weather: env({ code: 95, temp: 18, uv: 1 }) });
+  const drying = facts.find((f) => f.id === 'drying');
+
+  assert.equal(drying.value, '0 /h', 'heavy rain stops the loss');
+  assert.match(drying.note, /rain is adding 50\/h/);
+  assert.equal(drying.tone, 'calm', 'and the meter says so rather than alarming');
+  assert.equal(drying.fill, 0, 'an empty water bar while it pours');
 });
 
 test('the most urgent fact sorts to the top', () => {

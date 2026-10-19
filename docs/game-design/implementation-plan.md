@@ -198,13 +198,13 @@ export const FIELD = {
   baseArtTop: 0.202,    // canvas y where the art starts -- `object-fit: cover` crops to it
   baseArtHeight: 0.596, // and how tall it is, so the visible band is 0.202..0.798
   frameAspect: 1 / 0.596, // 1000/596; repeated as `aspect-ratio` in css/scene.css
-  tileScale: 0.2296, // plot BOX side, as a fraction of the frame's width -- CHOSEN, see 6.2
+  tileScale: 0.2320, // plot BOX side, as a fraction of the frame's width -- CHOSEN, see 6.2
   tileAspect: 0.538, // diamond height / width -- MEASURED from ground_unwatered.png
   gap: 0.03,         // gap between plots, in tile units
   crossGap: 0.12,    // extra gap at the centre cross, in tile units
-  originX: 0.503,    // base.png TOP FACE centre -- the surface the plots stand on
-  originY: 0.462,    // ...not the bounding box centre at 0.4995; it is an extruded slab
-  pumpScale: 0.25,   // pump.png is 1000x1000 with the pump art 27.9% wide
+  originX: 0.502,    // the top face centres at (0.503, 0.462); these are the eyes-on values
+  originY: 0.466,    // that sit the cluster on it (DEC-049) -- it is an extruded slab
+  pumpScale: 0.2,    // pump.png is 1000x1000 with the pump art 27.9% wide
 };
 export const ZONES = { A: 'top', B: 'right', C: 'left', D: 'bottom' };
 // zone of (col,row): A col<2,row<2 | B col>=2,row<2 | C col<2,row>=2 | D col>=2,row>=2
@@ -284,13 +284,14 @@ which is a 72px vertical skirt, and the top face the plots stand on is 992 × 52
 The origin is that face's centre, *not* the bounding box centre at `0.4995` — taking the box centre
 puts the field 3.7% of the frame too low with the front row hanging on the bevel.
 
-`tileScale: 0.2296` is a **chosen fit, not a solved value**, because an even rim does not exist. The
+`tileScale: 0.2320` is a **chosen fit, not a solved value**, because an even rim does not exist. The
 4×4 cluster's outer diamond is 4.21 × tileScale wide and 2.265 × tileScale tall at the default gaps;
 solving `4.21t + 2r = 0.992` against `2.265t + 2r = 0.520` — the top face — gives `t ≈ 0.243` and
 **`r ≈ -0.015`**. The cluster is 2.7% too tall for the slab, because `ground_*.png`'s 0.538 does not
-tile a 0.524 surface, and no constant reconciles two shapes. `0.2296` fills the face front-to-back and
-leaves about 1.3% at the sides instead; filling the width instead overhangs the front and back rows
-onto the bevel, and an overhang reads as a bug where a border reads as design. See DEC-034.
+tile a 0.524 surface, and no constant reconciles two shapes. `0.2296` filled the face front-to-back —
+exact on paper — and left the back rows reading low on the page; `0.2320` stands the front and back
+rows about 0.003 of the frame proud instead and takes the side border to ~0.008. See DEC-034 and
+DEC-049.
 
 `base.png` also carries 202px of empty canvas above and below the slab, which is why the frame is
 `1000 / 596` rather than `1000 / 1000`: `object-fit: cover` crops that padding, so the stage's height

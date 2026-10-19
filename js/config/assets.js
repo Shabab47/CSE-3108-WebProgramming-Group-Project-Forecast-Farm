@@ -47,6 +47,11 @@ export const ASSETS = [
   { path: 'assets/images/pump.png', name: 'Pump', size: 73567, dimensions: '1000x1000', status: 'done', category: 'environment', page: 'field' },
   { path: 'assets/images/ground/ground_unwatered.png', name: 'Ground (unwatered)', size: 313529, dimensions: '1000x1000', status: 'done', category: 'environment', page: 'field' },
   { path: 'assets/images/ground/ground_watered.png', name: 'Ground (watered)', size: 318028, dimensions: '1000x1000', status: 'done', category: 'environment', page: 'field' },
+  // The lock pins on unowned plots: green on the one plot that can be bought next,
+  // red on the rest (DEC-047). 141x229, a portrait pin, so `scene.css` sizes them by
+  // height off the plot's own width.
+  { path: 'assets/images/pins/lock_pin_green.png', name: 'Lock pin - next plot (green)', size: 11357, dimensions: '141x229', status: 'done', category: 'environment', page: 'field' },
+  { path: 'assets/images/pins/lock_pin_red.png', name: 'Lock pin - locked (red)', size: 11187, dimensions: '141x229', status: 'done', category: 'environment', page: 'field' },
   { path: 'assets/images/crops/rice/rice_1.png', name: 'Rice — stage 1', size: 624896, dimensions: '1000x1000', status: 'done', category: 'crop-sprite', page: 'field' },
   { path: 'assets/images/crops/rice/rice_2.png', name: 'Rice — stage 2', size: 712164, dimensions: '1000x1000', status: 'done', category: 'crop-sprite', page: 'field' },
   { path: 'assets/images/crops/rice/rice_3.png', name: 'Rice — stage 3', size: 557278, dimensions: '1000x1000', status: 'done', category: 'crop-sprite', page: 'field' },
@@ -62,25 +67,25 @@ export const ASSETS = [
   { path: 'assets/images/crops/tomato/tomato_4.png', name: 'Tomato - stage 4', size: 1112306, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
   { path: 'assets/images/crops/tomato/tomato_5.png', name: 'Tomato - stage 5 (ISS-093: not square)', size: 1125057, dimensions: '1024x807', status: 'done', category: 'crop-sprite', page: 'field' },
 
-  // Potato stages, all five now on disk. Stages 1-2 are the delivered potato art;
-  // **stages 3-5 are currently rice sprites under potato names** — byte-identical to
-  // `crops/rice/rice_3..5.png` — and are placeholders to be replaced in place (same
-  // filenames), so no code changes when the real art lands. Registered with the
-  // dimensions the files actually have: 1-2 are 1024x1024, 3-5 are 1000x1000.
+  // Potato stages, all five now delivered art. Stages 1-2 arrived first; stages 3-5
+  // replaced the rice placeholders in place (same filenames) in `a02a62e`, so the
+  // registry still had the old rice sizes until ISS-105. All five are 1024x1024.
   { path: 'assets/images/crops/potato/potato_1.png', name: 'Potato - stage 1', size: 393079, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
   { path: 'assets/images/crops/potato/potato_2.png', name: 'Potato - stage 2', size: 509140, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
-  { path: 'assets/images/crops/potato/potato_3.png', name: 'Potato - stage 3 (placeholder: rice_3 art)', size: 557278, dimensions: '1000x1000', status: 'placeholder', category: 'crop-sprite', page: 'field' },
-  { path: 'assets/images/crops/potato/potato_4.png', name: 'Potato - stage 4 (placeholder: rice_4 art)', size: 646392, dimensions: '1000x1000', status: 'placeholder', category: 'crop-sprite', page: 'field' },
-  { path: 'assets/images/crops/potato/potato_5.png', name: 'Potato - stage 5 (placeholder: rice_5 art)', size: 589773, dimensions: '1000x1000', status: 'placeholder', category: 'crop-sprite', page: 'field' },
+  { path: 'assets/images/crops/potato/potato_3.png', name: 'Potato - stage 3', size: 793150, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
+  { path: 'assets/images/crops/potato/potato_4.png', name: 'Potato - stage 4', size: 795681, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
+  { path: 'assets/images/crops/potato/potato_5.png', name: 'Potato - stage 5', size: 880078, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
 
   // Damage sprites, built by `cropFailureImg(cropId, failure)` with failure one of
-  // `dry`, `waterlogged`, `dead`. Rice now has two of three: `rice_drought_killed.png`
-  // for dry and `rice_rain_damaged.png` for waterlogged. `dead` art has not landed yet;
-  // the entry is omitted until the file exists (see `cropFailureImg()` for the path).
-  // `plotLayers.js` draws the `damageWord()` text beside it, which is the DEC-014 rule:
-  // the text carries the meaning, the image is a hole for now.
+  // `dry`, `waterlogged`, `dead`. Rice and potato both use custom filenames for
+  // dry/waterlogged; see `cropFailureImg()`. `dead` art has not landed for either;
+  // the entry is omitted until the file exists. `plotLayers.js` draws the
+  // `damageWord()` text beside it, which is the DEC-014 rule: the text carries the
+  // meaning, the image is a hole for now.
   { path: 'assets/images/crops/rice/rice_drought_killed.png', name: 'Rice - dry damage (drought killed)', size: 794692, dimensions: '1000x1000', status: 'done', category: 'crop-sprite', page: 'field' },
   { path: 'assets/images/crops/rice/rice_rain_damaged.png', name: 'Rice - waterlogged damage (rain damaged)', size: 689884, dimensions: '1000x1000', status: 'done', category: 'crop-sprite', page: 'field' },
+  { path: 'assets/images/crops/potato/potato_drought_killed.png', name: 'Potato - dry damage (drought killed)', size: 943834, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
+  { path: 'assets/images/crops/potato/potato_rain_damaged.png', name: 'Potato - waterlogged damage (rain damaged)', size: 909060, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
 
   // Flat copies of the five rice sprites, delivered at this path before the per-crop
   // folder convention existed. Byte-identical to `crops/rice/rice_N.png` and kept,
@@ -191,6 +196,16 @@ export function groundTile(watered) {
     : 'assets/images/ground/ground_unwatered.png';
 }
 
+/**
+ * The pin on an unowned plot: green on the one plot that can be bought next, red on
+ * the rest. 141x229, drawn as an overlay — see `plotLayers.js` and DEC-047.
+ */
+export function lockPin(isNext) {
+  return isNext
+    ? 'assets/images/pins/lock_pin_green.png'
+    : 'assets/images/pins/lock_pin_red.png';
+}
+
 /** The seed packet the shop lists for a crop. 1312×1199 for every crop. */
 export function cropSeedImg(cropId) {
   return `assets/images/crops/${cropId}/${cropId}%20seed.png`;
@@ -209,16 +224,29 @@ export function cropStageImg(cropId, stage) {
  * under different filenames, change this and the `damageSprite()` cases together, rather
  * than leaving a sprite that never resolves.
  *
- * Rice uses custom filenames for dry/waterlogged: `rice_drought_killed.png` and
- * `rice_rain_damaged.png`. Other crops follow the standard `<cropId>_<failure>.png` pattern.
- * The `dead` sprite for rice is still 0 bytes.
+ * Two crops shipped their dry/waterlogged art under custom names rather than the generic
+ * `<cropId>_<failure>.png`, and the game has to ask for what is actually on disk — rice
+ * first, then potato, whose two sprites were delivered in `a02a62e` (ISS-106). Everything
+ * without an entry here uses the generic pattern; the crops still waiting on damage art
+ * get a hole and the `damageWord()` text, which is DEC-014's rule.
  */
+const CUSTOM_FAILURE_NAMES = {
+  rice: {
+    dry: 'rice_drought_killed.png',
+    waterlogged: 'rice_rain_damaged.png',
+  },
+  potato: {
+    dry: 'potato_drought_killed.png',
+    waterlogged: 'potato_rain_damaged.png',
+  },
+};
+
+/** @see CUSTOM_FAILURE_NAMES */
 export function cropFailureImg(cropId, failure) {
-  if (cropId === 'rice') {
-    if (failure === 'dry') return 'assets/images/crops/rice/rice_drought_killed.png';
-    if (failure === 'waterlogged') return 'assets/images/crops/rice/rice_rain_damaged.png';
-  }
-  return `assets/images/crops/${cropId}/${cropId}_${failure}.png`;
+  const custom = CUSTOM_FAILURE_NAMES[cropId]?.[failure];
+  return custom
+    ? `assets/images/crops/${cropId}/${custom}`
+    : `assets/images/crops/${cropId}/${cropId}_${failure}.png`;
 }
 
 /** The weather icon for an event id. */

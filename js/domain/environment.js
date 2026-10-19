@@ -3,20 +3,26 @@
  *
  * ## Why this is separate from the board
  *
- * `weatherPanel.js` **reports** the weather — 32°C, 50% humidity, 9 km/h, six hours of
+ * `weatherPanel.js` **reports** the weather — 32°C, 55% humidity, 15 km/h, six hours of
  * icons. That is the right thing for a player who wants to know what it is like outside.
  *
  * This **answers for the farm**. The same 32°C is a number until you know it is drying
- * plots at 10.8 units an hour and that there is frost coming at four o'clock. Both are
+ * plots at 12 units an hour and that there is frost coming at four o'clock. Both are
  * already in the same API response and neither is on the board, because the board is
  * showing you the sky and this is showing you your crops.
  *
- * ## Every threshold here is the game's own
+ * **Rain, wind and humidity are deliberately not rows here.** The board already prints
+ * those three numbers; repeating them in the rail, with a sentence attached, was the
+ * card saying the same thing twice. What is left is what the board cannot show: how
+ * fast the ground is losing water, whether the cold will bite, and how hard the sun is.
  *
- * Nothing in this file invents a number. Frost at 2°C, strong wind at 40 km/h, high
- * humidity at 85% are the comparisons `classifyHour()` already makes in
- * `config/weatherEvents.js`, read from the same place so a card can never call a day
- * frost-free while `verdictFor()` is charging the player for frost.
+ * ## Every threshold and fill scale is the game's own
+ *
+ * Nothing in this file invents a number. Frost at 2°C is the comparison `classifyHour()`
+ * makes in `config/weatherEvents.js`; the fill scales read the game's own range — 24/h
+ * is the fastest bare soil can dry, 11 is the top of the UV index, and 10°C is the point
+ * below which frost is worth a bar. A card can therefore never call a day frost-free
+ * while `verdictFor()` is charging the player for frost.
  */
 
 import { WATER } from '../config/game.js';
@@ -29,39 +35,51 @@ import {
 
 /** Below this the sky counts as frost. Matches `classifyHour`. */
 export const FROST_C = 2;
-/** Above this the frost row is not worth a line on the card. See `environmentFacts`. */
+/** The frost bar's zero point: at or above this, frost is not worth filling the bar. */
 export const FROST_NEAR_C = 10;
 
 /** The fixed order of the calm rows, so the card does not reshuffle when nothing changes. */
-const ORDER = ['drying', 'frost', 'rain', 'wind', 'humidity', 'uv'];
-/** At or above this the wind counts as strong. Matches `classifyHour`. */
-export const STRONG_WIND_KMH = 40;
-/** At or above this the air counts as humid enough to matter. Matches `classifyHour`. */
-export const HIGH_HUMIDITY = 85;
+const ORDER = ['drying', 'frost', 'uv'];
 /** UV at or above this is worth mentioning to a player standing in a field. */
 export const UV_HIGH = 8;
+/** The top of the UV index, and the heat bar's full mark. */
+export const UV_MAX = 11;
+
+/**
+ * The fastest bare soil can dry, in units per hour — the water bar's full mark.
+ *
+ * `drought` is the strongest evaporation event the game defines, so this is not a
+ * number somebody picked: it is the top of the table in `config/weatherEvents.js`
+ * multiplied by the same base decay every plot uses.
+ */
+const MAX_DRY_PER_HOUR = WATER.baseDecayPerHour
+  * Math.max(...Object.values(EVAPORATION_PER_HOUR));
 
 /**
  * The facts, most urgent first.
  *
- * Each fact is `{ id, label, value, note, tone }`, where `tone` is `'calm'`, `'warn'` or
- * `'danger'` — the card colours by tone **and** prints the note, because a red row that
- * says nothing is a red row that cannot be acted on.
+ * Each fact is `{ id, label, value, note, tone, fill }`, where `tone` is `'calm'`,
+ * `'warn'` or `'danger'` and `fill` is 0–100 for the card's meter bar.
  *
- * **All six rows are always present.** The first version dropped anything calm, on the
- * reasoning that a list where four rows say "fine" is a list nobody reads. That was a
+ * **All three rows are always present.** The first version dropped anything calm, on the
+ * reasoning that a list where most rows say "fine" is a list nobody reads. That was a
  * reasonable-sounding guess and it was wrong: on an ordinary day the card showed a single
  * row, so it read as *broken* rather than as *quiet*. There is no way for a player to tell
  * "the sky is fine" from "this panel has failed" if the only thing it says when nothing is
  * wrong is nothing at all.
  *
- * So every reading is always there and the **tone** is what changes. Six rows, and the one
- * that is red is the one to act on. Sorting still puts the urgent rows on top, so a calm
- * card is all six in a fixed order and a dangerous one leads with what to do about.
+ * So every reading is always there and the **tone** is what changes. Three meters, and the
+ * one that is red is the one to act on. Sorting still puts the urgent rows on top, so a
+ * calm card is all three in a fixed order and a dangerous one leads with what to do about.
+ *
+ * The fill is computed here rather than in the UI because it is a reading, not a style:
+ * the bar must agree with the number beside it, and a UI that divides by its own maximum
+ * is a second rule that can disagree with the first.
  *
  * @param {object} state
  * @param {number} [now]
- * @returns {Array<{id: string, label: string, value: string, note: string, tone: string}>}
+ * @returns {Array<{id: string, label: string, value: string, note: string,
+ *   tone: string, fill: number}>}
  */
 export function environmentFacts(state, now = Date.now()) {
   const current = state?.weather?.current;
@@ -73,18 +91,19 @@ export function environmentFacts(state, now = Date.now()) {
 
   const facts = [];
 
-  // --- Drying. Always present, and always about the fastest thing on the farm. ---
+  // --- Water. Always present, and always about the fastest thing on the farm. ---
   const event = currentEventOf(state, now);
   const dry = evaporationFor(event);
   const rain = rainFor(event);
   facts.push({
     id: 'drying',
-    label: 'Drying',
+    label: 'Water',
     value: `${round(dry)} /h`,
     note: rain > 0
       ? `rain is adding ${rain}/h at the same time`
       : 'nothing is coming in, so this only goes one way',
     tone: rain > 0 ? 'calm' : (dry >= 20 ? 'danger' : (dry >= 10 ? 'warn' : 'calm')),
+    fill: fillOf(dry, MAX_DRY_PER_HOUR),
   });
 
   // --- Frost. The coldest hour in the next twelve, not the current one. ---
@@ -100,61 +119,23 @@ export function environmentFacts(state, now = Date.now()) {
         ? `frost in ${describeAway(temps.indexOf(coldest))} — frost damages crops`
         : `coldest in the next 12h — nothing freezing`),
     tone: coldest <= 0 ? 'danger' : (coldest <= FROST_C ? 'warn' : 'calm'),
+    // Inverted: the bar fills as the coldest hour gets *colder*, so a full frost
+    // meter is a warning and an empty one is an ordinary night.
+    fill: fillOf(FROST_NEAR_C - coldest, FROST_NEAR_C),
   });
 
-  // --- Rain. The chance within the hour, and whether it is falling already. ---
-  const chances = numbers(window, 'precipitationProbability').slice(0, 3);
-  const chance = chances.length ? Math.max(...chances) : null;
-  facts.push(chance == null ? missing('rain', 'Rain') : {
-    id: 'rain',
-    label: 'Rain',
-    value: `${Math.round(chance)}%`,
-    note: current?.precipitation > 0
-      ? 'and it is falling now — the pump is redundant'
-      : (chance >= 60
-        ? 'likely within the hour — the pump may not be needed'
-        : (chance >= 20 ? 'possible within the hour' : 'not expected')),
-    tone: 'calm',
-  });
-
-  // --- Wind. The strongest gust coming, because that is what lays a crop flat. ---
-  const winds = numbers(window, 'windSpeed');
-  const strongest = winds.length ? Math.max(...winds) : null;
-  facts.push(strongest == null ? missing('wind', 'Wind') : {
-    id: 'wind',
-    label: 'Wind',
-    value: `${Math.round(strongest)} km/h`,
-    note: strongest >= STRONG_WIND_KMH
-      ? 'strong wind — crops take damage'
-      : (strongest >= 20 ? 'breezy, nothing to worry about' : 'calm'),
-    tone: strongest >= STRONG_WIND_KMH ? 'danger' : 'calm',
-  });
-
-  // --- Humidity, and what it means rather than what it is. ---
-  const hum = typeof current?.humidity === 'number' ? current.humidity : null;
-  facts.push(hum == null ? missing('humidity', 'Humidity') : {
-    id: 'humidity',
-    label: 'Humidity',
-    value: `${Math.round(hum)}%`,
-    note: hum >= HIGH_HUMIDITY
-      ? 'the air is saturated — drying all but stops'
-      : (hum <= 35
-        ? 'dry air — plots lose water faster than the drying row suggests'
-        : 'ordinary'),
-    tone: hum >= HIGH_HUMIDITY ? 'calm' : (hum <= 35 ? 'warn' : 'calm'),
-  });
-
-  // --- UV. The peak, not the current reading. ---
+  // --- Heat. The UV peak, not the current reading. ---
   const uvs = numbers(window, 'uvIndex').filter((n) => n > 0);
   const peak = uvs.length ? Math.max(...uvs) : null;
-  facts.push(peak == null ? missing('uv', 'UV') : {
+  facts.push(peak == null ? missing('uv', 'Heat') : {
     id: 'uv',
-    label: 'UV',
+    label: 'Heat',
     value: String(Math.round(peak)),
-    note: peak >= 11
+    note: peak >= UV_MAX
       ? 'very high — avoid the field at midday'
       : (peak >= UV_HIGH ? 'high — sun on your neck' : 'nothing to worry about'),
-    tone: peak >= 11 ? 'danger' : (peak >= UV_HIGH ? 'warn' : 'calm'),
+    tone: peak >= UV_MAX ? 'danger' : (peak >= UV_HIGH ? 'warn' : 'calm'),
+    fill: fillOf(peak, UV_MAX),
   });
 
   // Most urgent first, so the card's top row is the one to act on. `drying` is pinned to
@@ -176,7 +157,7 @@ export function environmentFacts(state, now = Date.now()) {
  * their place in it again.
  */
 function missing(id, label) {
-  return { id, label, value: '—', note: 'not reported right now', tone: 'calm' };
+  return { id, label, value: '—', note: 'not reported right now', tone: 'calm', fill: 0 };
 }
 
 /* --- reading the forecast ----------------------------------------------------- */
@@ -200,8 +181,6 @@ function slice(hourly, from, hours) {
   return {
     time,
     temperature: pick('temperature'),
-    windSpeed: pick('windSpeed'),
-    precipitationProbability: pick('precipitationProbability'),
     uvIndex: pick('uvIndex'),
   };
 }
@@ -209,6 +188,12 @@ function slice(hourly, from, hours) {
 /** The numeric values of one parallel array, holes dropped. */
 function numbers(window, key) {
   return (window[key] ?? []).filter((n) => typeof n === 'number' && Number.isFinite(n));
+}
+
+/** A reading as a 0–100 meter fill, clamped. Anything missing is an empty bar. */
+function fillOf(value, max) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(100, Math.round((value / max) * 100)));
 }
 
 /** "in 3h", or "soon", from an offset into the window. */
