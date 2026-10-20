@@ -1,63 +1,199 @@
-.profile-page {
-  display: block;
-  font-family: var(--font-ui);
+/* Profile page: the split account card (avatar beside the details) and the
+ * session row. The frame and cream card look come from page-*.css.
+ *
+ * Two cards only, so this page takes a narrower column than settings and tighter
+ * vertical spacing: both cards should fit without scrolling on a laptop. */
+
+.profile-page .page-board > * {
+  max-width: 860px;
 }
 
-.profile-shell {
+.painted-page .profile-account {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  overflow: hidden;
+}
+
+/* Split edge to edge, so the avatar panel touches the card's own border. */
+.painted-page .card--account {
+  padding: 0;
+  overflow: hidden;
+}
+
+.painted-page .profile-account__avatar {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  max-width: 640px;
-  margin: 0 auto;
-  padding: 24px 16px;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 22px 18px 18px;
+  background: #e8f0dd;
+  border-right: 3px solid #efe2b6;
 }
 
-.profile-top {
+.painted-page .profile-avatar {
+  display: grid;
+  place-items: center;
+  width: 108px;
+  height: 108px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 34% 28%, #a8703f 0%, #7d4a24 58%, #5f3719 100%);
+  border: 4px solid #fdf8e6;
+  box-shadow: 0 0 0 3px #8a5a2c, inset 0 6px 10px rgba(255, 220, 170, 0.3), 0 7px 12px rgba(40, 22, 8, 0.22);
+  color: #fdf3d8;
+  font-family: "Luckiest Guy", var(--font-display);
+  font-size: 2.25rem;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+.painted-page .profile-account__rule {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #5a7a3a;
+}
+
+.painted-page .profile-account__rule-line {
+  width: 24px;
+  height: 2px;
+  border-radius: 2px;
+  background: #a8bb8a;
+}
+
+.painted-page .profile-account__sprout {
+  width: 22px;
+  height: 22px;
+  color: #5a7a3a;
+}
+.painted-page .profile-account__sprout svg {
+  width: 100%;
+  height: 100%;
+}
+
+.painted-page .profile-account__details {
+  padding: 20px 26px;
+  min-width: 0;
+}
+
+.painted-page .account-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  margin: 2px 0 0;
 }
 
-.profile-top__back {
-  font-size: 0.875rem;
-  color: var(--text-muted);
-  text-decoration: none;
+.painted-page .account-list__row {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 2px solid #efe6cb;
 }
 
-.profile-top__back:hover {
-  color: var(--text);
-  text-decoration: underline;
+.painted-page .account-list__row:last-child {
+  border-bottom: none;
 }
 
-.profile-top__title {
-  font-family: var(--font-display);
-  font-weight: 400;
-  font-size: 1.75rem;
-  color: var(--text);
-  text-transform: uppercase;
+.painted-page .account-list__key {
+  font-family: "Nunito", var(--font-sans);
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #8a8560;
 }
 
-/* The account lines read as a list of facts rather than as paragraphs. */
-.account-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin: 0;
-}
-
-.account-list__row {
-  display: flex;
-  gap: 8px;
-  font-size: 0.875rem;
-  margin: 0;
-}
-
-.account-list__key {
-  color: var(--text-muted);
-  min-width: 90px;
-}
-
-.account-list__value {
-  color: var(--text);
+.painted-page .account-list__value {
+  font-family: "Nunito", var(--font-sans);
+  font-weight: 800;
+  font-size: 0.98rem;
+  color: #3c3a20;
   overflow-wrap: anywhere;
+}
+
+/* Session row: icon tile, dot + status word, Sign out button. The button itself
+ * is `.btn.btn--secondary` from page-card.css; only its place in the row lives here. */
+
+.painted-page .profile-session {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  padding: 0;
+}
+
+.painted-page .profile-session__icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: #e8f0dd;
+  border: 2px solid #cfe0b8;
+  color: #2f7d3a;
+}
+.painted-page .profile-session__icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.painted-page .profile-session__status {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-family: "Nunito", var(--font-sans);
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #6f6c4a;
+}
+
+.painted-page .profile-session__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #4caf50;
+  box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.2);
+}
+
+.painted-page .profile-session__signout {
+  justify-self: end;
+}
+
+.painted-page .profile-session__signout-icon,
+.painted-page .profile-session__signout-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+@media (max-width: 900px) {
+  .painted-page .profile-account {
+    grid-template-columns: 1fr;
+  }
+
+  .painted-page .profile-account__avatar {
+    border-right: none;
+    border-bottom: 3px solid #efe2b6;
+    padding: 18px 16px;
+  }
+
+  .painted-page .profile-session__signout {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+}
+
+@media (max-width: 560px) {
+  .painted-page .profile-account__details {
+    padding: 16px;
+  }
+
+  .painted-page .account-list__row {
+    grid-template-columns: 1fr;
+    gap: 3px;
+  }
+
+  .painted-page .account-list__key {
+    border-bottom: 1px solid #efe6cb;
+    padding-bottom: 4px;
+    margin-bottom: 6px;
+  }
 }

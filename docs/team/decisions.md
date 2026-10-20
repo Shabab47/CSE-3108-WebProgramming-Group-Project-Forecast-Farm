@@ -30,6 +30,31 @@ Format: who decided, the choice, why, and what was rejected.
 
 ---
 
+### DEC-050 Account pages are painted art, and do not follow the theme
+**Decided by:** Jim · 2026-10-20
+
+**Choice:** `profile.html` and `settings.html` wear the shop's painted frame — grass, log posts, a
+beam, a hanging wooden sign, a dark wall and a stone base — with cream cards inside it, and neither
+page reads `data-theme`. The frame is shared: `js/ui/pageFrame.js`, `css/page-frame.css`,
+`css/page-header.css` (the sign and the board), `css/page-card.css` (the cards) and
+`css/page-form.css` (the settings fields). The shop keeps its own copy in `css/shop.css` /
+`css/shop-card.css`; it was not refactored onto the shared frame.
+
+**Amended 2026-10-20.** The two full-height edge posts and the stone base were removed from the
+account pages: the beam, leaf garland, hanging sign and dark wall remain, and the wall now runs to
+the bottom edge so a scrolling board never disappears behind a fixed plinth. Erase progress and
+Delete account share one row. The shop keeps its own posts and stone base — this is a deliberate
+divergence, not a refactor.
+
+**Why.** Extends DEC-027: a wooden beam and a cream card are what they are in every theme, so
+forcing them through theme tokens buys nothing and risks breaking the look the account pages were
+mocked up to. The cost is one more visual system, kept to `profile.html` and `settings.html`.
+
+**Rejected:** refactoring the shop onto the shared frame in the same commit — it works and ships
+as-is; a refactor is a separate task with its own visual review.
+
+---
+
 ### DEC-049 The field fit is retuned by eye: `0.2320 / 0.502 / 0.466 / 0.2`
 **Decided by:** Jim, on the running page · 2026-10-19
 

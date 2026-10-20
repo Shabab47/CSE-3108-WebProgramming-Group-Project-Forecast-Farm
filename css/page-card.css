@@ -1,0 +1,170 @@
+/* Cream cards and controls inside the painted account pages (profile.html,
+ * settings.html). They override the glass look of css/components.css, which
+ * both pages still load for the shared tokens it provides. Like the shop's
+ * cards, nothing here reads `data-theme` — the look is painted and consistent
+ * in every theme (DEC-027, DEC-050).
+ *
+ * The frame is `css/page-frame.css`, the sign is `css/page-header.css`, and the
+ * fields and status messages only the settings page uses are `css/page-form.css`.
+ */
+
+.painted-page .card {
+  background: #fdf8e6;
+  border: 3px solid #efe2b6;
+  border-radius: 18px;
+  box-shadow: 0 6px 0 rgba(15, 35, 6, 0.28);
+  backdrop-filter: none;
+  padding: 18px 22px;
+  color: #4c4a2c;
+}
+
+.painted-page .card__head {
+  justify-content: flex-start;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.painted-page .card__title {
+  font-family: "Luckiest Guy", var(--font-display);
+  font-weight: 400;
+  font-size: 1.4rem;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  color: #1e4a12;
+  text-transform: uppercase;
+}
+
+.painted-page .card__icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  color: #2f7d3a;
+}
+.painted-page .card__icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.painted-page .field__label {
+  font-family: "Nunito", var(--font-sans);
+  font-weight: 800;
+  font-size: 0.9rem;
+  color: #3f5a24;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.painted-page .field__hint {
+  font-family: "Nunito", var(--font-sans);
+  font-weight: 600;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: #6f6c4a;
+}
+
+.painted-page .field__error {
+  font-family: "Nunito", var(--font-sans);
+  font-weight: 800;
+  font-size: 0.9rem;
+  color: #a5231b;
+}
+
+/* Buttons on the account pages. */
+
+.painted-page .btn {
+  font-family: "Nunito", var(--font-sans);
+  font-weight: 800;
+  border-radius: 9px;
+  transition: filter 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+}
+
+.painted-page .btn:active {
+  transform: translateY(2px);
+}
+
+.painted-page .btn:focus-visible {
+  outline: 3px solid #2f7d3a;
+  outline-offset: 3px;
+}
+
+.painted-page .btn--primary {
+  padding: 10px 20px;
+  border: 2px solid #2f6b28;
+  border-radius: 9px;
+  background: linear-gradient(180deg, #9ae044 0%, #68bc24 100%);
+  color: #193c25;
+  font-family: "Luckiest Guy", var(--font-display);
+  font-size: 1.15rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  box-shadow: 0 4px 0 #315b22;
+}
+
+.painted-page .btn--primary:hover {
+  filter: brightness(1.06);
+  background: linear-gradient(180deg, #9ae044 0%, #68bc24 100%);
+  color: #193c25;
+}
+
+.painted-page .btn--secondary {
+  padding: 10px 18px;
+  border: 2px solid #2f7d3a;
+  border-radius: 9px;
+  background: #fdf8e6;
+  color: #2f6b28;
+}
+
+.painted-page .btn--secondary:hover {
+  background: #f1f7e8;
+  color: #2f6b28;
+}
+
+.painted-page .btn--ghost {
+  padding: 10px 18px;
+  border: 2px solid #d9cfa8;
+  border-radius: 9px;
+  background: #fdf8e6;
+  color: #6f6c4a;
+}
+
+.painted-page .btn--ghost:hover {
+  background: #f3ecd2;
+  color: #3f3d24;
+}
+
+.painted-page .btn--danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border: 2px solid #8c1d16;
+  border-radius: 9px;
+  background: linear-gradient(180deg, #c02f26 0%, #a5231b 100%);
+  color: #fdf3e5;
+  font-size: 1rem;
+  box-shadow: 0 4px 0 #7a1610;
+}
+
+.painted-page .btn--danger:hover {
+  filter: brightness(1.06);
+  background: linear-gradient(180deg, #c02f26 0%, #a5231b 100%);
+  color: #ffffff;
+  border-color: #8c1d16;
+}
+
+.painted-page .btn--danger:active {
+  box-shadow: 0 1px 0 #7a1610;
+}
+
+.painted-page .btn--danger[disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+@media (max-width: 600px) {
+  .painted-page .card {
+    padding: 16px 16px;
+  }
+}

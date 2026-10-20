@@ -1,0 +1,83 @@
+/* Form controls on the painted settings page: the password fields and the
+ * import-file field, plus the status messages under them.
+ *
+ * `profile.html` has no forms, so it does not load this file. Card, heading and
+ * button shapes stay in `css/page-card.css`. Like the rest of the painted look,
+ * nothing here reads `data-theme` (DEC-050).
+ */
+
+/* Inputs sit on cream, so the theme's glass field would read as a dark hole in
+ * the card. Password, import-file and any future field share this. */
+.painted-page .input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 2px solid #d9cfa8;
+  border-radius: 9px;
+  background: #fffdf4;
+  color: #3c3a20;
+  font-family: "Nunito", var(--font-sans);
+  font-size: 0.95rem;
+}
+
+.painted-page .input::placeholder {
+  color: #a39d78;
+}
+
+.painted-page .input:focus-visible {
+  outline: none;
+  border-color: #2f7d3a;
+  box-shadow: 0 0 0 3px rgba(47, 125, 58, 0.22);
+}
+
+.painted-page .input[aria-invalid="true"] {
+  border-color: #a5231b;
+}
+
+.painted-page .input[aria-invalid="true"]:focus-visible {
+  border-color: #a5231b;
+  box-shadow: 0 0 0 3px rgba(165, 35, 27, 0.2);
+}
+
+/* The Show / Hide password control inside `.input--with-action`. */
+.painted-page .input__action {
+  color: #6f6c4a;
+}
+.painted-page .input__action:hover {
+  color: #2f5a20;
+}
+
+/* Status messages under fields — readable on cream. */
+
+.painted-page .form-message {
+  font-family: "Nunito", var(--font-sans);
+  font-weight: 600;
+  font-size: 0.9rem;
+  border-radius: 9px;
+  padding: 10px 12px;
+}
+
+.painted-page .form-message--info {
+  color: #4c4a2c;
+  background: #f3ecd2;
+  border: 2px solid #e0d3a4;
+}
+
+.painted-page .form-message--error {
+  color: #8c1d16;
+  background: #fbe6e2;
+  border: 2px solid #d98f86;
+}
+
+.painted-page .form-message--success {
+  color: #25601f;
+  background: #e8f3da;
+  border: 2px solid #9ccb78;
+}
+
+/* The save panel's divider and its second heading. */
+
+.painted-page .divider {
+  margin: 14px 0;
+  border: none;
+  border-top: 2px dashed #e0d3a4;
+}

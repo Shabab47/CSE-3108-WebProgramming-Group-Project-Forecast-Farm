@@ -88,7 +88,8 @@ index.html      the game page
 login.html      the opening menu, sign in, or create an account
 shop.html       the seed shop — buy seed packets with your gold
 settings.html   account details, erase progress, delete account
-css/            styling — one file per component: layout, tokens, shared, and the login trio
+profile.html    who is signed in, and the way out
+css/            styling — one file per component: layout, tokens, shared, the painted account frame, and the login trio
 js/             the game code, split by responsibility
 assets/         artwork and icons
 js/config/      field geometry, crops, game balance, weather events, **asset registry (assets.js)**

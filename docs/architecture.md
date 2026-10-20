@@ -361,6 +361,7 @@ exists: resolve the session, load the save.
 | `index.html` | `main.js` | `resolveSession()`, `init()`, `mountShell()` |
 | `shop.html` | `shop-main.js` | imports `resolveSession` from `main.js` |
 | `settings.html` | `settings-main.js` | imports `resolveSession` from `main.js` |
+| `profile.html` | `profile-main.js` | imports `resolveSession` from `main.js` |
 
 They all ask `resolveSession(provider)` rather than each reading storage, because the
 first version disagreed and produced a redirect loop (ISS-033). Importing `main.js` from
@@ -689,6 +690,10 @@ farm and still reported that nothing had changed.
 | the shop, prices and availability | `js/config/crops.js` |
 | the purchase rule | `js/domain/shop.js` (`buySeeds`) |
 | the settings page | `js/ui/settingsView.js` |
+| the profile page | `js/ui/profileView.js`, `js/ui/accountCard.js` — moved from the settings page so it isn't hidden behind two destructive actions |
+| the painted frame both account pages share | `js/ui/pageFrame.js`, `css/page-frame.css`, `css/page-header.css` |
+| cream cards and controls inside that frame | `css/page-card.css` |
+| the fields and status messages on the settings page | `css/page-form.css` |
 | the arm-and-confirm control both actions use | `js/ui/dangerAction.js` |
 | the password field an armed action reveals | `js/ui/passwordGate.js` |
 | the order a destructive action runs in - password first, always | `js/ui/runDestructive.js` (tested in `tests/dangerAction.test.js`) |
@@ -734,6 +739,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 ├── login.html                  the menu, sign-in and create-account screens
 ├── shop.html                   the seed shop — its own page, its own entry script
 ├── settings.html               account details, erase progress, delete account
+├── profile.html                who is signed in, and the way out
 ├── almanac.html                empty — placeholder page
 ├── LICENSE                     MIT
 ├── README.md
@@ -754,6 +760,10 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   ├── crop-picker.css         the seed picker overlay and its rows
 │   ├── shop.css                the shop sign and the seed list
 │   ├── settings.css            the settings gear and the settings page
+│   ├── page-frame.css          the painted frame shared by profile.html and settings.html
+│   ├── page-header.css         the hanging sign, the back pill and the scrolling board
+│   ├── page-card.css           cream cards and controls inside that frame
+│   ├── page-form.css           the fields and status messages only settings uses
 │   ├── auth.css                the login backdrop and the stage it sits on
 │   ├── menu.css                the opening menu and its buttons
 │   └── sign.css                the wooden sign, its forms and its buttons
@@ -816,7 +826,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── timeApi.js          rewrites — writes straight into the DOM
 │   │   └── weatherApi.js       rewrites — OpenWeatherMap placeholder key
 │   ├── ui/                     render only, reads the store
-│   │   ├── accountCard.js      the account facts card on settings
+│   │   ├── accountCard.js      the account facts card — on the profile page now
 │   │   ├── almanac.js          empty
 │   │   ├── authErrors.js       provider code → sentence, enumeration guard
 │   │   ├── authViews.js        the login page's view graph — menu, forms, reset
@@ -824,6 +834,8 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── dangerAction.js     the arm-and-confirm control, with its password gate
 │   │   ├── difficultyCard.js   the Normal / Easy setting, with what each mode does
 │   │   ├── farmView.js         the isometric field — geometry, plus the repaint guard
+│   │   ├── pageFrame.js        the painted frame profile.html and settings.html share
+│   │   ├── profileView.js      the profile page: account card, session, sign-out
 │   │   ├── plotLayers.js       what is painted inside one plot, back to front
 │   │   ├── plotLabel.js        a plot's accessible name — the whole of it
 │   │   ├── plotClick.js        plotAction(): what a click on a plot means
