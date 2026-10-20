@@ -17,6 +17,7 @@
 
 import { el, clear } from '../utils/dom.js';
 import { cropOf, SHOP_ORDER } from '../config/crops.js';
+import { RATING_WORDS } from '../config/cropWeatherMatrix.js';
 import { cropSeedImg } from '../config/assets.js';
 
 /**
@@ -190,19 +191,6 @@ function verdictLine(crop, verdict) {
     text: parts.join(' · '),
   });
 }
-
-/**
- * The rating words, so the picker never prints a bare `2` or a bare `-1` at a player.
- * `0` is deliberately **"fine"** and not "neutral": neutral reads like nothing is
- * happening, and fine reads like the weather did its job.
- */
-const RATING_WORDS = {
-  2: 'thrives',
-  1: 'happy',
-  0: 'fine',
-  '-1': 'struggles',
-  '-2': 'harmed',
-};
 
 /** The shop button, which only earns its place when the bag is empty. */
 function shopButton(state) {

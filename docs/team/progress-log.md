@@ -8,6 +8,48 @@ The per-person weekly notes that used to live in the README table are now in `me
 ---
 
 
+## The seed bag page, and the inventory button — 2026-10-20
+
+- **Did:** added a fourth button to the farm sidebar, under the almanac button — the crate
+  (`assets/images/inventory/inventory.png`). It opens a new page, `inventory.html`, which lists the
+  five crops with how many seeds are in the bag, the seed packet art the shop uses, and the purse.
+  The page resolves the session and loads the save like the shop does, because it reads the bag.
+- **Read-only:** no buy or sell buttons. The shop stays the only place gold moves, so the two pages
+  cannot disagree about a count.
+- **Split:** `js/ui/inventoryView.js` (page), `js/ui/inventoryLauncher.js` (sidebar button),
+  `js/inventory-main.js` (entry), `css/inventory.css`. `tests/inventory.test.js` covers the view.
+- **Touched:** `inventory.html`, `js/inventory-main.js`, `js/ui/inventory{,View,Launcher}.js`,
+  `js/main.js`, `index.html`, `js/config/assets.js`, `css/inventory.css`, `tests/inventory.test.js`,
+  `tests/mainPageBoot.test.js`, `docs/architecture.md`, `docs/asset-checklist.md`, `docs/setup.md`,
+  `docs/team/{decisions,progress-log}.md`
+- **Verified:** `npm test` 616/616 pass, `npm run check` clean.
+- **Next:** the book button's art is still landscape in a square box.
+
+
+## The crop almanac — a static reference page — 2026-10-20
+
+- **Did:** the book button on the farm sidebar (directly under the shop button) opened the farm
+  itself. It is now the almanac button: `js/ui/inventoryLauncher.js` renamed to
+  `js/ui/almanacLauncher.js`, mounted at `#almanac-launch`, and it opens a new page —
+  `almanac.html` — with the five crops and, for each, how long it grows, what a full-health
+  harvest pays, and how it reacts to every weather event. The page is static: no session, no save,
+  no network, because it only wants reference text (ISS-019).
+- **Split:** `js/ui/almanac.js` (page: header, back link, grid), `js/ui/almanacCard.js` (one crop)
+  and `js/ui/almanacWeather.js` (the reaction grid). `RATING_WORDS` moved out of `cropPicker.js`
+  into `config/cropWeatherMatrix.js` so the picker and the almanac cannot disagree.
+- **Noticed:** the canonical event list (`config/weatherEvents.js`) has nine events, but
+  `CROP_WEATHER` rates eight — high humidity has no crop opinion, so it reads "fine". The almanac
+  lists all nine so it matches the forecast.
+- **Touched:** `almanac.html`, `js/almanac-main.js`, `js/ui/almanac{,Card,Weather}.js`,
+  `js/ui/almanacLauncher.js`, `js/ui/inventoryLauncher.js` (renamed), `js/ui/cropPicker.js`,
+  `js/config/assets.js`, `js/config/cropWeatherMatrix.js`, `js/main.js`, `index.html`,
+  `css/almanac.css`, `tests/almanac.test.js`, `tests/mainPageBoot.test.js`, `docs/architecture.md`,
+  `docs/asset-checklist.md`, `docs/setup.md`, `docs/team/{issues,tasks,goals,decisions}.md`,
+  `docs/team/members/kafi.md`, `js/ui/loadingTips.js`
+- **Verified:** `npm test` 609/609 pass, `npm run check` clean.
+- **Next:** the book button's art is landscape (1470×1070) in a square 64×64 box, so it letterboxes.
+
+
 ## Wet ground dries in place, and profile gets preset avatars — 2026-10-20
 
 - **Did:** fixed ISS-110 — a plot crossing the 40-water threshold now swaps `.plot__ground`
@@ -94,7 +136,6 @@ The per-person weekly notes that used to live in the README table are now in `me
   in a browser — this environment has none, so the layout is arithmetic and the tests above.
 - **Next:** someone with a browser should look at both pages at 1440×900 and ~380px wide; the board's
   bottom padding is the one number most likely to want a nudge.
-
 
 
 ## Gold coin on the plot price tag, and the `--font-body` that never existed — 2026-10-20

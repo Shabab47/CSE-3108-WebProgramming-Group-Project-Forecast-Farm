@@ -849,7 +849,7 @@ or `assets.test.js` fails in the other direction.
 | ISS-016 | `ui → services` layering rule contradicts itself | Medium | Hisham | open | T-02 |
 | ISS-018 | 1 Hz re-render churn will flicker images | Medium | Hisham | open | T-06 |
 | ISS-030 | `decisions.md` is not valid UTF-8 | Medium | Hisham | **fixed** | — |
-| ISS-019 | `almanac.html` has no entry script | Medium | Kafi | open | T-15 |
+| ISS-019 | `almanac.html` has no entry script | Medium | Kafi | **fixed** | T-15 |
 | ISS-022 | Image preload sits in pure-data config | Low | Hisham | open | T-02 |
 | ISS-017 | `config/ui.js` actions cannot be functions | Low | Kafi | open | T-05 |
 | ISS-020 | No `.gitignore` | Low | Hisham | open | T-02 |
@@ -1371,14 +1371,16 @@ or `assets.test.js` fails in the other direction.
   `class`, `title`, inline width/height). Swap `src` only when the value actually changes.
 
 ### ISS-019 `almanac.html` has no entry script
-- Reported by Hisham · Owner: Kafi · Status: open
+- Reported by Hisham · Owner: Kafi · Status: **fixed**
 - Where: `almanac.html`, `js/ui/almanac.js`, `js/main.js`
 - Problem: `almanac.html` needs its own entry point. `main.js` boots the entire game, so loading
   it on the almanac page would start the simulator and the weather fetch for a page that only
   wants reference text.
 - Cause: The file tree lists `ui/almanac.js` but no entry script.
-- Fix: _pending._ Add `js/almanac-main.js`, and have `main.js` no-op when its root element is
-  absent.
+- Fix: Added `js/almanac-main.js`, guarded on `#almanac-root` the same way `js/main.js` guards on
+  `#top-bar`. The page is static — no session, no save, no network — so it renders from
+  `js/config/` before anything is fetched. The view split into `ui/almanac.js` (page),
+  `ui/almanacCard.js` (one crop) and `ui/almanacWeather.js` (the reaction grid).
 
 ### ISS-022 Image preload sits in pure-data config
 - Reported by Hisham · Owner: Hisham · Status: open

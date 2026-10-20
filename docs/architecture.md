@@ -744,7 +744,8 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 ├── shop.html                   the seed shop — its own page, its own entry script
 ├── settings.html               account details, erase progress, delete account
 ├── profile.html                who is signed in, and the way out
-├── almanac.html                empty — placeholder page
+├── almanac.html                the crop almanac — a static reference page
+├── inventory.html              the seed bag — its own page, its own entry script
 ├── LICENSE                     MIT
 ├── README.md
 ├── AGENTS.md                   the working agreements, for a newcomer or an agent
@@ -763,6 +764,8 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   ├── scene.css               the isometric stage, the plot layers, locked/next/ready
 │   ├── crop-picker.css         the seed picker overlay and its rows
 │   ├── shop.css                the shop sign and the seed list
+│   ├── almanac.css             the almanac page and its crop cards
+│   ├── inventory.css           the inventory page and its seed cards
 │   ├── settings.css            the settings gear and the settings page
 │   ├── page-frame.css          the painted frame shared by profile.html and settings.html
 │   ├── page-header.css         the hanging sign, the back pill and the scrolling board
@@ -780,6 +783,8 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   ├── auth-main.js            the login page entry, wires panel to provider
 │   ├── shop-main.js            the shop page entry, same gate as main.js
 │   ├── settings-main.js        the settings page entry, same gate as main.js
+│   ├── almanac-main.js         the almanac page entry — static, no session
+│   ├── inventory-main.js       the inventory page entry, same gate as the shop
 │   ├── farmActions.js          what a click on a plot does — store + rules + picker
 │   ├── remoteSave.js           joins the store to the server-save service
 │   ├── config/                 pure data, imports nothing
@@ -833,13 +838,17 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   ├── ui/                     render only, reads the store
 │   │   ├── accountCard.js      the account facts card, with the preset avatar picker
 │   │   ├── avatarArt.js        the two inline-SVG farmer busts (DEC-051)
-│   │   ├── almanac.js          empty
+│   │   ├── almanac.js          the almanac page — header, back link, crop grid
+│   │   ├── almanacCard.js      one crop's entry: portrait, facts, reactions
+│   │   ├── almanacWeather.js   a crop's reaction to each weather event
 │   │   ├── authErrors.js       provider code → sentence, enumeration guard
 │   │   ├── authViews.js        the login page's view graph — menu, forms, reset
 │   │   ├── cropPicker.js       which seed to sow on a plot
 │   │   ├── dangerAction.js     the arm-and-confirm control, with its password gate
 │   │   ├── difficultyCard.js   the Normal / Easy setting, with what each mode does
 │   │   ├── farmView.js         the isometric field — geometry, plus the repaint guard
+│   │   ├── inventoryLauncher.js the crate button in the farm sidebar
+│   │   ├── inventoryView.js    the seed bag page — what the player owns
 │   │   ├── pageFrame.js        the painted frame profile.html and settings.html share
 │   │   ├── profileView.js      the profile page: account card, session, sign-out
 │   │   ├── plotLayers.js       what is painted inside one plot, back to front
@@ -899,6 +908,8 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   │   └── shop.png        the shop sign, used as the shop button
 │   │   ├── settings/
 │   │   │   └── settings.png    the settings gear, used as the settings button
+│   │   ├── book/              book.png + the six almanac crop entries
+│   │   └── inventory/         inventory.png — the seed-bag button
 │   │   ├── crops/
 │   │   │   ├── rice/           rice_1.png … rice_5.png + "rice seed.png"
 │   │   │   ├── wheat/          "wheat seed.png" — stages awaiting art
@@ -931,6 +942,8 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   ├── authRules.test.js       validation rules
 │   ├── initialState.test.js    fresh farm, zones, session coercion
 │   ├── shop.test.js            the purchase rule and the crop economy
+│   ├── almanac.test.js        the almanac page: crops, facts, reactions
+│   ├── inventory.test.js      the seed bag page: counts, empty state
 │   ├── localAuth.test.js       the guest provider's contract
 │   ├── saveApi.test.js         the server-save request shape
 │   ├── store.test.js           persistence, save migration, corruption

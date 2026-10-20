@@ -1,0 +1,226 @@
+/* The almanac page: a reference of the five crops.
+   Readable cards on the theme tokens, so it follows dark mode like the rest of
+   the game rather than pinning its own palette the way the shop's painted stall
+   does (DEC-027). */
+
+.almanac-page {
+  min-height: 100dvh;
+  padding: 24px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.almanac-shell {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* --- header ------------------------------------------------------------- */
+
+.almanac__head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.almanac__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 2px solid var(--border-strong);
+  border-radius: var(--radius-input);
+  background: var(--surface);
+  color: var(--accent-strong);
+  font-family: var(--font-ui);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.almanac__back:hover {
+  background: var(--accent-soft);
+}
+
+.almanac__back-arrow {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+}
+
+.almanac__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 2rem;
+  letter-spacing: 0.02em;
+}
+
+.almanac__subtitle {
+  max-width: 60ch;
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-family: var(--font-ui);
+}
+
+/* --- the grid of cards -------------------------------------------------- */
+
+.almanac__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.almanac-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+
+.almanac-card__art {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  background: radial-gradient(circle at 50% 40%, #fff8df, #f3e2b3);
+}
+
+.almanac-card__img {
+  width: 78%;
+  height: auto;
+  object-fit: contain;
+}
+
+.almanac-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+}
+
+.almanac-card__name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+}
+
+.almanac-card__note {
+  margin: 0;
+  color: var(--text-muted);
+  font-family: var(--font-ui);
+  font-size: 0.95rem;
+}
+
+/* The facts sit in a two-column grid so term and value line up. */
+.almanac-card__facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.almanac-card__term {
+  color: var(--text-faint);
+}
+
+.almanac-card__value {
+  margin: 0;
+  font-weight: 600;
+}
+
+.almanac-card__subtitle {
+  margin: 4px 0 0;
+  font-family: var(--font-ui);
+  font-size: 1rem;
+}
+
+.almanac-card__payout {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: var(--radius-input);
+  background: var(--warning-soft);
+  color: var(--warning);
+  font-size: 0.85rem;
+}
+
+/* --- the weather reaction list ------------------------------------------ */
+
+.almanac-weather {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.almanac-weather__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--radius-input);
+  background: var(--surface-sunken);
+  font-size: 0.85rem;
+}
+
+.almanac-weather__event {
+  color: var(--text-muted);
+}
+
+.almanac-weather__rating {
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+/* One modifier per rating word — `js/ui/almanacWeather.js` names them. */
+.almanac-weather__row--thrives {
+  background: var(--success-soft);
+}
+.almanac-weather__row--thrives .almanac-weather__rating {
+  color: var(--success);
+}
+
+.almanac-weather__row--happy {
+  background: var(--accent-soft);
+}
+.almanac-weather__row--happy .almanac-weather__rating {
+  color: var(--accent-strong);
+}
+
+.almanac-weather__row--fine .almanac-weather__rating {
+  color: var(--text-muted);
+}
+
+.almanac-weather__row--struggles {
+  background: var(--warning-soft);
+}
+.almanac-weather__row--struggles .almanac-weather__rating {
+  color: var(--warning);
+}
+
+.almanac-weather__row--harmed {
+  background: var(--danger-soft);
+}
+.almanac-weather__row--harmed .almanac-weather__rating {
+  color: var(--danger);
+}
+
+/* --- mobile ------------------------------------------------------------- */
+
+@media (max-width: 900px) {
+  .almanac-page {
+    padding: 16px;
+  }
+
+  .almanac__head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+}

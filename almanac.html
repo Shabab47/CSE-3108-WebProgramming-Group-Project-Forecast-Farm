@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en" data-page="almanac">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Crop Almanac — Forecast Farm</title>
+    <meta name="description" content="How each crop reacts to the weather, how long it takes to grow, and what it is worth." />
+
+    <link rel="icon" href="assets/icons/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="css/reset.css" />
+    <link rel="stylesheet" href="css/variables.css" />
+    <link rel="stylesheet" href="css/themes.css" />
+    <link rel="stylesheet" href="css/components.css" />
+    <link rel="stylesheet" href="css/fonts.css" />
+    <link rel="stylesheet" href="css/almanac.css" />
+  </head>
+
+  <body class="almanac-page">
+    <!-- The whole page: the back link, the title and the five crop cards. It is
+         static — no session, no save, no network — so it renders before anything
+         is fetched. js/almanac-main.js mounts it. -->
+    <main class="almanac-shell" id="almanac-root"></main>
+
+    <script type="module" src="js/almanac-main.js"></script>
+  </body>
+</html>

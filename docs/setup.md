@@ -23,7 +23,8 @@ npm run check    # layering rules; fails the build on a forbidden import
 | `index.html` | `js/main.js` | The farm. |
 | `shop.html` | `js/shop-main.js` | Seed shop. |
 | `settings.html` | `js/settings-main.js` | Account details, erase progress, delete account. |
-| `almanac.html` | — | Placeholder, empty. |
+| `almanac.html` | `js/almanac-main.js` | The crop almanac — a static reference of the five crops. No session, no save. |
+| `inventory.html` | `js/inventory-main.js` | The seed bag — the seeds you own. Reads the save. |
 
 `index.html`, `shop.html` and `settings.html` all redirect to `login.html` when there is
 no session, so start at the login page.
@@ -174,7 +175,7 @@ detail.
 | Issue | State |
 | :--- | :--- |
 | 002 owner SELECT policy | Applied in code, **needs re-running** for the rename path |
-| Farm screen, weather, economy | Not built yet. `almanac.html` is an empty placeholder. |
+| Farm screen, weather, economy | Built. The almanac is a static reference page (`almanac.html`); it resolves no session. |
 | Exported save files | Integrity-checked but **unsigned** (DEC-021). |
 | Guest farms | Browser-only, cannot be exported, lost if site data is cleared. |
 

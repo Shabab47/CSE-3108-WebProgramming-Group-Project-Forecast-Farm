@@ -43,7 +43,7 @@ import { installDom, uninstallDom } from './helpers/fakeDom.js';
 const PAGE_IDS = [
   'app', 'top-bar', 'sidebar', 'right-rail',
   'forecast-board', 'forecast-card', 'location-bar',
-  'season-card', 'shop-launch', 'inventory-launch',
+  'season-card', 'shop-launch', 'almanac-launch', 'inventory-launch',
   'farm-view', 'farm-picker', 'toast-stack', 'sync-indicator',
 ];
 

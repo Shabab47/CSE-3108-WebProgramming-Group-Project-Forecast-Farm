@@ -274,7 +274,7 @@ dropped, which is worth more than a tick that hides it.
 **Tasks:** T-14, T-15, T-16
 
 - [ ] Every crop with five stage images flipped to `available: true`, no code changes
-- [ ] `almanac.html` populated, linked from the UI
+- [x] `almanac.html` populated, linked from the UI
 - [ ] Empty, loading and error states on every panel — *page-level loading state done
       (ISS-043); per-panel empty/error states still to do*
 - [ ] Keyboard focus ring on plots; plots are real buttons

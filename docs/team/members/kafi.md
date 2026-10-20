@@ -60,7 +60,7 @@ Team decision on icons: paths are coded as specified and broken images are accep
 
 ## Week 5
 
-- [ ] `almanac.html` content and a `js/almanac-main.js` entry — it currently has none (ISS-019)
+- [x] `almanac.html` content and a `js/almanac-main.js` entry — it currently has none (ISS-019)
 - [ ] Empty, loading and error states on every panel
 - [ ] Visible keyboard focus ring on plots — they are real buttons, so this is styling only
 - [ ] Image weight: 40 layers of 1000 px PNGs may be slow. If so, add 512 px copies and change

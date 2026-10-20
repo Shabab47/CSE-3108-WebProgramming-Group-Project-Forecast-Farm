@@ -19,7 +19,7 @@
  * mounts it as the first statement of `start()` and calls `done()` after the
  * real UI is up. It is deliberately not `mountX(root, actions)` against a
  * selector from the HTML: no page should have to declare an empty `<div>` in
- * markup for this, and `almanac.html` is currently a zero-byte file.
+ * markup for this, and the almanac page declares no mount point either.
  *
  * ## Nothing is shown for a fast load
  *

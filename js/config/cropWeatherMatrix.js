@@ -39,6 +39,22 @@ export const WEATHER_EVENTS = ['sunny', 'cloudy', 'lightRain', 'heavyRain', 'dro
 export const RATINGS = { harmed: -2, unhappy: -1, neutral: 0, content: 1, thriving: 2 };
 
 /**
+ * The rating words, exported so the seed picker and the almanac cannot disagree.
+ *
+ * `0` is deliberately **"fine"** and not "neutral": neutral reads like nothing is
+ * happening, and fine reads like the weather did its job. Keys are strings because
+ * object keys are strings — `RATING_WORDS[rating]` with a numeric `rating` coerces
+ * the same way, and a bare `-1` would otherwise be indistinguishable from `1`.
+ */
+export const RATING_WORDS = {
+  2: 'thrives',
+  1: 'happy',
+  0: 'fine',
+  '-1': 'struggles',
+  '-2': 'harmed',
+};
+
+/**
  * `CROP_WEATHER[cropId][event] -> rating`.
  *
  * Complete on purpose: a missing row reads as "no opinion" in a lookup and as a

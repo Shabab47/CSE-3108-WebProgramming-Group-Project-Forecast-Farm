@@ -125,7 +125,7 @@ of view. **Now the whole team's** — see ISS-099. |
 | :--- | :--- | :--- | :--- | ---: | :--- |
 | T-14 | Other crops: flip `available: true` as art arrives, no code changes expected | Shabab | todo | 4 | - | **But ISS-093 says otherwise for tomato**: the five stage sprites landed in `d131de4` and `tomato_5.png` is **1024×807** while stages 1–4 are 1024×1024, so the plant shrinks at the last growth step. Registered in `assets.js` with the dimensions the files actually have, but the art needs re-exporting or `plotLayers.js` needs a real answer about non-square crop art. The `available: true` flip is safe to do now — nothing else about the stages is code-coupled. |
 | T-26 | Missing art per `docs/asset-checklist.md` — 2 rice failure sprites, 28 for the other 4 crops, 14 icons, 2 pump frames | Kafi | todo | 4 | — |
-| T-15 | Polish: almanac content, empty/loading/error states, keyboard focus, image size review | Kafi | todo | 4 | Page-level loading states done (ISS-043); per-panel empty/error states still open |
+| T-15 | Polish: almanac content, empty/loading/error states, keyboard focus, image size review | Kafi | **partly done** | 4 | Almanac content landed: `almanac.html` + `js/almanac-main.js` + `ui/almanac{,Card,Weather}.js`, reached from the book button under the shop. Page-level loading states done (ISS-043); per-panel empty/error states still open |
 | T-16 | Handover: `architecture.md`, `tasks.md`, final `progress-log` entry, tag `v0.1` | Shabab | todo | 4 | — |
 
 ---

@@ -1,0 +1,173 @@
+/* The inventory page: the seeds the player owns.
+   The same shape as the almanac — readable cards on the theme tokens — but this
+   one reads the save, so it is mounted by js/inventory-main.js rather than being
+   static. */
+
+.inventory-page {
+  min-height: 100dvh;
+  padding: 24px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.inventory-shell {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* --- header ------------------------------------------------------------- */
+
+.inventory__head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.inventory__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 2px solid var(--border-strong);
+  border-radius: var(--radius-input);
+  background: var(--surface);
+  color: var(--accent-strong);
+  font-family: var(--font-ui);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.inventory__back:hover {
+  background: var(--accent-soft);
+}
+
+.inventory__back-arrow {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+}
+
+.inventory__intro {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.inventory__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 2rem;
+  letter-spacing: 0.02em;
+}
+
+.inventory__subtitle {
+  max-width: 60ch;
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-family: var(--font-ui);
+}
+
+.inventory-purse {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 14px;
+  border: 2px solid var(--border-strong);
+  border-radius: var(--radius-input);
+  background: var(--surface);
+  font-family: var(--font-ui);
+}
+
+.inventory-purse__label {
+  color: var(--text-muted);
+}
+
+.inventory-purse__coin {
+  display: inline-block;
+  width: 1.1em;
+  height: 1.1em;
+}
+
+.inventory-purse__gold {
+  font-weight: 700;
+}
+
+/* --- the grid of cards -------------------------------------------------- */
+
+.inventory__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.inventory-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+
+/* An empty bag dimmed, so the seeds that *are* there read at a glance. */
+.inventory-card--empty {
+  background: var(--surface-sunken);
+  opacity: 0.75;
+}
+
+.inventory-card__art {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  background: radial-gradient(circle at 50% 40%, #fff8df, #f3e2b3);
+}
+
+.inventory-card__img {
+  width: 78%;
+  height: auto;
+  object-fit: contain;
+}
+
+.inventory-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px;
+}
+
+.inventory-card__name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+}
+
+.inventory-card__count {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--accent-strong);
+}
+
+.inventory-card__note {
+  margin: 0;
+  color: var(--text-muted);
+  font-family: var(--font-ui);
+  font-size: 0.9rem;
+}
+
+/* --- mobile ------------------------------------------------------------- */
+
+@media (max-width: 900px) {
+  .inventory-page {
+    padding: 16px;
+  }
+
+  .inventory__head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+}

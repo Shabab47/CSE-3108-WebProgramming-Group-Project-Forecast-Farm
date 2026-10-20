@@ -11,6 +11,7 @@ import { mountBlockedScreen } from './ui/blockedScreen.js';
 import { mountToastStack } from './ui/toastStack.js';
 import { mountNavbar } from './ui/navbar.js';
 import { mountShopLauncher } from './ui/shopLauncher.js';
+import { mountAlmanacLauncher } from './ui/almanacLauncher.js';
 import { mountInventoryLauncher } from './ui/inventoryLauncher.js';
 import { mountSeasonCard } from './ui/seasonCard.js';
 import { mountEnvMetrics } from './ui/envMetrics.js';
@@ -34,11 +35,21 @@ const log = createLog('main');
 const LOGIN_URL = 'login.html';
 const SHOP_URL = 'shop.html';
 const FARM_URL = 'index.html';
+const ALMANAC_URL = 'almanac.html';
+const INVENTORY_URL = 'inventory.html';
 const SETTINGS_URL = 'settings.html';
 const PROFILE_URL = 'profile.html';
 
 export function shopHref(session) {
   return session?.status === 'guest' ? `${SHOP_URL}?guest=1` : SHOP_URL;
+}
+
+export function almanacHref(session) {
+  return session?.status === 'guest' ? `${ALMANAC_URL}?guest=1` : ALMANAC_URL;
+}
+
+export function inventoryHref(session) {
+  return session?.status === 'guest' ? `${INVENTORY_URL}?guest=1` : INVENTORY_URL;
 }
 
 export function farmHref(session) {
@@ -128,7 +139,8 @@ function mountShell(session) {
 
   mountSeasonCard(qsOrNull('#season-card'), { location: getState()?.location });
   mountShopLauncher(qsOrNull('#shop-launch'), { href: shopHref(session) });
-  mountInventoryLauncher(qsOrNull('#inventory-launch'), { href: farmHref(session) });
+  mountAlmanacLauncher(qsOrNull('#almanac-launch'), { href: almanacHref(session) });
+  mountInventoryLauncher(qsOrNull('#inventory-launch'), { href: inventoryHref(session) });
 
   qsOrNull('#right-rail').append(
     el('div', { class: 'farm-gold' }, [

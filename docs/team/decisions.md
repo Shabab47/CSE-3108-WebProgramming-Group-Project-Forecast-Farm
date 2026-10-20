@@ -30,6 +30,46 @@ Format: who decided, the choice, why, and what was rejected.
 
 ---
 
+### DEC-053 The seed bag is a page, and it is read-only
+**Decided by:** Kafi · 2026-10-20
+
+**Choice:** `inventory.html` with its own entry (`js/inventory-main.js`), reached from the crate
+button under the almanac button. It resolves the session and loads the save like `shop-main.js`
+does, then lists every crop with how many seeds are in the bag. It has no buy or sell buttons.
+
+**Why:** The bag is a view of the save, so it needs the session and the save the same way the shop
+does — the almanac could be static, this cannot. But it is not the shop: the shop is where a seed is
+bought or sold, and this page is where a player checks what they hold, so giving it buttons would be
+a second place to spend gold and a second thing that can disagree with the shop.
+
+**Consequence:** The bag reads `state.inventory.seeds` only. The shop stays the single writer of
+that field, so a count on this page can never drift from a count in the shop.
+
+---
+
+### DEC-052 The almanac is a static reference page, not a gated one
+**Decided by:** Kafi · 2026-10-20
+
+**Choice:** `almanac.html` is its own page with its own entry (`js/almanac-main.js`), guarded on
+`#almanac-root`. It resolves no session, reads no save and fetches nothing — the crop numbers come
+from `js/config/`, which is already on the page. It is reached from the book button on the farm
+sidebar (`js/ui/almanacLauncher.js`, renamed from `inventoryLauncher.js`).
+
+**Why:** ISS-019 asked for an entry script because `js/main.js` boots the whole game — session,
+simulator, weather — for a page that only wants reference text. A static page is the honest
+version: the almanac has nothing to be signed in for.
+
+**Consequence:** The "Back to farm" link cannot read `session.status`, because there is no session.
+A guest session lives in the URL (`?guest=1`), so the entry forwards that flag from its own query
+string. The button's href is built by `almanacHref(session)` in `js/main.js`, which is where the
+flag is set.
+
+**Rejected:** Resolving the session like `shop-main.js` does. It would bounce a bookmarked,
+signed-out visitor to the login page — the opposite of a tutorial — and boot the auth provider for
+a page that needs none.
+
+---
+
 ### DEC-051 Profile avatars are presets stored as an id, not uploaded files
 **Decided by:** Jim · 2026-10-20
 
@@ -78,7 +118,6 @@ mocked up to. The cost is one more visual system, kept to `profile.html` and `se
 
 **Rejected:** refactoring the shop onto the shared frame in the same commit — it works and ships
 as-is; a refactor is a separate task with its own visual review.
-
 ---
 
 ### DEC-049 The field fit is retuned by eye: `0.2320 / 0.502 / 0.466 / 0.2`

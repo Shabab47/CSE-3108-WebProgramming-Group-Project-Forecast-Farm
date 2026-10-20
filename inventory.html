@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en" data-page="inventory">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Inventory — Forecast Farm</title>
+    <meta name="description" content="The seeds in your bag, and how many of each." />
+
+    <link rel="icon" href="assets/icons/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="css/reset.css" />
+    <link rel="stylesheet" href="css/variables.css" />
+    <link rel="stylesheet" href="css/themes.css" />
+    <link rel="stylesheet" href="css/components.css" />
+    <link rel="stylesheet" href="css/fonts.css" />
+    <link rel="stylesheet" href="css/inventory.css" />
+  </head>
+
+  <body class="inventory-page">
+    <!-- Sync indicator mount point, as on the shop page. A fixed corner chip, so it
+         can never shift the layout — see ISS-076 and js/connection.js. -->
+    <div id="sync-indicator"></div>
+
+    <!-- The whole page: header, purse and the seed list. js/inventory-main.js
+         resolves the session and loads the save before any of it is rendered, so
+         the counts shown here are the counts the farm page will show. -->
+    <main class="inventory-shell" id="inventory-root"></main>
+
+    <div class="toast-stack" id="toast-stack" aria-live="polite"></div>
+
+    <script type="module" src="js/inventory-main.js"></script>
+  </body>
+</html>

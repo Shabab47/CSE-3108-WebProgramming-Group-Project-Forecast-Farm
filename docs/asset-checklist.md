@@ -7,8 +7,9 @@ Owner: **Kafi**. Art direction: **Hisham**.
 > A test (`tests/assets.test.js`) scans the `assets/` directory and fails if any file is missing
 > from the registry, any registry entry points to a missing file, or any size does not match.
 
-Last reviewed 2026-10-20, after potato's five stages and both pin sprites landed. Tick a box when
-the file exists **and** has content — an empty placeholder file does not count.
+Last reviewed 2026-10-20, after potato's five stages, both pin sprites and the book/almanac art
+landed. Tick a box when the file exists **and** has content — an empty placeholder file does not
+count.
 
 **Naming rules.** One folder per crop. The folder name and the file prefix always match, so a
 misfiled sprite is obvious at a glance.
@@ -31,7 +32,7 @@ on disk. The two answer different questions and will not have the same total: th
 sprites nobody has drawn yet, which are by definition not in the registry. Where they overlap they
 agree, and `tests/assets.test.js` fails if the registry drifts from the filesystem.
 
-**Seventy-three files are registered: 47 finished, 26 outstanding.** Of those 26, five are unused
+**Eighty-one files are registered: 55 finished, 26 outstanding.** Of those 26, five are unused
 duplicate copies of the rice sprites, four are `.gitkeep` placeholders, three are the out-of-scope
 sounds and fourteen are the 0-byte icon SVGs — so **17 registered files are still empty or unwritten**,
 none of them a crop sprite. The crop art still owed is *planned* rather than registered: eleven damage
@@ -48,8 +49,10 @@ sprites (five crops × three states, less the four that exist) and ten growth st
 | Environment tiles and pins | 6 | 6 | 0 |
 | Menu background + logo | 2 | 2 | 0 |
 | Display fonts | 6 | 6 | 0 |
-| Shop art, buttons, season art | 13 | 13 | 0 |
-| **Total in scope** | **88** | **47** | **41** |
+| Shop art, buttons, season art | 14 | 14 | 0 |
+| Book / almanac art | 7 | 7 | 0 |
+| Inventory art | 1 | 1 | 0 |
+| **Total in scope** | **96** | **55** | **41** |
 | Sounds — *out of scope* | 3 | 0 | — |
 
 **Rice, potato and tomato each have all five growth stages.** Wheat and corn have none yet. Rice and
@@ -216,6 +219,38 @@ Five, used in the seed shop and the crop picker. **All five are 0 bytes.**
 | `potato.svg` | Potato | ⬜ 0 bytes |
 | `corn.svg` | Corn | ⬜ 0 bytes |
 | `tomato.svg` | Tomato | ⬜ 0 bytes |
+
+---
+
+## Book / almanac art
+
+Seven files under `assets/images/book/`. The book button replaces the rice seed packet that stood
+in for it on the farm sidebar, directly under the shop button (`ui/almanacLauncher.js`). The six
+crop illustrations are the almanac's per-crop entries, loaded by `ui/almanacCard.js` via
+`bookCropImg()`; the page is `almanac.html` (`js/almanac-main.js`).
+
+| File | What it is | Status |
+| :--- | :--- | :--- |
+| `book.png` | The book button, 1470×1070 — **landscape**, unlike the square shop/settings buttons | ✅ done |
+| `rice.png` | Rice almanac entry, 1254×1254 | ✅ done |
+| `wheat.png` | Wheat almanac entry, 1254×1254 | ✅ done |
+| `potato.png` | Potato almanac entry, 1254×1254 | ✅ done |
+| `tomato.png` | Tomato almanac entry, 1254×1254 | ✅ done |
+| `corn.png` | Corn almanac entry, 1254×1254 | ✅ done |
+| `Golden Rice Harvest Bundle.png` | Golden Rice Harvest Bundle, 1312×1199 | ✅ done |
+
+**`book.png` is landscape and the button box is square.** `.sidebar-btn__img` is 64×64 with
+`object-fit: contain`, so the book letterboxes and renders smaller than the shop gear. Crop it to
+square, or give the button a wider box, before calling the button finished.
+
+---
+
+## Inventory art
+
+One file: `assets/images/inventory/inventory.png`, a crate of harvested crops, 1254×1254. It is the
+button under the almanac button (`ui/inventoryLauncher.js`), which opens the inventory page
+(`inventory.html`, `js/inventory-main.js`). The page itself shows the shop's seed packets, not this
+crate — the crate is the button, the packets are the bag.
 
 ---
 

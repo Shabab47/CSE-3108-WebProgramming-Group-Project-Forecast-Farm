@@ -116,6 +116,32 @@ export const ASSETS = [
   // --- Settings ---
   { path: 'assets/images/settings/settings.png', name: 'Settings gear (button to open settings)', size: 1578477, dimensions: '1254x1254', status: 'done', category: 'button-art', page: 'settings' },
 
+  // --- Book / almanac ---
+  //
+  // The book button sits in the farm sidebar, directly under the shop button
+  // (`ui/almanacLauncher.js`). It replaced a rice seed packet that had stood in
+  // for it. `book.png` is 1470×1070 — landscape, unlike the square shop and settings
+  // buttons — so it letterboxes inside the 64×64 `.sidebar-btn__img` box
+  // (`css/sidebar.css`, `object-fit: contain`).
+  { path: 'assets/images/book/book.png', name: 'Book (button to open the almanac)', size: 1675851, dimensions: '1470x1070', status: 'done', category: 'button-art', page: 'field' },
+  // One illustration per crop, for the almanac's entries. `almanac.html` is still
+  // an empty placeholder (ISS-019), so nothing loads these yet — they are registered
+  // because this file is the record of what is on disk, and `tests/assets.test.js`
+  // fails in both directions.
+  { path: 'assets/images/book/rice.png', name: 'Rice — almanac entry', size: 1494221, dimensions: '1254x1254', status: 'done', category: 'book-art', page: 'almanac' },
+  { path: 'assets/images/book/wheat.png', name: 'Wheat — almanac entry', size: 1409327, dimensions: '1254x1254', status: 'done', category: 'book-art', page: 'almanac' },
+  { path: 'assets/images/book/potato.png', name: 'Potato — almanac entry', size: 1511880, dimensions: '1254x1254', status: 'done', category: 'book-art', page: 'almanac' },
+  { path: 'assets/images/book/tomato.png', name: 'Tomato — almanac entry', size: 1387882, dimensions: '1254x1254', status: 'done', category: 'book-art', page: 'almanac' },
+  { path: 'assets/images/book/corn.png', name: 'Corn — almanac entry', size: 1345346, dimensions: '1254x1254', status: 'done', category: 'book-art', page: 'almanac' },
+  { path: 'assets/images/book/Golden Rice Harvest Bundle.png', name: 'Golden Rice Harvest Bundle', size: 1215721, dimensions: '1312x1199', status: 'done', category: 'book-art', page: 'almanac' },
+
+  // --- Inventory ---
+  //
+  // A crate of harvested crops. It is the button on the farm sidebar, under the
+  // almanac button (`ui/inventoryLauncher.js`), which opens the seed-bag page
+  // (`inventory.html`).
+  { path: 'assets/images/inventory/inventory.png', name: 'Inventory crate (button to open the seed bag)', size: 1865103, dimensions: '1254x1254', status: 'done', category: 'button-art', page: 'field' },
+
   // --- Seasons (the season card's illustration) ---
   //
   // `ui/seasonCard.js` builds this path as
@@ -189,6 +215,12 @@ export const TITLE_IMG = 'assets/images/title.png';
 /** The settings gear, used as the button that opens settings. 1254×1254. */
 export const SETTINGS_IMG = 'assets/images/settings/settings.png';
 
+/** The book, used as the button under the shop button that opens the almanac. 1470×1070. */
+export const BOOK_IMG = 'assets/images/book/book.png';
+
+/** The crate, used as the button under the almanac button that opens the seed bag. 1254×1254. */
+export const INVENTORY_IMG = 'assets/images/inventory/inventory.png';
+
 /** The ground tile for a plot, watered or dry. */
 export function groundTile(watered) {
   return watered
@@ -209,6 +241,17 @@ export function lockPin(isNext) {
 /** The seed packet the shop lists for a crop. 1312×1199 for every crop. */
 export function cropSeedImg(cropId) {
   return `assets/images/crops/${cropId}/${cropId}%20seed.png`;
+}
+
+/**
+ * One crop's illustration in the almanac. 1254×1254.
+ *
+ * Lives in `assets/images/book/` rather than the crop's own folder, because the
+ * almanac's art is a drawn entry portrait, not a growth stage — `bookCropImg()` is
+ * what keeps the two apart.
+ */
+export function bookCropImg(cropId) {
+  return `assets/images/book/${cropId}.png`;
 }
 
 /** One growth stage, 1 to 5. */
