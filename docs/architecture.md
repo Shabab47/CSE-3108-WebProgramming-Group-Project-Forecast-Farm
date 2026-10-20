@@ -694,7 +694,7 @@ farm and still reported that nothing had changed.
 | the purchase rule | `js/domain/shop.js` (`buySeeds`) |
 | the settings page | `js/ui/settingsView.js` |
 | the profile page | `js/ui/profileView.js`, `js/ui/accountCard.js` - moved from the settings page so it isn't hidden behind two destructive actions |
-| the preset avatar list and its drawings | `js/config/avatars.js`, `js/ui/avatarArt.js` - presets, not uploads (DEC-051) |
+| the preset avatar list, its drawings, and where they appear | `js/config/avatars.js`, `js/ui/avatarArt.js` - presets, not uploads (DEC-051); the profile page's account card and the farm navbar's profile tile both render the chosen id. `avatarArt()` suffixes any `<clipPath>` ids per call, because the selected preset is painted twice on the profile page |
 | the painted frame both account pages share | `js/ui/pageFrame.js`, `css/page-frame.css`, `css/page-header.css` |
 | cream cards and controls inside that frame | `css/page-card.css` |
 | the fields and status messages on the settings page | `css/page-form.css` |
@@ -874,7 +874,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── shopLauncher.js     the shop sign in the farm sidebar
 │   │   ├── shopView.js         the seed list on shop.html
 │   │   ├── toastStack.js       transient messages
-│   │   ├── navbar.js          logo, farmer name, sign-out
+│   │   ├── navbar.js          logo; sound, settings and avatar tiles
 │   │   ├── weatherGlyph.js     the drawn condition, not an icon file
 │   │   └── weatherPanel.js     the wooden board: now, three meters, six hours
 │   ├── utils/

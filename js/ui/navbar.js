@@ -2,37 +2,44 @@
  * Navbar.
  *
  * The wordmark matches the login page's top bar (css/auth.css `.auth__word`).
- * The right side carries the action tiles — sound, settings and account — plus
- * sign-out. The location search belongs to the weather panel, not here — see
- * ui/locationBar.js and T-11.
+ * The right side carries the action tiles — sound, settings and profile. The
+ * profile tile shows the same chosen avatar as the account card, because it is
+ * the shortest reminder of who the farm belongs to. The location search belongs
+ * to the weather panel, not here — see ui/locationBar.js and T-11.
  */
 
 import { el, clear } from '../utils/dom.js';
 import { createLog } from '../utils/log.js';
 import { icon } from './icon.js';
+import { iconEl } from './icons.js';
+import { avatarArt } from './avatarArt.js';
 import { profileHref, settingsHref } from '../main.js';
 
 const log = createLog('navbar');
 
 /**
  * @param {HTMLElement} root
- * @param {{ session: object }} actions
+ * @param {{ session: object, avatar?: string|null }} actions
  * @returns {{ unmount: Function }}
  */
 export function mountNavbar(root, actions) {
-  const { session } = actions;
+  const { session, avatar = null } = actions;
   clear(root);
 
   // The farmer's name and the sign-out button both live on the profile page now.
-  // The bar carries only what you navigate with: the wordmark, settings and profile.
+  // The bar carries only what you navigate with: the wordmark, settings and the
+  // profile tile. That tile wears the chosen avatar, or the same gray person the
+  // account card uses when nothing has been chosen.
+  const art = avatarArt(avatar);
+  const face = art
+    ? el('span', { class: 'navbar__avatar-art', html: art, 'aria-hidden': 'true' })
+    : iconEl('user', 'navbar__avatar-default');
   const account = el('a', {
-    class: 'navbar__tile',
+    class: `navbar__tile navbar__tile--avatar${art ? '' : ' navbar__tile--default'}`,
     href: profileHref(session),
     'aria-label': 'Your profile',
     title: 'Profile',
-  }, [
-    icon('user', 'navbar__tile-icon'),
-  ]);
+  }, [face]);
 
   const card = el('div', { class: 'navbar' }, [
     el('a', { class: 'navbar__logo', href: 'index.html', 'aria-label': 'Forecast Farm home' }, [

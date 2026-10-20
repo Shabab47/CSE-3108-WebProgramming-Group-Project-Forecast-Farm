@@ -73,9 +73,9 @@ a page that needs none.
 ### DEC-051 Profile avatars are presets stored as an id, not uploaded files
 **Decided by:** Jim · 2026-10-20
 
-**Choice:** the profile page offers the default gray person plus three inline-SVG farmer busts,
-`farmer1`, `farmer2` and `farmer3`. `state.profile.avatar` holds one of those ids, or `null` for
-the default.
+**Choice:** the profile page offers the default gray person plus four inline-SVG farmer busts,
+`farmer1`, `farmer2`, `farmer3` and `farmer4`. `state.profile.avatar` holds one of those ids, or
+`null` for the default.
 `js/config/avatars.js` owns the list the store validates, `js/ui/avatarArt.js` owns the drawings,
 and `accountCard.js` renders the picker. The choice is saved through `setAvatar()` like any other
 state change, so it syncs on an authed farm and stays local for a guest. Erasing progress keeps the
@@ -83,7 +83,7 @@ avatar — it is a profile choice, not farm progress. Deleting the account remov
 
 **Why presets.** An upload needs a file picker, image decoding, canvas resizing, compression, a size
 and MIME check, data-URL or object-storage handling, and browser-only tests to get one picture onto
-a circle. Three fixed ids deliver the actual request — "choose a picture" — with none of that
+a circle. A fixed set of ids delivers the actual request — "choose a picture" — with none of that
 surface, and they cannot produce a broken image. Inline SVG also avoids adding more files to the
 asset registry and the 0-byte-art problem (DEC-014).
 
@@ -96,7 +96,15 @@ save; adding PNGs to `assets/images/`. Also rejected: keeping initials, which re
 name badge rather than the empty state.
 
 **Amended 2026-10-20:** `farmer3` joined the list under the same rule. The state shape, store
-validation and fallback are unchanged; only the list, the drawing and the tests grew.
+validation and fallback are unchanged; only the list, the drawing and the tests grew. The farm
+navbar's profile tile also mirrors the choice: it renders `avatarArt(state.profile.avatar)`, or
+the same gray person as the account card for `null` and unknown ids, and still links to
+`profile.html`. It is a second view of the choice, not a second state field.
+
+**Amended 2026-10-20 (fourth preset):** `farmer4` joined the list with its supplied drawing. The
+picker row wraps rather than overflowing if the panel is narrower than five options. This drawing
+carries `<clipPath>` ids, so `avatarArt()` suffixes them per render; the same preset is painted in
+the main circle and in the picker, and the two copies must not repeat an id in the document.
 
 ---
 

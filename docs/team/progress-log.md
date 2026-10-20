@@ -8,6 +8,27 @@ The per-person weekly notes that used to live in the README table are now in `me
 ---
 
 
+## Navbar avatar, fourth preset and ring — 2026-10-20
+
+- **Did:** the farm navbar's profile tile now shows the selected preset instead of the generic
+  user icon, falling back to the same gray person as the profile page. `mountNavbar()` receives
+  `state.profile.avatar` from `main.js`; the 40px tile is circular, carries the same 2px tan ring as
+  the profile picker, and still links to `profile.html` with `?guest=1` preserved.
+- **Fourth preset:** `farmer4` joined `AVATARS` with the supplied drawing in `avatarArt.js`; the
+  picker now shows five options and wraps if the avatar panel is too narrow for the row. Because
+  the drawing carries `<clipPath>` ids, `avatarArt()` suffixes them per render so the main circle
+  and the selected option cannot repeat an id. T-71 is done.
+- **Fixed:** ISS-111. `HEAD` still had the six black bars in Farmer 3's SVG; they were removed
+  together with the redundant `clip0_3_11` wrapper, and `avatar.test.js` now guards the bars and the
+  wrapper.
+- **Touched:** `js/ui/navbar.js`, `js/ui/avatarArt.js`, `js/config/avatars.js`, `js/main.js`,
+  `css/navbar.css`, `css/profile.css`, `tests/navbar.test.js`, `tests/avatar.test.js`,
+  `tests/profileView.test.js`, `tests/mainPageBoot.test.js`, `docs/architecture.md`,
+  `docs/team/{decisions,issues,tasks,progress-log}.md`.
+- **Verified:** `npm test` 650/650 pass, `npm run check` clean (2 known, T-04); the four preset
+  tiles were also rendered at 40px and checked by eye.
+- **Next:** commit only after approval.
+
 ## Third preset avatar, after pulling main — 2026-10-20
 
 - **Did:** pulled the latest `origin/main` into `jim` (almanac and inventory pages), then
