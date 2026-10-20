@@ -8,9 +8,10 @@
  */
 
 import { createLog } from '../utils/log.js';
+import { isAvatarId } from '../config/avatars.js';
 import { SAVE_DEBOUNCE_MS, SAVE_RETRY_BACKOFF_MS, isDifficulty } from '../config/game.js';
 import { importFromText } from './transfer.js';
-import { buildInitialState, ensureDifficulty, ensureStarterPlot, normaliseSession } from './initialState.js';
+import { buildInitialState, ensureDifficulty, ensureProfile, ensureStarterPlot, normaliseSession } from './initialState.js';
 import { deleteSave, readSave, writeSave } from './saveFile.js';
 import { exportFilename, exportToText } from './transfer.js';
 
@@ -202,6 +203,14 @@ export async function init(session, build = buildInitialState, server = null) {
     log.info('older save has no difficulty; reading it as', state.difficulty);
   }
 
+  // Same migration shape for the avatar: missing or unknown means the default, and the
+  // farm is kept. This also repairs a hand-edited or imported id before it reaches the UI.
+  const withProfile = ensureProfile(state);
+  if (withProfile !== state) {
+    state = withProfile;
+    log.info('older save has no avatar; using the default');
+  }
+
   log.info(fromServer ? 'resumed farm from server' : saved ? 'resumed farm' : 'new farm', 'for', userId);
   notify();
 
@@ -241,6 +250,38 @@ export function setDifficultyRule(state, value) {
   if (state?.difficulty === value) return { ok: true, state };
 
   return { ok: true, state: { ...state, difficulty: value } };
+}
+
+/**
+ * Choose a preset avatar, or `null` for the default gray person.
+ *
+ * A store-level rule rather than a special path in the profile page: the avatar is
+ * state like difficulty, so it goes through `apply`, which means the save, the toasts
+ * and every subscriber behave the same way. The id is validated here because a save
+ * file, an imported farm or the console can put anything in the field; the UI must
+ * never be the only thing standing between bad data and an `<img src>`.
+ *
+ * @param {object} state
+ * @param {string|null} avatar
+ * @returns {{ok:true,state:object}|{ok:false,reason:string}}
+ */
+export function setAvatarRule(state, avatar) {
+  if (avatar !== null && !isAvatarId(avatar)) {
+    return { ok: false, reason: 'That is not an avatar this game knows about.' };
+  }
+
+  const next = avatar ?? null;
+  if ((state?.profile?.avatar ?? null) === next) return { ok: true, state };
+
+  return {
+    ok: true,
+    state: { ...state, profile: { ...(state?.profile ?? {}), avatar: next } },
+  };
+}
+
+/** Choose a preset avatar through the normal state path. */
+export function setAvatar(avatar) {
+  return apply(setAvatarRule, avatar);
 }
 
 /**
@@ -469,7 +510,10 @@ export function adoptState(next) {
   if (!next || typeof next !== 'object') return { ok: false, reason: 'nothing to import' };
   if (!Array.isArray(next.plots)) return { ok: false, reason: 'not a farm' };
 
-  state = { ...next, session: normaliseSession(state.session) };
+  // An imported file is just another old save, so it gets the same avatar repair as
+  // `init`. Without this, a hand-edited id would live in the live state (the UI falls
+  // back to the gray person, but the next save would persist the bad value).
+  state = ensureProfile({ ...next, session: normaliseSession(state.session) });
   log.info('adopted an imported farm for', userId);
   notify();
   // Written immediately, not debounced: the old save is still on disk and must

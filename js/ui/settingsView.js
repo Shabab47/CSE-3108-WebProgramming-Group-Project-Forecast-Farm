@@ -40,10 +40,14 @@
  * credential field), `runDestructive.js` (the ordering, which is testable without a DOM
  * and is where the wrong-password bug used to live), `statusLine.js` (one live region per
  * action — see below) and `dangerMessages.js` (the failure sentences).
+ *
+ * The page sits inside the painted frame shared with profile.html: `pageFrame` builds the
+ * posts, beam, sign and scrolling board, and this file only fills the board.
  */
 
 import { appendAll, clear, el } from '../utils/dom.js';
 import { createLog } from '../utils/log.js';
+import { pageFrame } from './pageFrame.js';
 import { dangerAction } from './dangerAction.js';
 import { passwordGate } from './passwordGate.js';
 import { runDestructive } from './runDestructive.js';
@@ -51,6 +55,7 @@ import { statusLine } from './statusLine.js';
 import { accountDeletionFailure, progressErasureFailure } from './dangerMessages.js';
 import { difficultyCard } from './difficultyCard.js';
 import { mountSavePanel } from './savePanel.js';
+import { iconEl } from './icons.js';
 
 const log = createLog('settingsView');
 
@@ -64,7 +69,7 @@ const log = createLog('settingsView');
  * @param {(value: string) => {ok: boolean, reason?: string}} actions.setDifficulty
  * @param {(msg:string, tone:string) => void} actions.toast
  * @param {string} actions.backHref
- * @returns {{unmount: () => void}}
+ * @returns {{unmount: () => void, update: (nextState: object) => void}}
  */
 export function mountSettings(root, actions) {
   clear(root);
@@ -188,7 +193,7 @@ export function mountSettings(root, actions) {
   // Built before the shell because it is embedded rather than given a root — see the
   // header. Passing `mountSavePanel(...)` straight to `el()` is what put `[object Object]`
   // on this page (ISS-051).
-  const saveHost = el('div');
+  const saveHost = el('div', { class: 'save-panel' });
   mountSavePanel(saveHost, actions);
 
   /* --- shell ------------------------------------------------------------- */
@@ -196,39 +201,57 @@ export function mountSettings(root, actions) {
   // `appendAll`, not the native `append`. The comment on the account card below used to say
   // "`el()` skips null children", which was true and irrelevant — this is not an `el()` call,
   // and native `append` stringifies a null into the visible word "null" (ISS-052).
+  // The frame node carries the sign, the back pill and the scrolling board. The cards go
+  // inside the board, not beside it — mounting the board alone is what left settings with
+  // no sign and no scroll (ISS-109).
+  const { node, board } = pageFrame({ title: 'Settings', backHref: actions.backHref });
+
+  appendAll(root, node);
+
+  const headWithIcon = (icon, title) =>
+    el('div', { class: 'card__head' }, [
+      iconEl(icon, 'card__icon'),
+      el('span', { class: 'card__title', text: title }),
+    ]);
+
+  const eraseCard = el('div', { class: 'card card--danger' }, [
+    headWithIcon('history', 'Erase progress'),
+    el('div', { class: 'card__body' }, [
+      progress.node,
+      // Only where a password is actually asked for — a credential field that nothing
+      // reads is worse than no field.
+      asksForPassword ? progressGate.wrap : null,
+      progressStatus.node,
+    ]),
+  ]);
+
+  // `null` for a guest: there is no account to delete, and a button saying so would
+  // be a dead end.
+  const deleteCard = account ? el('div', { class: 'card card--danger' }, [
+    headWithIcon('trash', 'Delete account'),
+    el('div', { class: 'card__body' }, [
+      account.node,
+      // Only where a password is actually asked for — a credential field that
+      // nothing reads is worse than no field.
+      asksForPassword ? gate.wrap : null,
+      // The account card had no status line of its own until now, which is why every
+      // sentence it said landed in the progress card above.
+      accountStatus.node,
+    ]),
+  ]) : null;
+
+  // One row for the two destructive cards: neither outranks the other, and two
+  // half-width cards take less height than two full-width ones. A guest has no
+  // delete card, so the erase card keeps the full width rather than leaving an
+  // empty column.
+  const dangerCards = deleteCard
+    ? el('div', { class: 'settings-danger-row' }, [eraseCard, deleteCard])
+    : eraseCard;
+
   appendAll(
-    root,
-    el('div', { class: 'settings-top' }, [
-      el('div', { class: 'settings-top__lead' }, [
-        el('a', { class: 'settings-top__back', href: actions.backHref, text: '← Back to the farm' }),
-        el('h1', { class: 'settings-top__title', text: 'Settings' }),
-      ]),
-    ]),
+    board,
     difficulty.node,
-    el('div', { class: 'card card--danger' }, [
-      el('div', { class: 'card__head' }, [el('span', { class: 'card__title', text: 'Erase progress' })]),
-      el('div', { class: 'card__body' }, [
-        progress.node,
-        // Only where a password is actually asked for — a credential field that nothing
-        // reads is worse than no field.
-        asksForPassword ? progressGate.wrap : null,
-        progressStatus.node,
-      ]),
-    ]),
-    // `null` for a guest: there is no account to delete, and a button saying so would
-    // be a dead end. `appendAll` skips null children.
-    account ? el('div', { class: 'card card--danger' }, [
-      el('div', { class: 'card__head' }, [el('span', { class: 'card__title', text: 'Delete account' })]),
-      el('div', { class: 'card__body' }, [
-        account.node,
-        // Only where a password is actually asked for — a credential field that
-        // nothing reads is worse than no field.
-        asksForPassword ? gate.wrap : null,
-        // The account card had no status line of its own until now, which is why every
-        // sentence it said landed in the progress card above.
-        accountStatus.node,
-      ]),
-    ]) : null,
+    dangerCards,
     // Always rendered, guests included. The card used to be gated on `actions.canExport ?`,
     // which tested the function rather than calling it — always truthy, so it never actually
     // hid anything. Hiding it for a guest would be worse anyway: `savePanel.js` already
@@ -248,4 +271,3 @@ export function mountSettings(root, actions) {
     },
   };
 }
-

@@ -8,6 +8,95 @@ The per-person weekly notes that used to live in the README table are now in `me
 ---
 
 
+## Wet ground dries in place, and profile gets preset avatars — 2026-10-20
+
+- **Did:** fixed ISS-110 — a plot crossing the 40-water threshold now swaps `.plot__ground`
+  in the same fast path that moves the meter, so a drying plot cannot keep the watered sprite
+  until an unrelated rebuild. The meter's CSS transition is untouched, and the new
+  `tests/farmView.test.js` case walks below → above → below and proves the tile is reused.
+  The Account card now shows a default gray person or one of two inline-SVG farmer busts, with
+  three picker buttons under the circle; the authed "These are the details you signed up with."
+  hint is gone, while the guest browser-only note stays. `state.profile.avatar` stores
+  `farmer1` / `farmer2` / `null`; old saves are repaired by `ensureProfile()` without a
+  `STATE_VERSION` bump, and an id this build does not know falls back to the default.
+- **Kept:** the shop files, every tested string, both danger-card flows, the guest hint, and the
+  avatar across "Erase progress" — it is a profile choice, not farm progress. Deleting the
+  account removes it with the save.
+- **Touched:** `js/ui/farmView.js`, `js/ui/plotLayers.js`, `js/ui/accountCard.js`,
+  `js/ui/profileView.js`, `js/ui/avatarArt.js` (new), `js/config/avatars.js` (new),
+  `js/state/initialState.js`, `js/state/store.js`, `js/profile-main.js`, `js/settings-main.js`,
+  `css/profile.css`, `tests/farmView.test.js`, `tests/profileView.test.js`,
+  `tests/avatar.test.js` (new), `tests/store.test.js`, and the docs below. Cross-folder edits:
+  `farmView.js` / `plotLayers.js` / `state/` are Hisham-owned; `accountCard.js` / `profileView.js`
+  / `profile.css` are Kafi-owned.
+- **Verified:** `npm test` 628/628 pass, `npm run check` clean (2 known, awaited by T-04).
+  Headless Chrome at 1272×860 and an emulated 420×932 guest profile — the cards fit, the picker
+  is legible at both widths, selecting Farmer 1 / Farmer 2 repaints the main circle and persists
+  in localStorage, and the default gray person returns when `null` is chosen.
+- **Next:** review the branch and click through a signed-in erase with the real server; the avatar
+  carry-over is covered by code and state tests, not by a live deletion click.
+
+
+## Danger cards side by side, and the account frame trimmed — 2026-10-20
+
+- **Did:** Erase progress and Delete account now share one row on settings — two equal columns in
+  `.settings-danger-row` at the 980px board, stacked below 900px. A guest has no delete card, so the
+  lone erase card stays full width instead of leaving an empty half. The shared account frame lost
+  the two full-height edge posts and the stone base: the beam, leaf garland, sign and dark wall
+  remain, and the wall now runs to the bottom edge, so the scrolling board is never covered by a
+  fixed plinth. Board bottom padding 72 → 40px (32 on mobile).
+- **Kept:** the board order Difficulty → Erase → Delete → Save data, both arm→confirm→password
+  flows, every tested string, and the shop's own frame — no `shop.css`, `shop-card.css`, `shop.html`
+  or `shopView.js` change.
+- **Touched:** `js/ui/settingsView.js`, `js/ui/pageFrame.js`, `css/settings.css`,
+  `css/page-frame.css`, `css/page-header.css`, `tests/settingsDom.test.js`,
+  `tests/profileView.test.js`, and the docs below.
+- **Verified:** `npm test` 614/614 pass, `npm run check` clean (2 known, awaited by T-04). Headless
+  Chrome at 1920×1006 (guest profile, signed-in settings) — the row is side by side, there are no
+  posts or base, and the wall reaches the bottom. Settings still scrolls on a short window, by design.
+- **Next:** hard-refresh and look at both pages. If the wall's thin vertical plank seams also count
+  as beams, they are a one-rule change in `css/page-frame.css`.
+
+
+## Profile and settings painted onto the shop's frame — 2026-10-20
+
+- **Did:** both account pages now sit inside the painted farm the shop wears — grass with a scalloped
+  edge, full-height log posts, a beam, a **leaf/vine garland** under it (the shop's scalloped awning
+  stays the shop's), a hanging wooden sign, a dark wall and a stone base. Cream cards scroll on a dark
+  board in front of it. `js/ui/pageFrame.js` builds the frame once for both pages and hands back the
+  board; `css/page-frame.css` paints it, `css/page-header.css` the sign and board, and
+  `css/page-card.css` supplies the cream cards and buttons, with `css/page-form.css` holding the
+  settings-only fields and status messages. Profile is now Account (initials avatar,
+  Farmer/Username/Email rows, sprout rule) plus Session (status dot, signed-in sentence,
+  **Sign out** / **Leave guest farm**). Settings is Difficulty (two-up panels, check mark,
+  `SELECTED` tag), the two red-headed danger cards, and Save data. `js/ui/icons.js` gained `sprout`,
+  `session`, `arrow-left`, `logout`, `history`, `trash`, `check`.
+- **Kept:** every tested string and every arm→confirm→password gate. `mountProfile`/`mountSettings`
+  contracts and the `board` order (Difficulty → Erase progress → Delete account → Save data) are
+  unchanged. **The shop was not touched** — no `shop.css`, `shop-card.css`, `shop.html` or
+  `shopView.js` edit; putting it on the shared frame is a separate task with its own visual review
+  (DEC-050).
+- **Fixed after review (ISS-109):** settings was mounting `pageFrame()`'s **board** but not its
+  **node**, then putting the cards beside the empty board. The page therefore had no hanging sign,
+  no back link, no frame and no scroll — the Save data card (import/export) was unreachable, and
+  the cards ran the full window width. It now appends the node and fills the board; a new test pins
+  the frame, the "Settings" sign and all four cards inside `.page-board`. The same pass compacted
+  both pages: columns are 980px (settings) and 860px (profile), card/board spacing and title sizes
+  came down, card headings align left (`components.css` was pushing the titles right), and the
+  profile avatar/session row shrank so its two cards fit without scrolling on a laptop.
+- **Touched:** `profile.html`, `settings.html`, `js/ui/pageFrame.js` (new), `js/ui/icons.js`,
+  `js/ui/accountCard.js`, `js/ui/profileView.js`, `js/ui/settingsView.js`, `js/ui/difficultyCard.js`,
+  `css/page-frame.css` (new), `css/page-header.css` (new), `css/page-card.css` (new),
+  `css/page-form.css` (new), `css/profile.css`, `css/settings.css`,
+  `tests/profileView.test.js` (new), `tests/settingsDom.test.js`, `docs/team/issues.md`, and the
+  docs below.
+- **Verified:** `npm test` 612/612 pass, `npm run check` clean (2 known, awaited by T-04). Not checked
+  in a browser — this environment has none, so the layout is arithmetic and the tests above.
+- **Next:** someone with a browser should look at both pages at 1440×900 and ~380px wide; the board's
+  bottom padding is the one number most likely to want a nudge.
+
+
+
 ## Gold coin on the plot price tag, and the `--font-body` that never existed — 2026-10-20
 
 - **Did:** the locked plot's price tag was a bare digit on a gold pill. It is now the same coin the

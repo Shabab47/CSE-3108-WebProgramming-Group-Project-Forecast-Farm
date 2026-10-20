@@ -147,6 +147,30 @@ export function patchWaterMeter(tile, plot, word) {
 }
 
 /**
+ * Swap the ground sprite in place when a plot crosses the watered threshold.
+ *
+ * `plotLayers` picks `ground_watered` or `ground_unwatered` at render time, but the
+ * water-only path in `farmView.repaint` deliberately patches the meter without rebuilding
+ * the tile. Without this, a plot that dries from 40 to 0 keeps the wet art until an
+ * unrelated change rebuilds it — the meter says "dry" over watered ground.
+ *
+ * Returns false when the image is missing, so the caller rebuilds rather than leaving the
+ * tile half patched.
+ *
+ * @param {HTMLElement} tile
+ * @param {object} plot
+ * @returns {boolean} whether the ground image was found
+ */
+export function patchGround(tile, plot) {
+  const ground = tile?.querySelector?.('.plot__ground');
+  if (!ground) return false;
+
+  const next = groundTile((plot.waterLevel ?? 0) >= WATER.wateredThreshold);
+  if (ground.getAttribute?.('src') !== next) ground.setAttribute('src', next);
+  return true;
+}
+
+/**
  * @param {object} plot
  * @param {object} facts
  * @param {boolean} facts.isOwned

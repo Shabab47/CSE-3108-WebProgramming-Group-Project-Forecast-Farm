@@ -1,23 +1,26 @@
 /**
  * The profile page: who is signed in, and the way out.
  *
- * The account card used to sit on the settings page. It moved here because it is
- * not a setting — it is an answer to "whose farm am I playing", and reaching it
- * should not require walking past two destructive actions. Sign-out moved with
- * it for the same reason: it is a profile action, not a configuration one.
+ * The account card answers "whose farm am I playing"; reaching it should not
+ * require walking past two destructive actions. Sign-out moved with it for the
+ * same reason: it is a profile action, not a configuration one.
  *
- * Render and events only. Every outside call arrives through `actions`, so this
- * file never imports `store.js` — the same rule the rest of `js/ui/` keeps, and
- * the reason `profile-main.js` is the only module that knows about the provider.
+ * The whole page sits inside the painted frame shared with settings.html, so
+ * both pages read like one menu. Render and events only — every outside call
+ * arrives through `actions`, so this file never imports `store.js`.
  */
 
 import { clear, el } from '../utils/dom.js';
+import { pageFrame } from './pageFrame.js';
 import { accountCard } from './accountCard.js';
+import { iconEl } from './icons.js';
 
 /**
  * @param {HTMLElement} root
  * @param {object} actions
  * @param {{status:string, farmerName?:string, username?:string, email?:string}} actions.session
+ * @param {string|null} actions.avatar  a preset id, or null for the default
+ * @param {(id:string|null) => {ok:boolean, reason?:string}} actions.onAvatarChange
  * @param {() => void} actions.onSignOut
  * @param {(msg:string, tone:string) => void} actions.toast
  * @param {string} actions.backHref
@@ -29,31 +32,37 @@ export function mountProfile(root, actions) {
   const { session } = actions;
   const isGuest = session?.status === 'guest';
 
-  const signOut = el('button', {
-    class: 'btn btn--ghost btn--block',
-    type: 'button',
-    text: isGuest ? 'Leave guest farm' : 'Sign out',
-    on: { click: () => actions.onSignOut() },
-  });
+  const { node, board } = pageFrame({ title: 'Profile', backHref: actions.backHref });
+  root.append(node);
 
-  root.append(
-    el('div', { class: 'profile-top' }, [
-      el('div', { class: 'profile-top__lead' }, [
-        el('a', { class: 'profile-top__back', href: actions.backHref, text: '← Back to the farm' }),
-        el('h1', { class: 'profile-top__title', text: 'Profile' }),
-      ]),
-    ]),
-    accountCard(session),
+  const dot = el('span', { class: 'profile-session__dot', 'aria-hidden': 'true' });
+
+  const signOut = el('button', {
+    class: 'btn btn--secondary profile-session__signout',
+    type: 'button',
+    'aria-label': isGuest ? 'Leave guest farm' : 'Sign out',
+    on: { click: () => actions.onSignOut() },
+  }, [iconEl('logout', 'profile-session__signout-icon'), isGuest ? 'Leave guest farm' : 'Sign out']);
+
+  board.append(
+    accountCard(session, {
+      avatar: actions.avatar,
+      onChange: actions.onAvatarChange,
+    }),
     el('div', { class: 'card' }, [
-      el('div', { class: 'card__head' }, [el('span', { class: 'card__title', text: 'Session' })]),
+      el('div', { class: 'card__head' }, [
+        iconEl('session', 'card__icon'),
+        el('span', { class: 'card__title', text: 'Session' }),
+      ]),
       el('div', { class: 'card__body' }, [
-        el('p', {
-          class: 'field__hint',
-          text: isGuest
-            ? 'This farm lives in this browser only. Create an account to keep it.'
-            : 'You are signed in.',
-        }),
-        signOut,
+        el('div', { class: 'profile-session' }, [
+          el('span', { class: 'profile-session__icon', 'aria-hidden': 'true' }, [iconEl('session')]),
+          el('span', { class: 'profile-session__status' }, [
+            dot,
+            isGuest ? 'You are playing as a guest.' : 'You are signed in.',
+          ]),
+          signOut,
+        ]),
       ]),
     ]),
   );

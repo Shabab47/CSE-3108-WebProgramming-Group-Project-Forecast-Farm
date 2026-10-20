@@ -190,6 +190,41 @@ function isShown(node) {
 /** The writes the card made, ignoring the toasts it said about them. */
 const writes = (calls) => calls.filter((c) => 'setDifficulty' in c);
 
+/* --- the painted frame --------------------------------------------------- */
+
+test('the page is mounted inside the painted frame, with every card on the board', () => {
+  // ISS-109. `mountSettings` appended the empty board and then the four cards beside it.
+  // The sign, the way back and the frame never reached the page, the cards bypassed the
+  // board's max-width, and nothing could scroll — so the Save data card was unreachable.
+  const { root } = mountWithDifficulty();
+
+  assert.ok(root.querySelector('.page-scene'), 'the page is not inside a page-scene');
+  assert.ok(root.querySelector('.page-frame'), 'the painted frame is missing');
+  assert.ok(root.querySelector('.page-top'), 'the top row is missing');
+  assert.equal(
+    root.querySelector('.page-frame__base'),
+    null,
+    'the account frame should stop at the wall, with no stone base for the board to scroll behind',
+  );
+
+  const sign = root.querySelector('.page-sign');
+  assert.ok(sign, 'the hanging sign is missing');
+  assert.equal(sign.textContent.trim(), 'Settings');
+
+  const back = root.querySelector('.page-back');
+  assert.ok(back, 'the way back to the farm is missing');
+  assert.equal(back.getAttribute('href'), 'index.html');
+
+  const board = root.querySelector('.page-board');
+  assert.ok(board, 'the scrolling board is missing');
+
+  const cards = root.querySelectorAll('.card');
+  assert.equal(cards.length, 4, `expected the four settings cards, found ${cards.length}`);
+  for (const card of cards) {
+    assert.ok(board.contains(card), 'a settings card sits outside the board, so it cannot scroll with it');
+  }
+});
+
 /**
  * Choose a difficulty the way a browser does: the radio becomes checked, the rest of its
  * group lets go, and only then does `change` fire.
@@ -325,6 +360,45 @@ test('the difficulty card is above the danger cards', async () => {
 
   assert.deepEqual(titles, ['Difficulty', 'Erase progress', 'Delete account', 'Save data'],
     'in that order, from the safe to the dangerous');
+});
+
+test('the two danger cards share one row, below difficulty and above save data', () => {
+  // Side by side halves the height the two destructive cards take, which is what keeps
+  // Save data within reach on a laptop. DOM order is still Erase then Delete, so the
+  // keyboard and screen-reader order match the visual one.
+  const { root } = mountWithDifficulty();
+  const board = root.querySelector('.page-board');
+  const row = root.querySelector('.settings-danger-row');
+
+  assert.ok(row, 'the two danger cards are not wrapped in a row');
+  assert.ok(row.contains(cardTitled(root, 'Erase progress')), 'Erase progress is outside the row');
+  assert.ok(row.contains(cardTitled(root, 'Delete account')), 'Delete account is outside the row');
+  assert.equal(
+    cardTitled(root, 'Save data').parentNode,
+    board,
+    'Save data should stay a full-width board child below the row',
+  );
+});
+
+test('a guest gets no danger row, so the erase card keeps the full width', () => {
+  // The delete card does not exist for a guest. A two-column row would leave an empty
+  // half, so the erase card goes straight onto the board instead.
+  const root = installDom();
+  mountSettings(root, {
+    session: { status: 'guest', farmerName: 'Guest' },
+    deleteProgress: async () => ({ ok: true }),
+    requestAccountDeletion: async () => ({ ok: true }),
+    toast: () => {},
+    backHref: 'index.html',
+    ...saveActions(),
+  });
+
+  assert.equal(root.querySelector('.settings-danger-row'), null, 'a guest has no pair to put in a row');
+  assert.equal(
+    cardTitled(root, 'Erase progress').parentNode,
+    root.querySelector('.page-board'),
+    'the lone erase card should fill the board',
+  );
 });
 
 /* --- the bug this file was written for -------------------------------------- */

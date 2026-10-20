@@ -12,6 +12,7 @@
  */
 
 import { DEFAULT_LOCATION } from '../config/api.js';
+import { isAvatarId } from '../config/avatars.js';
 import { FIELD, STARTER_PLOT_ID } from '../config/field.js';
 import { DEFAULT_DIFFICULTY, isDifficulty, START_GOLD, STATE_VERSION } from '../config/game.js';
 import { buildPlots, PLOT_COUNT } from '../land_squares/index.js';
@@ -59,6 +60,7 @@ export function buildInitialState(session) {
   return {
     version: STATE_VERSION,
     session: normaliseSession(session),
+    profile: { avatar: null },
     createdAt: now,
     lastSeenAt: now,
 
@@ -134,6 +136,55 @@ export function ensureDifficulty(state) {
   if (isDifficulty(state.difficulty)) return state;
 
   return { ...state, difficulty: DEFAULT_DIFFICULTY };
+}
+
+/**
+ * Build the farm a player gets after "Erase progress", keeping their avatar.
+ *
+ * Erasing progress wipes gold, land, crops and the save's history, but the picture is
+ * how the player is identified on the account page — it is a profile choice, not
+ * something they earned. Deleting the account is different and uses `buildInitialState`
+ * directly, so the avatar goes with the save.
+ *
+ * Only a known preset id is carried. A hand-edited or imported save that reaches this
+ * path with something else is reset to the default, the same way `ensureProfile` treats
+ * it on load.
+ *
+ * @param {object} session the live session
+ * @param {object} previous the farm about to be erased
+ * @returns {object} a fresh farm carrying the previous avatar when valid
+ */
+export function buildErasedState(session, previous) {
+  const fresh = buildInitialState(session);
+  const avatar = previous?.profile?.avatar;
+  if (!isAvatarId(avatar)) return fresh;
+  return { ...fresh, profile: { ...fresh.profile, avatar } };
+}
+
+/**
+ * Give a save written before avatars existed the default profile.
+ *
+ * Like `ensureDifficulty`, this repairs a missing field rather than bumping
+ * `STATE_VERSION`: a save's farm must survive the addition of one optional cosmetic.
+ * An id that is not in `config/avatars.js` is treated as the default, because a
+ * hand-edited or older id must not render as a broken circle. Other profile fields are
+ * kept, so this can grow without another migration.
+ *
+ * @param {object} state a loaded farm
+ * @returns {object} the same farm, or a copy carrying a valid profile
+ */
+export function ensureProfile(state) {
+  if (!state || typeof state !== 'object') return state;
+
+  const profile = state.profile
+    && typeof state.profile === 'object'
+    && !Array.isArray(state.profile)
+    ? state.profile
+    : null;
+  const avatar = profile?.avatar;
+
+  if (profile && (avatar === null || isAvatarId(avatar))) return state;
+  return { ...state, profile: { ...(profile ?? {}), avatar: null } };
 }
 
 /**

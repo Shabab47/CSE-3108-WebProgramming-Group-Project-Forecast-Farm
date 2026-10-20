@@ -361,6 +361,7 @@ exists: resolve the session, load the save.
 | `index.html` | `main.js` | `resolveSession()`, `init()`, `mountShell()` |
 | `shop.html` | `shop-main.js` | imports `resolveSession` from `main.js` |
 | `settings.html` | `settings-main.js` | imports `resolveSession` from `main.js` |
+| `profile.html` | `profile-main.js` | imports `resolveSession` from `main.js` |
 
 They all ask `resolveSession(provider)` rather than each reading storage, because the
 first version disagreed and produced a redirect loop (ISS-033). Importing `main.js` from
@@ -629,8 +630,11 @@ whole feature:
 2. `clearLocalSave()` — drops the localStorage copy. Not `clearSave()`: the server half is
    already done, and a second request at a deleted row could fail and be reported as a real
    failure (ISS-041).
-3. `adoptState(buildInitialState(session))` then `saveNow()` — the new farm, written at once
-   rather than waiting for the debounce, because the page is likely to be reloaded next.
+3. `adoptState(buildErasedState(session, state))` then `saveNow()` - the new farm, written at
+   once rather than waiting for the debounce, because the page is likely to be reloaded next.
+   `buildErasedState` carries the chosen avatar into the fresh farm: it is a profile choice, not
+   progress. Deleting the account is different - it uses `buildInitialState`, so the avatar goes
+   with the save.
 
 The old order cleared **first** and asked afterwards, which is how a wrong password wiped the
 farm and still reported that nothing had changed.
@@ -689,6 +693,11 @@ farm and still reported that nothing had changed.
 | the shop, prices and availability | `js/config/crops.js` |
 | the purchase rule | `js/domain/shop.js` (`buySeeds`) |
 | the settings page | `js/ui/settingsView.js` |
+| the profile page | `js/ui/profileView.js`, `js/ui/accountCard.js` - moved from the settings page so it isn't hidden behind two destructive actions |
+| the preset avatar list and its drawings | `js/config/avatars.js`, `js/ui/avatarArt.js` - presets, not uploads (DEC-051) |
+| the painted frame both account pages share | `js/ui/pageFrame.js`, `css/page-frame.css`, `css/page-header.css` |
+| cream cards and controls inside that frame | `css/page-card.css` |
+| the fields and status messages on the settings page | `css/page-form.css` |
 | the arm-and-confirm control both actions use | `js/ui/dangerAction.js` |
 | the password field an armed action reveals | `js/ui/passwordGate.js` |
 | the order a destructive action runs in - password first, always | `js/ui/runDestructive.js` (tested in `tests/dangerAction.test.js`) |
@@ -734,6 +743,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 ├── login.html                  the menu, sign-in and create-account screens
 ├── shop.html                   the seed shop — its own page, its own entry script
 ├── settings.html               account details, erase progress, delete account
+├── profile.html                who is signed in, and the way out
 ├── almanac.html                empty — placeholder page
 ├── LICENSE                     MIT
 ├── README.md
@@ -754,6 +764,10 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   ├── crop-picker.css         the seed picker overlay and its rows
 │   ├── shop.css                the shop sign and the seed list
 │   ├── settings.css            the settings gear and the settings page
+│   ├── page-frame.css          the painted frame shared by profile.html and settings.html
+│   ├── page-header.css         the hanging sign, the back pill and the scrolling board
+│   ├── page-card.css           cream cards and controls inside that frame
+│   ├── page-form.css           the fields and status messages only settings uses
 │   ├── auth.css                the login backdrop and the stage it sits on
 │   ├── menu.css                the opening menu and its buttons
 │   └── sign.css                the wooden sign, its forms and its buttons
@@ -773,6 +787,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── supabase.js         project URL + anon key (set, T-29)
 │   │   ├── api.js              URLs, default location, refresh interval
 │   │   ├── assets.js           every image path, in one place
+│   │   ├── avatars.js          the two preset avatar ids the store validates (DEC-051)
 │   │   ├── field.js            FIELD geometry, ZONES, STARTER_PLOT_ID, UNLOCK_ORDER, PLOT_PRICES
 │   │   ├── game.js             START_GOLD, PUMP, WATER, HEALTH, timings, growthSpeed()
 │   │   ├── crops.js            the crop table — an aggregator over crops_logics/
@@ -816,7 +831,8 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── timeApi.js          rewrites — writes straight into the DOM
 │   │   └── weatherApi.js       rewrites — OpenWeatherMap placeholder key
 │   ├── ui/                     render only, reads the store
-│   │   ├── accountCard.js      the account facts card on settings
+│   │   ├── accountCard.js      the account facts card, with the preset avatar picker
+│   │   ├── avatarArt.js        the two inline-SVG farmer busts (DEC-051)
 │   │   ├── almanac.js          empty
 │   │   ├── authErrors.js       provider code → sentence, enumeration guard
 │   │   ├── authViews.js        the login page's view graph — menu, forms, reset
@@ -824,6 +840,8 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── dangerAction.js     the arm-and-confirm control, with its password gate
 │   │   ├── difficultyCard.js   the Normal / Easy setting, with what each mode does
 │   │   ├── farmView.js         the isometric field — geometry, plus the repaint guard
+│   │   ├── pageFrame.js        the painted frame profile.html and settings.html share
+│   │   ├── profileView.js      the profile page: account card, session, sign-out
 │   │   ├── plotLayers.js       what is painted inside one plot, back to front
 │   │   ├── plotLabel.js        a plot's accessible name — the whole of it
 │   │   ├── plotClick.js        plotAction(): what a click on a plot means
@@ -906,6 +924,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │
 ├── tests/                      node:test, pure code only
 │   ├── authApi.test.js         Supabase provider, fetch stubbed
+│   ├── avatar.test.js          preset ids, old-save repair, avatar rule
 │   ├── mainBoot.test.js        boot step 0, the provider switch
 │   ├── loadingTips.test.js     the boot veil: no flash, rotation, teardown
 │   ├── authErrors.test.js      error mapping, account enumeration

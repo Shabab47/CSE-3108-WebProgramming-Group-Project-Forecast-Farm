@@ -88,10 +88,11 @@ index.html      the game page
 login.html      the opening menu, sign in, or create an account
 shop.html       the seed shop — buy seed packets with your gold
 settings.html   account details, erase progress, delete account
-css/            styling — one file per component: layout, tokens, shared, and the login trio
+profile.html    who is signed in, and the way out
+css/            styling — one file per component: layout, tokens, shared, the painted account frame, and the login trio
 js/             the game code, split by responsibility
 assets/         artwork and icons
-js/config/      field geometry, crops, game balance, weather events, **asset registry (assets.js)**
+js/config/      field geometry, crops, game balance, weather events, preset avatars, **asset registry (assets.js)**
 supabase/       database migrations — run these by hand, see setup.md
 docs/           all project documentation
 tests/          the test suite, run with npm test
@@ -130,7 +131,8 @@ npm run check    # layering rules: imports, fetch, DOM access
 | `/login.html` | The opening menu, and sign in or create an account. `index.html` redirects here if there is no session. |
 | `/index.html` | The farm. Loads your save, or starts a new one. |
 | `/shop.html` | The seed shop. Buys seed packets; gold is deducted and the farm is saved immediately. |
-| `/settings.html` | Your account details, erase all progress, or delete your account. |
+| `/settings.html` | Difficulty, save import and export, erase all progress, or delete your account. |
+| `/profile.html` | Choose a preset avatar, see who is signed in, and sign out or leave the guest farm. |
 
 Append `?debug=1` to the URL for the debug panel: geometry sliders, gold and time cheats,
 forced weather, plot IDs.

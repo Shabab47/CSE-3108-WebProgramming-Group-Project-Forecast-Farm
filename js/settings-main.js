@@ -26,7 +26,7 @@ import { buildServerSave } from './remoteSave.js';
 import { mountConnectionStatus, wireSaveOnExit } from './connection.js';
 import { deleteAccount, eraseProgress } from './services/accountApi.js';
 import { adoptState, clearLocalSave, emit, exportPayload, getState, init, readImport, reset, saveNow, setDifficulty } from './state/store.js';
-import { buildInitialState } from './state/initialState.js';
+import { buildErasedState } from './state/initialState.js';
 import { mountSettings } from './ui/settingsView.js';
 import { mountBlockedScreen } from './ui/blockedScreen.js';
 import { mountBootLoader } from './ui/loadingTips.js';
@@ -49,7 +49,7 @@ const LOGIN_URL = 'login.html';
  *  2. `clearLocalSave()` drops the localStorage copy. Separate from `clearSave()` because
  *     the server half is already done and repeating it would be a pointless request whose
  *     failure could be mistaken for a real one (ISS-041).
- *  3. `adoptState(buildInitialState(session))` puts a freshly built farm in memory under
+ *  3. `adoptState(buildErasedState(session, state))` puts a freshly built farm in memory under
  *     the *same* session, so the player stays signed in and their username, email and
  *     farmer name are untouched — "as if he had just opened an account" means the farm,
  *     not the account.
@@ -66,7 +66,8 @@ function makeDeleteProgress(provider) {
   const local = provider.deletesAccountsInPlace === true;
 
   return async function deleteProgress(password) {
-    const session = getState()?.session;
+    const state = getState();
+    const session = state?.session;
 
     if (session?.status !== 'authed') {
       return { ok: false, reason: 'not_signed_in' };
@@ -89,7 +90,10 @@ function makeDeleteProgress(provider) {
     // that result meaningful — could be mistaken for the erase having failed.
     clearLocalSave();
 
-    const adopted = adoptState(buildInitialState(session));
+    // Erase the *farm*, not the player. The avatar is a profile choice, like the
+    // difficulty and the session, so a fresh save keeps it; `buildErasedState` owns that
+    // carry-over and refuses an id this build does not know.
+    const adopted = adoptState(buildErasedState(session, state));
     if (!adopted.ok) return adopted;
 
     await saveNow();

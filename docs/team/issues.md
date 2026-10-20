@@ -919,6 +919,8 @@ or `assets.test.js` fails in the other direction.
 | ISS-106 | A damaged potato asked for a damage file that does not exist | Medium | Jim | **fixed** | T-63 |
 | ISS-107 | `--font-body` does not exist, so the gold text was never in the display face | Low | Jim | **fixed** | T-65 |
 | ISS-108 | The boot tip still says rice is the only crop you can plant | Low | Jim | **fixed** | T-65 |
+| ISS-109 | Settings mounted the board without the frame, so the page did not scroll | **High** | Jim | **fixed** | T-66 |
+| ISS-110 | A drying plot kept the watered ground sprite while the meter said "Dry" | Medium | Hisham | **fixed** | T-68 |
 
 ---
 
@@ -2373,4 +2375,45 @@ or `assets.test.js` fails in the other direction.
   `js/config/crops.js` to the prose in `js/config/tips.js`.
 - Fix: "Rice and potato are ready to plant. Wheat, corn and tomato are in the shop, greyed out for
   now." — no number, so it needs no edit when the shop ladder is tuned.
+
+---
+
+### ISS-109 Settings mounted the board without the frame, so the page did not scroll
+- Reported: 2026-10-20 by Jim · Owner: Jim · Status: **fixed** · Severity: High
+- Where: `js/ui/settingsView.js` (`mountSettings`), `settings.html`
+- Problem: the settings page rendered its four cream cards directly on the grass: no hanging
+  "Settings" sign, no back pill, no beam, vines, wall or stone base, and no scrollbar. The Save data
+  card — the only way to export or import a farm — sat below the viewport and could not be reached.
+  The cards also stretched the full window width instead of taking the board's capped column.
+- Cause: `pageFrame()` returns `{ node, board }`, and `node` is the element that carries the frame,
+  the top row and the board. `mountSettings` destructured only `board`, appended the **empty board**
+  to the root, and then appended the cards to the root as its siblings. The frame node was never
+  inserted, and the cards were never inside the scroll container. `tests/settingsDom.test.js`
+  asserted card contents only — it never checked for a frame or that the cards lived on the board —
+  so the suite stayed green.
+- Fix: append the returned `node`, then append every card into `board`. A new test pins the frame,
+  the "Settings" sign, the back link and all four cards inside `.page-board`. The same pass narrowed
+  the content columns (settings 980px, profile 860px), tightened card/board spacing, added
+  `justify-content: flex-start` to card headings (they were pushed right by `components.css`'s
+  `space-between`) and compacted the profile cards so both fit without scrolling on a laptop.
+
+---
+
+### ISS-110 A drying plot kept the watered ground sprite while the meter said "Dry"
+- Reported: 2026-10-20 by Jim · Owner: Hisham · Status: **fixed** in T-68 · Severity: Medium
+- Where: `js/ui/farmView.js` (`repaint`), `js/ui/plotLayers.js`
+- Problem: a plot that crossed the 40-water threshold kept the sprite it was last rebuilt with. A
+  plot drying from 60 to 0 kept `ground_watered.png` under a "Dry" meter until some unrelated change
+  rebuilt the tile; until then the earth looked watered while the meter — correctly — said it was
+  not. The reverse, dry to wet, was equally stale. Seen on the running farm
+  as "it's saying dry but the sprite already switched to wet"; the meter was right both times.
+- Cause: `plotSignatureWithoutWater()` deliberately excludes water, so a water-only change takes the
+  fast path in `repaint()`: it patches the meter and `continue`s. The ground image is chosen only by
+  `plotLayers()` during a full rebuild, so nothing on that path ever changed `src`. The meter and
+  the soil were two readings of the same number, updated by two different code paths.
+- Fix: `patchGround(tile, plot)` in `plotLayers.js` swaps `.plot__ground` between the two registered
+  sprites using the same `WATER.wateredThreshold` as the full render, and `repaint()` requires both
+  patches to succeed before skipping the rebuild. The CSS transition on the meter is untouched.
+  `tests/farmView.test.js` now walks below → above → below and asserts the tile is reused **and** the
+  sprite follows the meter in both directions.
 

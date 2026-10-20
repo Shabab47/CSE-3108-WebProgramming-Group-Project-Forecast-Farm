@@ -21,7 +21,7 @@ import { loadProvider } from './auth-main.js';
 import { farmHref, resolveSession } from './main.js';
 import { buildServerSave } from './remoteSave.js';
 import { mountConnectionStatus, wireSaveOnExit } from './connection.js';
-import { getState, init, reset, saveNow } from './state/store.js';
+import { getState, init, reset, saveNow, setAvatar } from './state/store.js';
 import { mountProfile } from './ui/profileView.js';
 import { mountBlockedScreen } from './ui/blockedScreen.js';
 import { mountBootLoader } from './ui/loadingTips.js';
@@ -60,6 +60,15 @@ async function makeSignOut(provider) {
 function profileActions(session, provider) {
   return {
     session,
+    avatar: getState()?.profile?.avatar ?? null,
+    // The avatar is state, so it takes the same path as difficulty and every other
+    // write: a pure rule in the store, then an immediate save so a page closed right
+    // after the click keeps the picture. The panel only paints after `ok`.
+    onAvatarChange(avatar) {
+      const result = setAvatar(avatar);
+      if (result.ok) saveNow();
+      return result;
+    },
     onSignOut: makeSignOut(provider),
     toast(message, tone) {
       log.trace(message, tone);

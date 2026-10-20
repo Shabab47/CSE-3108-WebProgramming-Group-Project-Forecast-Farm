@@ -22,8 +22,9 @@
  * looks like — the write arrives as `actions.setDifficulty`.
  */
 
-import { el } from '../utils/dom.js';
+import { el, setClass } from '../utils/dom.js';
 import { DIFFICULTY } from '../config/game.js';
+import { iconEl } from './icons.js';
 import { statusLine } from './statusLine.js';
 
 /**
@@ -84,13 +85,24 @@ export function difficultyCard(actions) {
       value,
     });
 
+    const mark = el('span', { class: 'settings-radio__mark', 'aria-hidden': 'true' }, [iconEl('check')]);
+    const tag = el('span', { class: 'settings-radio__selected', text: 'SELECTED' });
+
     const panel = el('label', { class: 'settings-radio__option' }, [
       input,
       el('span', { class: 'settings-radio__body' }, [
-        el('span', { class: 'settings-radio__label', text: copy.label }),
+        el('span', { class: 'settings-radio__row' }, [
+          el('span', { class: 'settings-radio__label', text: copy.label }),
+          tag,
+        ]),
         el('span', { class: 'settings-radio__detail', text: copy.detail }),
+        mark,
       ]),
     ]);
+
+    options.push({ value, input, mark, tag });
+    radios.push(input);
+    group.append(panel);
 
     // The click sets `pending` and arms; it does **not** write. `input.checked` is
     // restored by `paint()` on cancel, so an abandoned choice leaves no trace — neither
@@ -114,9 +126,6 @@ export function difficultyCard(actions) {
       status.announce(null);
     });
 
-    options.push({ value, input });
-    radios.push(input);
-    group.append(panel);
   }
 
   const confirmButton = el('button', {
@@ -147,12 +156,10 @@ export function difficultyCard(actions) {
   /** Reflect `current` and `pending` in the radios, without either being written. */
   function paint() {
     const shown = pending ?? current;
-    // Compared against the captured value rather than reading `input.value` back. The
-    // attribute and the property are kept in step by the browser but not by every test
-    // harness, and a selection that silently paints nothing is worse than one that is
-    // slightly redundant.
-    for (const { value, input } of options) {
+    for (const { value, input, mark, tag } of options) {
       input.checked = value === shown;
+      setClass(mark, 'settings-radio__mark--show', value === shown);
+      setClass(tag, 'settings-radio__selected--show', value === current && pending === null);
     }
   }
 
@@ -190,7 +197,10 @@ export function difficultyCard(actions) {
 
   return {
     node: el('div', { class: 'card' }, [
-      el('div', { class: 'card__head' }, [el('span', { class: 'card__title', text: 'Difficulty' })]),
+      el('div', { class: 'card__head' }, [
+        iconEl('settings', 'card__icon'),
+        el('span', { class: 'card__title', text: 'Difficulty' }),
+      ]),
       el('div', { class: 'card__body' }, [
         group,
         confirmBlock,
