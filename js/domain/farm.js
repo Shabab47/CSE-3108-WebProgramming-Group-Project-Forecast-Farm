@@ -125,6 +125,10 @@ export function plant(state, plotId, cropId) {
         plantedAt: now,
         health: verdict.ok ? verdict.verdict.health : HEALTH.max,
         forecast: verdict.ok ? verdict.verdict : null,
+        // **The latch belongs to the crop, not the plot.** A new seed starts
+        // undamaged even if a save left a latch on the bare ground. ISS-112.
+        damage: null,
+        damageAt: null,
         dead: false,
       }),
       inventory: {
@@ -175,7 +179,10 @@ export function harvest(state, plotId) {
     ok: true,
     gold,
     state: {
-      ...withPlot(state, plotId, { cropId: null, plantedAt: null, dead: false }),
+      // `damage` and its timestamp leave with the crop, not with the plot — ISS-112.
+      ...withPlot(state, plotId, {
+        cropId: null, plantedAt: null, damage: null, damageAt: null, dead: false,
+      }),
       gold: (state.gold ?? 0) + gold,
       inventory: {
         ...state.inventory,
@@ -200,6 +207,10 @@ export function harvest(state, plotId) {
  * dead one, and the ground would be unusable for the rest of the save's life.
  * ISS-006.
  *
+ * **The damage latch and its timestamp are cleared with the crop.** Damage belongs to
+ * the plant, not to the square, so the next seed starts with no sprite from its
+ * predecessor. ISS-112.
+ *
  * @param {object} state
  * @param {number} plotId
  * @returns {{ok:true, state:object}|{ok:false, reason:string}}
@@ -212,7 +223,9 @@ export function clearPlot(state, plotId) {
 
   return {
     ok: true,
-    state: withPlot(state, plotId, { cropId: null, plantedAt: null, dead: false }),
+    state: withPlot(state, plotId, {
+      cropId: null, plantedAt: null, damage: null, damageAt: null, dead: false,
+    }),
   };
 }
 

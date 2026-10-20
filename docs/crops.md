@@ -160,6 +160,18 @@ Two thresholds on purpose. The floor asks *how the crop is faring*; zero asks *w
 is dying*, and only the second drains health per hour. A plot can be badly faring and
 still perfectly alive.
 
+**The latch belongs to the crop, not the plot.** `harvest()`, `clearPlot()` and `plant()` all
+reset `plot.damage` to `null`, so a new seed never inherits its predecessor's damage sprite.
+Before ISS-112 the latch outlived the crop, and replanting showed "Dry" over a healthy stage-1
+plant.
+
+**A latch records when it happened.** `applyDamage()` writes `plot.damageAt` in game time and
+refuses to write a latch before the crop has lived the hold — one hour for `dry`, two for
+`waterlogged`. A save from before `damageAt` existed cannot distinguish a real latch from an
+inherited one, so `ensurePlausibleDamage()` clears every timestamp-less latch on load and import.
+That is a one-time amnesty (DEC-054); health already spent is not refunded. `plant`, `harvest`
+and `clearPlot` reset `damageAt` with `damage`, and an imported save rebases both together.
+
 **Waterlogging needs a two-hour hold.** One shower must not cost a field — that is exactly
 what the one-time verdict at sowing exists to prevent, and an instant threshold would undo
 that decision on every rain shower for the rest of the crop's life.

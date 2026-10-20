@@ -8,6 +8,57 @@ The per-person weekly notes that used to live in the README table are now in `me
 ---
 
 
+## A new account chooses a farmer — 2026-10-20
+
+- **Did:** added the avatar step after create-account. A successful sign-up with a session now
+  opens a fifth view on the wooden sign with the four presets, Farmer 1 preselected. **Start
+  farming** hands `{avatar}` to `auth-main.js`, which redirects to `index.html?avatar=farmerN`;
+  `main.js` validates it, uses it in `buildInitialState(session, {avatar})` when there is no
+  save, then removes it from the address bar. Sign-in is unchanged, and sign-up with email
+  confirmation on still shows the existing inbox notice (DEC-055).
+- **Touched:** `js/ui/avatarSetup.js` (new), `css/avatar-setup.css` (new), `login.html`,
+  `js/ui/authViews.js`, `js/ui/signBoard.js` (comment), `js/auth-main.js`, `js/main.js`,
+  `js/state/initialState.js`, `js/config/avatars.js` (comment),
+  `tests/{avatarSetup,authViews,avatar,mainBoot}.test.js`,
+  `docs/architecture.md`, `README.md`, `docs/team/{decisions,tasks,progress-log}.md`.
+- **Verified:** `npm run check` passes; `npm test` is 670 tests, 669 pass. The only failure is
+  the pre-existing Farmer 3 black-bar case in `avatar.test.js`; `avatarArt.js` was not edited.
+- **Next:** review the step on localhost. Not committed.
+
+## A stale damage badge clears itself — 2026-10-20
+
+- **Did:** fixed ISS-114. A save written before ISS-112 could keep a damage latch earned by
+  the previous crop, so a rice crop planted 33 minutes earlier still showed the drought sprite
+  and "Dry" while growing normally. `applyDamage(plot, kind, at)` now stamps `plot.damageAt`
+  and refuses a latch before the crop has lived the hold (1 h dry, 2 h waterlogged).
+  `ensurePlausibleDamage()` clears a latch with no timestamp, an impossible timestamp, or no
+  crop on load and import — a one-time amnesty (DEC-054). `plant`/`harvest`/`clearPlot` reset
+  `damageAt` with `damage`, and `rebaseState` shifts it with `plantedAt`.
+- **Touched:** `js/domain/{damage,water,farm}.js`, `js/land_squares/index.js`,
+  `js/state/{initialState,store,transfer}.js`,
+  `tests/{weatherPanel,farm,initialState,transfer,store}.test.js`,
+  `docs/{crops,weather-events,architecture}.md`,
+  `docs/team/{issues,decisions,tasks,progress-log}.md`, `AGENTS.md`.
+- **Verified:** `npm run check` passes; `npm test` is 661 tests, 660 pass. The only failure is
+  the pre-existing Farmer 3 avatar case, untouched here.
+- **Next:** hard-reload the farm (`Ctrl+F5`); the migration should clear the badge on the
+  ~33-minute rice crop without touching its growth or water. Review on the running farm.
+
+## Replanted crops start clean — 2026-10-20
+
+- **Did:** fixed ISS-112. A plot that had ever latched `dry`/`waterlogged` kept that damage
+  after the crop was harvested or cleared, so the next planting drew the damage sprite and
+  word over a healthy stage-1 crop — while `dead` stayed false and growth continued normally.
+  `plant()`, `harvest()` and `clearPlot()` now all reset `damage`.
+- **Also:** ISS-113, a one-word doc correction — `weather-events.md` said dry damage latches
+  after two hours; the code and `crops.md` say one.
+- **Touched:** `js/domain/farm.js`, `tests/farm.test.js`, `docs/crops.md`,
+  `docs/weather-events.md`, `docs/architecture.md`, `docs/team/{issues,tasks,progress-log}.md`,
+  `AGENTS.md` (next free issue id).
+- **Verified:** `npm run check` passes, and `npm test` passes except the pre-existing Farmer 3
+  avatar case.
+- **Next:** review on the running farm — damage should disappear at harvest/clear/replant.
+
 ## Buttons are the badges now — 2026-10-20
 
 - **Did:** the three farm-sidebar buttons (shop, almanac, seed bag) are no longer framed tiles.

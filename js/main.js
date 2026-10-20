@@ -6,6 +6,8 @@ import { signInAsGuest } from './services/localAuth.js';
 import { buildServerSave } from './remoteSave.js';
 import { mountConnectionStatus, wireSaveOnExit } from './connection.js';
 import { adoptState, apply, emit, exportPayload, flushPendingSave, getState, getSync, init, on, reset, saveNow, subscribe } from './state/store.js';
+import { buildInitialState } from './state/initialState.js';
+import { isAvatarId } from './config/avatars.js';
 import { mountBootLoader } from './ui/loadingTips.js';
 import { mountBlockedScreen } from './ui/blockedScreen.js';
 import { mountToastStack } from './ui/toastStack.js';
@@ -117,6 +119,36 @@ export async function resolveSession(provider) {
 /** `?guest=1`, read the same way on every page. */
 function isGuestRequest() {
   return new URLSearchParams(location.search).get('guest') === '1';
+}
+
+/**
+ * The preset chosen during sign-up, handed over from `login.html` as
+ * `?avatar=farmerN`.
+ *
+ * The login page has no game state, and `state/store.js` is the only writer of
+ * it. The URL carries the choice for exactly one load, `init()` builds the first
+ * farm with it, and `clearAvatarFromUrl()` takes it back out. An unknown or
+ * missing value means the default, never a corrupt id in a save.
+ *
+ * Pure and exported so the gate can be tested on its own.
+ *
+ * @param {string} search a query string, with or without the leading `?`
+ * @returns {string|null}
+ */
+export function avatarFromSearch(search) {
+  const value = new URLSearchParams(search).get('avatar');
+  return isAvatarId(value) ? value : null;
+}
+
+/** Remove the one-shot `avatar` handoff from the address bar, keeping the rest. */
+function clearAvatarFromUrl() {
+  if (typeof history === 'undefined' || typeof history.replaceState !== 'function') return;
+
+  const url = new URL(location.href);
+  if (!url.searchParams.has('avatar')) return;
+
+  url.searchParams.delete('avatar');
+  history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
 }
 
 function placeholder(label, detail) {
@@ -699,7 +731,22 @@ async function start() {
 
   /** The farm, once there is a session to open it with. */
   async function play(session) {
-    const { loaded } = await init(session, undefined, buildServerSave(provider, session));
+    // Only a signed-in account can have chosen an avatar on the sign-up path.
+    // The choice is used by the builder when there is no save, so the very first
+    // write already carries it rather than a null avatar followed by a repair.
+    const pendingAvatar = session?.status === 'authed'
+      ? avatarFromSearch(location.search)
+      : null;
+    const build = pendingAvatar
+      ? (next) => buildInitialState(next, { avatar: pendingAvatar })
+      : undefined;
+
+    const { loaded } = await init(session, build, buildServerSave(provider, session));
+
+    // One-shot: the choice is in the save now, and a shared address bar should
+    // not keep handing it to every later load.
+    clearAvatarFromUrl();
+
     log.info(loaded ? 'resumed farm' : 'started a new farm');
 
     mountToastStack();

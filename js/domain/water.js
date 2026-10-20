@@ -116,6 +116,10 @@ export function tick(state, now = Date.now()) {
   if (hours <= 0) return { state, spent: 0, watered: 0, autoOff: null, deaths: [] };
 
   const eventId = currentEvent(state, now);
+  // `plantedAt` and `damageAt` are game time, so the latch is stamped on the same
+  // clock the crop was planted on. `lastTickAt` stays wall time: the debug offset
+  // moves growth and this timestamp together, but not the water the sky delivered.
+  const at = now + (state?.clock?.timeOffsetMs ?? 0);
 
   // The machine's business — is it on, where is it aimed, what does that cost — is
   // `pump.js`, and the target is handed in rather than looked up there: the pump
@@ -207,7 +211,7 @@ export function tick(state, now = Date.now()) {
       ? pumpedWindow(plot, bandFor(plot), run.grossPerHour, rates, hours)
       : timeOutsideBand(plot, bandFor(plot), before, level, hours);
     const damaged = plot.cropId != null
-      ? applyDamage({ ...plot, health, dead: died || plot.dead }, damageFor(plot, window))
+      ? applyDamage({ ...plot, health, dead: died || plot.dead }, damageFor(plot, window), at)
       : { ...plot, health, dead: died || plot.dead };
 
     if (level === before

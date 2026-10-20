@@ -1,5 +1,5 @@
 /**
- * The preset profile pictures offered on `profile.html`.
+ * The preset profile pictures offered during sign-up and on `profile.html`.
  *
  * **Presets, not uploads, on purpose.** A profile picture is a small identity choice,
  * and the upload version needs a file picker, image decoding, canvas resizing,

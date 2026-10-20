@@ -86,26 +86,27 @@ export function buildPlots() {
 }
 
 /**
- * Stamp `damage` onto a plot that predates the field.
+ * Stamp `damage` and `damageAt` onto a fresh plot.
  *
  * **One place, not sixteen.** `createPlotN()` lives in sixteen separate files and the
  * field is the same shape for all of them, so editing all sixteen would be sixteen
  * chances to forget one — and a plot without the field reads as `undefined` rather than
  * `null`, which is a distinction `damageSprite()` and the meter both have to care about.
  *
- * It is also the migration, not just an initialiser: a save written before damage
- * existed has plots without the field, and `store.js` routes restores through here so
- * old farms gain it rather than arriving undefined. Readers tolerate its absence
- * anyway (`plot?.damage`), so this is belt and braces on purpose.
- *
  * `null` means "no damage yet", which is distinct from `false` and from a missing
- * field: the damage that *is* possible is a string from `DAMAGE.STATES`.
+ * field: the damage that *is* possible is a string from `DAMAGE.STATES`. `damageAt` is
+ * the game time the latch was earned, and is `null` until then.
+ *
+ * This is the initialiser, not the migration. A **loaded** save is repaired by
+ * `ensurePlausibleDamage()` in `state/initialState.js`: `buildPlots()` only runs for a
+ * farm with no save at all.
  *
  * @param {object} plot
  * @returns {object}
  */
 function withDamage(plot) {
-  return plot.damage == null ? { ...plot, damage: null } : plot;
+  if (plot.damage != null) return plot;
+  return { ...plot, damage: null, damageAt: null };
 }
 
 /**

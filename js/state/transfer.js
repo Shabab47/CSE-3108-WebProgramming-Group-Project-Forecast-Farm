@@ -262,13 +262,15 @@ export function readExport(text) {
 /**
  * Shift a save's clocks forward so an old file resumes where it left off.
  *
- * Four timestamps move together, and missing the last two is how an import
+ * Five timestamps move together, and missing the last three is how an import
  * produces a farm that is subtly wrong rather than obviously broken:
  *
  *  - `lastTickAt`  — the simulator's "now". Left behind, the first tick after an
  *                    import would credit or bill for every hour the file was
  *                    dormant.
  *  - `plantedAt`    — per plot, or every crop finishes or dies on arrival.
+ *  - `damageAt`     — per plot, so a latch keeps its distance from `plantedAt` and the
+ *                    hold guard does not reject a legitimate import (ISS-114).
  *  - `createdAt`    — keeps the farm's age honest.
  *  - `weather.fetchedAt` — a stale marker on a response that is no longer current.
  *
@@ -298,10 +300,14 @@ export function rebaseState(state, exportedAt, now) {
     createdAt: shiftTime(state.createdAt, shift),
     lastTickAt: shiftTime(state.lastTickAt, shift),
     plots: Array.isArray(state.plots)
-      // Spread, then replace the one field. Returning the shifted number instead
+      // Spread, then replace the two fields. Returning the shifted number instead
       // of the plot would turn every plot into a bare number and silently destroy
       // the farm — which is exactly what an earlier draft of this line did.
-      ? state.plots.map((plot) => ({ ...plot, plantedAt: shiftTime(plot.plantedAt, shift) }))
+      ? state.plots.map((plot) => ({
+        ...plot,
+        plantedAt: shiftTime(plot.plantedAt, shift),
+        damageAt: shiftTime(plot.damageAt, shift),
+      }))
       : state.plots,
     weather: state.weather?.fetchedAt
       ? { ...state.weather, fetchedAt: state.weather.fetchedAt + shift }

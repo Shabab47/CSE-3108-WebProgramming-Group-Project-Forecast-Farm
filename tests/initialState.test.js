@@ -11,6 +11,7 @@ import assert from 'node:assert/strict';
 import {
   buildInitialState,
   buildPlots,
+  ensurePlausibleDamage,
   ensureStarterPlot,
   normaliseSession,
   zoneOf,
@@ -19,6 +20,7 @@ import { FIELD, PLOT_PRICES, STARTER_PLOT_ID } from '../js/config/field.js';
 import { START_GOLD } from '../js/config/game.js';
 
 const SESSION = { status: 'authed', userId: 'acc_test', email: 'abdul@rice.bd', farmerName: 'Abdul Karim' };
+const HOUR = 3_600_000;
 
 test('a fresh farm has sixteen plots, and the back corner is already the player\'s', () => {
   const plots = buildPlots();
@@ -187,4 +189,81 @@ test('each plot starts dry, healthy and alive', () => {
     assert.equal(plot.dead, false);
     assert.equal(plot.plantedAt, null);
   }
+});
+
+/* --- damage repair --------------------------------------------------------- */
+
+test('a pre-fix damage latch is cleared once, because it has no timestamp', () => {
+  // ISS-114. Before `damageAt`, a save could not tell a latch earned by this crop from
+  // one inherited from the previous crop, so every timestamp-less latch is cleared
+  // once — DEC-054.
+  const state = buildInitialState(SESSION);
+  state.plots[0] = {
+    ...state.plots[0],
+    cropId: 'rice',
+    plantedAt: Date.now() - 6 * HOUR,
+    damage: 'dry',
+  };
+
+  const repaired = ensurePlausibleDamage(state);
+
+  assert.notEqual(repaired, state);
+  assert.equal(repaired.plots[0].damage, null, 'the stale sprite is gone');
+  assert.equal(repaired.plots[0].damageAt, null);
+  assert.equal(ensurePlausibleDamage(repaired), repaired, 'and the repair is idempotent');
+});
+
+test('a timestamped latch is kept only when the crop lived its hold', () => {
+  const plantedAt = Date.now() - 3 * HOUR;
+  const state = buildInitialState(SESSION);
+  state.plots[0] = {
+    ...state.plots[0],
+    cropId: 'rice',
+    plantedAt,
+    damage: 'dry',
+    damageAt: plantedAt + HOUR,
+  };
+
+  assert.equal(ensurePlausibleDamage(state), state, 'a real dry latch survives');
+
+  const tooSoon = {
+    ...state,
+    plots: [
+      { ...state.plots[0], damage: 'waterlogged', damageAt: plantedAt + HOUR },
+      ...state.plots.slice(1),
+    ],
+  };
+  const repaired = ensurePlausibleDamage(tooSoon);
+
+  assert.notEqual(repaired, tooSoon);
+  assert.equal(repaired.plots[0].damage, null, 'waterlogging needs two hours of crop');
+  assert.equal(repaired.plots[0].damageAt, null);
+});
+
+test('damage on bare soil is cleared, whatever the timestamp says', () => {
+  const state = buildInitialState(SESSION);
+  state.plots[0] = {
+    ...state.plots[0],
+    cropId: null,
+    plantedAt: null,
+    damage: 'dry',
+    damageAt: Date.now(),
+  };
+
+  const repaired = ensurePlausibleDamage(state);
+
+  assert.equal(repaired.plots[0].damage, null, 'there is no crop to damage');
+  assert.equal(repaired.plots[0].damageAt, null);
+});
+
+test('a healthy farm is left exactly as it is', () => {
+  const state = buildInitialState(SESSION);
+  assert.equal(ensurePlausibleDamage(state), state);
+});
+
+test('the damage repair tolerates junk without throwing', () => {
+  assert.equal(ensurePlausibleDamage(null), null);
+  assert.equal(ensurePlausibleDamage('not a farm'), 'not a farm');
+  const empty = {};
+  assert.equal(ensurePlausibleDamage(empty), empty);
 });

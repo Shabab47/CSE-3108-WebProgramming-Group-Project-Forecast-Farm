@@ -2,7 +2,7 @@
  * The wooden sign the auth forms sit on.
  *
  * Markup only — no events, no actions, nothing here knows what a form is. All
- * three auth views (sign in, create account, reset password) want the same
+ * four auth views (sign in, create account, avatar, reset password) want the same
  * board, and building it in one place is what keeps them from drifting apart.
  *
  * The shape itself is CSS, not this file's problem: `css/auth.css` draws the

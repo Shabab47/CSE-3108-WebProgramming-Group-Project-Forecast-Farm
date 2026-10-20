@@ -312,6 +312,27 @@ test('an old file resumes with its crops still growing', () => {
   assert.equal(result.state.createdAt, NOW);
 });
 
+test('the rebase moves a damage latch with the crop it belongs to', () => {
+  // ISS-114. `damageAt` is game time like `plantedAt`, so an import that moves only
+  // one of them would make a legitimate latch look impossible to `ensurePlausibleDamage`.
+  const THREE_WEEKS = 21 * 24 * 60 * 60 * 1000;
+  const HOUR = 3_600_000;
+  const planted = NOW - THREE_WEEKS;
+  const farm = aFarm({ lastTickAt: planted, createdAt: planted });
+  farm.plots[0].plantedAt = planted;
+  farm.plots[0].damage = 'dry';
+  farm.plots[0].damageAt = planted + HOUR;
+
+  const result = importFromText(exportToText(farm, AUTHED, planted), NOW);
+
+  assert.equal(result.state.plots[0].damage, 'dry', 'the latch survives the trip');
+  assert.equal(
+    result.state.plots[0].damageAt,
+    planted + HOUR + THREE_WEEKS,
+    'and keeps its distance from planting, so the hold still reads as earned',
+  );
+});
+
 test('the rebase never moves a save backwards', () => {
   // A file claiming to be from the future would otherwise produce a negative
   // shift and un-grow a crop.

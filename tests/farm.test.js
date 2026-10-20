@@ -21,6 +21,7 @@ import {
   harvest,
   plant,
 } from '../js/domain/farm.js';
+import { damageSprite } from '../js/domain/damage.js';
 import { buyPlot, canBuyPlot, LAND_REASONS } from '../js/domain/land.js';
 import { plotAction } from '../js/ui/plotClick.js';
 import { cropOf } from '../js/config/crops.js';
@@ -332,6 +333,54 @@ test('clearPlot frees a dead plot, and a living crop has to be harvested instead
 
   assert.equal(clearPlot(growing({ hoursAgo: 1 }), STARTER_PLOT_ID).ok, true);
   assert.equal(clearPlot(farm(), STARTER_PLOT_ID).reason, FARM_REASONS.nothingPlanted);
+});
+
+test('a new crop does not inherit the previous crop\'s damage latch', () => {
+  // ISS-112. The latch is permanent for the crop, not for the plot: `plant`,
+  // `harvest` and `clearPlot` all clear it. Before this, a replant on a plot that had
+  // ever been `dry` drew the drought sprite and the word "Dry" over a healthy
+  // stage-1 crop, because `plot.dead` was false and the crop itself grew normally.
+  const damaged = growing({ hoursAgo: 6, health: 70 });
+  plotAt(damaged).damage = 'dry';
+  plotAt(damaged).damageAt = plotAt(damaged).plantedAt + HOUR;
+
+  const harvested = harvest(damaged, STARTER_PLOT_ID);
+  assert.ok(harvested.ok);
+  assert.equal(plotAt(harvested.state).damage, null, 'harvesting takes the latch with the crop');
+  assert.equal(plotAt(harvested.state).damageAt, null, 'and its timestamp');
+
+  const replanted = plant(harvested.state, STARTER_PLOT_ID, 'rice');
+  assert.ok(replanted.ok);
+  const plot = plotAt(replanted.state);
+  assert.equal(plot.damage, null, 'so the next crop starts clean');
+  assert.equal(plot.damageAt, null, 'with no latch time from its predecessor');
+  assert.equal(damageSprite(plot), null, 'and draws no damage sprite');
+  assert.equal(plot.dead, false, 'while the crop itself is alive and growing');
+
+  // The clear path, which is how a latched crop usually leaves a plot.
+  const dead = growing({ hoursAgo: 50 });
+  plotAt(dead).dead = true;
+  plotAt(dead).damage = 'waterlogged';
+  plotAt(dead).damageAt = plotAt(dead).plantedAt + 2 * HOUR;
+  const cleared = clearPlot(dead, STARTER_PLOT_ID);
+  assert.ok(cleared.ok);
+  assert.equal(plotAt(cleared.state).damage, null, 'clearPlot clears the latch too');
+  assert.equal(plotAt(cleared.state).damageAt, null, 'and its timestamp');
+  assert.ok(plant(cleared.state, STARTER_PLOT_ID, 'rice').ok);
+});
+
+test('planting on bare ground that carries damage starts the crop clean', () => {
+  // Defence in depth: `plant` is the boundary that starts a crop, so it clears the
+  // latch even when an older save left one on the plot rather than on a crop.
+  const state = farm({ seeds: { rice: 1 } });
+  plotAt(state).damage = 'dry';
+  plotAt(state).damageAt = Date.now() - HOUR;
+
+  const result = plant(state, STARTER_PLOT_ID, 'rice');
+  assert.ok(result.ok);
+  assert.equal(plotAt(result.state).damage, null);
+  assert.equal(plotAt(result.state).damageAt, null);
+  assert.equal(damageSprite(plotAt(result.state)), null);
 });
 
 /* --- buying land ----------------------------------------------------------- */
