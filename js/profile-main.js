@@ -40,11 +40,20 @@ const LOGIN_URL = 'login.html';
  * a session that cannot be cleared remotely must still be cleared locally, or the
  * player reloads into a page that believes they are signed in.
  */
-async function makeSignOut(provider) {
+function makeSignOut(provider) {
+  let leaving = false;
+
   return async function signOut() {
+    if (leaving) return; // ignore double clicks while the request is in flight
+    leaving = true;
+
     log.trace('sign out requested by', getState()?.session?.userId);
 
-    saveNow();
+    try {
+      await saveNow();
+    } catch (error) {
+      log.warn('save before sign out failed -', error.message);
+    }
 
     try {
       await provider.signOut();
@@ -56,7 +65,6 @@ async function makeSignOut(provider) {
     location.replace(LOGIN_URL);
   };
 }
-
 function profileActions(session, provider) {
   return {
     session,
