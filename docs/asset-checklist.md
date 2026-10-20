@@ -231,7 +231,7 @@ crop illustrations are the almanac's per-crop entries, loaded by `ui/almanacCard
 
 | File | What it is | Status |
 | :--- | :--- | :--- |
-| `book.png` | The book button, 1470×1070 — **landscape**, unlike the square shop/settings buttons | ✅ done |
+| `book.png` | The book button, 1254×1254 — square, like the shop/settings buttons | ✅ done |
 | `rice.png` | Rice almanac entry, 1254×1254 | ✅ done |
 | `wheat.png` | Wheat almanac entry, 1254×1254 | ✅ done |
 | `potato.png` | Potato almanac entry, 1254×1254 | ✅ done |
@@ -239,9 +239,9 @@ crop illustrations are the almanac's per-crop entries, loaded by `ui/almanacCard
 | `corn.png` | Corn almanac entry, 1254×1254 | ✅ done |
 | `Golden Rice Harvest Bundle.png` | Golden Rice Harvest Bundle, 1312×1199 | ✅ done |
 
-**`book.png` is landscape and the button box is square.** `.sidebar-btn__img` is 64×64 with
-`object-fit: contain`, so the book letterboxes and renders smaller than the shop gear. Crop it to
-square, or give the button a wider box, before calling the button finished.
+**`book.png` is square and the button box is square.** `.sidebar-btn__img` is 64×64 with
+`object-fit: contain`, so the drawing fills the slot. The first cut was landscape (1470×1070)
+and letterboxed to a smaller size than the shop gear; the current art replaces it.
 
 ---
 

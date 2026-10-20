@@ -8,6 +8,18 @@ The per-person weekly notes that used to live in the README table are now in `me
 ---
 
 
+## Square book and inventory button art — 2026-10-20
+
+- **Did:** both sidebar buttons got redrawn art — `book.png` and `inventory.png` are now both
+  1254×1254, matching the square shop and settings buttons. The previous book drawing was
+  1470×1070 and letterboxed to a smaller size inside the 64×64 `.sidebar-btn__img` slot; that
+  mismatch is gone.
+- **Touched:** `assets/images/book/book.png`, `assets/images/inventory/inventory.png`,
+  `js/config/assets.js` (sizes and the book dimensions/comment), `docs/asset-checklist.md`,
+  `docs/team/progress-log.md`.
+- **Verified:** `npm test` and `npm run check` pass; PNG headers read back 1254×1254.
+- **Next:** commit and push after approval.
+
 ## Navbar avatar, fourth preset and ring — 2026-10-20
 
 - **Did:** the farm navbar's profile tile now shows the selected preset instead of the generic

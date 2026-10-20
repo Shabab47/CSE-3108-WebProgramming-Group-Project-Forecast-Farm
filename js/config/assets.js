@@ -120,10 +120,9 @@ export const ASSETS = [
   //
   // The book button sits in the farm sidebar, directly under the shop button
   // (`ui/almanacLauncher.js`). It replaced a rice seed packet that had stood in
-  // for it. `book.png` is 1470×1070 — landscape, unlike the square shop and settings
-  // buttons — so it letterboxes inside the 64×64 `.sidebar-btn__img` box
-  // (`css/sidebar.css`, `object-fit: contain`).
-  { path: 'assets/images/book/book.png', name: 'Book (button to open the almanac)', size: 1675851, dimensions: '1470x1070', status: 'done', category: 'button-art', page: 'field' },
+  // for it. The art is square, 1254×1254 like the shop and settings buttons, so it
+  // fills the 64×64 `.sidebar-btn__img` box (`css/sidebar.css`) with no letterboxing.
+  { path: 'assets/images/book/book.png', name: 'Book (button to open the almanac)', size: 1704265, dimensions: '1254x1254', status: 'done', category: 'button-art', page: 'field' },
   // One illustration per crop, for the almanac's entries. `almanac.html` is still
   // an empty placeholder (ISS-019), so nothing loads these yet — they are registered
   // because this file is the record of what is on disk, and `tests/assets.test.js`
@@ -140,7 +139,7 @@ export const ASSETS = [
   // A crate of harvested crops. It is the button on the farm sidebar, under the
   // almanac button (`ui/inventoryLauncher.js`), which opens the seed-bag page
   // (`inventory.html`).
-  { path: 'assets/images/inventory/inventory.png', name: 'Inventory crate (button to open the seed bag)', size: 1865103, dimensions: '1254x1254', status: 'done', category: 'button-art', page: 'field' },
+  { path: 'assets/images/inventory/inventory.png', name: 'Inventory crate (button to open the seed bag)', size: 2004167, dimensions: '1254x1254', status: 'done', category: 'button-art', page: 'field' },
 
   // --- Seasons (the season card's illustration) ---
   //
@@ -215,7 +214,7 @@ export const TITLE_IMG = 'assets/images/title.png';
 /** The settings gear, used as the button that opens settings. 1254×1254. */
 export const SETTINGS_IMG = 'assets/images/settings/settings.png';
 
-/** The book, used as the button under the shop button that opens the almanac. 1470×1070. */
+/** The book, used as the button under the shop button that opens the almanac. 1254×1254. */
 export const BOOK_IMG = 'assets/images/book/book.png';
 
 /** The crate, used as the button under the almanac button that opens the seed bag. 1254×1254. */
