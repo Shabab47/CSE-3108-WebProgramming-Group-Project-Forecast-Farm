@@ -68,6 +68,46 @@ test('re-initialising the same session resumes the save', async () => {
   assert.equal(getState().gold, 1234);
 });
 
+test('an avatar choice goes through apply and survives a reload', async () => {
+  await init(SESSION);
+  assert.equal(getState().profile.avatar, null, 'a new farm starts on the default');
+
+  const result = store.setAvatar('farmer1');
+  assert.equal(result.ok, true);
+  assert.equal(getState().profile.avatar, 'farmer1');
+  await saveNow();
+  reset();
+
+  await init(SESSION);
+  assert.equal(getState().profile.avatar, 'farmer1');
+});
+
+test('an unknown avatar is refused and cannot overwrite the current one', async () => {
+  await init(SESSION);
+  store.setAvatar('farmer2');
+
+  const result = store.setAvatar('farmer9');
+
+  assert.equal(result.ok, false);
+  assert.equal(getState().profile.avatar, 'farmer2');
+});
+
+test('a save with no profile loads on the default avatar', async () => {
+  installFakeStorage({
+    [KEY]: JSON.stringify({
+      version: STATE_VERSION,
+      state: { gold: 777, session: SESSION },
+    }),
+  });
+  reset();
+
+  const result = await init(SESSION);
+
+  assert.equal(result.loaded, true);
+  assert.equal(getState().gold, 777, 'the farm is kept');
+  assert.equal(getState().profile.avatar, null);
+});
+
 test('two users on one machine keep separate farms', async () => {
   await init(SESSION);
   getState().gold = 500;
@@ -347,6 +387,14 @@ test('adoptState replaces the farm and writes it straight to disk', async () => 
   // Written immediately rather than debounced: the old save must not outlive the
   // moment the player chose to replace it.
   assert.equal(JSON.parse(localStorage.getItem(KEY)).state.gold, 4242);
+});
+
+test('adoptState repairs an imported avatar id before it reaches the page', async () => {
+  await init(SESSION);
+
+  store.adoptState({ ...getState(), profile: { avatar: 'farmer9' } });
+
+  assert.equal(getState().profile.avatar, null, 'an unknown preset is treated as the default');
 });
 
 test('adoptState keeps the live session, not one carried in the file', async () => {

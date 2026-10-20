@@ -19,6 +19,8 @@ import { iconEl } from './icons.js';
  * @param {HTMLElement} root
  * @param {object} actions
  * @param {{status:string, farmerName?:string, username?:string, email?:string}} actions.session
+ * @param {string|null} actions.avatar  a preset id, or null for the default
+ * @param {(id:string|null) => {ok:boolean, reason?:string}} actions.onAvatarChange
  * @param {() => void} actions.onSignOut
  * @param {(msg:string, tone:string) => void} actions.toast
  * @param {string} actions.backHref
@@ -43,7 +45,10 @@ export function mountProfile(root, actions) {
   }, [iconEl('logout', 'profile-session__signout-icon'), isGuest ? 'Leave guest farm' : 'Sign out']);
 
   board.append(
-    accountCard(session),
+    accountCard(session, {
+      avatar: actions.avatar,
+      onChange: actions.onAvatarChange,
+    }),
     el('div', { class: 'card' }, [
       el('div', { class: 'card__head' }, [
         iconEl('session', 'card__icon'),

@@ -30,6 +30,32 @@ Format: who decided, the choice, why, and what was rejected.
 
 ---
 
+### DEC-051 Profile avatars are presets stored as an id, not uploaded files
+**Decided by:** Jim · 2026-10-20
+
+**Choice:** the profile page offers the default gray person plus two inline-SVG farmer busts,
+`farmer1` and `farmer2`. `state.profile.avatar` holds one of those ids, or `null` for the default.
+`js/config/avatars.js` owns the list the store validates, `js/ui/avatarArt.js` owns the drawings,
+and `accountCard.js` renders the picker. The choice is saved through `setAvatar()` like any other
+state change, so it syncs on an authed farm and stays local for a guest. Erasing progress keeps the
+avatar — it is a profile choice, not farm progress. Deleting the account removes it with the save.
+
+**Why presets.** An upload needs a file picker, image decoding, canvas resizing, compression, a size
+and MIME check, data-URL or object-storage handling, and browser-only tests to get one picture onto
+a circle. Two fixed ids deliver the actual request — "choose a picture" — with none of that surface,
+and they cannot produce a broken image. Inline SVG also avoids adding two more files to the asset
+registry and the 0-byte-art problem (DEC-014).
+
+**Why the state field is only an id.** It keeps the save small and provider-neutral: no Supabase
+migration, no binary in the JSON, and a save file that stays readable. An unknown or missing id is
+treated as the default by `ensureProfile()`; no `STATE_VERSION` bump is needed for one cosmetic key.
+
+**Rejected:** file upload; a separate avatar table or storage bucket; storing a data URL in the
+save; adding PNGs to `assets/images/`. Also rejected: keeping initials, which read as a generated
+name badge rather than the empty state.
+
+---
+
 ### DEC-050 Account pages are painted art, and do not follow the theme
 **Decided by:** Jim · 2026-10-20
 

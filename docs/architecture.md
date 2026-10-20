@@ -630,8 +630,11 @@ whole feature:
 2. `clearLocalSave()` — drops the localStorage copy. Not `clearSave()`: the server half is
    already done, and a second request at a deleted row could fail and be reported as a real
    failure (ISS-041).
-3. `adoptState(buildInitialState(session))` then `saveNow()` — the new farm, written at once
-   rather than waiting for the debounce, because the page is likely to be reloaded next.
+3. `adoptState(buildErasedState(session, state))` then `saveNow()` - the new farm, written at
+   once rather than waiting for the debounce, because the page is likely to be reloaded next.
+   `buildErasedState` carries the chosen avatar into the fresh farm: it is a profile choice, not
+   progress. Deleting the account is different - it uses `buildInitialState`, so the avatar goes
+   with the save.
 
 The old order cleared **first** and asked afterwards, which is how a wrong password wiped the
 farm and still reported that nothing had changed.
@@ -690,7 +693,8 @@ farm and still reported that nothing had changed.
 | the shop, prices and availability | `js/config/crops.js` |
 | the purchase rule | `js/domain/shop.js` (`buySeeds`) |
 | the settings page | `js/ui/settingsView.js` |
-| the profile page | `js/ui/profileView.js`, `js/ui/accountCard.js` — moved from the settings page so it isn't hidden behind two destructive actions |
+| the profile page | `js/ui/profileView.js`, `js/ui/accountCard.js` - moved from the settings page so it isn't hidden behind two destructive actions |
+| the preset avatar list and its drawings | `js/config/avatars.js`, `js/ui/avatarArt.js` - presets, not uploads (DEC-051) |
 | the painted frame both account pages share | `js/ui/pageFrame.js`, `css/page-frame.css`, `css/page-header.css` |
 | cream cards and controls inside that frame | `css/page-card.css` |
 | the fields and status messages on the settings page | `css/page-form.css` |
@@ -783,6 +787,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── supabase.js         project URL + anon key (set, T-29)
 │   │   ├── api.js              URLs, default location, refresh interval
 │   │   ├── assets.js           every image path, in one place
+│   │   ├── avatars.js          the two preset avatar ids the store validates (DEC-051)
 │   │   ├── field.js            FIELD geometry, ZONES, STARTER_PLOT_ID, UNLOCK_ORDER, PLOT_PRICES
 │   │   ├── game.js             START_GOLD, PUMP, WATER, HEALTH, timings, growthSpeed()
 │   │   ├── crops.js            the crop table — an aggregator over crops_logics/
@@ -826,7 +831,8 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── timeApi.js          rewrites — writes straight into the DOM
 │   │   └── weatherApi.js       rewrites — OpenWeatherMap placeholder key
 │   ├── ui/                     render only, reads the store
-│   │   ├── accountCard.js      the account facts card — on the profile page now
+│   │   ├── accountCard.js      the account facts card, with the preset avatar picker
+│   │   ├── avatarArt.js        the two inline-SVG farmer busts (DEC-051)
 │   │   ├── almanac.js          empty
 │   │   ├── authErrors.js       provider code → sentence, enumeration guard
 │   │   ├── authViews.js        the login page's view graph — menu, forms, reset
@@ -918,6 +924,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │
 ├── tests/                      node:test, pure code only
 │   ├── authApi.test.js         Supabase provider, fetch stubbed
+│   ├── avatar.test.js          preset ids, old-save repair, avatar rule
 │   ├── mainBoot.test.js        boot step 0, the provider switch
 │   ├── loadingTips.test.js     the boot veil: no flash, rotation, teardown
 │   ├── authErrors.test.js      error mapping, account enumeration

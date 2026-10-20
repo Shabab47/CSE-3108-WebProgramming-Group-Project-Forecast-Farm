@@ -8,6 +8,35 @@ The per-person weekly notes that used to live in the README table are now in `me
 ---
 
 
+## Wet ground dries in place, and profile gets preset avatars — 2026-10-20
+
+- **Did:** fixed ISS-110 — a plot crossing the 40-water threshold now swaps `.plot__ground`
+  in the same fast path that moves the meter, so a drying plot cannot keep the watered sprite
+  until an unrelated rebuild. The meter's CSS transition is untouched, and the new
+  `tests/farmView.test.js` case walks below → above → below and proves the tile is reused.
+  The Account card now shows a default gray person or one of two inline-SVG farmer busts, with
+  three picker buttons under the circle; the authed "These are the details you signed up with."
+  hint is gone, while the guest browser-only note stays. `state.profile.avatar` stores
+  `farmer1` / `farmer2` / `null`; old saves are repaired by `ensureProfile()` without a
+  `STATE_VERSION` bump, and an id this build does not know falls back to the default.
+- **Kept:** the shop files, every tested string, both danger-card flows, the guest hint, and the
+  avatar across "Erase progress" — it is a profile choice, not farm progress. Deleting the
+  account removes it with the save.
+- **Touched:** `js/ui/farmView.js`, `js/ui/plotLayers.js`, `js/ui/accountCard.js`,
+  `js/ui/profileView.js`, `js/ui/avatarArt.js` (new), `js/config/avatars.js` (new),
+  `js/state/initialState.js`, `js/state/store.js`, `js/profile-main.js`, `js/settings-main.js`,
+  `css/profile.css`, `tests/farmView.test.js`, `tests/profileView.test.js`,
+  `tests/avatar.test.js` (new), `tests/store.test.js`, and the docs below. Cross-folder edits:
+  `farmView.js` / `plotLayers.js` / `state/` are Hisham-owned; `accountCard.js` / `profileView.js`
+  / `profile.css` are Kafi-owned.
+- **Verified:** `npm test` 628/628 pass, `npm run check` clean (2 known, awaited by T-04).
+  Headless Chrome at 1272×860 and an emulated 420×932 guest profile — the cards fit, the picker
+  is legible at both widths, selecting Farmer 1 / Farmer 2 repaints the main circle and persists
+  in localStorage, and the default gray person returns when `null` is chosen.
+- **Next:** review the branch and click through a signed-in erase with the real server; the avatar
+  carry-over is covered by code and state tests, not by a live deletion click.
+
+
 ## Danger cards side by side, and the account frame trimmed — 2026-10-20
 
 - **Did:** Erase progress and Delete account now share one row on settings — two equal columns in

@@ -43,6 +43,8 @@ function mountProfilePage(overrides = {}) {
 
   const actions = {
     session: SESSION,
+    avatar: null,
+    onAvatarChange: () => ({ ok: true }),
     onSignOut: () => { signedOut = true; },
     toast: () => {},
     backHref: 'index.html',
@@ -99,15 +101,74 @@ test('the account card lists the signed-in details', () => {
   assert.match(text, /JM/, 'farmer name');
   assert.match(text, /aaj6000/, 'username');
   assert.match(text, /abdullahalhaijm2@gmail\.com/, 'email');
-  assert.match(text, /These are the details you signed up with/, 'sign-up hint');
+  assert.doesNotMatch(
+    text,
+    /These are the details you signed up with/,
+    'the authed sign-up hint was removed; the rows already say what this card is',
+  );
 });
 
-test('the account card shows the avatar initials', () => {
+test('the default avatar is a gray person, not initials', () => {
   const { root } = mountProfilePage();
   const card = cardTitled(root, 'Account');
   const avatar = card.querySelector('.profile-avatar');
+
   assert.ok(avatar, 'no avatar badge');
-  assert.equal(avatar.textContent, 'JM', 'initials from the farmer name');
+  assert.ok(avatar.classList.contains('profile-avatar--default'), 'the default badge');
+  assert.ok(avatar.querySelector('.profile-avatar__default'), 'the gray person icon');
+  assert.equal(avatar.textContent, '', 'no initials are painted');
+});
+
+test('the avatar picker offers the default and both presets, and reports a choice', () => {
+  const chosen = [];
+  const { root } = mountProfilePage({
+    avatar: 'farmer1',
+    onAvatarChange: (id) => {
+      chosen.push(id);
+      return { ok: true };
+    },
+  });
+  const card = cardTitled(root, 'Account');
+  const options = card.querySelectorAll('.profile-avatar-option');
+
+  assert.equal(options.length, 3, 'default plus two presets');
+  assert.deepEqual(
+    options.map((option) => option.getAttribute('aria-label')),
+    ['Default avatar', 'Farmer 1', 'Farmer 2'],
+  );
+  assert.equal(options[1].getAttribute('aria-pressed'), 'true', 'farmer1 is selected');
+  assert.ok(card.querySelector('.profile-avatar__art'), 'the preset art fills the main circle');
+
+  options[2].click();
+  assert.deepEqual(chosen, ['farmer2'], 'the second preset was reported');
+
+  const fresh = card.querySelectorAll('.profile-avatar-option');
+  assert.equal(fresh.length, 3, 'the picker is still there after repainting');
+  assert.equal(fresh[2].getAttribute('aria-pressed'), 'true');
+  assert.ok(
+    card.querySelector('.profile-avatar__art'),
+    'the main circle still shows preset art after the choice',
+  );
+
+  fresh[0].click();
+  assert.deepEqual(chosen, ['farmer2', null], 'the default is reported as null');
+  assert.ok(
+    card.querySelector('.profile-avatar--default'),
+    'choosing the default repaints the gray person',
+  );
+});
+
+test('a refused avatar choice leaves the picture alone', () => {
+  const { root } = mountProfilePage({
+    avatar: 'farmer1',
+    onAvatarChange: () => ({ ok: false, reason: 'not available' }),
+  });
+  const card = cardTitled(root, 'Account');
+
+  card.querySelectorAll('.profile-avatar-option')[2].click();
+
+  const selected = card.querySelector('.profile-avatar-option--selected');
+  assert.equal(selected.getAttribute('aria-label'), 'Farmer 1', 'the store refusal kept the old choice');
 });
 
 test('a guest sees no account rows and the guest hint instead', () => {
