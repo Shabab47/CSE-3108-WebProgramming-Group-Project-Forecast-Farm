@@ -8,7 +8,21 @@ The per-person weekly notes that used to live in the README table are now in `me
 ---
 
 
-## The seed bag page, and the inventory button — 2026-10-20
+## Third preset avatar, after pulling main — 2026-10-20
+
+- **Did:** pulled the latest `origin/main` into `jim` (almanac and inventory pages), then
+  added `farmer3` to the preset list and removed the stray black bars and the redundant
+  `clipPath` from its inline SVG. `avatarArt.js` now has three drawings, and the picker has
+  four buttons including the default.
+- **Why:** the third drawing was in `ART` but not `AVATARS`, so the store could not select
+  it. The black bars behind the head read as a swastika at avatar size and could not ship.
+- **Touched:** `js/config/avatars.js`, `js/ui/avatarArt.js`, `tests/avatar.test.js`,
+  `tests/profileView.test.js`, `docs/architecture.md`,
+  `docs/team/{decisions,tasks,progress-log}.md`.
+- **Verified:** `npm test` 642/642 pass, `npm run check` clean (2 known, T-04).
+- **Next:** merge the branch.
+
+## The seed bag page, and the inventory button - 2026-10-20
 
 - **Did:** added a fourth button to the farm sidebar, under the almanac button — the crate
   (`assets/images/inventory/inventory.png`). It opens a new page, `inventory.html`, which lists the

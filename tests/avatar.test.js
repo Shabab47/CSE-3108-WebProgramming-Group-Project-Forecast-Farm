@@ -13,20 +13,37 @@ import { AVATARS, isAvatarId } from '../js/config/avatars.js';
 import { START_GOLD } from '../js/config/game.js';
 import { buildErasedState, buildInitialState, ensureProfile } from '../js/state/initialState.js';
 import { setAvatarRule } from '../js/state/store.js';
+import { avatarArt } from '../js/ui/avatarArt.js';
 
 const SESSION = { status: 'authed', userId: 'acc_test', email: 'a@b.bd', farmerName: 'Test' };
 
-test('the preset list is two distinct ids, and an id is checked exactly', () => {
+test('the preset list has distinct ids, and an id is checked exactly', () => {
   assert.deepEqual(
     AVATARS.map((avatar) => avatar.id),
-    ['farmer1', 'farmer2'],
+    ['farmer1', 'farmer2', 'farmer3'],
   );
-  assert.equal(new Set(AVATARS.map((avatar) => avatar.id)).size, 2, 'no duplicate id');
+  assert.equal(new Set(AVATARS.map((avatar) => avatar.id)).size, 3, 'no duplicate id');
   assert.equal(isAvatarId('farmer1'), true);
   assert.equal(isAvatarId('farmer2'), true);
-  assert.equal(isAvatarId('farmer3'), false);
+  assert.equal(isAvatarId('farmer3'), true);
+  assert.equal(isAvatarId('farmer4'), false);
   assert.equal(isAvatarId(''), false);
   assert.equal(isAvatarId(null), false, 'null is the default, not a preset');
+});
+
+test('every listed preset has inline art with no duplicated element ids', () => {
+  const ids = new Set();
+
+  for (const { id } of AVATARS) {
+    const art = avatarArt(id);
+    assert.ok(art, `${id} has no SVG`);
+    assert.match(art.trimStart(), /^<svg[\s>]/, `${id} is not an inline SVG`);
+
+    for (const match of art.matchAll(/\bid="([^"]+)"/g)) {
+      assert.equal(ids.has(match[1]), false, `duplicate SVG id "${match[1]}"`);
+      ids.add(match[1]);
+    }
+  }
 });
 
 test('a fresh farm starts on the default avatar', () => {
@@ -55,7 +72,7 @@ test('an unknown avatar id is treated as the default, and other profile fields s
 });
 
 test('a valid avatar is left exactly as it is, and junk profile shapes do not throw', () => {
-  for (const id of ['farmer1', 'farmer2']) {
+  for (const id of ['farmer1', 'farmer2', 'farmer3']) {
     const state = buildInitialState(SESSION);
     state.profile = { avatar: id };
     assert.equal(ensureProfile(state), state, `${id} is already valid`);
