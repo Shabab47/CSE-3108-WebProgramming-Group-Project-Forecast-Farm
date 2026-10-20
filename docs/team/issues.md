@@ -920,6 +920,7 @@ or `assets.test.js` fails in the other direction.
 | ISS-107 | `--font-body` does not exist, so the gold text was never in the display face | Low | Jim | **fixed** | T-65 |
 | ISS-108 | The boot tip still says rice is the only crop you can plant | Low | Jim | **fixed** | T-65 |
 | ISS-109 | Settings mounted the board without the frame, so the page did not scroll | **High** | Jim | **fixed** | T-66 |
+| ISS-110 | A drying plot kept the watered ground sprite while the meter said "Dry" | Medium | Hisham | **fixed** | T-68 |
 
 ---
 
@@ -2395,4 +2396,24 @@ or `assets.test.js` fails in the other direction.
   the content columns (settings 980px, profile 860px), tightened card/board spacing, added
   `justify-content: flex-start` to card headings (they were pushed right by `components.css`'s
   `space-between`) and compacted the profile cards so both fit without scrolling on a laptop.
+
+---
+
+### ISS-110 A drying plot kept the watered ground sprite while the meter said "Dry"
+- Reported: 2026-10-20 by Jim · Owner: Hisham · Status: **fixed** in T-68 · Severity: Medium
+- Where: `js/ui/farmView.js` (`repaint`), `js/ui/plotLayers.js`
+- Problem: a plot that crossed the 40-water threshold kept the sprite it was last rebuilt with. A
+  plot drying from 60 to 0 kept `ground_watered.png` under a "Dry" meter until some unrelated change
+  rebuilt the tile; until then the earth looked watered while the meter — correctly — said it was
+  not. The reverse, dry to wet, was equally stale. Seen on the running farm
+  as "it's saying dry but the sprite already switched to wet"; the meter was right both times.
+- Cause: `plotSignatureWithoutWater()` deliberately excludes water, so a water-only change takes the
+  fast path in `repaint()`: it patches the meter and `continue`s. The ground image is chosen only by
+  `plotLayers()` during a full rebuild, so nothing on that path ever changed `src`. The meter and
+  the soil were two readings of the same number, updated by two different code paths.
+- Fix: `patchGround(tile, plot)` in `plotLayers.js` swaps `.plot__ground` between the two registered
+  sprites using the same `WATER.wateredThreshold` as the full render, and `repaint()` requires both
+  patches to succeed before skipping the rebuild. The CSS transition on the meter is untouched.
+  `tests/farmView.test.js` now walks below → above → below and asserts the tile is reused **and** the
+  sprite follows the meter in both directions.
 

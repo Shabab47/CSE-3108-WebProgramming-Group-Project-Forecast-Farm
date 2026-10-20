@@ -5,7 +5,7 @@ import { WATER } from '../config/game.js';
 import { waterState } from '../domain/plotWater.js';
 import { harvestsIn, isNextUnlockable } from '../land_squares/index.js';
 import { plotName } from './plotLabel.js';
-import { patchWaterMeter, plotLayers } from './plotLayers.js';
+import { patchGround, patchWaterMeter, plotLayers } from './plotLayers.js';
 
 const PUMP_IMG = 'assets/images/pump.png';
 const BASE_IMG = 'assets/images/base.png';
@@ -261,12 +261,19 @@ export function mountFarmView(root, state) {
       const entry = tiles.get(plot.id);
       if (entry?.signature === signature) continue;
 
-      // **The water-only case: patch the meter rather than rebuild the tile.** Only water
-      // moved, so nothing else in the tile can have changed — and rebuilding would re-decode
-      // the ground and crop sprites to change one bar's height. Returns false when there is
-      // no meter on this tile (unowned, or a dead plot), which falls through to a rebuild.
+      // **The water-only case: patch the meter and ground rather than rebuild the tile.**
+      // Only water moved, so nothing else in the tile can have changed — and rebuilding
+      // would re-decode the crop sprite to change one bar's height. The ground still has to
+      // follow the 40-water threshold, which is why `patchGround` is part of this path: the
+      // meter and the soil are two readings of the same number and must not disagree.
+      // Either patch returning false (no meter, no ground) falls through to a rebuild.
       const structure = plotSignatureWithoutWater(plot, state);
-      if (entry && entry.structure === structure && patchWaterMeter(entry.node, plot)) {
+      if (
+        entry
+        && entry.structure === structure
+        && patchWaterMeter(entry.node, plot)
+        && patchGround(entry.node, plot)
+      ) {
         entry.signature = signature;
         continue;
       }

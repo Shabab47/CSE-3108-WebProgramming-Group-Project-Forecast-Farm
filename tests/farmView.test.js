@@ -382,6 +382,47 @@ test('bare ground carries a water meter, because that is when the pump is used',
   );
 });
 
+test('the ground sprite crosses the water threshold with the meter, in place', () => {
+  // ISS-110. The meter was patched on every water-only tick, but the ground was chosen
+  // only when the tile was rebuilt. A plot that dried from 60 to 0 therefore said "dry"
+  // over `ground_watered.png` until something unrelated rebuilt the tile — the exact
+  // inconsistency reported as "it's saying dry but the sprite already switched to wet".
+  const at = (waterLevel) => buildPlots().map((plot) => (
+    plot.id === 5 ? { ...plot, owned: true, waterLevel } : plot
+  ));
+
+  mount({ plots: at(0) });
+  // The first water-only repaint has no structure signature yet, so it rebuilds. That is
+  // deliberate here: it establishes the signature the next two repaints exercise.
+  mount({ plots: at(30) });
+  const beforeThreshold = root.querySelectorAll('.plot')[5];
+  assert.match(
+    beforeThreshold.querySelector('.plot__ground').getAttribute('src'),
+    /ground_unwatered\.png$/,
+    '30 is below the 40-water threshold',
+  );
+
+  mount({ plots: at(60) });
+  const aboveThreshold = root.querySelectorAll('.plot')[5];
+  assert.equal(aboveThreshold, beforeThreshold, 'a water-only tick must patch, not rebuild');
+  assert.match(
+    aboveThreshold.querySelector('.plot__ground').getAttribute('src'),
+    /ground_watered\.png$/,
+    'and the ground must follow the meter across 40',
+  );
+  assert.equal(aboveThreshold.querySelector('.plot__water-word').textContent, 'optimal');
+
+  mount({ plots: at(0) });
+  const backBelow = root.querySelectorAll('.plot')[5];
+  assert.equal(backBelow, aboveThreshold, 'drying is patched too');
+  assert.match(
+    backBelow.querySelector('.plot__ground').getAttribute('src'),
+    /ground_unwatered\.png$/,
+    'the wet sprite must not linger after the water is gone',
+  );
+  assert.equal(backBelow.querySelector('.plot__water-word').textContent, 'dry');
+});
+
 test('the meter never appears on a locked plot, and never on a dead crop', () => {
   // buildPlots() leaves 15 of the 16 unowned, and none of them have a crop - so a locked
   // square is the default state of most of the field and must stay silent.
