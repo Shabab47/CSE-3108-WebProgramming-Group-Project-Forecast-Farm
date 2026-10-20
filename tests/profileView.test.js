@@ -119,7 +119,7 @@ test('the default avatar is a gray person, not initials', () => {
   assert.equal(avatar.textContent, '', 'no initials are painted');
 });
 
-test('the avatar picker offers the default and both presets, and reports a choice', () => {
+test('the avatar picker offers the default and all presets, and reports a choice', () => {
   const chosen = [];
   const { root } = mountProfilePage({
     avatar: 'farmer1',
@@ -131,10 +131,10 @@ test('the avatar picker offers the default and both presets, and reports a choic
   const card = cardTitled(root, 'Account');
   const options = card.querySelectorAll('.profile-avatar-option');
 
-  assert.equal(options.length, 3, 'default plus two presets');
+  assert.equal(options.length, 4, 'default plus three presets');
   assert.deepEqual(
     options.map((option) => option.getAttribute('aria-label')),
-    ['Default avatar', 'Farmer 1', 'Farmer 2'],
+    ['Default avatar', 'Farmer 1', 'Farmer 2', 'Farmer 3'],
   );
   assert.equal(options[1].getAttribute('aria-pressed'), 'true', 'farmer1 is selected');
   assert.ok(card.querySelector('.profile-avatar__art'), 'the preset art fills the main circle');
@@ -143,15 +143,20 @@ test('the avatar picker offers the default and both presets, and reports a choic
   assert.deepEqual(chosen, ['farmer2'], 'the second preset was reported');
 
   const fresh = card.querySelectorAll('.profile-avatar-option');
-  assert.equal(fresh.length, 3, 'the picker is still there after repainting');
+  assert.equal(fresh.length, 4, 'the picker is still there after repainting');
   assert.equal(fresh[2].getAttribute('aria-pressed'), 'true');
   assert.ok(
     card.querySelector('.profile-avatar__art'),
     'the main circle still shows preset art after the choice',
   );
 
-  fresh[0].click();
-  assert.deepEqual(chosen, ['farmer2', null], 'the default is reported as null');
+  fresh[3].click();
+  assert.deepEqual(chosen, ['farmer2', 'farmer3'], 'the third preset was reported');
+  const afterThird = card.querySelectorAll('.profile-avatar-option');
+  assert.equal(afterThird[3].getAttribute('aria-pressed'), 'true');
+
+  afterThird[0].click();
+  assert.deepEqual(chosen, ['farmer2', 'farmer3', null], 'the default is reported as null');
   assert.ok(
     card.querySelector('.profile-avatar--default'),
     'choosing the default repaints the gray person',

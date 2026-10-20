@@ -792,7 +792,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── supabase.js         project URL + anon key (set, T-29)
 │   │   ├── api.js              URLs, default location, refresh interval
 │   │   ├── assets.js           every image path, in one place
-│   │   ├── avatars.js          the two preset avatar ids the store validates (DEC-051)
+│   │   ├── avatars.js          the preset avatar ids the store validates (DEC-051)
 │   │   ├── field.js            FIELD geometry, ZONES, STARTER_PLOT_ID, UNLOCK_ORDER, PLOT_PRICES
 │   │   ├── game.js             START_GOLD, PUMP, WATER, HEALTH, timings, growthSpeed()
 │   │   ├── crops.js            the crop table — an aggregator over crops_logics/
@@ -837,7 +837,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   └── weatherApi.js       rewrites — OpenWeatherMap placeholder key
 │   ├── ui/                     render only, reads the store
 │   │   ├── accountCard.js      the account facts card, with the preset avatar picker
-│   │   ├── avatarArt.js        the two inline-SVG farmer busts (DEC-051)
+│   │   ├── avatarArt.js        the inline-SVG farmer busts (DEC-051)
 │   │   ├── almanac.js          the almanac page — header, back link, crop grid
 │   │   ├── almanacCard.js      one crop's entry: portrait, facts, reactions
 │   │   ├── almanacWeather.js   a crop's reaction to each weather event
