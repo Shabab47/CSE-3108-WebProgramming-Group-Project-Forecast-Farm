@@ -198,6 +198,7 @@ login.html ──► js/auth-main.js ──► mountAuthViews(root, actions)
              js/ui/authViews.js ──► show(view)
                    ├─► js/ui/menuPanel.js      menu, sign in, create account
                    ├─► js/ui/loginPanel.js     one form, on js/ui/signBoard.js
+                   ├─► js/ui/avatarSetup.js    the four presets after sign-up
                    └─► js/ui/passwordReset.js  request, sent, set
                    │
                    ▼
@@ -212,7 +213,7 @@ index.html ──► js/main.js ──► boot 0: resolveSession()
 
 ### Views on the login page
 
-One page, four faces, and `show(view)` in `js/ui/authViews.js` is the only place
+One page, five faces, and `show(view)` in `js/ui/authViews.js` is the only place
 a view changes:
 
 ```
@@ -222,7 +223,13 @@ menu ──Sign in─────► signIn ──Create account──► signUp
 
 signIn ──Back────────► menu
 signIn ──Forgot──────► reset ──Back──► signIn
+
+signUp ──account created──► avatar ──Start farming──► onAuthenticated(session, { avatar })
 ```
+
+A sign-up that issued no session is the one branch out of `signUp` that does not
+reach `avatar`: email confirmation is on, no farm exists yet, and the player is
+sent to `signIn` with the "check your inbox" notice instead.
 
 Each view is mounted alone and the previous one unmounted, so only what the
 player is looking at is in the DOM. That replaced an earlier tabbed panel that
@@ -238,9 +245,10 @@ what was read out of the URL at boot:
 | with a recovery token in the URL fragment | `reset` | they followed a link from their inbox to choose a password, nothing else |
 | with `?deleted=1` | `signIn`, with a notice | the sentence is about an account they had; the menu would hide it under three buttons |
 
-Focus moves with the view: onto the first field for a form, onto the first
-button when returning to the menu from a form, and **not at all** on first load,
-where the browser has already opened on the right view.
+Focus moves with the view: onto the first field for a form, onto Farmer 1 for the
+avatar step, onto the first button when returning to the menu from a form, and
+**not at all** on first load, where the browser has already opened on the right
+view.
 
 ### The panel contract
 
@@ -252,7 +260,7 @@ outside call arrives through `actions`:
 | `signIn({identifier, password})` | `Promise<{ok:true, session} \| {ok:false, reason}>` | busy state, then route on |
 | `signUp({email, password, farmerName, username})` | same, or `{ok:true, session:null}` | busy state, then route on |
 | `signOut()` | `Promise<{ok:true}>` | — |
-| `onAuthenticated(session \| null)` | — | routing; **`null` means awaiting email confirmation** |
+| `onAuthenticated(session \| null, { avatar }?)` | — | routing; **`null` means awaiting email confirmation**. `avatar` is added by `authViews` after the sign-up step, not by `loginPanel` |
 | `onBack()` | — | return to the menu |
 | `onSwitch(mode)` | — | sign in ⇄ create account |
 | `onGuest()` | — | guest play |
@@ -263,17 +271,33 @@ outside call arrives through `actions`:
 boot has already decided there is no session, so asking again could only
 contradict it.
 
+The avatar step is `js/ui/avatarSetup.js`, mounted as
+`show('avatar', undefined, session)` only after a sign-up returned a session. It
+offers the four presets, preselects `farmer1`, and has no Back or Skip: the
+account already exists, so there is nothing behind it to return to. **Start
+farming** calls `onAuthenticated(session, { avatar })`. Signing in still calls
+`onAuthenticated(session)` with no options, so an existing player never sees the
+step.
+
+The chosen id reaches the first farm in `index.html?avatar=farmerN`, not through
+a second localStorage writer. `js/main.js` validates it with `isAvatarId()`,
+passes it to `buildInitialState(session, { avatar })` when there is no save, and
+removes it from the address bar with `history.replaceState` once `init()` has
+written the farm. The first save therefore already carries the avatar, and a
+reload cannot apply a stale choice to an existing farm. See DEC-055.
+
 ### The login page is painted art
 
-The menu and the two forms are the one surface in the project that is illustration
-rather than app chrome: a full-bleed background, a wooden sign, chunky outlined
-buttons, and two display faces.
+The menu, the two forms and the avatar step are the one surface in the project
+that is illustration rather than app chrome: a full-bleed background, a wooden
+sign, chunky outlined buttons, and two display faces.
 
-- **Three stylesheets draw it, one per component.** `css/auth.css` is the page
+- **Four stylesheets draw it, one per component.** `css/auth.css` is the page
   backdrop and stage, `css/menu.css` is the opening menu and its buttons,
-  `css/sign.css` is the wooden board, its form overrides and its buttons. It does
-  not use the app grid, so `css/layout.css` is untouched. One file per component
-  is the direction the rest of `css/` is heading — see DEC-029.
+  `css/sign.css` is the wooden board, its form overrides and its buttons, and
+  `css/avatar-setup.css` is the preset picker added after sign-up. It does not use
+  the app grid, so `css/layout.css` is untouched. One file per component is the
+  direction the rest of `css/` is heading — see DEC-029.
 - **It does not follow `data-theme`, and it carries its colours literally rather
   than as tokens.** A wooden sign is brown in a dark theme too, so a token would
   have nothing to switch. Every other page is unaffected and still reads
@@ -522,7 +546,7 @@ something go wrong, so replacing a farm unasked is the worst available outcome.
 An import **rebases the clocks forward** by the age of the file, because growth is
 computed from `plantedAt` and keeps running while the tab is closed. Importing a
 three-week-old file without that would arrive with every crop finished or dead.
-`lastTickAt`, `plantedAt`, `createdAt` and `weather.fetchedAt` all move;
+`lastTickAt`, `plantedAt`, `damageAt`, `createdAt` and `weather.fetchedAt` all move;
 `notified` deliberately does not, because its windows have expired and re-firing the
 alerts once is correct (ISS-013).
 
@@ -684,6 +708,7 @@ farm and still reported that nothing had changed.
 | the sign-in / create-account form and its states | `js/ui/loginPanel.js` |
 | the labelled inputs the form is built from | `js/ui/loginFields.js` |
 | the wooden sign both forms sit on | `js/ui/signBoard.js` |
+| the avatar step after sign-up | `js/ui/avatarSetup.js`, `css/avatar-setup.css` |
 | the forgot-password flow | `js/ui/passwordReset.js` |
 | the menu background and logo paths | `js/config/assets.js` (`MENU_BG`, `TITLE_IMG`) |
 | the two display faces | `css/fonts.css`, the `--font-display` / `--font-ui` tokens |
@@ -694,7 +719,7 @@ farm and still reported that nothing had changed.
 | the purchase rule | `js/domain/shop.js` (`buySeeds`) |
 | the settings page | `js/ui/settingsView.js` |
 | the profile page | `js/ui/profileView.js`, `js/ui/accountCard.js` - moved from the settings page so it isn't hidden behind two destructive actions |
-| the preset avatar list, its drawings, and where they appear | `js/config/avatars.js`, `js/ui/avatarArt.js` - presets, not uploads (DEC-051); the profile page's account card and the farm navbar's profile tile both render the chosen id. `avatarArt()` suffixes any `<clipPath>` ids per call, because the selected preset is painted twice on the profile page |
+| the preset avatar list, its drawings, and where they appear | `js/config/avatars.js`, `js/ui/avatarArt.js` - presets, not uploads (DEC-051); the sign-up step, the profile page's account card and the farm navbar's profile tile all render the chosen id. `avatarArt()` suffixes any `<clipPath>` ids per call, because the profile and sign-up pickers paint the selected preset twice |
 | the painted frame both account pages share | `js/ui/pageFrame.js`, `css/page-frame.css`, `css/page-header.css` |
 | cream cards and controls inside that frame | `css/page-card.css` |
 | the fields and status messages on the settings page | `css/page-form.css` |
@@ -715,7 +740,7 @@ farm and still reported that nothing had changed.
 | the game page's top bar | `css/navbar.css` — fixed `height: 60px`, owns its own padding rather than `.card`'s |
 | where the location search lives | `js/ui/locationBar.js`, in the wooden board — not the navbar |
 | the forecast board: frame, notes, meters | `js/ui/weatherPanel.js`, `css/weather.css` — the board is `flex: 0 0 33.333%` of `.app__centre` with `min-height: 150px`, the field takes the rest (`css/layout.css`). Its width is `clamp(450px, 38%, 520px)`, centred over the field. Inside, `.board-body` is a two-column grid at `1.6fr / 1fr` with **both children pinned to `grid-row: 1`** (ISS-056); the meters column is three pills at `flex: 1 1 0`, so they divide the note's height rather than asking for a height of their own, and carries a `3px` bottom padding so the last pill's `box-shadow` survives `.board-body`'s `overflow: hidden` (ISS-060); a meter's label track is a bare `1fr`, whose `min-content` floor is what stops "Wind" ellipsising (ISS-061); the big note is **itself a two-column grid** — the condition spans both columns, the temperature takes `minmax(0, auto)`, and the place name takes `minmax(0, 1fr)` beside it, right-aligned and wrapping instead of ellipsising, with the day and time and the two conditional lines on full-width rows of their own (DEC-033, ISS-062); `locationLine()` answers `'Unknown location'` rather than an empty string, so a farm with no place never renders a blank line (ISS-063); the hour strip is a fixed `72px` (ISS-057); the freshness label is **inside the big note**, right-aligned and rendered only while the forecast is paused, so the board prints its reading time once (DEC-032); both hanging pegs are posts at every height (ISS-059). No meter has a fill bar (ISS-055). Sizes are plain literals, with one short-window block at `@media (max-height: 960px) and (min-width: 901px)` that trims them — DEC-031 has the reasoning |
-| login page layout — the menu and the wooden sign | `css/auth.css`, `css/menu.css`, `css/sign.css`, `login.html` |
+| login page layout — the menu, the wooden sign and the avatar step | `css/auth.css`, `css/menu.css`, `css/sign.css`, `css/avatar-setup.css`, `login.html` |
 | colours | `css/variables.css` — except the login page, which writes its own (DEC-029) |
 | spacing and radii | hardcoded per file, in px. The ten in `variables.css` are a stopgap for `components.css` alone; delete them when that file's 41 references are gone |
 | card and button styling | `css/components.css` |
@@ -740,7 +765,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 ```
 .
 ├── index.html                  the game page — app shell, 3 grid columns
-├── login.html                  the menu, sign-in and create-account screens
+├── login.html                  the menu, sign-in, create-account and avatar screens
 ├── shop.html                   the seed shop — its own page, its own entry script
 ├── settings.html               account details, erase progress, delete account
 ├── profile.html                who is signed in, and the way out
@@ -773,7 +798,8 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   ├── page-form.css           the fields and status messages only settings uses
 │   ├── auth.css                the login backdrop and the stage it sits on
 │   ├── menu.css                the opening menu and its buttons
-│   └── sign.css                the wooden sign, its forms and its buttons
+│   ├── sign.css                the wooden sign, its forms and its buttons
+│   └── avatar-setup.css        the post-sign-up preset picker on that sign
 │
 ├── data/
 │   └── sample-forecast.json    empty — one real Open-Meteo response, for offline dev
@@ -838,11 +864,12 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   ├── ui/                     render only, reads the store
 │   │   ├── accountCard.js      the account facts card, with the preset avatar picker
 │   │   ├── avatarArt.js        the inline-SVG farmer busts (DEC-051)
+│   │   ├── avatarSetup.js      the post-sign-up step: four presets on the wooden sign
 │   │   ├── almanac.js          the almanac page — header, back link, crop grid
 │   │   ├── almanacCard.js      one crop's entry: portrait, facts, reactions
 │   │   ├── almanacWeather.js   a crop's reaction to each weather event
 │   │   ├── authErrors.js       provider code → sentence, enumeration guard
-│   │   ├── authViews.js        the login page's view graph — menu, forms, reset
+│   │   ├── authViews.js        the login page's view graph — menu, forms, avatar, reset
 │   │   ├── cropPicker.js       which seed to sow on a plot
 │   │   ├── dangerAction.js     the arm-and-confirm control, with its password gate
 │   │   ├── difficultyCard.js   the Normal / Easy setting, with what each mode does
@@ -885,7 +912,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── date.js             empty
 │   │   └── season.js           empty
 │   ├── state/
-│   │   ├── initialState.js     builds a fresh farm: 200 gold, 16 plots, 1 already owned
+│   │   ├── initialState.js     fresh farm + the no-bump repairs: starter plot, difficulty, avatar, damage
 │   │   ├── saveFile.js         the per-user localStorage save
 │   │   ├── store.js            getState, apply, subscribe, bus, save/load
 │   │   └── types.js            planned — JSDoc @typedef for State
@@ -935,7 +962,9 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │
 ├── tests/                      node:test, pure code only
 │   ├── authApi.test.js         Supabase provider, fetch stubbed
+│   ├── authViews.test.js       sign-up → avatar, sign-in direct, confirmation notice
 │   ├── avatar.test.js          preset ids, old-save repair, avatar rule
+│   ├── avatarSetup.test.js     the sign-up avatar step: presets, selection, Start
 │   ├── mainBoot.test.js        boot step 0, the provider switch
 │   ├── loadingTips.test.js     the boot veil: no flash, rotation, teardown
 │   ├── authErrors.test.js      error mapping, account enumeration
@@ -977,7 +1006,7 @@ and it is empty because the real answer turned out to be two smaller answers rat
 | Question | *is this a sensible thing to plant right now?* | *what is happening to it while I am away?* |
 | Window | the next **6 hours** | elapsed time, since `lastTickAt` |
 | Owner | `domain/weather.js` — `verdictFor()` | `domain/water.js` — `tick()` |
-| Writes | `plot.health`, `plot.forecast` | `plot.waterLevel`, `plot.health`, `plot.dead` |
+| Writes | `plot.health`, `plot.forecast` | `plot.waterLevel`, `plot.health`, `plot.damage`, `plot.damageAt`, `plot.dead` |
 
 The 6-hour window is sized to the crop line: every crop is 4–8 hours (rice 6, wheat 5, potato
 4, corn 8), so it covers a whole crop's life. The most severe hour wins, never an average, so
@@ -1020,9 +1049,9 @@ imports it. That is a DEC, not a cleanup, because it reverses a documented choic
   `js/connection.js` exists to enforce.
 - Every `fetch` carries an `AbortController` deadline.
 - **Painted components carry their colours literally, and their class names flat.**
-  `css/weather.css` and the three login stylesheets write `#6b431f` rather than a
-  token, because a wooden board is brown in a dark theme too — a token would have
-  nothing to switch (DEC-029). They also use `board-meter-value`, not
+  `css/weather.css` and the four login stylesheets (`auth`, `menu`, `sign`,
+  `avatar-setup`) write `#6b431f` rather than a token, because a wooden board is
+  brown in a dark theme too — a token would have nothing to switch (DEC-029). They also use `board-meter-value`, not
   `board__meter__value`: the token indirection and the BEM separator cost more than
   they save in files this size. `.card`, `.btn` and `.input` in `components.css` are
   the opposite case and stay tokenised, because they are app chrome that does follow
@@ -1034,6 +1063,7 @@ imports it. That is a DEC, not a cleanup, because it reverses a documented choic
 | :--- | :--- | :--- |
 | `state/store.js` | `getState`, `apply`, `subscribe`, `on`, `emit`, `save`, `saveNow`, `load`, `init`, `reset`, `clearSave`, `clearLocalSave`, `adoptState`, `exportPayload`, `readImport`, `getSync`, `flushPendingSave` | `subscribe` returns an unsubscribe fn. **`init`, `saveNow` and `clearSave` are async.** Emits `sync` with `synced`/`saving`/`pending` (ISS-050) |
 | `state/saveFile.js` | `saveKey`, `writeSave`, `readSave`, `deleteSave` | the local cache writer |
+| `state/initialState.js` | `buildInitialState`, `buildErasedState`, `ensureStarterPlot`, `ensureDifficulty`, `ensureProfile`, `ensurePlausibleDamage`, `normaliseSession`, `zoneOf`, `buildPlots` | the fresh farm and the **no-version-bump repairs**. `buildInitialState(session, { avatar })` seeds the avatar chosen during sign-up, validating it first, so the first save already carries it. `ensurePlausibleDamage` clears a latch with no timestamp, a timestamp before the crop's hold, or no crop — the one-time amnesty in DEC-054 |
 | `services/saveApi.js` | `readRemoteSave`, `writeRemoteSave`, `deleteRemoteSave`, `countRemoteSaves` | the server save; takes the token per call |
 | `remoteSave.js` | `buildServerSave` | the join, at the top of `js/` beside the entry points |
 | `connection.js` | `mountConnectionStatus`, `advanceAnnouncement`, `wireSaveOnExit` | the chip + retry + one-time-toast wiring for all four pages. Top of `js/` because it needs `ui/`, `state/` and the toast bus at once |
@@ -1042,8 +1072,9 @@ imports it. That is a DEC, not a cleanup, because it reverses a documented choic
 | `config/seasons.js` | `SEASON`, `BANDS`, `bandForLat` | three latitude bands, each with its own calendar **and its own southern one**, written out rather than rotated — the old rotation by `SEASONS.length` was the identity, so both hemispheres answered identically |
 | `domain/seasons.js` | `seasonFor`, `bandFor`, `isSuitableFor`, `seasonRating`, `allSeasonNames` | `seasonFor(location, date)` takes latitude, because a month alone does not say what season it is anywhere |
 | `domain/weather.js` | `FORECAST_WINDOW_HOURS`, `WEATHER_HEALTH_FLOOR`, `SEASON_MISS_COST`, `forecastWindow`, `indexOfHour`, `worstEventIn`, `verdictFor` | a planting is judged **once, at sowing**, against the next six hours — the window is sized to the crop line, since every crop is 4–8 h. Health is floored so weather wounds but never kills. With no forecast `verdictFor` answers `{ok:false}` and the picker refuses — DEC-039, ISS-089 |
-| `domain/farm.js` | `plant` | also writes `plot.health` and `plot.forecast` at sowing, so the health a harvest is paid on comes from weather the player could see before spending the seed |
-| `js/main.js` | `needsLocationRefresh` | whether a save's location is looked up again on load: `!saved.pinned`, **or** the name is the one string ISS-077 could write. The second clause is what makes pre-fix saves migrate themselves — without it the repair only reaches farms created after it, because the broken code pinned the coordinates successfully and failed only to name them, so `pinned` was already `true`. A farm that has a real name is never re-resolved |
+| `domain/damage.js` | `damageFor`, `applyDamage`, `damageWord`, `damageSprite`, `damageNote` | `damageFor` is the pure window→kind rule; `applyDamage(plot, kind, at)` owns permanence, stamps `damageAt`, and refuses a latch before the crop has lived the hold — 1 h dry, 2 h waterlogged (ISS-114) |
+| `domain/farm.js` | `plant` | also writes `plot.health` and `plot.forecast` at sowing, so the health a harvest is paid on comes from weather the player could see before spending the seed. All three paths that start or end a crop (`plant`, `harvest`, `clearPlot`) reset `plot.damage` **and `plot.damageAt`**, because the latch belongs to the crop and not to the square — ISS-112, ISS-114 |
+| `js/main.js` | `needsLocationRefresh`, `avatarFromSearch` | `needsLocationRefresh` says whether a save's location is looked up again on load: `!saved.pinned`, **or** the name is the one string ISS-077 could write. The second clause is what makes pre-fix saves migrate themselves — without it the repair only reaches farms created after it, because the broken code pinned the coordinates successfully and failed only to name them, so `pinned` was already `true`. A farm that has a real name is never re-resolved. `avatarFromSearch(search)` reads the one-shot `?avatar=farmerN` sign-up handoff and answers `null` for anything that is not a known preset |
 | `ui/blockedScreen.js` | `mountBlockedScreen`, `messageFor` | replaces the page when there is no session *because there is no connection* |
 | `ui/syncIndicator.js` | `mountSyncIndicator`, `chipLabelFor`, `copyFor`, `describeStaleFor`, `SYNCED_NOTE` | the fixed corner chip. Label persistent, notice one-shot — DEC-037, ISS-076 |
 | `state/transfer.js` | `exportToText`, `exportFilename`, `readExport`, `rebaseState`, `importFromText`, `verifySignature`, `SAVE_EXTENSION` | pure; the caller passes `now` |

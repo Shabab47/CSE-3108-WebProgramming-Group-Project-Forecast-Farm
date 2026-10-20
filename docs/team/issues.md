@@ -922,6 +922,9 @@ or `assets.test.js` fails in the other direction.
 | ISS-109 | Settings mounted the board without the frame, so the page did not scroll | **High** | Jim | **fixed** | T-66 |
 | ISS-110 | A drying plot kept the watered ground sprite while the meter said "Dry" | Medium | Hisham | **fixed** | T-68 |
 | ISS-111 | Farmer 3's SVG still carried six black bars that render as a swastika | **High** | Jim | **fixed** | T-70 |
+| ISS-112 | A replanted crop inherited the previous crop's damage sprite | Medium | Jim | **fixed** | T-72 |
+| ISS-113 | `weather-events.md` said dry damage latches after two hours; the code uses one | Low | Jim | **fixed** | T-72 |
+| ISS-114 | A save written before ISS-112 kept the stale damage sprite, and a living crop could not be cleared | Medium | Jim | **fixed** | T-73 |
 
 ---
 
@@ -2436,4 +2439,64 @@ or `assets.test.js` fails in the other direction.
   `tests/avatar.test.js` now also rejects a black `<rect>` or the `clip0_3_11` id in this drawing;
   it still checks that every preset has art and no duplicate ids. `navbar.test.js` renders the
   preset in the tile.
+
+---
+
+### ISS-112 A replanted crop inherited the previous crop's damage sprite
+- Reported: 2026-10-20 by Jim · Owner: Jim · Status: **fixed** in T-72 · Severity: Medium
+- Where: `js/domain/farm.js` (`plant`, `harvest`, `clearPlot`)
+- Problem: planting rice on a plot that already had optimal water showed a damage sprite
+  (the drought art and "Dry" word) on the brand-new stage-1 crop. The crop itself grew
+  normally, because `plot.dead` was false — the damage overlay and the crop sprite are drawn
+  independently. Seen on the running farm as "it showed the dead sprite instantly but the
+  stage 1 image is there and it's cultivating normally".
+- Cause: `plot.damage` is the permanent latch written by `domain/water.js` and read by
+  `damage.js`. It belongs to the crop, but nothing cleared it when the crop left the plot:
+  `plant()` reset `health` and `dead` but not `damage`, and `harvest()`/`clearPlot()` reset
+  `cropId`, `plantedAt` and `dead` but not `damage`. The next planting therefore inherited the
+  old latch, `damageSprite()` found a `cropId` present and returned `dry`/`waterlogged`, and
+  `plotLayers.js` drew the damage overlay over a living stage-1 crop. `water.js` already said a
+  bare plot "must not carry that damage into a newly planted crop"; nothing enforced it.
+- Fix: `damage: null` in the plot change made by `plant`, `harvest` and `clearPlot`.
+  `tests/farm.test.js` covers harvest → replant, clear → replant, and damage left on bare soil.
+
+---
+
+### ISS-113 `weather-events.md` said dry damage latches after two hours; the code uses one
+- Reported: 2026-10-20 by Jim · Owner: Jim · Status: **fixed** in T-72 · Severity: Low
+- Where: `docs/weather-events.md`, "What a damaged crop looks like"
+- Problem: the table said water below the crop's damage floor for **two hours** shows the dry
+  sprite. `DAMAGE.hoursBelowFloorToLatch` is 1, and `docs/crops.md` says one hour. Only the
+  waterlogged hold is two hours (`hoursAboveTargetToLatch`).
+- Cause: not established. The dry and waterlogged holds are separate constants, and only the
+  waterlogged one is two hours.
+- Fix: the row now says one hour.
+
+---
+
+### ISS-114 A pre-fix save kept the stale damage sprite, and a living crop had no clear action
+- Reported: 2026-10-20 by Jim · Owner: Jim · Status: **fixed** in T-73 · Severity: Medium
+- Where: `js/domain/damage.js` (`applyDamage`), `js/state/initialState.js`
+  (`ensurePlausibleDamage`), `js/state/store.js` (load and import)
+- Problem: after ISS-112 a rice crop planted **33 minutes earlier** still showed
+  `rice_drought_killed.png` and the word "Dry" with water 84/120 optimal. Rice takes six hours;
+  dry damage needs one hour below the floor, so a 33-minute-old crop cannot have earned it. The
+  badge was inherited from the previous crop before ISS-112. The fix cleared `damage` only when
+  a plot was planted, harvested or cleared, so a save written before it was never repaired.
+  `plotAction` offers `clear` only for a **dead** crop, so a living crop had no way out until
+  harvest — the player's "no way to clear it, it will take 5 hours".
+- Cause: `damage` is a permanent latch, but the save recorded **that** it latched, never
+  **when**. A value inherited from the previous crop therefore looked exactly like one earned
+  by the current crop. The load path ran `ensureStarterPlot`, `ensureDifficulty` and
+  `ensureProfile`, but had no damage repair. `clearPlot` accepts any crop, but the UI returns
+  `select` for a living one, so the domain action was unreachable.
+- Fix: `applyDamage(plot, kind, at)` writes `plot.damageAt` and refuses to latch before the crop
+  has lived the hold — one hour for `dry`, two for `waterlogged` — which also closes the
+  stale-`lastTickAt` path that could charge a new crop for time before it was planted. The new
+  `ensurePlausibleDamage` migration runs on load and on import and clears a latch with no
+  timestamp, a timestamp earlier than `plantedAt + hold`, or no crop at all. `plant`, `harvest`
+  and `clearPlot` reset `damageAt` with `damage`; `rebaseState` shifts `damageAt` with
+  `plantedAt`. Because every pre-fix latch has no timestamp, the migration clears them all once
+  — DEC-054 — and the health already lost is not refunded. Tests cover the migration, the hold
+  guard, the timestamp reset and the import rebase.
 

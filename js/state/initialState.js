@@ -14,7 +14,7 @@
 import { DEFAULT_LOCATION } from '../config/api.js';
 import { isAvatarId } from '../config/avatars.js';
 import { FIELD, STARTER_PLOT_ID } from '../config/field.js';
-import { DEFAULT_DIFFICULTY, isDifficulty, START_GOLD, STATE_VERSION } from '../config/game.js';
+import { DAMAGE, DEFAULT_DIFFICULTY, isDifficulty, START_GOLD, STATE_VERSION } from '../config/game.js';
 import { buildPlots, PLOT_COUNT } from '../land_squares/index.js';
 
 export { buildPlots };
@@ -53,14 +53,18 @@ function buildInventory() {
  * the whole point of the game beginning on owned land.
  *
  * @param {object} session `{status, userId, email, farmerName, username}` or null
+ * @param {object} [options]
+ * @param {string|null} [options.avatar] a preset chosen during sign-up, or null
  */
-export function buildInitialState(session) {
+export function buildInitialState(session, options = {}) {
   const now = Date.now();
+  const avatar = options?.avatar;
+  const chosenAvatar = isAvatarId(avatar) ? avatar : null;
 
   return {
     version: STATE_VERSION,
     session: normaliseSession(session),
-    profile: { avatar: null },
+    profile: { avatar: chosenAvatar },
     createdAt: now,
     lastSeenAt: now,
 
@@ -214,4 +218,68 @@ export function ensureStarterPlot(state) {
       plot.id === STARTER_PLOT_ID ? { ...plot, owned: true } : plot,
     ),
   };
+}
+
+/**
+ * How long a crop must have lived before `kind` can latch, in milliseconds.
+ *
+ * Kept here rather than imported from `domain/damage.js` because `state/` may import
+ * only `config/`, `utils/` and `state/` — the layering rule, not a preference. The
+ * numbers themselves come from `DAMAGE`, so the two rules cannot drift.
+ */
+function holdMs(kind) {
+  if (kind === 'dry') return DAMAGE.hoursBelowFloorToLatch * 3_600_000;
+  if (kind === 'waterlogged') return DAMAGE.hoursAboveTargetToLatch * 3_600_000;
+  return null;
+}
+
+/**
+ * Clear a damage latch the crop could not have earned.
+ *
+ * **This is the one-time repair for saves written before `damageAt` existed.** A
+ * pre-ISS-114 save recorded that a plot was damaged, never when, so a badge inherited
+ * from the previous crop is indistinguishable from one this crop earned. Clearing all
+ * of them is the only repair that works however long the save sits before it is loaded;
+ * a legitimate latch loses its badge once, and health already spent is not refunded —
+ * DEC-054.
+ *
+ * A latch is kept only when all of these are true:
+ *
+ *  - there is a crop on the plot;
+ *  - `damage` is one of the two latchable states;
+ *  - `plantedAt` and `damageAt` are finite numbers; and
+ *  - the crop had lived the hold (`damageAt - plantedAt >= hold`).
+ *
+ * Anything else is cleared to `null`. This is idempotent: a repaired farm is returned
+ * as the same object on the next load. A missing `damageAt` on a **healthy** plot is
+ * left alone — it is not a latch, and `applyDamage()` will add the field when needed.
+ *
+ * @param {object} state a loaded or imported farm
+ * @returns {object} the same farm, or a copy with impossible latches cleared
+ */
+export function ensurePlausibleDamage(state) {
+  if (!state || !Array.isArray(state.plots)) return state;
+
+  let changed = false;
+
+  const plots = state.plots.map((plot) => {
+    if (!plot || typeof plot !== 'object') return plot;
+
+    const damage = plot.damage ?? null;
+    if (damage === null && plot.damageAt == null) return plot;
+
+    const hold = holdMs(damage);
+    const plausible = Boolean(plot.cropId)
+      && hold != null
+      && Number.isFinite(plot.plantedAt)
+      && Number.isFinite(plot.damageAt)
+      && plot.damageAt - plot.plantedAt >= hold;
+
+    if (plausible) return plot;
+
+    changed = true;
+    return { ...plot, damage: null, damageAt: null };
+  });
+
+  return changed ? { ...state, plots } : state;
 }

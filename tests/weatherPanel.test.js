@@ -550,7 +550,9 @@ test('standing at zero costs health, which is what makes drought matter', () => 
   // docs/weather-events.md specifies `waterLevel == 0` — **not** "below the dry line".
   // The `< 30` conditional in that document belongs to the drought *matrix row*, which
   // is applied at sowing; draining health at 30 would punish a merely thirsty plot.
-  const state = farmWith({ cropId: 'rice', weather: sky({ code: 0, temp: 40 }), count: 1 });
+  const state = farmWith({
+    cropId: 'rice', weather: sky({ code: 0, temp: 40 }), count: 1, hoursAgo: 1,
+  });
   state.plots[0].waterLevel = 0;
   state.lastTickAt = Date.now() - HOUR;
 
@@ -563,13 +565,16 @@ test('standing at zero costs health, which is what makes drought matter', () => 
     'an hour at zero costs the drain, plus the damage it latches',
   );
   assert.equal(result.state.plots[0].damage, 'dry');
+  assert.ok(Number.isFinite(result.state.plots[0].damageAt), 'and records when it happened');
 
   // A plot that is dry but not bone dry is spared the **drain**, but not the **latch**.
   // At 40 °C rice loses 8 * 0.9 * 3 = 21.6/h, so 25 ends the hour at ~3.4 — above
   // zero, so no drain. It started below its floor of 64 and stayed there, so it latches
   // damage instead. Two rules, two thresholds: the floor asks how the crop is faring,
   // zero asks whether it is dying.
-  const damp = farmWith({ cropId: 'rice', weather: sky({ code: 0, temp: 40 }), count: 1 });
+  const damp = farmWith({
+    cropId: 'rice', weather: sky({ code: 0, temp: 40 }), count: 1, hoursAgo: 1,
+  });
   damp.plots[0].waterLevel = 25;
   damp.lastTickAt = Date.now() - HOUR;
   const damped = tick(damp, Date.now());
@@ -976,7 +981,7 @@ test('dryness is charged for how long a plot was dry, not for the whole period',
   // The fix for ISS-091 defect 2. A plot at its target reaches 0 at 85/10.8 = 7.9h, so it
   // is dry for whatever is left - not the whole window.
   const healthAfter = (hours) => {
-    const state = farmWith({ weather: sky({ code: 0, temp: 35 }), count: 1 });
+    const state = farmWith({ weather: sky({ code: 0, temp: 35 }), count: 1, hoursAgo: 1 });
     state.plots[0].waterLevel = 85;
     state.lastTickAt = Date.now() - hours * HOUR;
     return tick(state, Date.now()).state.plots[0].health;
@@ -990,7 +995,7 @@ test('dryness is charged for how long a plot was dry, not for the whole period',
   // But it does cross **below its floor of 64** for the last 1.9 h, and that is what
   // latches damage. The two are separate rules on separate thresholds: the floor is
   // about how the crop is faring, zero is about whether it is dying.
-  const six = farmWith({ weather: sky({ code: 0, temp: 35 }), count: 1 });
+  const six = farmWith({ weather: sky({ code: 0, temp: 35 }), count: 1, hoursAgo: 1 });
   six.plots[0].waterLevel = 85;
   six.lastTickAt = Date.now() - 6 * HOUR;
   const sixPlot = tick(six, Date.now()).state.plots[0];
@@ -1008,7 +1013,7 @@ test('dryness is charged for how long a plot was dry, not for the whole period',
 });
 
 test('damage latches on a plot left under its floor, and announces itself once', () => {
-  const state = farmWith({ weather: sky({ code: 0, temp: 35 }), count: 1 });
+  const state = farmWith({ weather: sky({ code: 0, temp: 35 }), count: 1, hoursAgo: 1 });
   state.plots[0].waterLevel = 20;
   state.lastTickAt = Date.now() - 3 * HOUR;
 
@@ -1019,17 +1024,20 @@ test('damage latches on a plot left under its floor, and announces itself once',
 });
 
 test('damage never clears and never downgrades', () => {
-  let state = farmWith({ weather: sky({ code: 0, temp: 35 }), count: 1 });
+  let state = farmWith({ weather: sky({ code: 0, temp: 35 }), count: 1, hoursAgo: 1 });
   state.plots[0].waterLevel = 20;
   state.lastTickAt = Date.now() - 3 * HOUR;
   state = tick(state, Date.now()).state;
 
   const hurt = state.plots[0].health;
+  const latchedAt = state.plots[0].damageAt;
+  assert.ok(Number.isFinite(latchedAt), 'the first latch is timestamped');
   state.plots[0].waterLevel = 85;
   state.lastTickAt = Date.now() - HOUR;
 
   const after = tick(state, Date.now());
   assert.equal(after.state.plots[0].damage, 'dry', 'watering it again does not undo it');
+  assert.equal(after.state.plots[0].damageAt, latchedAt, 'and does not restamp it');
   assert.equal(after.state.plots[0].health, hurt, 'and does not give the health back');
   assert.deepEqual(after.damaged, [], 'nor re-announce it');
 });
@@ -1038,7 +1046,9 @@ test('one heavy shower is not waterlogging; hours of it is', () => {
   // An instant threshold here would undo the one-time verdict at sowing, and cost a
   // player a field every time it rained.
   const soak = (hours) => {
-    const state = farmWith({ weather: sky({ code: 65, temp: 18, rain: 95 }), count: 1 });
+    const state = farmWith({
+      weather: sky({ code: 65, temp: 18, rain: 95 }), count: 1, hoursAgo: 2,
+    });
     state.plots[0].waterLevel = 85;
     state.lastTickAt = Date.now() - hours * HOUR;
     return tick(state, Date.now()).state.plots[0];
@@ -1098,10 +1108,35 @@ test('damage sprites are asked for by the names that are on disk', () => {
 test('applyDamage returns the same object when nothing changes', () => {
   // Identity matters: `tick` uses it to decide whether to hand back a new plot at all,
   // and a fresh object every tick would make the field repaint forever.
-  const plot = { cropId: 'rice', health: 90, damage: 'dry' };
-  assert.equal(applyDamage(plot, 'dry'), plot, 'already this damage');
-  assert.equal(applyDamage(plot, null), plot, 'nothing to apply');
-  assert.notEqual(applyDamage(plot, 'waterlogged'), plot, 'a real change is a new object');
+  const plot = {
+    cropId: 'rice', plantedAt: 0, health: 90, damage: 'dry', damageAt: HOUR,
+  };
+  const at = 2 * HOUR;
+  assert.equal(applyDamage(plot, 'dry', at), plot, 'already this damage');
+  assert.equal(applyDamage(plot, null, at), plot, 'nothing to apply');
+  const changed = applyDamage(plot, 'waterlogged', at);
+  assert.notEqual(changed, plot, 'a real change is a new object');
+  assert.equal(changed.damageAt, at, 'and it carries the time it happened');
+});
+
+test('a latch cannot predate the crop that earned it', () => {
+  // ISS-114. A crop younger than the hold cannot have spent the hold below its floor.
+  // Without this, a stale `lastTickAt` from the previous crop could latch "Dry" on a
+  // seed planted a minute ago.
+  const crop = { cropId: 'rice', plantedAt: 0, health: 100, damage: null, damageAt: null };
+
+  assert.equal(applyDamage(crop, 'dry'), crop, 'a caller that cannot say when gets no latch');
+  assert.equal(applyDamage(crop, 'dry', 30 * 60_000), crop, 'half an hour is not one');
+  assert.equal(applyDamage(crop, 'waterlogged', HOUR), crop, 'waterlogging needs two');
+
+  const dry = applyDamage(crop, 'dry', HOUR);
+  assert.equal(dry.damage, 'dry');
+  assert.equal(dry.damageAt, HOUR, 'the latch records the game time it happened');
+
+  assert.equal(applyDamage(crop, 'waterlogged', 2 * HOUR).damage, 'waterlogged');
+
+  const bare = { ...crop, cropId: null };
+  assert.equal(applyDamage(bare, 'dry', HOUR), bare, 'bare soil has no crop to damage');
 });
 
 test('pumpedWindow is not the same rule as timeOutsideBand, and that is the point', () => {
@@ -1169,6 +1204,7 @@ test('every plot carries a damage field, including a fresh farm', () => {
   // for a save written before damage existed.
   for (const plot of buildInitialState(SESSION).plots) {
     assert.equal(plot.damage, null, 'a new plot is undamaged, not undefined');
+    assert.equal(plot.damageAt, null, 'and carries no latch time yet');
   }
 });
 
@@ -1346,10 +1382,12 @@ test('no forecast means no facts, and not an error', () => {
 test('a save written before damage existed still reads as undamaged', () => {
   const legacy = buildInitialState(SESSION);
   delete legacy.plots[0].damage;
+  delete legacy.plots[0].damageAt;
 
   const state = farmWith({ weather: sky({ code: 0, temp: 35 }), count: 1 });
   state.plots[0] = legacy.plots[0];
   state.plots[0].cropId = 'rice';
+  state.plots[0].plantedAt = Date.now() - 3 * HOUR;
   state.plots[0].waterLevel = 20;
   state.lastTickAt = Date.now() - 3 * HOUR;
 

@@ -33,6 +33,10 @@
  * | `waterlogged` | held **above its target** for two hours | `<crop>_waterlogged.png` |
  * | `dead` | health reached 0 (`plot.dead`, separate) | `<crop>_dead.png` |
  *
+ * **A latch carries the time it was earned.** `plot.damageAt` is game time, and a latch
+ * cannot be written before the crop has lived the hold. Without that timestamp a save
+ * cannot tell a real latch from a sprite inherited from the previous crop — ISS-114.
+ *
  * **The floor is per crop, not a flat number.** It is `target × (1 - slack)`, so rice
  * is held to 64 and wheat to 41. A single flat line would put wheat at "damaged" while
  * it was still comfortably optimal, which is the kind of number that looks reasonable
@@ -74,25 +78,60 @@ export function damageFor(_plot, { belowFloor = 0, aboveTarget = 0 } = {}) {
 }
 
 /**
+ * Has this crop lived long enough to have earned `kind`?
+ *
+ * The latch is permanent, so the one thing it must not do is record a state the crop
+ * was never exposed to. A crop cannot have spent an hour below its floor before it has
+ * existed for an hour — that is not a rare edge, it is what a stale `lastTickAt` from a
+ * previous crop looks like. `at` and `plantedAt` are both game time (the debug
+ * `clock.timeOffsetMs` included), so their difference is real elapsed time.
+ *
+ * @param {object} plot
+ * @param {'dry'|'waterlogged'} kind
+ * @param {number} at game time, epoch ms
+ * @returns {boolean}
+ */
+function latchEarned(plot, kind, at) {
+  const hours = kind === 'dry'
+    ? DAMAGE.hoursBelowFloorToLatch
+    : kind === 'waterlogged'
+      ? DAMAGE.hoursAboveTargetToLatch
+      : null;
+
+  if (hours == null || !plot?.cropId) return false;
+  if (!Number.isFinite(at) || !Number.isFinite(plot.plantedAt)) return false;
+
+  return at - plot.plantedAt >= hours * 3_600_000;
+}
+
+/**
  * Latch a damage state onto a plot.
  *
  * **Never clears, never downgrades.** Waterlogged does not become dry: a plot that
  * was waterlogged was not fine beforehand, and the newest reading is not the truest
  * one.
  *
+ * **A latch carries the time it was earned.** `at` is the game clock, not the wall
+ * clock, because `plantedAt` is game time; writing it lets `ensurePlausibleDamage()`
+ * tell a real latch from an inherited one, and lets the guard below refuse a latch
+ * the crop cannot yet have earned (ISS-114).
+ *
  * Pure — it returns a new plot rather than mutating, because `domain/` functions never
  * mutate the state they are handed.
  *
  * @param {object} plot
  * @param {'dry'|'waterlogged'|null} kind
+ * @param {number} at game time, epoch ms
  * @returns {object} a new plot, or the same object when nothing changes
  */
-export function applyDamage(plot, kind) {
+export function applyDamage(plot, kind, at) {
   if (!kind || plot.damage === kind) return plot;
+  if (!latchEarned(plot, kind, at)) return plot;
 
   return {
     ...plot,
     damage: kind,
+    damageAt: at,
     health: Math.max(0, (plot.health ?? 0) - DAMAGE.lossPerLatched),
   };
 }

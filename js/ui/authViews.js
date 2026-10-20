@@ -1,7 +1,7 @@
 /**
- * The view graph on the login page: menu, sign in, create account, reset.
+ * The view graph on the login page: menu, sign in, create account, avatar, reset.
  *
- * One page, four faces, and `show(view)` is the only thing that swaps between
+ * One page, five faces, and `show(view)` is the only thing that swaps between
  * them. Each view is mounted alone and the previous one unmounted, so only what
  * the player is looking at is ever in the DOM. That replaced a tabbed panel that
  * built both forms and hid one — a form that exists only to be hidden is a form
@@ -12,7 +12,7 @@
  * same arrangement every other panel uses. `js/auth-main.js` resolves the
  * provider, decides the entry view, and passes the callbacks in.
  *
- *   mountAuthViews(root, actions) → { show(view, notice) }
+ *   mountAuthViews(root, actions) → { show(view, notice, session?) }
  *
  * actions:
  *   startView        'menu' | 'signIn' | 'signUp' | 'reset' — where to open
@@ -23,11 +23,12 @@
  *   requestPasswordReset({email}) → Promise<{ok}>
  *   updatePassword({accessToken, password}) → Promise<{ok}>
  *   recoveryToken()  → string | null, the token out of the URL fragment
- *   onAuthenticated(session | null) → route onward; null means awaiting confirmation
+ *   onAuthenticated(session | null, { avatar }?) → route onward; null means awaiting confirmation
  *   onGuest()        → continue without an account
  */
 
 import { createLog } from '../utils/log.js';
+import { mountAvatarSetup } from './avatarSetup.js';
 import { mountLoginPanel } from './loginPanel.js';
 import { mountMenuPanel } from './menuPanel.js';
 import { mountPasswordReset } from './passwordReset.js';
@@ -46,7 +47,7 @@ export function mountAuthViews(root, actions) {
    */
   let hasMounted = false;
 
-  function show(view, notice) {
+  function show(view, notice, session = null) {
     panel?.unmount();
     panel = null;
 
@@ -83,6 +84,24 @@ export function mountAuthViews(root, actions) {
       return;
     }
 
+    if (view === 'avatar') {
+      // Only reachable after a successful sign-up handed us a session. Falling
+      // back to the menu keeps a hand-called `show('avatar')` from rendering a
+      // picker whose choice has nowhere to go.
+      if (!session) {
+        log.warn('avatar step opened without a session; returning to the menu');
+        show('menu');
+        return;
+      }
+
+      panel = mountAvatarSetup(root, {
+        onConfirm(avatar) {
+          actions.onAuthenticated(session, { avatar });
+        },
+      });
+      return;
+    }
+
     panel = mountLoginPanel(root, view, {
       signIn: actions.signIn,
       signUp: actions.signUp,
@@ -99,6 +118,15 @@ export function mountAuthViews(root, actions) {
           show('signIn', 'Almost there — check your inbox for the confirmation link, then sign in.');
           return;
         }
+
+        // A new account picks its picture before it has a farm. Signing in is
+        // unchanged: an existing player goes straight through.
+        if (view === 'signUp') {
+          log.info('registered, choosing an avatar');
+          show('avatar', undefined, session);
+          return;
+        }
+
         actions.onAuthenticated(session);
       },
 

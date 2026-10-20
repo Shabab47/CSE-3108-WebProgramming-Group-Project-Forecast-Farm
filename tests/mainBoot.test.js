@@ -45,7 +45,7 @@ globalThis.document = { querySelector: () => null, createElement: () => ({}) };
 globalThis.location = { search: '', href: 'http://localhost:5173/index.html', replace() {} };
 
 /** Imported after the stubs, since both entry scripts touch the DOM as they load. */
-const { farmHref, needsLocationRefresh, resolveSession, shopHref } = await import('../js/main.js');
+const { avatarFromSearch, farmHref, needsLocationRefresh, resolveSession, shopHref } = await import('../js/main.js');
 const { loadProvider } = await import('../js/auth-main.js');
 const localAuth = await import('../js/services/localAuth.js');
 
@@ -199,6 +199,15 @@ test('a signed-in player arriving with ?guest=1 keeps their session', async () =
   const result = await resolveSession(fakeProvider({ currentSession: () => session }));
   assert.equal(result.ok, true);
   assert.equal(result.session, session);
+});
+
+test('the sign-up avatar handoff accepts a preset and nothing else', () => {
+  assert.equal(avatarFromSearch('?avatar=farmer4'), 'farmer4');
+  assert.equal(avatarFromSearch('avatar=farmer1&guest=1'), 'farmer1');
+
+  for (const junk of ['', '?avatar=farmer9', '?avatar=', '?avatar=farmer1x', '?guest=1']) {
+    assert.equal(avatarFromSearch(junk), null, `${junk || 'an empty query'} must not choose an avatar`);
+  }
 });
 
 /* --- ISS-048: "no session" is not one thing -------------------------------- */

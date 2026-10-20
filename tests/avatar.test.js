@@ -79,6 +79,24 @@ test('a fresh farm starts on the default avatar', () => {
   assert.deepEqual(buildInitialState(SESSION).profile, { avatar: null });
 });
 
+test('a farm built after sign-up starts with the chosen preset, or the default', () => {
+  for (const { id } of AVATARS) {
+    const state = buildInitialState(SESSION, { avatar: id });
+    assert.deepEqual(state.profile, { avatar: id });
+    assert.equal(state.gold, START_GOLD, 'and the rest of the starting farm is unchanged');
+  }
+
+  for (const junk of ['farmer9', '', null, undefined, 7]) {
+    assert.deepEqual(
+      buildInitialState(SESSION, { avatar: junk }).profile,
+      { avatar: null },
+      `${String(junk)} must not reach the save`,
+    );
+  }
+
+  assert.deepEqual(buildInitialState(SESSION, null).profile, { avatar: null });
+});
+
 test('a save written before avatars existed is given the default, not discarded', () => {
   const old = { ...buildInitialState(SESSION) };
   delete old.profile;

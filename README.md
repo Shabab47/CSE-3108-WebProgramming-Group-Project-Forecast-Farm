@@ -89,7 +89,7 @@ login.html      the opening menu, sign in, or create an account
 shop.html       the seed shop — buy seed packets with your gold
 settings.html   account details, erase progress, delete account
 profile.html    who is signed in, and the way out
-css/            styling — one file per component: layout, tokens, shared, the painted account frame, and the login trio
+css/            styling — one file per component: layout, tokens, shared, the painted account frame, and the login page's four stylesheets
 js/             the game code, split by responsibility
 assets/         artwork and icons
 js/config/      field geometry, crops, game balance, weather events, preset avatars, **asset registry (assets.js)**
@@ -128,7 +128,7 @@ npm run check    # layering rules: imports, fetch, DOM access
 
 | Page | What it is |
 | :--- | :--- |
-| `/login.html` | The opening menu, and sign in or create an account. `index.html` redirects here if there is no session. |
+| `/login.html` | The opening menu, sign in or create an account, and the avatar step after registration. `index.html` redirects here if there is no session. |
 | `/index.html` | The farm. Loads your save, or starts a new one. |
 | `/shop.html` | The seed shop. Buys seed packets; gold is deducted and the farm is saved immediately. |
 | `/settings.html` | Difficulty, save import and export, erase all progress, or delete your account. |

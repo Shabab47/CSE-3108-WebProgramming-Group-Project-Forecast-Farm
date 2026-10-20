@@ -1,6 +1,6 @@
 /**
  * Entry point for login.html — the menu, the sign-in and create-account forms,
- * and the password reset flow.
+ * the avatar step after registration, and the password reset flow.
  *
  * Wiring only. This is the one module allowed to import both a UI panel and the
  * auth provider, which is exactly the arrangement `docs/architecture.md`
@@ -35,6 +35,7 @@ import { createLog } from './utils/log.js';
 import { mountBootLoader } from './ui/loadingTips.js';
 import { mountBlockedScreen } from './ui/blockedScreen.js';
 import { mountAuthViews } from './ui/authViews.js';
+import { isAvatarId } from './config/avatars.js';
 import { MENU_BG } from './config/assets.js';
 import * as localAuth from './services/localAuth.js';
 
@@ -230,11 +231,20 @@ mountAuthViews(root, {
     updatePassword: provider.updatePassword,
     recoveryToken: () => recoveryToken,
 
-    onAuthenticated(authenticated) {
+    onAuthenticated(authenticated, { avatar } = {}) {
       // The address and farmer name would be safe to log, but the panel hands us
       // nothing secret and this is not the place to start.
       log.info('authenticated, entering the farm');
-      goToGame(authenticated?.status === 'guest' ? '?guest=1' : '');
+
+      // A new account's choice reaches the first farm in the URL. The login page
+      // has no store, and writing game state here would make this a second save
+      // writer; `js/main.js` reads this once and clears it from the address bar.
+      const params = new URLSearchParams();
+      if (authenticated?.status === 'guest') params.set('guest', '1');
+      if (isAvatarId(avatar)) params.set('avatar', avatar);
+
+      const query = params.toString();
+      goToGame(query ? `?${query}` : '');
     },
 
     onGuest: goAsGuest,

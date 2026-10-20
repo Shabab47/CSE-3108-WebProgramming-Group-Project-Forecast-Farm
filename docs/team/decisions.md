@@ -30,6 +30,62 @@ Format: who decided, the choice, why, and what was rejected.
 
 ---
 
+### DEC-055 A new account chooses an avatar before its first farm, and hands it over in the URL
+**Decided by:** Jim · 2026-10-20
+
+**Choice:** A successful create-account with a session opens a fifth login-page view,
+`avatar`, on the same wooden sign. It offers the four presets, preselects `farmer1`, and has
+no Back or Skip. **Start farming** calls `onAuthenticated(session, { avatar })`;
+`js/auth-main.js` redirects to `index.html?avatar=farmerN`. `js/main.js` validates the value,
+passes it to `buildInitialState(session, { avatar })` when there is no save, then removes it
+from the address bar with `history.replaceState`.
+
+**Why:** The account exists but the farm does not, so this is the only moment the picture can
+be the first thing the player chooses rather than a setting they have to discover afterwards.
+The sign-up form would become longer for a cosmetic choice, and a profile-only picker leaves
+the first farm on the gray default.
+
+**Why the URL:** `state/store.js` is the only writer of game state, and `login.html` has no
+store. Writing a pending avatar into localStorage would make the login page a second writer
+and leave a value to clean up if the player abandoned the step. The URL is a one-load handoff
+that is validated before it reaches the save, and the first save already carries the avatar,
+so there is no null-avatar save to race.
+
+**Confirmation-on:** if sign-up returns no session, no farm exists. The current "check your
+inbox" notice is kept, and the avatar is chosen on the Profile page after the first sign-in.
+Email confirmation is off today (`docs/setup.md`), so the normal path is the new step.
+
+**Rejected:** a pending-avatar key in localStorage; putting the choice in Supabase user
+metadata (an extra API round trip and a second source of truth); adding another field to the
+create-account form.
+
+---
+
+### DEC-054 A timestamp-less damage latch is cleared once, not guessed at
+**Decided by:** Jim · 2026-10-20
+
+**Choice:** `applyDamage()` stamps `plot.damageAt` in game time and refuses a latch before the
+crop has lived its hold — one hour for `dry`, two for `waterlogged`. On load and import,
+`ensurePlausibleDamage()` clears any latch with no timestamp, a timestamp earlier than
+`plantedAt + hold`, or no crop at all.
+
+**Why:** Before ISS-114 a save recorded **that** damage had latched, never **when**. A badge
+inherited from the previous crop and one earned by the current crop were therefore identical,
+and a 33-minute-old rice crop could show drought art that needs an hour below the floor.
+Clearing is the only repair that works however long the save sits before it is loaded; leaving
+it would keep the sprite until harvest.
+
+**Consequence:** A legitimate pre-ISS-114 latch also loses its badge once. Health already spent
+is not refunded. From this build on, `damageAt` is the record, so the repair only touches saves
+that predate it. The UI still offers `clear` only for a dead crop: a living crop heals by
+repair, not by making damage removable.
+
+**Rejected:** Adding a `clear` action for a living crop. That would make every latch optional,
+the opposite of the permanence the game is built on. The bad state was the missing timestamp,
+not the absence of a clear button.
+
+---
+
 ### DEC-053 The seed bag is a page, and it is read-only
 **Decided by:** Kafi · 2026-10-20
 
@@ -1025,8 +1081,9 @@ carries meaning the number does not, but a partial scale is worse than none, and
 call sites. Revisit if the pill shape spreads.
 
 **Scope, and what is left.** One file per component is now the rule for the two pages that have
-their own identity: the login trio (`auth` / `menu` / `sign`) and the game page's `navbar.css` and
-`scene.css`. `layout.css` keeps only the grid the panels sit in, and `farm.css` is gone — it was
+their own identity: the login trio (`auth` / `menu` / `sign`; `avatar-setup` joined them in
+DEC-055) and the game page's `navbar.css` and `scene.css`. `layout.css` keeps only the grid the
+panels sit in, and `farm.css` is gone — it was
 `scene.css` under a name nobody remembered, and it also held the one rule `layout.css` duplicated.
 Still layered, still to move: `weather.css`, `shop.css` and `settings.css` are already one
 component each and only need restyling; `components.css` is the real work, because splitting it

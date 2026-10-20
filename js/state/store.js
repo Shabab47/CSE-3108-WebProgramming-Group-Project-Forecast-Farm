@@ -11,7 +11,7 @@ import { createLog } from '../utils/log.js';
 import { isAvatarId } from '../config/avatars.js';
 import { SAVE_DEBOUNCE_MS, SAVE_RETRY_BACKOFF_MS, isDifficulty } from '../config/game.js';
 import { importFromText } from './transfer.js';
-import { buildInitialState, ensureDifficulty, ensureProfile, ensureStarterPlot, normaliseSession } from './initialState.js';
+import { buildInitialState, ensureDifficulty, ensurePlausibleDamage, ensureProfile, ensureStarterPlot, normaliseSession } from './initialState.js';
 import { deleteSave, readSave, writeSave } from './saveFile.js';
 import { exportFilename, exportToText } from './transfer.js';
 
@@ -209,6 +209,15 @@ export async function init(session, build = buildInitialState, server = null) {
   if (withProfile !== state) {
     state = withProfile;
     log.info('older save has no avatar; using the default');
+  }
+
+  // A latch written before `damageAt` existed cannot be told from one inherited from
+  // the previous crop, so it is cleared once — DEC-054. A latch on a crop that has not
+  // lived its hold is cleared too; `applyDamage` refuses to write one from now on.
+  const withPlausibleDamage = ensurePlausibleDamage(state);
+  if (withPlausibleDamage !== state) {
+    state = withPlausibleDamage;
+    log.info('cleared an impossible damage latch from an older save');
   }
 
   log.info(fromServer ? 'resumed farm from server' : saved ? 'resumed farm' : 'new farm', 'for', userId);
@@ -510,10 +519,11 @@ export function adoptState(next) {
   if (!next || typeof next !== 'object') return { ok: false, reason: 'nothing to import' };
   if (!Array.isArray(next.plots)) return { ok: false, reason: 'not a farm' };
 
-  // An imported file is just another old save, so it gets the same avatar repair as
-  // `init`. Without this, a hand-edited id would live in the live state (the UI falls
-  // back to the gray person, but the next save would persist the bad value).
-  state = ensureProfile({ ...next, session: normaliseSession(state.session) });
+  // An imported file is just another old save, so it gets the same repairs as `init`:
+  // the avatar, and a damage latch written before timestamps existed — DEC-054.
+  state = ensurePlausibleDamage(
+    ensureProfile({ ...next, session: normaliseSession(state.session) }),
+  );
   log.info('adopted an imported farm for', userId);
   notify();
   // Written immediately, not debounced: the old save is still on disk and must

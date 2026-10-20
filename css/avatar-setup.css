@@ -1,0 +1,121 @@
+/*
+ * The avatar step after sign-up. Same painted sign as the forms; only the picture
+ * picker is new. Colours are literal for the same reason `sign.css` writes them
+ * literally: a wooden board is brown in every theme (DEC-029).
+ */
+
+.sign-avatar__intro,
+.sign-avatar__later {
+  margin: 0;
+  text-align: center;
+  text-wrap: balance;
+}
+
+.sign-avatar__later {
+  margin-top: -4px;
+  font-size: 0.875rem;
+}
+
+.sign-avatar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.sign-avatar__preview {
+  width: 132px;
+  height: 132px;
+  overflow: hidden;
+  border: 4px solid #fdf8e6;
+  border-radius: 50%;
+  background: #dcebc8;
+  box-shadow:
+    0 0 0 3px #6b431f,
+    0 5px 0 rgba(43, 26, 12, 0.35);
+}
+
+.sign-avatar__art,
+.sign-avatar__art svg,
+.sign-avatar__option-art,
+.sign-avatar__option-art svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.sign-avatar__caption {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1e0f04;
+}
+
+.sign-avatar__options {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 14px;
+  margin: 4px 0 2px;
+}
+
+.sign-avatar__option {
+  width: 64px;
+  height: 64px;
+  padding: 0;
+  overflow: hidden;
+  border: 3px solid #6b431f;
+  border-radius: 50%;
+  background: #f0c874;
+  box-shadow: 0 3px 0 rgba(43, 26, 12, 0.3);
+  cursor: pointer;
+  transition:
+    transform 160ms cubic-bezier(0.2, 0, 0.2, 1),
+    box-shadow 160ms cubic-bezier(0.2, 0, 0.2, 1),
+    border-color 160ms ease;
+}
+
+.sign-avatar__option:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 0 rgba(43, 26, 12, 0.3);
+}
+
+.sign-avatar__option:active {
+  transform: translateY(1px);
+  box-shadow: 0 2px 0 rgba(43, 26, 12, 0.3);
+}
+
+.sign-avatar__option:focus-visible {
+  outline: 3px solid #ffffff;
+  outline-offset: 3px;
+}
+
+.sign-avatar__option--selected,
+.sign-avatar__option--selected:hover {
+  border-color: #2f7d3a;
+  box-shadow:
+    0 0 0 2px #fdf8e6,
+    0 0 0 4px #2f7d3a,
+    0 3px 0 rgba(43, 26, 12, 0.3);
+}
+
+.sign-avatar__start {
+  margin-top: 4px;
+}
+
+@media (max-width: 600px) {
+  .sign-avatar__preview {
+    width: 104px;
+    height: 104px;
+  }
+
+  .sign-avatar__options {
+    gap: 10px;
+  }
+
+  .sign-avatar__option {
+    width: 56px;
+    height: 56px;
+  }
+}

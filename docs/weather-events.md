@@ -164,13 +164,22 @@ because a dead crop is dead whatever else was wrong with it:
 
 | Cause | Sprite |
 | :--- | :--- |
-| Water below the crop's damage floor for two hours | `<crop>_dry.png` |
+| Water below the crop's damage floor for one hour | `<crop>_dry.png` |
 | Water above the crop's target for two hours | `<crop>_waterlogged.png` |
 | Health reaching 0 | `<crop>_dead.png` |
 
 **None of these exist yet.** Until they do, `plotLayers.js` draws the `damageWord()` text beside
 the sprite and the sprite is a hole — [DEC-014](team/decisions.md)'s rule, and the reason there is
 no CSS fallback layer. Art is tracked in [`asset-checklist.md`](asset-checklist.md).
+
+**The latch is cleared when the crop leaves the plot.** `plant()`, `harvest()` and `clearPlot()`
+all reset `plot.damage`, so the sprite belongs to the plant that earned it and a replant starts
+clean (ISS-112).
+
+**A latch carries its time.** `applyDamage()` stamps `plot.damageAt` in game time and will not
+write a latch before the crop has lived the required hold. `ensurePlausibleDamage()` clears a
+latch on load or import when it has no timestamp, predates the hold, or sits on bare soil — the
+one-time amnesty for saves written before ISS-114 (DEC-054). Health already lost is not refunded.
 
 ### Frost is a drain, not an instant kill
 

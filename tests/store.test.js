@@ -18,6 +18,7 @@ import { buildInitialState } from '../js/state/initialState.js';
 
 const SESSION = { status: 'authed', userId: 'acc_test', email: 'farmer@rice.bd', farmerName: 'Abdul Karim' };
 const KEY = `${AUTH_KEYS.savePrefix}${SESSION.userId}`;
+const HOUR = 3_600_000;
 
 /** Minimal localStorage stand-in, installed on globalThis for the test run. */
 function installFakeStorage(initial = {}) {
@@ -106,6 +107,43 @@ test('a save with no profile loads on the default avatar', async () => {
   assert.equal(result.loaded, true);
   assert.equal(getState().gold, 777, 'the farm is kept');
   assert.equal(getState().profile.avatar, null);
+});
+
+test('a pre-fix damage latch is cleared when the save loads', async () => {
+  // ISS-114. The sprite belongs to the crop that earned it, but a save written before
+  // `damageAt` has no way to prove that, so the latch is cleared once on load.
+  installFakeStorage({
+    [KEY]: JSON.stringify({
+      version: STATE_VERSION,
+      state: {
+        gold: 777,
+        session: SESSION,
+        plots: [{
+          id: 0,
+          owned: true,
+          cropId: 'rice',
+          plantedAt: Date.now() - 6 * HOUR,
+          waterLevel: 84,
+          health: 100,
+          damage: 'dry',
+          dead: false,
+        }],
+      },
+    }),
+  });
+  reset();
+
+  const result = await init(SESSION);
+
+  assert.equal(result.loaded, true);
+  assert.equal(getState().plots[0].damage, null, 'the stale sprite is gone');
+  assert.equal(getState().plots[0].damageAt, null);
+  assert.equal(getState().plots[0].cropId, 'rice', 'and the crop itself is untouched');
+  assert.equal(
+    JSON.parse(localStorage.getItem(KEY)).state.plots[0].damage,
+    null,
+    'the repair is written back, not just shown once',
+  );
 });
 
 test('two users on one machine keep separate farms', async () => {
@@ -395,6 +433,25 @@ test('adoptState repairs an imported avatar id before it reaches the page', asyn
   store.adoptState({ ...getState(), profile: { avatar: 'farmer9' } });
 
   assert.equal(getState().profile.avatar, null, 'an unknown preset is treated as the default');
+});
+
+test('adoptState clears a pre-fix damage latch before it reaches the page', async () => {
+  await init(SESSION);
+  const damaged = {
+    ...getState().plots[0],
+    cropId: 'rice',
+    plantedAt: Date.now() - 6 * HOUR,
+    damage: 'dry',
+  };
+  delete damaged.damageAt;
+
+  store.adoptState({
+    ...getState(),
+    plots: [damaged, ...getState().plots.slice(1)],
+  });
+
+  assert.equal(getState().plots[0].damage, null, 'the imported sprite is gone');
+  assert.equal(getState().plots[0].damageAt, null);
 });
 
 test('adoptState keeps the live session, not one carried in the file', async () => {
