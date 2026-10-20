@@ -71,13 +71,15 @@
   height: 100%;
 }
 
-/* The picker sits under the big circle. Three small buttons, not a dropdown: the whole
- * choice is three pictures, and a native select cannot show them. */
+/* The picker sits under the big circle. Small buttons, not a dropdown: the whole
+ * choice is pictures, and a native select cannot show them. The row has room for
+ * five 40px options; wrapping is a guard for a narrower avatar panel. */
 .painted-page .profile-avatars {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 9px;
+  gap: 8px 9px;
 }
 
 .painted-page .profile-avatar-option {

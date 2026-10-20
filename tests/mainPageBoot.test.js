@@ -32,6 +32,9 @@ import { readFileSync } from 'node:fs';
 import { after, before, test } from 'node:test';
 
 import { installDom, uninstallDom } from './helpers/fakeDom.js';
+import { STATE_VERSION } from '../js/config/game.js';
+import { buildInitialState } from '../js/state/initialState.js';
+import { saveKey } from '../js/state/saveFile.js';
 
 /**
  * Every id `index.html` gives the shell, as a direct child of the fake root.
@@ -72,6 +75,18 @@ before(async () => {
   }
 
   installFakeStorage();
+
+  // A guest farm with a chosen avatar. The save is otherwise a fresh farm, so the
+  // assertions below still describe the starting state - but this proves `main.js`
+  // hands `state.profile.avatar` to the navbar, not just that the navbar can paint
+  // one when a unit test passes it in directly.
+  const saved = buildInitialState({
+    status: 'guest',
+    userId: 'guest',
+    farmerName: 'Guest farmer',
+  });
+  saved.profile = { avatar: 'farmer2' };
+  localStorage.setItem(saveKey('guest'), JSON.stringify({ version: STATE_VERSION, state: saved }));
 
   // `?guest=1` so `resolveSession()` succeeds with no network and no account. A
   // signed-out boot ends in `location.replace(LOGIN_URL)`, which this cannot follow.
@@ -167,6 +182,14 @@ test('the shell mounts where index.html says it should', () => {
     document.querySelector('#top-bar').children.length > 0,
     '#top-bar was left empty, so mountShell never ran',
   );
+});
+
+test('the navbar wears the avatar saved on the farm', () => {
+  const tile = document.querySelector('.navbar__tile--avatar');
+
+  assert.ok(tile, 'the profile tile is missing from the booted navbar');
+  assert.ok(tile.querySelector('.navbar__avatar-art'), 'the saved preset was not painted');
+  assert.equal(tile.querySelector('.navbar__avatar-default'), null, 'the gray fallback won');
 });
 
 test('the field comes up with sixteen plots in the three right states', () => {

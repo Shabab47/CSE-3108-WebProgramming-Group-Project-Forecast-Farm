@@ -127,7 +127,10 @@ function placeholder(label, detail) {
 }
 
 function mountShell(session) {
-  mountNavbar(qsOrNull('#top-bar'), { session });
+  mountNavbar(qsOrNull('#top-bar'), {
+    session,
+    avatar: getState()?.profile?.avatar ?? null,
+  });
   mountShopLauncher(qsOrNull('#shop-launch'), { href: shopHref(session) });
 
   mountLocationBar(qsOrNull('#location-bar'), {

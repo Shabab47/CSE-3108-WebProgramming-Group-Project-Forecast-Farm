@@ -20,13 +20,14 @@ const SESSION = { status: 'authed', userId: 'acc_test', email: 'a@b.bd', farmerN
 test('the preset list has distinct ids, and an id is checked exactly', () => {
   assert.deepEqual(
     AVATARS.map((avatar) => avatar.id),
-    ['farmer1', 'farmer2', 'farmer3'],
+    ['farmer1', 'farmer2', 'farmer3', 'farmer4'],
   );
-  assert.equal(new Set(AVATARS.map((avatar) => avatar.id)).size, 3, 'no duplicate id');
+  assert.equal(new Set(AVATARS.map((avatar) => avatar.id)).size, 4, 'no duplicate id');
   assert.equal(isAvatarId('farmer1'), true);
   assert.equal(isAvatarId('farmer2'), true);
   assert.equal(isAvatarId('farmer3'), true);
-  assert.equal(isAvatarId('farmer4'), false);
+  assert.equal(isAvatarId('farmer4'), true);
+  assert.equal(isAvatarId('farmer5'), false);
   assert.equal(isAvatarId(''), false);
   assert.equal(isAvatarId(null), false, 'null is the default, not a preset');
 });
@@ -42,6 +43,34 @@ test('every listed preset has inline art with no duplicated element ids', () => 
     for (const match of art.matchAll(/\bid="([^"]+)"/g)) {
       assert.equal(ids.has(match[1]), false, `duplicate SVG id "${match[1]}"`);
       ids.add(match[1]);
+    }
+  }
+});
+
+test('the third preset no longer carries its stray black bars or clip wrapper', () => {
+  const art = avatarArt('farmer3');
+
+  assert.doesNotMatch(art, /<rect\b[^>]*fill="black"/i, 'the six bars are gone');
+  assert.equal(art.includes('clip0_3_11'), false, 'the redundant clipPath is gone');
+});
+
+test('repeating a preset gives each copy unique SVG ids', () => {
+  const ids = (art) => [...art.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]);
+
+  for (const { id } of AVATARS) {
+    const copies = [avatarArt(id), avatarArt(id)];
+    const [firstIds, secondIds] = copies.map(ids);
+    if (!firstIds.length && !secondIds.length) continue;
+
+    assert.equal(
+      firstIds.some((name) => secondIds.includes(name)),
+      false,
+      `${id} repeated an id across two renders`,
+    );
+    for (const [art, names] of [[copies[0], firstIds], [copies[1], secondIds]]) {
+      for (const name of names) {
+        assert.ok(art.includes(`url(#${name})`), `${id} lost the reference to ${name}`);
+      }
     }
   }
 });
@@ -72,7 +101,7 @@ test('an unknown avatar id is treated as the default, and other profile fields s
 });
 
 test('a valid avatar is left exactly as it is, and junk profile shapes do not throw', () => {
-  for (const id of ['farmer1', 'farmer2', 'farmer3']) {
+  for (const id of ['farmer1', 'farmer2', 'farmer3', 'farmer4']) {
     const state = buildInitialState(SESSION);
     state.profile = { avatar: id };
     assert.equal(ensureProfile(state), state, `${id} is already valid`);

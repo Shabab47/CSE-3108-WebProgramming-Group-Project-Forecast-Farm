@@ -921,6 +921,7 @@ or `assets.test.js` fails in the other direction.
 | ISS-108 | The boot tip still says rice is the only crop you can plant | Low | Jim | **fixed** | T-65 |
 | ISS-109 | Settings mounted the board without the frame, so the page did not scroll | **High** | Jim | **fixed** | T-66 |
 | ISS-110 | A drying plot kept the watered ground sprite while the meter said "Dry" | Medium | Hisham | **fixed** | T-68 |
+| ISS-111 | Farmer 3's SVG still carried six black bars that render as a swastika | **High** | Jim | **fixed** | T-70 |
 
 ---
 
@@ -2418,4 +2419,21 @@ or `assets.test.js` fails in the other direction.
   patches to succeed before skipping the rebuild. The CSS transition on the meter is untouched.
   `tests/farmView.test.js` now walks below → above → below and asserts the tile is reused **and** the
   sprite follows the meter in both directions.
+
+---
+
+### ISS-111 Farmer 3's avatar still carried the six black bars
+- Reported: 2026-10-20 by Jim · Owner: Jim · Status: **fixed** in T-70 · Severity: High
+- Where: `js/ui/avatarArt.js` (`FARMER_THREE`)
+- Problem: the committed third preset still contained six black rotated rectangles behind the head.
+  At 40px and 108px they read as a swastika; the navbar made them visible on the farm page as soon
+  as Farmer 3 was selected. An earlier note said they had been removed, but they were present in
+  `HEAD` (`cd8c298`).
+- Cause: the SVG export split the bars into six separate `<rect>` elements and wrapped the whole
+  drawing in a redundant `clip0_3_11` path. The removal did not land in the commit.
+- Fix: removed the six `<rect>` elements, the `<g clip-path>` wrapper and the `clipPath` definition.
+  The remaining drawing is clipped by the same circular CSS as the other presets.
+  `tests/avatar.test.js` now also rejects a black `<rect>` or the `clip0_3_11` id in this drawing;
+  it still checks that every preset has art and no duplicate ids. `navbar.test.js` renders the
+  preset in the tile.
 
