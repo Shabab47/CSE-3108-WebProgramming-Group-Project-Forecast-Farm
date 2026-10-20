@@ -239,9 +239,10 @@ crop illustrations are the almanac's per-crop entries, loaded by `ui/almanacCard
 | `corn.png` | Corn almanac entry, 1254×1254 | ✅ done |
 | `Golden Rice Harvest Bundle.png` | Golden Rice Harvest Bundle, 1312×1199 | ✅ done |
 
-**`book.png` is square and the button box is square.** `.sidebar-btn__img` is 64×64 with
-`object-fit: contain`, so the drawing fills the slot. The first cut was landscape (1470×1070)
-and letterboxed to a smaller size than the shop gear; the current art replaces it.
+**The artwork is the button.** `.sidebar-btn` is an unframed 152×152 box and `.sidebar-btn__img`
+fills it, so the round badge itself is the control — no tile, border or background behind it.
+The first cut was landscape (1470×1070) and letterboxed to a smaller size than the shop gear;
+the current art replaces it.
 
 ---
 

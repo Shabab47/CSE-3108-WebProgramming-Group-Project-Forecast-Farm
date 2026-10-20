@@ -8,6 +8,17 @@ The per-person weekly notes that used to live in the README table are now in `me
 ---
 
 
+## Buttons are the badges now — 2026-10-20
+
+- **Did:** the three farm-sidebar buttons (shop, almanac, seed bag) are no longer framed tiles.
+  `.sidebar-btn` lost its border, tan background and rounded-square box, and the PNG fills the
+  control, so the round badge itself is the button. The control is 152px, 1.25× the old 122px tile,
+  and shrinks with `max-width: 100%` on narrow screens.
+- **Touched:** `css/sidebar.css`, `js/config/assets.js` (comment), `docs/asset-checklist.md`,
+  `docs/team/progress-log.md`.
+- **Verified:** `npm test` and `npm run check` pass except the pre-existing Farmer 3 avatar case.
+- **Next:** user review on localhost; not committed.
+
 ## Square book and inventory button art — 2026-10-20
 
 - **Did:** both sidebar buttons got redrawn art — `book.png` and `inventory.png` are now both

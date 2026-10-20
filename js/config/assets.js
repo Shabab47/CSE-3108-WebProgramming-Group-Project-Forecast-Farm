@@ -120,8 +120,8 @@ export const ASSETS = [
   //
   // The book button sits in the farm sidebar, directly under the shop button
   // (`ui/almanacLauncher.js`). It replaced a rice seed packet that had stood in
-  // for it. The art is square, 1254×1254 like the shop and settings buttons, so it
-  // fills the 64×64 `.sidebar-btn__img` box (`css/sidebar.css`) with no letterboxing.
+  // for it. The art is square, 1254×1254 like the shop and settings buttons, and it is
+  // the button itself — no tile or border behind it (`css/sidebar.css`).
   { path: 'assets/images/book/book.png', name: 'Book (button to open the almanac)', size: 1704265, dimensions: '1254x1254', status: 'done', category: 'button-art', page: 'field' },
   // One illustration per crop, for the almanac's entries. `almanac.html` is still
   // an empty placeholder (ISS-019), so nothing loads these yet — they are registered
