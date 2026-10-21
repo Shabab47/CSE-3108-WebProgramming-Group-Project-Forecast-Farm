@@ -925,6 +925,7 @@ or `assets.test.js` fails in the other direction.
 | ISS-112 | A replanted crop inherited the previous crop's damage sprite | Medium | Jim | **fixed** | T-72 |
 | ISS-113 | `weather-events.md` said dry damage latches after two hours; the code uses one | Low | Jim | **fixed** | T-72 |
 | ISS-114 | A save written before ISS-112 kept the stale damage sprite, and a living crop could not be cleared | Medium | Jim | **fixed** | T-73 |
+| ISS-115 | A damaged living crop drew its growth stage under the damage sprite | Low | Jim | **fixed** | T-75 |
 
 ---
 
@@ -2499,4 +2500,22 @@ or `assets.test.js` fails in the other direction.
   `plantedAt`. Because every pre-fix latch has no timestamp, the migration clears them all once
   — DEC-054 — and the health already lost is not refunded. Tests cover the migration, the hold
   guard, the timestamp reset and the import rebase.
+
+---
+
+### ISS-115 A damaged living crop drew its growth stage under the damage sprite
+- Reported: 2026-10-21 by Jim · Owner: Jim · Status: **fixed** in T-75 · Severity: Low
+- Where: `js/ui/plotLayers.js` (`plotLayers`)
+- Problem: a rice crop left at 0 water long enough to earn a legitimate dry latch showed both
+  `rice_5.png` and `rice_drought_killed.png` at once, with the word "Dry" and water 83/120
+  optimal. The healthy green plant showed through the gaps in the brown patch — the player's
+  "there's still rice stage 5 crop growing under the dead sprite".
+- Cause: `plotLayers` drew `.plot__crop` for every living crop and then appended
+  `.plot__damage` after it. The damage art is a whole replacement patch with its own soil
+  diamond (DEC-048), not a transparent overlay, so layering one over the other painted two
+  plants in one tile.
+- Fix: `plotLayers` resolves `damageSprite(plot)` before the crop branch and draws the growth
+  stage only when the result is null. The damage patch, its word, the live water meter, the
+  growth meter and the gold ready rim remain: the crop is still alive and harvestable at
+  reduced quality. `tests/farmView.test.js` covers dry, waterlogged, dead and undamaged plots.
 
