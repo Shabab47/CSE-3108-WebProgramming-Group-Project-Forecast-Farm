@@ -2519,3 +2519,25 @@ or `assets.test.js` fails in the other direction.
   growth meter and the gold ready rim remain: the crop is still alive and harvestable at
   reduced quality. `tests/farmView.test.js` covers dry, waterlogged, dead and undamaged plots.
 
+---
+
+### ISS-116 The current temperature printed its degree symbol twice
+- Reported: 2026-10-21 by Jim · Owner: Jim · Status: **fixed** · Severity: Low
+- Where: `js/ui/weatherPanel.js` (`renderCurrent`)
+- Problem: the big temperature on the weather board read `31°°C`. The value and the unit were
+  separate spans, and `formatTemp()` already appended the degree: `31°` + `°C`.
+- Cause: the split was introduced for the unit's smaller type, but only the unit kept the
+  `°C` suffix while the value kept the `°` as well. Narrow screens make it read as a typo.
+- Fix: `formatTempValue()` returns the number only for the value span; `formatTemp()` still
+  supplies the degree for every other caller. `tests/weatherPanel.test.js` pins `31°C` with one
+  degree symbol on the current note and on the hourly/feels-like lines. Fixed in T-76.
+
+---
+
+### ISS-117 Phone typography drifted from PC font stacks
+- Reported: 2026-10-21 by Jim · Owner: Jim · Status: **fixed** · Severity: Low
+- Where: `css/phone.css`, `css/phone-weather.css`, `css/phone-panels.css`
+- Problem: the phone layout used Irish Grover (via `--font-ui`) for the gold amount and big temperature, and Nunito for environment card text, while the PC game page uses Luckiest Guy for gold/temperature and system UI for everything else. Also the PC and phone both carried redundant "Gold" and "Purse" labels.
+- Cause: phone styles were written against the Figma frame, which used placeholder fonts, and the label removal was deferred.
+- Fix: phone font families swapped to PC stacks (Luckiest Guy for gold/big temp, system UI elsewhere); "Gold" and "Purse" labels removed from DOM in `main.js` and `shopView.js`; shop purse also gets Luckiest Guy via `shop.css`. Fixed in T-77.
+

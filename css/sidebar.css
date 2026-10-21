@@ -48,6 +48,13 @@
   color: #1f2721;
 }
 
+/* The launcher stack is wrapped so the phone layout can turn it into a row.
+   On desktop the wrapper is transparent, so the buttons remain direct flex
+   children of the sidebar exactly as before. */
+.app__menu {
+  display: contents;
+}
+
 /* The artwork is the control: each button is just its round badge, with no tile,
    border or background behind it. 152px = 1.25 × the old 122px tile. */
 .sidebar-btn {

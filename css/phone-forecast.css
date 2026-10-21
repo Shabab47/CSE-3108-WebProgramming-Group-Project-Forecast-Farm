@@ -1,0 +1,131 @@
+@media (max-width: 900px) {
+  /* --- three meters in a row --------------------------------------------- */
+
+  .board-meters {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    padding-bottom: 0;
+  }
+
+  .board-meter {
+    display: grid;
+    grid-template-columns: auto auto;
+    grid-template-rows: auto auto;
+    justify-content: center;
+    align-content: center;
+    gap: 4px 5px;
+    flex: 0 0 auto;
+    min-height: 57px;
+    padding: 6px 4px;
+    border: 1px solid #70431f;
+    border-radius: 8px;
+    background: #eabd52;
+    box-shadow: none;
+    overflow: visible;
+    color: #493219;
+  }
+
+  .board-meter-icon {
+    grid-column: 1;
+    grid-row: 1;
+    width: 14px;
+    height: 14px;
+    color: #70431f;
+  }
+
+  .board-meter-icon svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .board-meter-label {
+    grid-column: 2;
+    grid-row: 1;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0;
+    white-space: nowrap;
+    overflow: visible;
+    color: #70431f;
+  }
+
+  .board-meter-value {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: center;
+    font-size: 15px;
+    font-weight: 900;
+    color: #493219;
+  }
+
+  /* --- six hour notes ---------------------------------------------------- */
+
+  .board-notes {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 6px;
+    flex: 0 0 auto;
+    height: auto;
+  }
+
+  .note-hour {
+    justify-content: flex-start;
+    gap: 4px;
+    min-height: 82px;
+    padding: 20px 2px 4px;
+    border-radius: 4px;
+  }
+
+  .note-hour .note-pin {
+    top: 6px;
+  }
+
+  .note-hour-time {
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: 0;
+    color: #493219;
+  }
+
+  .note-hour-glyph {
+    width: 19px;
+    height: 19px;
+  }
+
+  .note-hour-temp {
+    font-size: 15px;
+    font-weight: 900;
+    line-height: 1.2;
+    color: #493219;
+  }
+
+  .note-hour-rain {
+    right: 2px;
+    bottom: 2px;
+    padding: 0 2px;
+    border-radius: 3px;
+    background: #5087c7;
+    color: #ffffff;
+    font-size: 8px;
+    line-height: 11px;
+  }
+}
+
+/* The narrowest phones: keep "Rain Chance" inside its card rather than
+   letting the last letter sit on the border. */
+@media (max-width: 340px) {
+  .board-meter {
+    gap: 3px 4px;
+  }
+
+  .board-meter-icon,
+  .board-meter-icon svg {
+    width: 12px;
+    height: 12px;
+  }
+
+  .board-meter-label {
+    font-size: 10px;
+  }
+}

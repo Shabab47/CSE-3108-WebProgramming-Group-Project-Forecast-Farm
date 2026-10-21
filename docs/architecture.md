@@ -737,6 +737,7 @@ farm and still reported that nothing had changed.
 | shop page layout | `css/shop.css` (the stall: grass, log frame, sign, board) and `css/shop-card.css` (the cards and buy buttons), `shop.html` — painted art, theme-independent, four columns at a 1400px shell |
 | field drawing / click bugs | `js/ui/farmView.js`, `js/ui/plotTile.js`, `js/utils/iso.js`, `css/scene.css` |
 | page layout | `css/layout.css`, `index.html` |
+| the phone layout at ≤900px | `css/phone.css` (shell, header, season/purse, field), `css/phone-panels.css` (environment, menu), `css/phone-weather.css` (board, search, note), `css/phone-forecast.css` (meters, hours), DEC-056 |
 | the game page's top bar | `css/navbar.css` — fixed `height: 60px`, owns its own padding rather than `.card`'s |
 | where the location search lives | `js/ui/locationBar.js`, in the wooden board — not the navbar |
 | the forecast board: frame, notes, meters | `js/ui/weatherPanel.js`, `css/weather.css` — the board is `flex: 0 0 33.333%` of `.app__centre` with `min-height: 150px`, the field takes the rest (`css/layout.css`). Its width is `clamp(450px, 38%, 520px)`, centred over the field. Inside, `.board-body` is a two-column grid at `1.6fr / 1fr` with **both children pinned to `grid-row: 1`** (ISS-056); the meters column is three pills at `flex: 1 1 0`, so they divide the note's height rather than asking for a height of their own, and carries a `3px` bottom padding so the last pill's `box-shadow` survives `.board-body`'s `overflow: hidden` (ISS-060); a meter's label track is a bare `1fr`, whose `min-content` floor is what stops "Wind" ellipsising (ISS-061); the big note is **itself a two-column grid** — the condition spans both columns, the temperature takes `minmax(0, auto)`, and the place name takes `minmax(0, 1fr)` beside it, right-aligned and wrapping instead of ellipsising, with the day and time and the two conditional lines on full-width rows of their own (DEC-033, ISS-062); `locationLine()` answers `'Unknown location'` rather than an empty string, so a farm with no place never renders a blank line (ISS-063); the hour strip is a fixed `72px` (ISS-057); the freshness label is **inside the big note**, right-aligned and rendered only while the forecast is paused, so the board prints its reading time once (DEC-032); both hanging pegs are posts at every height (ISS-059). No meter has a fill bar (ISS-055). Sizes are plain literals, with one short-window block at `@media (max-height: 960px) and (min-width: 901px)` that trims them — DEC-031 has the reasoning |
@@ -786,6 +787,10 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   ├── fonts.css               the two display faces, self-hosted @font-face
 │   ├── navbar.css              the game page's top bar
 │   ├── weather.css             the wooden forecast board and its sticky notes — plain literals plus one short-window block
+│   ├── phone.css               the ≤900px shell, header, season/purse row and full-width field
+│   ├── phone-panels.css        the phone environment card and bottom launcher menu
+│   ├── phone-weather.css       the phone board, search pill and current-condition note
+│   ├── phone-forecast.css      the phone three-meter row and six-hour strip
 │   ├── scene.css               the isometric stage, the plot layers, locked/next/ready
 │   ├── crop-picker.css         the seed picker overlay and its rows
 │   ├── shop.css                the shop sign and the seed list
@@ -990,6 +995,46 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
     ├── reference/              field render, layout wireframe, style mockup
     └── team/                   goals, tasks, ownership, issues, decisions, members
 ```
+
+---
+
+## Phone layout
+
+`index.html` has no second phone tree. At `max-width: 900px` the phone stylesheets reflow the same
+mount points into a two-column grid capped at **480px** and centred: `top`, `season` + `gold`,
+`board`, `farm`, `env`, `menu`. The **430 × 1232** Figma frame is the 1:1 target; below 430 the
+columns shrink, and 901px and up uses the desktop grid unchanged.
+
+The move is all in CSS. `.app__sidebar`, `.app__centre` and `.app__rail` become `display: contents`;
+`.app__menu` — a wrapper added around the three launcher mounts in `index.html` — becomes a
+three-card grid. On desktop `.app__menu` is also `display: contents`, so the launchers stay children
+of the sidebar flex column and their visual order does not change. `.app` becomes
+`grid-template-columns: minmax(0, 1fr) auto` with named areas, and `#season-card`, `.farm-gold`,
+`.board`, `#farm-view`, `.env` and `.app__menu` are assigned to those areas. The field row spans both
+columns: at 430px that is edge to edge with the viewport, as in the frame.
+
+The field, board, search, pump, environment and menu are the live mounts. Nothing is captured as a
+screenshot and no game rule is duplicated. `main.js` still owns all services and wiring, and the
+field remains interactive at every width.
+
+Four files hold the phone-only rules, loaded after `css/sidebar.css`:
+
+| File | Owns |
+| :--- | :--- |
+| `css/phone.css` | shell grid, 68px header, season/purse row, full-width field |
+| `css/phone-panels.css` | environment card and the three launcher cards |
+| `css/phone-weather.css` | board, search pill, current-condition note |
+| `css/phone-forecast.css` | three meters and the six-hour strip |
+
+The environment card keeps its emoji on desktop and swaps to Lucide `droplets` / `snowflake` /
+`flame` on the phone; both are in the markup and CSS chooses which is visible (DEC-056).
+
+**Typography:** the phone layout now uses the same font stacks as the PC game page (DEC-057):
+- **Luckiest Guy** — gold amount (game scene + shop purse), big current temperature value.
+- **System UI** — temperature unit, search, note labels, location, foot, feels-like, board meters, hour notes, environment card.
+- **Irish Grover** — season name/date, navbar wordmark (unchanged).
+
+Redundant "Gold" and "Purse" labels were removed from the DOM.
 
 ---
 
@@ -1339,7 +1384,10 @@ the card does not reshuffle while nothing changes. Each fact compares against *t
 rather than a number the weather service supplied.
 
 `envMetrics.js` draws each fact as an `.env__pill`: label and value on the left, the note through the
-middle, the emoji on the right over the fill, so the text sits on the bar rather than beside it.
+middle, and a decorative emoji on the right over the fill, so the text sits on the bar rather than
+beside it. On the phone the card becomes a 40% / 60% reading grid and the emoji is replaced by the
+Lucide glyphs `droplets`, `snowflake` and `flame`; the desktop markup keeps its emoji and only CSS
+chooses which one is visible.
 
 ## Known simplifications
 

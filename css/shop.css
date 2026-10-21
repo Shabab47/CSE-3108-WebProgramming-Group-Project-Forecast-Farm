@@ -281,20 +281,15 @@ body.shop-page::after {
   justify-self: end;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
+  gap: 6px;
+  padding: 6px 8px;
   border: 2px solid #6b431f;
   border-radius: 999px;
   background: #fbf3dd;
   box-shadow: 0 2px 0 rgba(0, 0, 0, 0.15);
-}
-
-.shop-purse__label {
-  font-weight: 600;
-  font-size: 0.9rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: #8a5a2c;
+  font-family: "Luckiest Guy", var(--font-display);
+  min-width: 140px;
+  align-self: start;
 }
 
 .shop-purse__gold {
@@ -302,6 +297,11 @@ body.shop-page::after {
   font-size: 1.1rem;
   color: #4a3418;
   font-variant-numeric: tabular-nums;
+}
+
+.shop-purse__coin svg {
+  width: 36px;
+  height: 36px;
 }
 
 /* --- the board: cards area -------------------------------------------------- */

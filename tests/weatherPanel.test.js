@@ -180,6 +180,24 @@ test('a paused forecast adds its line without taking the place away', () => {
   assert.equal(findAll(root, 'note-status').length, 1, 'the paused line renders inside the note');
 });
 
+test('the big temperature prints the degree exactly once', () => {
+  // ISS-116: the value and the unit are separate spans so the unit can use the
+  // smaller type, but `formatTemp()` already includes the degree. The board read
+  // `31°°C`; the value span must now carry the number only.
+  const root = mount({ location: DHAKA, weather: reading() });
+
+  const [value] = findAll(root, 'note-temp-value');
+  const [unit] = findAll(root, 'note-temp-unit');
+  const [hour] = findAll(root, 'note-hour-temp');
+  const [feels] = findAll(root, 'note-feels');
+
+  assert.equal(value.textContent, '24');
+  assert.equal(unit.textContent, '°C');
+  assert.equal(`${value.textContent}${unit.textContent}`, '24°C');
+  assert.equal(hour.textContent, '24°', 'the hourly notes keep their single degree');
+  assert.equal(feels.textContent, 'Feels like 26°', 'and so does the feels-like line');
+});
+
 /* --- ISS-089: weather events, seasons, and the planting verdict ----------------
  *
  * Three things are asserted here that nothing asserted before, and one of them
