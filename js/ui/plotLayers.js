@@ -211,7 +211,13 @@ export function plotLayers(plot, { isOwned, isNext, isReady, grown, isWatered, p
     layers.push(el('span', { class: 'plot__ready', 'aria-hidden': 'true' }));
   }
 
-  if (hasCrop && !plot.dead) {
+  // **A damage sprite replaces the growth stage.** The damage art is a whole patch with
+  // its own soil diamond (DEC-048), not a transparent overlay, so drawing both leaves the
+  // healthy plant showing through the dead one. Resolve the damage first and skip the
+  // stage whenever there is one; `dead` is included because `damageSprite()` gives it
+  // priority.
+  const damage = damageSprite(plot);
+  if (hasCrop && !plot.dead && !damage) {
     const crop = cropOf(plot.cropId);
     if (crop) {
       // The stage comes from `harvestsIn`, the same function the domain rules ask.
@@ -245,13 +251,13 @@ export function plotLayers(plot, { isOwned, isNext, isReady, grown, isWatered, p
     // until Zim's art lands, and AGENTS.md fact 4 says text carries the meaning in the
     // meantime. The caption is also the part a screen reader gets, and the part that
     // survives a file that never arrives.
-    const damage = damageSprite(plot);
     const word = damageWord(plot);
     if (damage) {
       layers.push(
         el('img', {
           class: 'plot__damage',
           src: cropFailureImg(plot.cropId, damage),
+          draggable: 'false',
           alt: '',
           'aria-hidden': 'true',
         }),

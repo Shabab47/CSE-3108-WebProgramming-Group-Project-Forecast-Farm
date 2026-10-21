@@ -319,6 +319,68 @@ test('a planted plot renders its layers, and they are phrasing content', () => {
   );
 });
 
+test('a damage sprite replaces the growth stage, and an undamaged crop keeps it', () => {
+  // ISS-115: a living crop with a latched damage state drew both its growth stage and its
+  // damage patch. The damage art is a whole replacement patch on its own soil diamond
+  // (DEC-048), not a transparent overlay, so drawing it over the stage leaves two plants
+  // in one tile — the healthy one visible through the gaps in the dead one.
+  const HOUR = 3_600_000;
+  const now = Date.now();
+  const plots = buildPlots().map((plot) => {
+    if (plot.id === 5) {
+      return {
+        ...plot,
+        owned: true,
+        cropId: 'rice',
+        plantedAt: now - 5 * HOUR,
+        waterLevel: 83,
+        damage: 'dry',
+        damageAt: now - HOUR,
+      };
+    }
+    if (plot.id === 6) {
+      return {
+        ...plot,
+        owned: true,
+        cropId: 'rice',
+        plantedAt: now - 5 * HOUR,
+        waterLevel: 120,
+        damage: 'waterlogged',
+        damageAt: now - 2 * HOUR,
+      };
+    }
+    if (plot.id === 7) {
+      return { ...plot, owned: true, cropId: 'rice', plantedAt: now - 5 * HOUR, waterLevel: 60 };
+    }
+    if (plot.id === 8) {
+      return { ...plot, owned: true, cropId: 'rice', plantedAt: now - 7 * HOUR, dead: true };
+    }
+    return plot;
+  });
+  const { tiles } = mount({ plots });
+
+  const dry = tiles[5];
+  assert.equal(dry.querySelector('.plot__crop'), null, 'the healthy stage is not drawn under the dry patch');
+  assert.match(dry.querySelector('.plot__damage').getAttribute('src'), /rice_drought_killed\.png$/);
+  assert.equal(dry.querySelector('.plot__damage-word').textContent, 'Dry');
+  assert.ok(dry.querySelector('.plot__water'), 'the live water meter is still there');
+  assert.ok(dry.querySelector('.plot__grow'), 'and the crop still grows under the damage badge');
+
+  const waterlogged = tiles[6];
+  assert.equal(waterlogged.querySelector('.plot__crop'), null, 'the stage is not drawn under the rain patch');
+  assert.match(waterlogged.querySelector('.plot__damage').getAttribute('src'), /rice_rain_damaged\.png$/);
+  assert.equal(waterlogged.querySelector('.plot__damage-word').textContent, 'Waterlogged');
+
+  const healthy = tiles[7];
+  assert.ok(healthy.querySelector('.plot__crop'), 'an undamaged crop still draws its stage');
+  assert.equal(healthy.querySelector('.plot__damage'), null, 'and no damage patch');
+
+  const dead = tiles[8];
+  assert.equal(dead.querySelector('.plot__crop'), null, 'a dead crop has no stage');
+  assert.match(dead.querySelector('.plot__damage').getAttribute('src'), /rice_dead\.png$/);
+  assert.equal(dead.querySelector('.plot__damage-word').textContent, 'Dead');
+});
+
 test('a planted potato draws its own sprites, not the rice fallback', () => {
   // Potato's five stages are on disk now, and `available: true` makes
   // `fieldSpriteFor()` return the real path instead of the tinted rice fallback.

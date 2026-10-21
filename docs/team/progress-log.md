@@ -8,6 +8,21 @@ The per-person weekly notes that used to live in the README table are now in `me
 ---
 
 
+## A damage sprite replaces the growth stage — 2026-10-21
+
+- **Did:** fixed ISS-115. A legitimately dry-latched rice crop at stage 5 showed
+  `rice_5.png` and `rice_drought_killed.png` at once because `plotLayers` drew every living
+  stage and then appended the damage patch. The damage art is a whole replacement patch
+  (DEC-048), so the stage is now drawn only when `damageSprite(plot)` is null. The word, live
+  water meter, growth meter and gold ready rim stay; the crop is still alive and harvestable
+  at reduced quality.
+- **Touched:** `js/ui/plotLayers.js`, `tests/farmView.test.js`, `docs/crops.md`,
+  `docs/team/{issues,tasks,progress-log}.md`, `AGENTS.md` (next free issue id).
+- **Verified:** `npm run check` passes; `npm test` is 671 tests, 670 pass. The only failure is
+  the pre-existing Farmer 3 black-bar case in `avatar.test.js`, untouched here.
+- **Next:** hard-reload the farm; a dry-damaged tile should show only the brown patch. Not
+  committed until the avatar failure is resolved or accepted.
+
 ## A new account chooses a farmer — 2026-10-20
 
 - **Did:** added the avatar step after create-account. A successful sign-up with a session now

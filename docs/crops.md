@@ -449,6 +449,11 @@ assets/images/crops/<cropId>/<cropId>_dead.png       health reached 0
 **`<stage>` is 1–5, not 1–7.** The damage states are named, not numbered — `cropFailureImg()`
 builds the path from `damage.js`, which resolves exactly one of the three, with **dead** winning.
 
+**Only one of those eight is ever drawn.** A damage state replaces the growth stage; it is not
+layered over it. The damage art is a whole patch with its own soil diamond (DEC-048), so drawing
+both leaves the healthy plant visible through the dead one. The damage word and the meters stay:
+the crop is still alive and harvestable, just permanently damaged.
+
 `rice_1.png` through `rice_5.png` exist, and so do rice's dry and waterlogged sprites
 (`rice_drought_killed.png`, `rice_rain_damaged.png` — custom names, see `CUSTOM_FAILURE_NAMES` in
 `js/config/assets.js`). **No crop has its `_dead` sprite yet.** Track the holes in
