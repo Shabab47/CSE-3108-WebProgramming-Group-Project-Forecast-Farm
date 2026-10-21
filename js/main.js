@@ -179,8 +179,7 @@ function mountShell(session) {
 
   qsOrNull('#right-rail').append(
     el('div', { class: 'farm-gold' }, [
-      el('span', { class: 'farm-gold__coin', 'aria-hidden': 'true', html: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="12" r="10" fill="#e8b44c"/><circle cx="12" cy="12" r="9" fill="#f0c45f"/><text x="12" y="16" font-family="Luckiest Guy" font-size="14" text-anchor="middle" fill="#4a3418">G</text></svg>' }),
-      el('span', { class: 'farm-gold__label', text: 'Gold' }),
+      el('span', { class: 'farm-gold__coin', 'aria-hidden': 'true', html: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#e8b44c"/><circle cx="12" cy="12" r="9" fill="#f0c45f"/><text x="12" y="16" font-family="Luckiest Guy" font-size="14" text-anchor="middle" fill="#4a3418">G</text></svg>' }),
       el('span', { id: 'gold-value', class: 'farm-gold__value', text: '—' }),
     ]),
   );

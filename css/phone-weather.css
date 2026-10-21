@@ -1,0 +1,232 @@
+/* Phone weather board.
+ *
+ * The desktop board is a height-driven wooden panel: it takes a third of the
+ * centre column, and the note and meters share that height. On the phone the
+ * board is content-sized instead, so the big note spans the full width, the
+ * three meters sit in a row underneath it, and the hour notes become the six
+ * equal columns from the Figma frame. Everything is a solid fill: the desktop
+ * wood gradient and paper drop shadows are turned off here.
+ */
+
+@media (max-width: 900px) {
+  .board {
+    width: auto;
+    max-width: none;
+    margin: 4px 14px 0;
+    gap: 12px;
+    padding: 10px 9px 8px;
+    border: 3px solid #70431f;
+    border-radius: 12px;
+    background: #a67547;
+    box-shadow: 0 6px 14px rgba(73, 50, 25, 0.16);
+  }
+
+  .board::before,
+  .board::after {
+    display: none;
+  }
+
+  #forecast-card {
+    gap: 12px;
+    flex: 0 0 auto;
+  }
+
+  .board-body {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto;
+    gap: 12px;
+    flex: 0 0 auto;
+    overflow: visible;
+  }
+
+  .board-body > .note-current {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .board-body > .board-meters {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  /* --- search pill ------------------------------------------------------- */
+
+  .location-bar {
+    height: 44px;
+    padding: 0 5px 0 12px;
+    gap: 8px;
+    border: 1.5px solid #70431f;
+    border-radius: 999px;
+    background: #fff8e6;
+    box-shadow: none;
+  }
+
+  .location-bar-locate {
+    width: 30px;
+    height: 30px;
+    color: #7a6746;
+  }
+
+  .location-bar-locate-icon svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .location-bar-input {
+    padding: 0 2px;
+    font-family: var(--font-sans);
+    font-size: 14px;
+    font-weight: 400;
+    color: #493219;
+  }
+
+  .location-bar-go {
+    width: 34px;
+    height: 34px;
+    background: #20882f;
+    color: #ffffff;
+    box-shadow: none;
+  }
+
+  .location-bar-go:hover {
+    background: #1a7226;
+  }
+
+  .location-bar-go-icon svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .location-bar-suggest {
+    border: 1.5px solid #70431f;
+    border-radius: 12px;
+    background: #fff8e6;
+    box-shadow: 0 4px 10px rgba(73, 50, 25, 0.18);
+  }
+
+  .location-bar-suggest-item {
+    font-size: 14px;
+  }
+
+  /* --- paper ------------------------------------------------------------- */
+
+  .note {
+    border-radius: 8px;
+    background: #f5e9b1;
+    clip-path: none;
+    filter: none;
+  }
+
+  .note::after {
+    display: none;
+  }
+
+  .note-pin {
+    width: 6px;
+    height: 6px;
+    background: #d94a3a;
+    box-shadow: none;
+  }
+
+  /* --- the big note ------------------------------------------------------ */
+
+  .note-current {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "label loc"
+      "main  foot"
+      "main  feels"
+      "status status";
+    column-gap: 10px;
+    align-content: start;
+    min-height: 109px;
+    padding: 14px;
+    overflow: visible;
+  }
+
+  .note-current .note-pin {
+    display: none;
+  }
+
+  .note-label {
+    align-self: start;
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    color: #7a6746;
+  }
+
+  .note-loc {
+    align-self: start;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1.25;
+    letter-spacing: 0;
+    text-align: right;
+    color: #493219;
+  }
+
+  .note-main {
+    align-self: center;
+    gap: 9px;
+    margin-top: 10px;
+  }
+
+  .note-glyph {
+    width: 35px;
+    height: 35px;
+  }
+
+  .note-temp-value,
+  .note-temp-unit {
+    font-weight: 400;
+    color: #493219;
+  }
+
+  .note-temp-value {
+    font-family: "Luckiest Guy", var(--font-sans);
+    font-size: 43px;
+    line-height: 1;
+  }
+
+  .note-temp-unit {
+    font-family: var(--font-sans);
+    margin-top: 4px;
+    font-size: 22px;
+    line-height: 1;
+  }
+
+  .note-foot {
+    align-self: start;
+    justify-self: end;
+    gap: 5px;
+    margin-top: 8px;
+    font-family: var(--font-sans);
+    font-size: 14px;
+    font-weight: 900;
+    letter-spacing: 0.02em;
+    color: #493219;
+  }
+
+  .note-day::after {
+    content: "·";
+    margin-left: 5px;
+  }
+
+  .note-feels {
+    align-self: end;
+    justify-self: end;
+    margin-top: 0;
+    font-size: 13px;
+    font-weight: 400;
+    color: #7a6746;
+  }
+
+  .note-status {
+    justify-self: start;
+    margin-top: 4px;
+    font-size: 11px;
+  }
+}

@@ -25,9 +25,17 @@
 
 import { el, clear } from '../utils/dom.js';
 import { environmentFacts } from '../domain/environment.js';
+import { icon } from './icon.js';
 
-/** One emoji per meter, at the right end of the bar. Decorative; the label is the meaning. */
+/** One Lucide icon per meter for the phone card. Decorative; the label is the meaning. */
 const ICONS = {
+  drying: 'droplets',
+  frost: 'snowflake',
+  uv: 'flame',
+};
+
+/** The desktop card keeps the emoji it has always used; the phone card is vector. */
+const EMOJIS = {
   drying: '💦',
   frost: '❄️',
   uv: '🔥',
@@ -73,10 +81,11 @@ export function mountEnvMetrics(root, state, now = Date.now()) {
         el('span', { class: 'env__pill-value', text: fact.value }),
         el('span', { class: 'env__pill-note', text: fact.note }),
         el('span', {
-          class: 'env__pill-icon',
-          text: ICONS[fact.id] ?? '',
+          class: 'env__pill-emoji',
+          text: EMOJIS[fact.id] ?? '',
           'aria-hidden': 'true',
         }),
+        icon(ICONS[fact.id] ?? 'droplets', 'env__pill-icon'),
       ])
     )));
   }

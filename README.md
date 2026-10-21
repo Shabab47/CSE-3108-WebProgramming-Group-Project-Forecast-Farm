@@ -89,7 +89,7 @@ login.html      the opening menu, sign in, or create an account
 shop.html       the seed shop — buy seed packets with your gold
 settings.html   account details, erase progress, delete account
 profile.html    who is signed in, and the way out
-css/            styling — one file per component: layout, tokens, shared, the painted account frame, and the login page's four stylesheets
+css/            styling — one file per component or page, including the painted account frame, the login page's four stylesheets, and the four phone reflow files
 js/             the game code, split by responsibility
 assets/         artwork and icons
 js/config/      field geometry, crops, game balance, weather events, preset avatars, **asset registry (assets.js)**

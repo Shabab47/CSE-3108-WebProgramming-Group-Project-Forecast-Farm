@@ -8,21 +8,15 @@
 .farm-gold {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
+  gap: 6px;
+  padding: 6px 8px;
   border: 2px solid #6b431f;
   border-radius: 999px;
   background: #fbf3dd;
   box-shadow: 0 2px 0 rgba(0, 0, 0, 0.15);
   font-family: "Luckiest Guy", var(--font-display);
-}
-
-.farm-gold__label {
-  font-size: 1.2rem;
-  font-weight: 400;
-  color: #4a3418;
-  letter-spacing: normal;
-  text-transform: none;
+  min-width: 140px;
+  align-self: end;
 }
 
 .farm-gold__value {
@@ -37,6 +31,11 @@
   flex-shrink: 0;
   color: #f0a92e;
   margin-right: 2px;
+}
+
+.farm-gold__coin svg {
+  width: 36px;
+  height: 36px;
 }
 
 .env__pills {
@@ -82,6 +81,7 @@
 .env__pill-label,
 .env__pill-value,
 .env__pill-note,
+.env__pill-emoji,
 .env__pill-icon {
   position: relative;
 }
@@ -113,11 +113,18 @@
   line-height: 1.3;
 }
 
-/* The emoji is the last thing on the bar and never shrinks or wraps. */
+/* The emoji is the last thing on the bar and never shrinks or wraps. The phone
+   card swaps it for an inline Lucide glyph; the emoji stays in the markup so
+   desktop does not change. */
+.env__pill-emoji,
 .env__pill-icon {
   flex-shrink: 0;
   font-size: 1.2rem;
   line-height: 1;
+}
+
+.env__pill-icon {
+  display: none;
 }
 
 /* Tone variants for pills */

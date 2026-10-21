@@ -152,7 +152,7 @@ export function mountWeatherPanel(root, state, now = () => Date.now()) {
         el('div', { class: 'note-main' }, [
           weatherGlyph(iconName, 'note-glyph'),
           el('p', { class: 'note-temp' }, [
-            el('span', { class: 'note-temp-value', text: formatTemp(current.temperature) }),
+            el('span', { class: 'note-temp-value', text: formatTempValue(current.temperature) }),
             el('span', { class: 'note-temp-unit', text: '°C' }),
           ]),
         ]),
@@ -302,7 +302,18 @@ function currentRainChance(weather) {
 }
 
 function formatTemp(value) {
-  return value == null || Number.isNaN(value) ? '—' : `${Math.round(value)}°`;
+  return value == null || Number.isNaN(value) ? '—' : `${formatTempValue(value)}°`;
+}
+
+/**
+ * The number alone, for the big note where `°C` is a separate unit span.
+ *
+ * `formatTemp()` already carries the degree, and the unit span adds another, so
+ * using it for the large value printed `31°°C` (ISS-116). The hourly notes and
+ * "Feels like" line keep `formatTemp()`: there the degree *is* the unit.
+ */
+function formatTempValue(value) {
+  return value == null || Number.isNaN(value) ? '—' : `${Math.round(value)}`;
 }
 
 function formatHourShort(iso) {

@@ -256,7 +256,6 @@ export function mountShop(root, actions) {
         ]),
 
         el('p', { class: 'shop-purse' }, [
-          el('span', { class: 'shop-purse__label', text: 'Purse' }),
           coinEl('shop-coin shop-purse__coin'),
           gold,
         ]),

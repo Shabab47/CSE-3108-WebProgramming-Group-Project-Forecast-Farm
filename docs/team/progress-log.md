@@ -8,6 +8,38 @@ The per-person weekly notes that used to live in the README table are now in `me
 ---
 
 
+## Phone typography unified with PC game scene — 2026-10-21
+
+- **Did:** implemented T-77. Phone font families now match the PC game page: Luckiest Guy for gold amount (both game scene and shop purse) and big current temperature value; system UI for temperature unit, search, note labels, location, foot, feels-like, board meters, hour notes, and environment card text. Removed redundant "Gold" label from game scene purse and "Purse" label from shop purse — the coin icon + Luckiest Guy number is sufficient. Shop purse container now carries Luckiest Guy so its gold inherits it.
+- **Also fixed:** ISS-117 (phone typography drift).
+- **Touched:** `css/phone.css`, `css/phone-weather.css`, `css/phone-panels.css`, `css/shop.css`, `js/main.js`, `js/ui/shopView.js`, `docs/team/{issues,tasks,decisions,progress-log}.md`.
+- **Verified:** 430×1232 matches Figma frame within 2px vertically (board 160–512 vs 160–511, farm 528, env 794 vs 795, menu 1107, app 1232). 360px and 320px have no horizontal overflow; 1280px desktop unchanged. `npm run check` passes; `npm test` 672 tests, 670 pass — two pre-existing failures (Farmer 3 black bars, ISS-111; damage-sprite bottom 9.5% vs 6.5%).
+- **Next:** review on a real device; no commit yet.
+
+## The game page reflows onto the 430px phone frame — 2026-10-21
+
+- **Did:** implemented T-76. At 900px and below the existing game screen becomes the phone
+  layout from the Figma frame: 68px header, season and purse row, wooden board, full-width
+  field, environment card, then the three launcher cards. It is the same DOM — `.app__sidebar`,
+  `.app__centre`, `.app__rail` and the new `.app__menu` become `display: contents`, so
+  `main.js` mounts and all game state are untouched. The four phone stylesheets are
+  `css/phone.css`, `phone-panels.css`, `phone-weather.css` and `phone-forecast.css`; the real
+  field, search, pump, weather and menu remain interactive. Environment icons use Lucide on the
+  phone and the desktop keeps its emoji (DEC-056).
+- **Also fixed:** ISS-116, the current note's `31°°C`. `formatTempValue()` now supplies just the
+  number and `formatTemp()` still supplies the degree elsewhere; a regression test pins it.
+- **Touched:** `index.html`, `css/{phone,phone-panels,phone-weather,phone-forecast}.css`,
+  `css/{sidebar,scene}.css`, `js/ui/{envMetrics,icon,weatherPanel}.js`,
+  `tests/weatherPanel.test.js`, `docs/architecture.md`, `README.md`,
+  `docs/team/{issues,tasks,decisions,progress-log}.md`.
+- **Verified:** 430×1232 matches the Figma frame within 2px vertically (board 160–512 against
+  160–511, farm at 529, environment at 794 against 795, menu at 1107, app 1232). 360px and
+  320px have no horizontal overflow; 1280px desktop is unchanged. `npm run check` passes;
+  `npm test` is 672 tests, 670 pass — the two failures are the pre-existing Farmer 3 black-bar
+  case (`avatar.test.js`, ISS-111) and the damage-sprite bottom offset
+  (`farmView.test.js`, expected 6.5%, actual 9.5%).
+- **Next:** review the phone screen on a real device; no commit yet.
+
 ## A damage sprite replaces the growth stage — 2026-10-21
 
 - **Did:** fixed ISS-115. A legitimately dry-latched rice crop at stage 5 showed

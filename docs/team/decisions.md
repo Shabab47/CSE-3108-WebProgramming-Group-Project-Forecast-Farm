@@ -30,6 +30,52 @@ Format: who decided, the choice, why, and what was rejected.
 
 ---
 
+### DEC-056 The phone screen is the same game DOM reflowed, not a second view
+**Decided by:** Jim · 2026-10-21
+
+**Choice:** At `max-width: 900px` the game page reflows its existing mount points into a two-column
+phone layout capped at 480px and centred, with the 430 × 1232 Figma frame as the 1:1 target.
+`css/phone.css` owns the shell, 68px header, season/purse row and full-width field;
+`css/phone-panels.css` owns the environment card and bottom menu; `css/phone-weather.css` owns the
+board, search and current note; `css/phone-forecast.css` owns the meters and six-hour strip. A new
+`.app__menu` wrapper is `display: contents` on desktop and a real three-card grid on the phone.
+`.app__sidebar`, `.app__centre` and `.app__rail` also become `display: contents`, so their children
+become grid items of `.app` without moving any mount point in `main.js`.
+
+**Why:** A second markup tree, a static screenshot or a separate demo would drift from the real
+weather, pump, field clicks and save immediately. `display: contents` keeps every existing owner and
+all of `main.js`'s wiring while the phone composes the same nodes in one column. It also means the
+desktop page needs no duplicated slot and no JavaScript viewport branch.
+
+**Rejected:** duplicating the board/field into a phone-only DOM; using the Figma artwork as a static
+field; branching on viewport width in JavaScript; changing the desktop grid or card dimensions.
+
+**Consequence:** `.app__menu` is the only new wrapper. The environment card keeps its emoji on
+desktop and shows Lucide `droplets` / `snowflake` / `flame` on the phone, selected by CSS from markup
+that carries both. The 900px breakpoint is shared with the existing stacked shell, and 901px and up is
+the unchanged desktop layout. At 360px the first screen scrolls vertically, but there is no horizontal
+overflow; the field remains interactive at every size.
+
+---
+
+### DEC-057 Phone typography unified with PC game scene, and gold labels removed
+**Decided by:** Jim · 2026-10-21
+
+**Choice:** The phone layout now uses the same font stacks as the PC game page:
+- **Luckiest Guy** — gold amount (both game scene and shop purse), big current temperature value.
+- **System UI** — temperature unit, search, note labels, location, foot, feels-like, board meters, hour notes, environment card title/labels/values/notes.
+- **Irish Grover** — season name/date, navbar wordmark (unchanged).
+
+Redundant labels were removed from the DOM: "Gold" from the game scene's purse, "Purse" from the shop purse.
+
+**Why:** The Figma frame used placeholder fonts; the PC game scene already had a consistent typographic language. Keeping two different font stacks across breakpoints created a visual disconnect. The labels were noise — the coin icon already signals currency.
+
+**Rejected:** keeping the Figma fonts on phone; keeping the labels for "clarity" (the icon + Luckiest Guy number is unmistakable).
+
+**Consequence:** phone CSS overrides removed; JS mount points no longer emit the label spans; shop purse inherits Luckiest Guy from its container. Layout sizes/colors/weights stay per Figma where they fit; only font families change.
+
+---
+
 ### DEC-055 A new account chooses an avatar before its first farm, and hands it over in the URL
 **Decided by:** Jim · 2026-10-20
 

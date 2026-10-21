@@ -1,0 +1,188 @@
+/* Phone layout.
+ *
+ * The game shell is a three-column desktop grid. Below 900px the same mount
+ * points are reflowed into the phone screen from the Figma reference: browser
+ * bar, season and purse, weather board, the real field, environment, menu.
+ *
+ * `display: contents` is what makes the reflow possible without a second copy
+ * of the DOM: the sidebars disappear as boxes and their children become grid
+ * items of `.app`, so the season card and the purse can share a row even though
+ * `main.js` mounts them in different columns. The desktop layout is untouched.
+ */
+
+@media (max-width: 900px) {
+  body {
+    background: #f4f7f2;
+  }
+
+  .app {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "top    top"
+      "season gold"
+      "board  board"
+      "farm   farm"
+      "env    env"
+      "menu   menu";
+    column-gap: 12px;
+    row-gap: 17px;
+    width: 100%;
+    max-width: 480px;
+    height: auto;
+    min-height: 100dvh;
+    margin-inline: auto;
+    padding: 0 0 13px;
+    overflow: visible;
+  }
+
+  .app__sidebar,
+  .app__centre,
+  .app__rail {
+    display: contents;
+  }
+
+  .app__top {
+    grid-area: top;
+    min-width: 0;
+  }
+  #season-card {
+    grid-area: season;
+    align-self: center;
+    min-width: 0;
+    margin-left: 16px;
+  }
+  .farm-gold {
+    grid-area: gold;
+    align-self: center;
+    justify-self: end;
+    margin-right: 16px;
+  }
+  .board {
+    grid-area: board;
+  }
+  #farm-view {
+    grid-area: farm;
+  }
+  .env {
+    grid-area: env;
+  }
+  .app__menu {
+    grid-area: menu;
+  }
+
+  /* --- header ----------------------------------------------------------- */
+
+  .navbar {
+    height: auto;
+    min-height: 68px;
+    margin: 0;
+    padding: 11px 16px;
+    gap: 12px;
+    background: #ffffff;
+    border-bottom: 1px solid #dfd2ad;
+    box-shadow: none;
+  }
+
+  .navbar__word {
+    font-size: clamp(18px, 6.2vw, 26px);
+    color: #20882f;
+    white-space: nowrap;
+  }
+
+  .navbar__actions {
+    gap: 6px;
+  }
+
+  .navbar__tile {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: #e5f0d8;
+    color: #325d29;
+  }
+
+  .navbar__tile-icon svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .navbar__tile--avatar {
+    border: 1px solid #dfd2ad;
+    border-radius: 50%;
+  }
+
+  .navbar__tile--avatar.navbar__tile--default {
+    background: #dedede;
+  }
+
+  /* --- season and purse -------------------------------------------------- */
+
+  .season-card {
+    gap: 11px;
+    padding: 10px 12px;
+    background: #d8ffd7;
+    border-radius: 12px;
+  }
+
+  .season-card__art {
+    width: 42px;
+    height: 54px;
+  }
+
+  .season-card__name {
+    font-size: 23px;
+    line-height: 1.05;
+    color: #493219;
+  }
+
+  .season-card__date {
+    font-size: 15px;
+    font-weight: 800;
+    color: #493219;
+  }
+
+  .farm-gold {
+    position: relative;
+
+    height: 54px;
+    padding: 0 16px;
+    gap: 8px;
+    border: 1.5px solid #70431f;
+    border-radius: 999px;
+    background: #fff8e6;
+    box-shadow: none;
+    width: 146px;
+    min-width: 0;
+  }
+
+  .farm-gold__coin {
+    margin-right: 0;
+  }
+  .farm-gold__coin svg {
+    width: 36px;
+    height: 36px;
+  }
+
+  .farm-gold__value {
+    font-size: 25px;
+    line-height: 1;
+    color: #493219;
+  }
+
+  /* --- field ------------------------------------------------------------- */
+
+  #farm-view {
+    display: block;
+    min-width: 0;
+  }
+  #farm-view .card.farm-view {
+    display: block;
+    width: 100%;
+  }
+
+  .field-stage {
+    width: 100%;
+    max-width: none;
+  }
+}
