@@ -1,15 +1,3 @@
-/* Phone layout.
- *
- * The game shell is a three-column desktop grid. Below 900px the same mount
- * points are reflowed into the phone screen from the Figma reference: browser
- * bar, season and purse, weather board, the real field, environment, menu.
- *
- * `display: contents` is what makes the reflow possible without a second copy
- * of the DOM: the sidebars disappear as boxes and their children become grid
- * items of `.app`, so the season card and the purse can share a row even though
- * `main.js` mounts them in different columns. The desktop layout is untouched.
- */
-
 @media (max-width: 900px) {
   body {
     background: #f4f7f2;
@@ -63,6 +51,10 @@
   }
   #farm-view {
     grid-area: farm;
+    display: block;
+    min-width: 0;
+    margin-top: 32px;
+    margin-bottom: 32px;
   }
   .env {
     grid-area: env;
