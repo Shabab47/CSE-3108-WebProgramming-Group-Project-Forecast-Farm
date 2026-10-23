@@ -686,9 +686,8 @@ farm and still reported that nothing had changed.
 | how long a pump takes, and what it costs | `js/domain/plotWater.js` (`minutesToOptimal`) |
 | what **damage** is, and whether it is permanent | `js/domain/damage.js` |
 | pump cost / water speed | `js/config/game.js` (`PUMP`, `WATER`, `OPTIMAL`, `DAMAGE`) |
-| the pump's own rules | `js/domain/pump.js` (`pumpRuns`, `setPump`, `aimPump`, `pumpCapacity`) |
-| buying the next pump level | `js/domain/pumpUpgrade.js` (`nextPumpUpgrade`, `canUpgradePump`, `upgradePump`) |
-| the pump's controls and its shop card | `js/ui/plotInspector.js` (plot targets), `js/ui/shopPumpCard.js` (level art and UPGRADE) |
+| the pump's own rules | `js/domain/pump.js` (`pumpRun`, `setPump`, `aimPump`) |
+| the pump's control and meter | `js/ui/pumpPanel.js` |
 | **what the weather is doing *to the farm*** | `js/domain/environment.js` (`environmentFacts`) |
 | **the environment card in the rail** | `js/ui/envMetrics.js` |
 | **what a click on a plot does** | `js/farmActions.js` (`onPlotClick`) → `js/ui/plotInspector.js` |
@@ -793,7 +792,8 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   ├── phone-weather.css       the phone board, search pill and current-condition note
 │   ├── phone-forecast.css      the phone three-meter row and six-hour strip
 │   ├── scene.css               the isometric stage, the plot layers, locked/next/ready
-│   ├── crop-picker.css         the seed picker overlay and its rows
+│   ├── farm-dialog.css         the timber/parchment dialog shared by the inspector and picker
+│   ├── crop-picker.css         the picker's viewport host and the seed detail cards
 │   ├── shop.css                the shop sign and the seed list
 │   ├── almanac.css             the almanac page and its crop cards
 │   ├── inventory.css           the inventory page and its seed cards
@@ -849,8 +849,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── farm.js             plant, harvest, clearPlot
 │   │   ├── land.js             buyPlot, canBuyPlot
 │   │   ├── notifications.js    forProjection, alertsToRaise, currentTrouble, wateringAdvice
-│   │   ├── pump.js             the machine: pumpRuns, costOf, setPump, aimPump, pumpCapacity
-│   │   ├── pumpUpgrade.js      the five levels: nextPumpUpgrade, canUpgradePump, upgradePump
+│   │   ├── pump.js             the machine: pumpRun, costOf, setPump, aimPump
 │   │   ├── damage.js           the latch: what damage is permanent
 │   │   ├── plotWater.js        the vocabulary: targetFor, bandFor, waterState, ratesFor
 │   │   ├── seasons.js          seasonFor — derived from latitude, not the month
@@ -877,7 +876,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── almanacWeather.js   a crop's reaction to each weather event
 │   │   ├── authErrors.js       provider code → sentence, enumeration guard
 │   │   ├── authViews.js        the login page's view graph — menu, forms, avatar, reset
-│   │   ├── cropPicker.js       which seed to sow on a plot
+│   │   ├── cropPicker.js       the timber seed picker — one detail card per seed, the card plants
 │   │   ├── dangerAction.js     the arm-and-confirm control, with its password gate
 │   │   ├── difficultyCard.js   the Normal / Easy setting, with what each mode does
 │   │   ├── farmView.js         the isometric field — geometry, plus the repaint guard
@@ -888,10 +887,8 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── plotLayers.js       what is painted inside one plot, back to front
 │   │   ├── plotLabel.js        a plot's accessible name — the whole of it
 │   │   ├── plotClick.js        plotAction(): what a click on a plot means
-│   │   ├── plotInspector.js    the panel a click on a plot opens — gauge, pump, action
-│   │   ├── pumpPanel.js        an unmounted single-plot pump readout, kept only for consistency
-│   │   ├── shopCropCard.js     one seed card: packet, note, owned count, SELL and BUY steps
-│   │   ├── shopPumpCard.js     the Pump section: one image, one UPGRADE button, the land gate
+│   │   ├── plotInspector.js    the timber panel a click opens — horizontal gauge, pump, action
+│   │   ├── pumpPanel.js        the pump toggle, the time-to-optimal, and the rate readout
 │   │   ├── envMetrics.js       the environment card: the rail's three meters
 │   │   ├── loadingTips.js      the boot veil and its rotating facts
 │   │   ├── locationBar.js      the place search in the farm top bar
@@ -908,7 +905,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── settingsView.js     the settings page: two destructive actions
 │   │   ├── syncIndicator.js    the fixed corner chip: dots, label, popover
 │   │   ├── shopLauncher.js     the shop sign in the farm sidebar
-│   │   ├── shopView.js         the shop: Seeds section and separate Pump section
+│   │   ├── shopView.js         the seed list on shop.html
 │   │   ├── toastStack.js       transient messages
 │   │   ├── navbar.js          logo; sound, settings and avatar tiles
 │   │   ├── weatherGlyph.js     the drawn condition, not an icon file
@@ -921,7 +918,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── date.js             empty
 │   │   └── season.js           empty
 │   ├── state/
-│   │   ├── initialState.js     fresh farm + no-bump repairs: starter plot, difficulty, avatar, damage, pump shape
+│   │   ├── initialState.js     fresh farm + the no-bump repairs: starter plot, difficulty, avatar, damage
 │   │   ├── saveFile.js         the per-user localStorage save
 │   │   ├── store.js            getState, apply, subscribe, bus, save/load
 │   │   └── types.js            planned — JSDoc @typedef for State
@@ -939,13 +936,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── base.png            the slab under the field
 │   │   ├── menu_bg.png         the opening menu's painted background
 │   │   ├── title.png           the game logo on the opening menu
-│   │   ├── pump.png            the original pump, byte-copy of pump/pump_1.png, no longer loaded
-│   │   ├── pump/
-│   │   │   ├── pump_1.png      level 1 — one outlet
-│   │   │   ├── pump_2.png      level 2 — two outlets
-│   │   │   ├── pump_3.png      level 3 — four outlets
-│   │   │   ├── pump_4.png      level 4 — eight outlets
-│   │   │   └── pump_5.png      level 5 — sixteen outlets
+│   │   ├── pump.png            moves to pump/pump.png
 │   │   ├── Shop/
 │   │   │   └── shop.png        the shop sign, used as the shop button
 │   │   ├── settings/
@@ -1357,22 +1348,35 @@ it.
 
 ```
 click a plot  →  farmActions.onPlotClick(plotId)
-              →  ui/plotInspector.js  — that plot's gauge, its target, the countdown,
-                                       what the pump would cost, and that plot's own action
+              →  ui/plotInspector.js  — the timber inspector: horizontal gauge, target,
+                                       countdown, pump cost, and that plot's own action
+              →  "Plant a seed"       — ui/cropPicker.js in the same host: one seed card per
+                                       seed type, the card itself plants
 ```
 
 The action the click used to perform is **inside** the panel, as a button labelled with what it will
-do — *"Sow rice"*, *"Harvest — 10 units"*, *"Water this plot"*, *"Clear this plot"*. The panel is
-also where the pump lives: the add/remove/resume control, the time-to-optimal and the in/out rate
-all moved out of the rail and into the plot they apply to. Its pump button reads
-`data-mode` (`add`, `remove`, `resume`, `full`) so the join sends an intent rather than trying to
-reconstruct one from a stale `data-on`.
+do — *"Plant a seed"*, *"Harvest"*, *"Buy this plot"*, *"Clear the plot"*. The panel is also where
+the pump lives: the toggle, the time-to-optimal and the in/out rate all moved out of the rail and
+into the plot they apply to.
+
+The inspector and the picker are the same **timber-and-parchment dialog**, `css/farm-dialog.css`:
+a 402px frame, a 384px parchment panel, a 68px heading with a close tile or leaf ornament, a 1px
+rule and a 140px stacked action column. The inspector is the short variant with a close tile; the
+picker is the tall variant with the leaf. Its gauge is horizontal: an 18px track whose fill width is
+the water level, a `2×24px` green notch for the target, and a pill that carries only the live water
+state. The permanent damage word is in the status sentence, so a dry-damaged crop cannot read
+"Dry" twice for two different facts (ISS-119).
+
+The picker draws **one detail card per seed type in the bag**, stacked and scrollable. The card —
+packet art, name, count, grow time, likes/hates and the next-six-hours verdict — is itself the
+plant button. The Figma frame has no separate *Plant* button, and two targets for one action is
+the ambiguity the panel was introduced to remove. The footer keeps *"Open the shop"* and
+*"Never mind"* (DEC-058).
 
 **Why.** The rail can hold one pump readout. It cannot hold sixteen. Aiming at one plot and reading
 one plot's meter are the same decision, so they are now the same screen. And a button that says
 what it does removes the only class of mistake the old design invited — clicking a ripe crop and
-sowing over it, because both were "a click". At level 5 the inspector can add or remove any single
-target from a sixteen-plot run without touching the other fifteen (DEC-058).
+sowing over it, because both were "a click".
 
 `js/ui/plotClick.js` still owns `plotAction()`, the pure function that decides *which* action a plot
 offers. `farmActions.js` owns the wiring, `store.apply` for the mutation, and opening the panel.

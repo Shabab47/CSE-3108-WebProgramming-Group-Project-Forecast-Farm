@@ -181,6 +181,15 @@ export const ASSETS = [
   // --- Global ---
   { path: 'assets/icons/favicon.svg', name: 'Favicon', size: 376, dimensions: '', status: 'done', category: 'icon', page: 'global' },
 
+  // --- Farm dialogs (plot inspector + seed picker) ---
+  // The timber frame's close tile, leaf ornament and peg, exported from the Figma
+  // dialog frames (182:81, 182:109, 182:129). The close tile is 44x44 and carries its
+  // own pale-green background; the leaf and peg are transparent.
+  { path: 'assets/icons/ui/close.svg', name: 'Dialog close tile', size: 385, dimensions: '44x44', status: 'done', category: 'icon', page: 'field' },
+  { path: 'assets/icons/ui/leaf-ornament.svg', name: 'Dialog leaf ornament', size: 652, dimensions: '36x32', status: 'done', category: 'icon', page: 'field' },
+  { path: 'assets/icons/ui/timber-peg.svg', name: 'Dialog timber peg', size: 367, dimensions: '5x5', status: 'done', category: 'icon', page: 'field' },
+  { path: 'assets/icons/ui/info.svg', name: 'Dialog info icon', size: 600, dimensions: '16x16', status: 'done', category: 'icon', page: 'field' },
+
   // --- Login page (the opening menu and the auth signs) ---
   // The background is 1.6MB as a PNG on the page every visitor lands on. WebP
   // would cut it roughly tenfold; nobody has done it yet, and the dev server
@@ -230,6 +239,18 @@ export const BOOK_IMG = 'assets/images/book/book.png';
 
 /** The crate, used as the button under the almanac button that opens the seed bag. 1254×1254. */
 export const INVENTORY_IMG = 'assets/images/inventory/inventory.png';
+
+/** The 44×44 close tile on the plot inspector's timber frame. */
+export const DIALOG_CLOSE_IMG = 'assets/icons/ui/close.svg';
+
+/** The 36×32 leaf ornament on the seed picker's timber frame. */
+export const DIALOG_LEAF_IMG = 'assets/icons/ui/leaf-ornament.svg';
+
+/** The 5×5 peg at the top corners of a timber dialog. */
+export const DIALOG_PEG_IMG = 'assets/icons/ui/timber-peg.svg';
+
+/** The 16×16 info icon on a seed card: opens the seed's details dialog. */
+export const DIALOG_INFO_IMG = 'assets/icons/ui/info.svg';
 
 /** The ground tile for a plot, watered or dry. */
 export function groundTile(watered) {

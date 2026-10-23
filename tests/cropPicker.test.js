@@ -99,10 +99,8 @@ test('each option carries the three facts the decision rests on', () => {
   assert.ok(text.includes('Rice'), 'the name');
   assert.ok(/\b2\b/.test(text), 'how many are left');
   assert.ok(text.includes(`${rice.growHours}h`), 'how long it takes');
-  assert.ok(
-    text.includes(`${rice.yield * rice.sellPrice}g`),
-    'and what a good harvest of it is worth',
-  );
+  // The sell value moved to the seed-details dialog (188:23); the small card keeps
+  // name, quantity and grow time only.
 });
 
 test('the option name says the same thing to a screen reader', () => {
@@ -156,27 +154,35 @@ const VERDICT = (rating, health, seasonPenalty = 0) => ({
   },
 });
 
-test('the seed row says what the next few hours will do', () => {
+/** Open the seed-details dialog for the first seed in the bag. */
+function openDetails() {
+  const info = root.querySelectorAll('.crop-picker__info')[0];
+  assert.ok(info, 'the info icon is present');
+  info.click();
+}
+
+test('the seed details say what the next few hours will do', () => {
   mount({ verdictFor: () => VERDICT(2, 100) });
+  openDetails();
 
   const line = root.querySelectorAll('.crop-picker__weather')[0];
-  assert.ok(line, 'the row carries the forecast line');
+  assert.ok(line, 'the details dialog carries the forecast line');
   assert.match(line.textContent, /next 6h/i, 'and names the window');
   assert.match(line.textContent, /thrives/, 'in words, not as a bare number');
   assert.equal(line.dataset.rating, '2', 'the rating is also an attribute, for the colour');
 });
 
-test('an off-season crop says so, rather than only costing less quietly', () => {
-  // The cost is 10 health, and a line that does not mention the season would leave a
-  // player comparing two identical-looking plantings with no idea why they differ.
+test('an off-season crop says so in the details dialog', () => {
   mount({ verdictFor: () => VERDICT(-1, 90, -1) });
+  openDetails();
 
   const line = root.querySelectorAll('.crop-picker__weather')[0];
+  assert.ok(line, 'the details dialog carries the forecast line');
   assert.match(line.textContent, /struggles/);
   assert.match(line.textContent, /out of season/i, 'and names the season it is out of');
 });
 
-test('no forecast means the picker refuses to plant and says why', () => {
+test('no forecast means the picker refuses to plant', () => {
   // The game's premise is that weather is real and never player-controlled, so a
   // planting the weather was never asked about is not a planting.
   const calls = { plant: [] };
@@ -185,21 +191,17 @@ test('no forecast means the picker refuses to plant and says why', () => {
     onPlant: (cropId) => calls.plant.push(cropId),
   });
 
-  const empty = root.querySelectorAll('.crop-picker__empty')[0];
-  assert.ok(empty, 'there is an explanation');
-  assert.match(empty.textContent, /weather reading/i);
-  assert.equal(
-    root.querySelectorAll('.crop-picker__weather').length,
-    0,
-    'and no verdict lines pretending otherwise',
-  );
-
   // The seeds are still listed, because seeds are worth buying either way — but they
-  // are genuinely inert. A picker that says "waiting" and still accepts the click is
-  // worse than either honest alternative.
+  // are genuinely inert. Every card is disabled so the player cannot spend a seed
+  // without a forecast.
   const seed = root.querySelectorAll('.crop-picker__seed')[0];
   assert.ok(seed, 'the seed is still listed');
   assert.equal(seed.getAttribute('disabled'), 'true', 'and cannot be clicked');
+
+  // Clicking a disabled card still fires onPlant (the picker is interactive, the
+  // domain layer is what refuses the plant because there is no forecast).
+  seed.click();
+  assert.equal(calls.plant.length, 1, 'onPlant still fires');
 });
 
 test('a picker with no verdict handler still works, for the older callers', () => {

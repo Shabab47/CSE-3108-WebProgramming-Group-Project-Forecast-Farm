@@ -1,0 +1,11 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="36" height="32" viewBox="0 0 36 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Leaf ornament" clip-path="url(#clip0_0_5)">
+<path id="Leaf veins" d="M0 15L16.9412 30C14.4314 17.2727 19.451 7.27273 32 0" stroke-width="1.1" stroke="#325D29"/>
+<path id="Leaves" d="M16.2365 32C1.98043 30.8 0.883811 15.2 3.07705 12.8C16.2365 11.6 20.6229 21.2 16.2365 32ZM18.4297 26C14.0432 10.4 21.7195 2 33.7823 2C35.9756 16.4 29.3959 26 18.4297 26Z" fill="#81B83E"/>
+</g>
+<defs>
+<clipPath id="clip0_0_5">
+<rect width="36" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>

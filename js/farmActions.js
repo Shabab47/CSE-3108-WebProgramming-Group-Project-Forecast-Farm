@@ -162,7 +162,7 @@ function runPlotAction(plotId) {
  * **This patches the open panel rather than rebuilding it.** Re-mounting was correct and
  * looked correct — the numbers moved — but it destroyed and recreated the fill element
  * every second, and a CSS `transition` only runs when the *same* element changes value.
- * So the gauge jumped instead of sweeping. `update()` writes `style.height` on the node
+ * So the gauge jumped instead of sweeping. `update()` writes `style.width` on the node
  * that is already on screen and the transition does its job.
  */
 function refreshInspector() {

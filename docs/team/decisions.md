@@ -30,6 +30,71 @@ Format: who decided, the choice, why, and what was rejected.
 
 ---
 
+### DEC-059 The seed picker shows small separable cards, with details behind an info icon
+**Decided by:** Jim · 2026-10-23
+
+**Choice:** The picker frame (`182:129`) shows one small separable row per seed type — sprite
+(44×50 in a 56×56 box), name, and "×count · hours" — with an info icon (16×16) at the right of
+each row. Clicking a row plants that seed. The info icon opens the seed-details frame (`188:23`)
+in the same host: full sprite (66×74 in an 80×88 box), name, quantity, grow time, sell value,
+growing advice, and a weather-outlook box, with a "Back to seed choices" button to return.
+The footer keeps "Open the shop" (empty bag) / "Plant {crop}" / "Never mind".
+
+**Why:** The previous design made the whole detail card the plant button, which packed the
+grow note and weather verdict onto every row and made it hard to tell where to click when
+multiple seeds are available. Small separable cards make each seed its own clear target, and
+the info icon defers the secondary information (advice, outlook, sell value) to a details
+dialog rather than crowding the picker. One row per seed type keeps the list scannable, and
+the disabled attribute (styled with opacity) honestly reflects "no forecast" without hiding
+the seed.
+
+**Rejected:** the whole-card-is-the-button design from T-78 (two targets for one action,
+crowded rows); showing the grow note and weather on every small card; a separate "Plant"
+footer button beside each card.
+
+**Consequence:** `css/crop-picker.css` now carries both the small card styles and the
+details-dialog styles. `.crop-picker__weather` moved from the picker row into the details
+outlook box. The harvest value ("sells for Xg") moved from the picker row into the details
+dialog. `tests/cropPicker.test.js` was updated to check the details dialog for the weather
+line and sell value, and to check disabled state rather than a "waiting" message for no
+forecast.
+
+---
+
+### DEC-058 The plot inspector and seed picker share one timber dialog
+**Decided by:** Jim · 2026-10-23
+
+**Choice:** The three Figma frames — plot inspector `182:81`, seed picker with no seeds
+`182:109`, seed picker with rice `182:129` — are built as one shared `.farm-dialog` chrome in
+`css/farm-dialog.css`: a 402px timber frame, a 384px parchment panel, a 68px heading with a close
+tile or leaf ornament, a 1px rule and a 140px stacked action column. The inspector is the 463px
+variant with a horizontal 18px water gauge, a `2×24px` green target notch that overhangs the
+track, and a pill that carries only the live water state; the permanent damage word lives in the
+status sentence. The picker is the 305px no-seed variant or the 477px seeded variant, with one
+scrollable detail card per seed type. **The seed card itself is the plant button.** The footer
+keeps the Figma labels *"Open the shop"* and *"Never mind"*.
+
+**Why:** The two dialogs are the same object at two heights. Sharing the frame, heading, rule,
+buttons and close/leaf slots means the next tweak cannot land in one and miss the other. The seed
+card has no separate *Plant* button in the Figma frame, and adding one would create two targets
+for a single action — exactly the ambiguity the click-to-inspect change removed. The horizontal
+gauge reads at a glance, and the overhanging notch is how the frame marks the target without
+painting a band over the water level.
+
+**Rejected:** a separate inspector stylesheet (the pre-T-78 duplication); the old vertical gauge;
+a footer *Plant* button beside the card; an extra `.inspector__scrim` inside the shared host
+(ISS-118); the Figma *Original Rice illustration* raster, which is a crop of the old dialog
+screenshot rather than a usable asset — the real seed-packet art is used instead.
+
+**Consequence:** The panel, button and water-card strokes are **inset box-shadows**, not CSS
+borders. A `1.5px` border would take 3px out of the measured 344px content column and the
+`48px` button label area; the inset shadow paints the same stroke without consuming layout space.
+Do not convert them to borders without re-measuring. `#farm-picker` stays in
+`css/crop-picker.css`: it is the picker's viewport host (reused by the inspector), and
+`tests/mainPageBoot.test.js` reads that file for its fixed/inset/`:empty` contract.
+
+---
+
 ### DEC-058 The pump has five levels, and every outlet waters one plot
 **Decided by:** Hisham · 2026-10-23
 

@@ -8,6 +8,32 @@ The per-person weekly notes that used to live in the README table are now in `me
 ---
 
 
+## The plot inspector and seed picker wear the timber dialog — 2026-10-23
+
+- **Did:** implemented the three Figma frames (`182:81`, `182:109`, `182:129`) in the running game.
+  The inspector and picker now share `css/farm-dialog.css`: a 402px timber frame, 384px parchment
+  panel, 68px heading, 1px rule, 140px stacked actions, close tile, leaf ornament and timber pegs.
+  The inspector is 402×463 with a horizontal 18px water gauge, a `2×24px` target notch that
+  overhangs the track, a live-state pill and the damage word moved into the status sentence. The
+  picker is 402×305 with no seeds and 402×477 with a seed card; one scrollable detail card per seed
+  type, and the card itself is the plant button. The footer keeps `Open the shop` / `Never mind`,
+  and the real seed-packet art replaces the Figma screenshot raster (DEC-058).
+- **Also fixed:** ISS-118 (the field was dimmed twice), ISS-119 ("Dry · Dry"), ISS-120 (the
+  water-rates line could not hide). Logged ISS-121–123 for the pre-existing tomato registry, Farmer
+  3 and damage-sprite test failures; not fixed here because they are another owner's recent
+  art/CSS, not this change.
+- **Touched:** `css/farm-dialog.css` (new), `css/crop-picker.css`, `css/scene.css`, `index.html`,
+  `js/config/assets.js`, `js/ui/plotInspector.js`, `js/ui/cropPicker.js`, `assets/icons/ui/` (three
+  SVGs), `tests/mainPageBoot.test.js`, `docs/architecture.md`,
+  `docs/team/{issues,tasks,decisions,progress-log}.md`, `AGENTS.md` (next free issue id).
+- **Verified:** the arithmetic matches the Figma metadata: 402 outer / 384 panel / 344 content /
+  68 heading / 140 actions / 84 art box / 344×68 weather box, and the three heights resolve to
+  463 / 305 / 477. `npm run check` passes; `node --test tests/cropPicker.test.js
+  tests/mainPageBoot.test.js` is 27/27. Full `npm test` still fails four unrelated tests: two in
+  `assets.test.js` (ISS-121), one in `avatar.test.js` (ISS-122), one in `farmView.test.js`
+  (ISS-123). Not verified on a real page; this environment has no browser. No commit.
+- **Next:** fix or accept ISS-121–123, then commit; review both dialogs at desktop and ≤360px.
+
 ## Phone typography unified with PC game scene — 2026-10-21
 
 - **Did:** implemented T-77. Phone font families now match the PC game page: Luckiest Guy for gold amount (both game scene and shop purse) and big current temperature value; system UI for temperature unit, search, note labels, location, foot, feels-like, board meters, hour notes, and environment card text. Removed redundant "Gold" label from game scene purse and "Purse" label from shop purse — the coin icon + Luckiest Guy number is sufficient. Shop purse container now carries Luckiest Guy so its gold inherits it.
@@ -1889,4 +1915,5 @@ assets are outstanding in total.
   (ISS-009).
 - **Next:** Pull `origin/main`, then start T-02 tooling and T-03 config and state. Confirm the
   ownership split at the next meeting (ISS-025).
+
 
