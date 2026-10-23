@@ -51,6 +51,8 @@ import { plotAction } from './plotClick.js';
 import { bandFor, flowFor, minutesToOptimal, waterState } from '../domain/plotWater.js';
 import { damageWord } from '../domain/damage.js';
 import { currentEvent } from '../domain/water.js';
+import { pumpCapacity, pumpLevelOf, pumpTargetIds } from '../domain/pump.js';
+import { releasableTarget } from '../domain/pumpSwap.js';
 import { formatGold } from '../utils/formatGold.js';
 
 const STATE_WORDS = {
@@ -159,8 +161,9 @@ function buildCard(plotId, actions) {
     type: 'button',
     class: 'inspector__pump farm-dialog__button farm-dialog__button--primary',
     'data-on': 'false',
+    'data-mode': 'add',
     text: 'Water this plot',
-    on: { click: () => actions.onPump?.(plotId, pumpButton.dataset.on !== 'true') },
+    on: { click: () => actions.onPump?.(plotId, pumpButton.dataset.mode) },
   });
 
   const actionButton = el('button', {
@@ -252,7 +255,9 @@ function buildCard(plotId, actions) {
       const pct = (v) => `${((v / WATER.max) * 100).toFixed(1)}%`;
       const fill = Math.max(0, Math.min(100, (level / WATER.max) * 100));
       const ownedAndAlive = Boolean(plot.owned) && !plot.dead;
-      const aimed = ownedAndAlive && Boolean(state.pump?.on) && state.pump?.target === plotId;
+      // Support both old {target} and new {targets: []} pump formats
+      const pumpTargets = state.pump?.targets ?? (state.pump?.target != null ? [state.pump.target] : []);
+      const aimed = ownedAndAlive && Boolean(state.pump?.on) && pumpTargets.includes(plotId);
 
       // **The two writes that make the meter move.** Assigning to `style.width` on the
       // element that is already on screen is what lets the CSS transition interpolate;
@@ -293,6 +298,8 @@ function buildCard(plotId, actions) {
 
         pumpButton.hidden = false;
         pumpButton.dataset.on = aimed ? 'true' : 'false';
+        // Set mode for the new pump system: remove (stop this), add (start this)
+        pumpButton.dataset.mode = aimed ? 'remove' : 'add';
         setText(pumpButton, aimed
           ? 'Stop watering this'
           : (state.pump?.on ? 'Water this plot instead' : 'Water this plot'));
