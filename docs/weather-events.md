@@ -274,10 +274,12 @@ nothing changed it, so none of the above actually happened in the running game. 
 description of a system that was not there.
 
 **Now:** `pumpPerSecond` is **0.028** (100.8/h, so **2×** heavy rain),
-`upkeepPerSecond` is **0.0056**, holding **5 water per gold**, and the pump waters **one plot at
-a time**. It stops at that plot's **target**, not at `WATER.max`, so a full rice watering is
-17 gold and takes **58 minutes** rather than filling for no reason. See DEC-040 and
-`docs/crops.md`.
+`upkeepPerSecond` is **0.0056**, holding **5 water per gold**, and the level-1 pump waters **one
+plot at a time**. Levels 2–5 widen the machine to **2, 4, 8 and 16 outlets**; each outlet still
+delivers the same 0.028/s and is billed for the water it actually lands, so capacity never changes
+the price of a litre (DEC-058). Each target stops at its **own crop's target**, not at `WATER.max`,
+so a full rice watering is 17 gold and takes **58 minutes** rather than filling for no reason. See
+DEC-040 and `docs/crops.md`.
 
 The rate is set by that promise rather than by feel: **30–60 real minutes** to reach optimal
 is roughly a tenth of a crop's life, and it only holds because `minutesToOptimal()` counts the

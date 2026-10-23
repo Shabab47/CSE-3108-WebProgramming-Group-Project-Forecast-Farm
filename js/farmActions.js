@@ -27,7 +27,7 @@ import { apply, emit, getState } from './state/store.js';
 import { clearPlot, harvest, plant } from './domain/farm.js';
 import { buyPlot } from './domain/land.js';
 import { verdictFor } from './domain/weather.js';
-import { aimPump, setPump } from './domain/pump.js';
+import { aimPump, pumpTargetIds, removePumpTarget, setPump } from './domain/pump.js';
 import { mountPlotInspector } from './ui/plotInspector.js';
 import { isSeedUnlocked } from './utils/seedUnlocks.js';
 import { formatGold } from './utils/formatGold.js';
@@ -201,25 +201,56 @@ function inspectorActions() {
   return {
     onClose: closePicker,
 
-    // The pump button. Aiming and switching on in one step, because "water this plot" is
-    // one intent, and asking for it in two was only ever a consequence of the pump living
-    // on the rail instead of on the plot it waters.
-    onPump: (id, on) => {
+    // The pump button. Its mode comes from the inspector — add, remove, resume, or the
+    // disabled "pump full" state — because the same plot can be a target or not, and the
+    // machine can be on or off, and those are different intents. Adding and switching on
+    // in one step stays a single press: "water this plot" is one intent.
+    onPump: (id, mode) => {
       const current = getState();
       if (!current) return;
 
-      if (on) {
-        const aimed = aimPump(current, id);
-        if (!aimed.ok) {
-          emit('toast', { message: 'That plot cannot take water.', tone: 'error' });
-          return;
-        }
-        apply(() => ({ ok: true, state: aimed.state }));
-        emit('toast', { message: `Pump on — watering plot ${id + 1}.`, tone: 'info' });
-      } else {
-        apply((s) => ({ ok: true, state: setPump(s, false) }));
-        emit('toast', { message: 'Pump off.', tone: 'success' });
+      if (mode === 'remove') {
+        apply((s) => ({ ok: true, state: removePumpTarget(s, id) }));
+        const left = pumpTargetIds(getState());
+        emit('toast', {
+          message: left.length > 0
+            ? `Stopped watering plot ${id + 1}. Still watering ${left.length} ${left.length === 1 ? 'plot' : 'plots'}.`
+            : `Stopped watering plot ${id + 1}. The pump is off.`,
+          tone: 'success',
+        });
+        refreshInspector();
+        return;
       }
+
+      if (mode === 'resume') {
+        apply((s) => ({ ok: true, state: setPump(s, true) }));
+        const targets = pumpTargetIds(getState());
+        emit('toast', {
+          message: `Pump resumed — watering ${targets.map((plotId) => `plot ${plotId + 1}`).join(', ')}.`,
+          tone: 'success',
+        });
+        refreshInspector();
+        return;
+      }
+
+      const aimed = aimPump(current, id);
+      if (!aimed.ok) {
+        emit('toast', {
+          message: aimed.reason === 'pump_full'
+            ? `A level ${aimed.level} pump waters ${aimed.capacity} ${aimed.capacity === 1 ? 'plot' : 'plots'}. Stop watering one first.`
+            : 'That plot cannot take water.',
+          tone: 'error',
+        });
+        refreshInspector();
+        return;
+      }
+
+      apply(() => ({ ok: true, state: aimed.state }));
+      const targets = pumpTargetIds(getState());
+      emit('toast', {
+        message: `Pump on — watering ${targets.map((plotId) => `plot ${plotId + 1}`).join(', ')}.`,
+        tone: 'info',
+      });
       refreshInspector();
     },
 

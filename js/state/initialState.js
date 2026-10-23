@@ -14,7 +14,7 @@
 import { DEFAULT_LOCATION } from '../config/api.js';
 import { isAvatarId } from '../config/avatars.js';
 import { FIELD, STARTER_PLOT_ID } from '../config/field.js';
-import { DAMAGE, DEFAULT_DIFFICULTY, isDifficulty, START_GOLD, STATE_VERSION } from '../config/game.js';
+import { DAMAGE, DEFAULT_DIFFICULTY, isDifficulty, PUMP, START_GOLD, STATE_VERSION } from '../config/game.js';
 import { buildPlots, PLOT_COUNT } from '../land_squares/index.js';
 
 export { buildPlots };
@@ -72,12 +72,10 @@ export function buildInitialState(session, options = {}) {
     plots: buildPlots(),
     inventory: buildInventory(),
 
-    // `target` is the plot the pump is pointed at — it waters **one** at a time, so a
-    // per-second bill cannot scale with how much land you own. `null` means "on but
-    // not aimed", which is the state an auto-off leaves behind: the toggle stays on
-    // so the player picks a plot and carries on, rather than finding it mysteriously
-    // off with no explanation.
-    pump: { on: false, target: null },
+    // The pump is a machine with a level, not a single aim. `targets` is a list of
+    // plot ids because level 2 and above can water several at once (DEC-058); level 1
+    // is the free machine every new farm owns and reaches one plot.
+    pump: { on: false, level: 1, targets: [] },
     location: { ...DEFAULT_LOCATION },
 
     selection: { plotId: null, cropId: null },
@@ -140,6 +138,63 @@ export function ensureDifficulty(state) {
   if (isDifficulty(state.difficulty)) return state;
 
   return { ...state, difficulty: DEFAULT_DIFFICULTY };
+}
+
+/**
+ * Give a save written before pump levels existed the shape the rest of the game reads.
+ *
+ * The old save has `{ on, target }`: one plot, no level. This rewrites it as
+ * `{ on, level: 1, targets: [...] }` — the free starter pump waters exactly the one
+ * plot the old save was aimed at, so the player's machine keeps doing what it was
+ * doing. It also repairs a hand-edited save: an unknown level falls back to 1, a
+ * duplicate or unowned target is dropped, and a target list longer than the level's
+ * capacity is trimmed to the first plots in order.
+ *
+ * **It does not bump `STATE_VERSION`**, for the same reason `ensureDifficulty` does
+ * not: discarding every farm to add one field would be a much larger change than the
+ * field itself. A save that is already in the new shape is returned as the same object.
+ *
+ * @param {object} state a loaded or fresh farm
+ * @returns {object} the same farm, or a copy carrying a canonical pump
+ */
+export function ensurePump(state) {
+  if (!state || typeof state !== 'object') return state;
+  if (!Array.isArray(state.plots)) return state;
+
+  const pump = state.pump && typeof state.pump === 'object' && !Array.isArray(state.pump)
+    ? state.pump
+    : {};
+  const info = PUMP.levels.find((entry) => entry.level === pump.level) ?? PUMP.levels[0];
+
+  const waterable = new Set(
+    state.plots
+      .filter((plot) => plot?.owned && !plot.dead)
+      .map((plot) => plot.id),
+  );
+
+  // `targets` is the current shape; `target` is the one-plot shape every older save
+  // carries. Reading both here is what makes the migration a migration rather than a
+  // version bump.
+  const raw = Array.isArray(pump.targets)
+    ? pump.targets
+    : (pump.target == null ? [] : [pump.target]);
+
+  const targets = [];
+  for (const id of raw) {
+    if (!Number.isInteger(id) || !waterable.has(id) || targets.includes(id)) continue;
+    targets.push(id);
+    if (targets.length >= info.capacity) break;
+  }
+
+  const on = Boolean(pump.on);
+  const unchanged = pump.on === on
+    && pump.level === info.level
+    && Array.isArray(pump.targets)
+    && pump.targets.length === targets.length
+    && pump.targets.every((id, index) => id === targets[index]);
+  if (unchanged) return state;
+
+  return { ...state, pump: { on, level: info.level, targets } };
 }
 
 /**

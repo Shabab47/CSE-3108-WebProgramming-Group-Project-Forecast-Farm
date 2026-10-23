@@ -45,14 +45,14 @@ sprites (five crops × three states, less the four that exist) and ten growth st
 | Weather icons | 9 | 0 | **9** |
 | Crop icons | 5 | 0 | **5** |
 | Metadata placeholders | 4 | 0 | **4** |
-| Pump animation frames | 3 | 1 | **2** |
+| Pump level art | 5 | 5 | 0 |
 | Environment tiles and pins | 6 | 6 | 0 |
 | Menu background + logo | 2 | 2 | 0 |
 | Display fonts | 6 | 6 | 0 |
 | Shop art, buttons, season art | 14 | 14 | 0 |
 | Book / almanac art | 7 | 7 | 0 |
 | Inventory art | 1 | 1 | 0 |
-| **Total in scope** | **96** | **55** | **41** |
+| **Total in scope** | **98** | **59** | **39** |
 | Sounds — *out of scope* | 3 | 0 | — |
 
 **Rice, potato and tomato each have all five growth stages.** Wheat and corn have none yet. Rice and
@@ -182,11 +182,16 @@ is the wordmark alone until then.
 | `assets/images/base.png` | The slab under the whole field | ✅ done |
 | `assets/images/ground/ground_unwatered.png` | Dry soil tile | ✅ done |
 | `assets/images/ground/ground_watered.png` | Watered soil tile | ✅ done |
-| `assets/images/pump.png` | The pump, idle | ✅ done |
-| `assets/images/pump/pump_1.png` | Pump animation frame 1 | ⬜ **missing** |
-| `assets/images/pump/pump_2.png` | Pump animation frame 2 | ⬜ **missing** |
+| `assets/images/pump.png` | The original pump — a byte-copy of `pump/pump_1.png`, no longer loaded | ✅ done (duplicate) |
+| `assets/images/pump/pump_1.png` | Pump level 1 — one outlet | ✅ done |
+| `assets/images/pump/pump_2.png` | Pump level 2 — two outlets | ✅ done |
+| `assets/images/pump/pump_3.png` | Pump level 3 — four outlets | ✅ done |
+| `assets/images/pump/pump_4.png` | Pump level 4 — eight outlets | ✅ done |
+| `assets/images/pump/pump_5.png` | Pump level 5 — sixteen outlets | ✅ done |
 
-The pump is animated by a CSS pulse for now. The three frames replace that when they arrive.
+All five level images share a 1000×1000 canvas and a centred drawing, so the field swaps `src`
+without moving the machine. The shop shows the next level's art; the field shows the current one
+(DEC-058). The old `pump.png` is kept on disk but is not requested by any code path.
 
 ---
 

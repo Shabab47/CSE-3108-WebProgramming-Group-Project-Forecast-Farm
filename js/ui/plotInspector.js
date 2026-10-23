@@ -50,6 +50,7 @@ import { plotAction } from './plotClick.js';
 import { bandFor, flowFor, minutesToOptimal, waterState } from '../domain/plotWater.js';
 import { damageWord } from '../domain/damage.js';
 import { currentEvent } from '../domain/water.js';
+import { pumpCapacity, pumpLevelOf, pumpTargetIds } from '../domain/pump.js';
 import { formatGold } from '../utils/formatGold.js';
 
 const STATE_WORDS = {
@@ -144,16 +145,18 @@ function buildCard(plotId, actions) {
   const levelLine = el('p', { class: 'inspector__level' });
   const etaLine = el('p', { class: 'inspector__eta' });
   const flowLine = el('p', { class: 'inspector__flow' });
+  const pumpLine = el('p', { class: 'inspector__pump-status' });
 
-  // The button reads its own `data-on` rather than capturing a value, because the same
-  // node survives every tick now and a captured `isAimed` would be stale by the time the
-  // player pressed it — the pump state moves underneath an open panel.
+  // The button reads its own `data-mode` rather than capturing a value, because the same
+  // node survives every tick now and a captured target list would be stale by the time
+  // the player pressed it — the pump state moves underneath an open panel.
   const pumpButton = el('button', {
     type: 'button',
     class: 'inspector__pump',
     'data-on': 'false',
+    'data-mode': 'add',
     text: 'Water this plot',
-    on: { click: () => actions.onPump?.(plotId, pumpButton.dataset.on !== 'true') },
+    on: { click: () => actions.onPump?.(plotId, pumpButton.dataset.mode) },
   });
 
   const actionButton = el('button', {
@@ -185,6 +188,7 @@ function buildCard(plotId, actions) {
         levelLine,
         etaLine,
         flowLine,
+        pumpLine,
       ]),
     ]),
     el('div', { class: 'inspector__actions' }, [pumpButton, actionButton]),
@@ -220,9 +224,15 @@ function buildCard(plotId, actions) {
       gaugeFill.style.height = `${fill.toFixed(1)}%`;
       gaugeBand.style.bottom = pct(floor);
       gaugeBand.style.height = pct(target - floor);
+      const targets = pumpTargetIds(state);
+      const isTargeted = targets.includes(plotId);
+      const pumpOn = Boolean(state.pump?.on);
+      const capacity = pumpCapacity(state);
+      const pumpLevel = pumpLevelOf(state);
+
       gauge.dataset.state = wState;
       // So "it is filling" is legible without watching the number. Cosmetic only.
-      gauge.dataset.pumping = state.pump?.on && state.pump?.target === plotId ? 'true' : 'false';
+      gauge.dataset.pumping = pumpOn && isTargeted ? 'true' : 'false';
 
       setText(cropLine, plot.cropId
         ? `${crop?.name ?? plot.cropId}${plot.dead ? ' (dead)' : ''}`
@@ -243,18 +253,41 @@ function buildCard(plotId, actions) {
             `rain +${flow.in}/h · drying −${flow.out}/h · net ${flow.net > 0 ? '+' : '−'}${Math.abs(flow.net)}/h`);
         }
 
-        const isAimed = Boolean(state.pump?.on) && state.pump?.target === plotId;
+        setText(pumpLine,
+          `Pump Lv ${pumpLevel} · watering ${targets.length} of ${capacity} `
+          + `${capacity === 1 ? 'plot' : 'plots'}`);
+        pumpLine.hidden = false;
+
         pumpButton.hidden = false;
-        pumpButton.dataset.on = isAimed ? 'true' : 'false';
-        setText(pumpButton, isAimed
-          ? 'Stop watering this'
-          : (state.pump?.on ? 'Water this plot instead' : 'Water this plot'));
+        pumpButton.disabled = false;
+        pumpButton.dataset.on = pumpOn && isTargeted ? 'true' : 'false';
+
+        if (isTargeted && pumpOn) {
+          pumpButton.dataset.mode = 'remove';
+          setText(pumpButton, 'Stop watering this plot');
+        } else if (isTargeted) {
+          // The target list survives an auto-off, so the useful action is to carry on with
+          // the same plots. Removing a target while the machine is off is done by
+          // resuming and then stopping that plot, which is one extra tap in a rarer case.
+          pumpButton.dataset.mode = 'resume';
+          setText(pumpButton, 'Resume the pump');
+        } else if (targets.length >= capacity) {
+          pumpButton.dataset.mode = 'full';
+          pumpButton.disabled = true;
+          setText(pumpButton, `Pump full (${capacity} ${capacity === 1 ? 'plot' : 'plots'})`);
+          pumpButton.title = 'Stop watering another plot before adding this one.';
+        } else {
+          pumpButton.dataset.mode = 'add';
+          pumpButton.title = '';
+          setText(pumpButton, pumpOn ? 'Water this plot too' : 'Water this plot');
+        }
       } else {
         setText(stateLine, plot.owned ? 'Dead' : 'Not yours yet');
         stateLine.dataset.state = 'dry';
         setText(levelLine, plot.owned ? 'Clear the plot to use it again' : 'Buy this plot to farm it');
         setText(etaLine, 'Nothing to water');
         flowLine.hidden = true;
+        pumpLine.hidden = true;
         pumpButton.hidden = true;
       }
 

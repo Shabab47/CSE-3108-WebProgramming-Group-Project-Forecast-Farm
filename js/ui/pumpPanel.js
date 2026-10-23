@@ -24,8 +24,9 @@
  */
 
 import { el, clear, setText } from '../utils/dom.js';
-import { PUMP, WATER } from '../config/game.js';
+import { WATER } from '../config/game.js';
 import { currentEvent } from '../domain/water.js';
+import { pumpLevelOf, pumpTargetIds } from '../domain/pump.js';
 import { bandFor, flowFor, minutesToOptimal, waterState } from '../domain/plotWater.js';
 import { damageWord } from '../domain/damage.js';
 import { formatGold } from '../utils/formatGold.js';
@@ -78,10 +79,12 @@ export function mountPumpPanel(root, actions = {}) {
     if (!s) return;
 
     const on = Boolean(s.pump?.on);
-    const aimed = s.pump?.target ?? null;
+    const targets = pumpTargetIds(s);
+    const aimed = targets[0] ?? null;
     const plot = aimed == null ? null : s.plots.find((p) => p.id === aimed);
     const level = plot?.waterLevel ?? 0;
     const event = currentEvent(s, Date.now());
+    const pumpLevel = pumpLevelOf(s);
 
     toggle.textContent = on ? 'Turn pump off' : 'Turn pump on';
     toggle.dataset.on = on ? 'true' : 'false';
@@ -110,7 +113,7 @@ export function mountPumpPanel(root, actions = {}) {
     targetTick.setAttribute('style', `bottom:${((band.target / WATER.max) * 100).toFixed(1)}%`);
 
     const word = WORDS[wState] ?? wState;
-    setText(meterLabel, `Plot ${aimed + 1} · ${Math.round(level)} of ${WATER.max} · ${word}`);
+    setText(meterLabel, `Lv ${pumpLevel} · plot ${aimed + 1} · ${Math.round(level)} of ${WATER.max} · ${word}`);
 
     const eta = minutesToOptimal(plot, event);
     setText(estimate, eta
@@ -130,7 +133,7 @@ export function mountPumpPanel(root, actions = {}) {
       ? `${damaged} — permanent. This will harvest for less.`
       : (!on
         ? 'Turn the pump on, then click a plot to water it.'
-        : (aimed == null ? 'Click a plot of yours.' : `Watering plot ${aimed + 1}. Click another to move it.`)));
+        : `Watering ${targets.map((id) => `plot ${id + 1}`).join(', ')}. Click another to add it.`));
   }
 
   render();

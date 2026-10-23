@@ -759,6 +759,65 @@ test('unmounting forgets the field, so a remount is a fresh mount', () => {
   assert.equal(root.querySelectorAll('.plot').length, FIELD.size * FIELD.size, 'sixteen tiles again');
 });
 
+/* --- the pump's level is part of what the field shows ----------------------- */
+
+test('the pump level and every target are in the field signature', () => {
+  const base = signatureWith({}, { pump: { on: false, level: 1, targets: [] } });
+
+  assert.notEqual(
+    signatureWith({}, { pump: { on: false, level: 2, targets: [] } }),
+    base,
+    'upgrading swaps the pump art, so it repaints',
+  );
+
+  assert.notEqual(
+    signatureWith({}, { pump: { on: true, level: 1, targets: [0] } }),
+    base,
+    'a newly watered target gets its indicator',
+  );
+});
+
+test('the field draws the pump art for its level', () => {
+  mount({ pump: { on: false, level: 3, targets: [] } });
+
+  const pump = root.querySelector('.field-stage__pump');
+  assert.ok(pump, 'the pump is on the field');
+  assert.equal(pump.getAttribute('src'), 'assets/images/pump/pump_3.png');
+  assert.equal(pump.getAttribute('alt'), 'Water pump, level 3');
+});
+
+test('an upgrade swaps the pump src without rebuilding the element', () => {
+  const state = {
+    plots: buildPlots(),
+    selection: null,
+    nextPrice: 100,
+    pump: { on: false, level: 1, targets: [] },
+  };
+  mountFarmView(root, state);
+  const before = root.querySelector('.field-stage__pump');
+  assert.equal(before.getAttribute('src'), 'assets/images/pump/pump_1.png');
+
+  mountFarmView(root, { ...state, pump: { on: false, level: 5, targets: [] } });
+  const after = root.querySelector('.field-stage__pump');
+
+  assert.equal(after, before, 'the same <img> is kept');
+  assert.equal(after.getAttribute('src'), 'assets/images/pump/pump_5.png');
+  assert.equal(after.getAttribute('alt'), 'Water pump, level 5');
+});
+
+test('a targeted plot is marked while the pump is running', () => {
+  const { tiles } = mount({ pump: { on: true, level: 2, targets: [0, 1] } });
+
+  assert.ok(tiles[0].classList.contains('plot--pumping'));
+  assert.ok(tiles[1].classList.contains('plot--pumping'));
+  assert.equal(tiles[2].classList.contains('plot--pumping'), false);
+
+  // The mark is live, not part of the level: switching off removes it without changing art.
+  mount({ pump: { on: false, level: 2, targets: [0, 1] } });
+  const off = root.querySelectorAll('.plot');
+  assert.equal(off[0].classList.contains('plot--pumping'), false);
+});
+
 test('something else clearing the root makes the next mount build for real', () => {
   // This is a bug that actually happened while writing the guard. `tests/farmLoop.test.js`
   // mounts the crop picker into this same element, which clears the field out from under

@@ -11,7 +11,7 @@ import { createLog } from '../utils/log.js';
 import { isAvatarId } from '../config/avatars.js';
 import { SAVE_DEBOUNCE_MS, SAVE_RETRY_BACKOFF_MS, isDifficulty } from '../config/game.js';
 import { importFromText } from './transfer.js';
-import { buildInitialState, ensureDifficulty, ensurePlausibleDamage, ensureProfile, ensureStarterPlot, normaliseSession } from './initialState.js';
+import { buildInitialState, ensureDifficulty, ensurePlausibleDamage, ensureProfile, ensurePump, ensureStarterPlot, normaliseSession } from './initialState.js';
 import { deleteSave, readSave, writeSave } from './saveFile.js';
 import { exportFilename, exportToText } from './transfer.js';
 
@@ -209,6 +209,15 @@ export async function init(session, build = buildInitialState, server = null) {
   if (withProfile !== state) {
     state = withProfile;
     log.info('older save has no avatar; using the default');
+  }
+
+  // Same migration shape for the pump: older saves name one `target`, newer ones carry
+  // a level and a `targets` list. Repairing it here means every downstream reader — the
+  // tick, the inspector, the field — can assume the current shape.
+  const withPump = ensurePump(state);
+  if (withPump !== state) {
+    state = withPump;
+    log.info('read an older pump as level', state.pump.level);
   }
 
   // A latch written before `damageAt` existed cannot be told from one inherited from
@@ -520,9 +529,12 @@ export function adoptState(next) {
   if (!Array.isArray(next.plots)) return { ok: false, reason: 'not a farm' };
 
   // An imported file is just another old save, so it gets the same repairs as `init`:
-  // the avatar, and a damage latch written before timestamps existed — DEC-054.
-  state = ensurePlausibleDamage(
-    ensureProfile({ ...next, session: normaliseSession(state.session) }),
+  // the pump shape, the avatar, and a damage latch written before timestamps existed
+  // — DEC-054.
+  state = ensurePump(
+    ensurePlausibleDamage(
+      ensureProfile({ ...next, session: normaliseSession(state.session) }),
+    ),
   );
   log.info('adopted an imported farm for', userId);
   notify();

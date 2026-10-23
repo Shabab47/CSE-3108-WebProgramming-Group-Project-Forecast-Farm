@@ -326,6 +326,27 @@ body.shop-page::after {
   overflow-y: auto;
 }
 
+/* --- sections: Seeds and Pump ------------------------------------------------ */
+
+.shop-section + .shop-section {
+  margin-top: 18px;
+}
+
+.shop-section__title {
+  display: inline-block;
+  margin: 0 0 10px;
+  padding: 4px 16px;
+  border: 2px solid #d7b96f;
+  border-radius: 999px;
+  background: rgba(30, 61, 18, 0.8);
+  color: #b2e557;
+  font-family: "Luckiest Guy", var(--font-display);
+  font-size: 1rem;
+  letter-spacing: 0.06em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
 /* --- the hint bar ----------------------------------------------------------- */
 
 .shop-hint {

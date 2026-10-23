@@ -79,7 +79,30 @@ export const PUMP = {
   // At 5 water per gold a full rice watering to 85 costs **17 gold** against a
   // 200-gold harvest, and a top-up from the dry line costs 11. Real, not ruinous.
   upkeepPerSecond: 0.0056,
-  price: 250, // not used in the MVP; the pump is pre-owned (DEC-008)
+
+  /**
+   * The five pump levels, and what each buys.
+   *
+   * `capacity` is how many plots one pump can water at once. Every outlet delivers
+   * the same rate, so upgrading widens what the machine can reach rather than making
+   * water cheaper or faster. That keeps the per-litre price honest: the bill still
+   * tracks how much water actually lands, not how much land the player owns.
+   *
+   * `requiredPlots` is the land gate — the same progression counter seed unlocks read
+   * (`utils/seedUnlocks.js`), including the free starter plot. Level 1 is the
+   * machine every new farm already owns, so its gate and price are both zero.
+   *
+   * The prices are deliberately steep at the top: 1,000 / 5,000 / 25,000 / 100,000.
+   * A pump that can water sixteen plots at once is a late-game convenience, not a
+   * purchase that competes with the next seed packet.
+   */
+  levels: [
+    { level: 1, capacity: 1, requiredPlots: 0, price: 0 },
+    { level: 2, capacity: 2, requiredPlots: 4, price: 1_000 },
+    { level: 3, capacity: 4, requiredPlots: 8, price: 5_000 },
+    { level: 4, capacity: 8, requiredPlots: 12, price: 25_000 },
+    { level: 5, capacity: 16, requiredPlots: 16, price: 100_000 },
+  ],
 };
 
 export const HEALTH = {

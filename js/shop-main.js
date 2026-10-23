@@ -26,8 +26,9 @@ import { loadProvider } from './auth-main.js';
 import { farmHref, resolveSession } from './main.js';
 import { buildServerSave } from './remoteSave.js';
 import { mountConnectionStatus, wireSaveOnExit } from './connection.js';
-import { apply, emit, init, saveNow, subscribe } from './state/store.js';
+import { apply, emit, getState, init, saveNow, subscribe } from './state/store.js';
 import { buySeeds, sellSeeds } from './domain/shop.js';
+import { upgradePump as buyPumpUpgrade } from './domain/pumpUpgrade.js';
 import { mountShop } from './ui/shopView.js';
 import { mountBlockedScreen } from './ui/blockedScreen.js';
 import { mountBootLoader } from './ui/loadingTips.js';
@@ -62,6 +63,14 @@ function shopActions() {
     sell(cropId, quantity) {
       const result = apply(sellSeeds, cropId, quantity);
       if (result.ok) saveNow();
+      return result;
+    },
+    upgradePump() {
+      const result = apply(buyPumpUpgrade);
+      if (result.ok) {
+        saveNow();
+        return { ok: true, level: getState()?.pump?.level };
+      }
       return result;
     },
     toast(message, tone) {

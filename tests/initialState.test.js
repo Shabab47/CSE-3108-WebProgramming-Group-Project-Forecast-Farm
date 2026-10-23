@@ -12,6 +12,7 @@ import {
   buildInitialState,
   buildPlots,
   ensurePlausibleDamage,
+  ensurePump,
   ensureStarterPlot,
   normaliseSession,
   zoneOf,
@@ -104,9 +105,48 @@ test('a new farm starts with the documented gold and one plot', () => {
   assert.equal(state.session.status, 'authed');
   assert.equal(state.plots.filter((plot) => plot.owned).length, 1, 'the free plot');
   assert.equal(state.inventory.seeds.rice, 0);
-  assert.equal(state.pump.on, false);
+  assert.deepEqual(state.pump, { on: false, level: 1, targets: [] },
+    'a new farm owns the free level-1 pump, aimed at nothing');
   assert.equal(state.weather, null);
   assert.equal(state.clock.timeOffsetMs, 0);
+});
+
+test('an older single-target pump becomes level 1 aimed at the same plot', () => {
+  const legacy = buildInitialState(SESSION);
+  legacy.pump = { on: true, target: STARTER_PLOT_ID };
+
+  const repaired = ensurePump(legacy);
+  assert.equal(repaired.pump.on, true, 'a running pump stays running');
+  assert.equal(repaired.pump.level, 1, 'and reads as the free machine');
+  assert.deepEqual(repaired.pump.targets, [STARTER_PLOT_ID], 'aimed where it was');
+  assert.equal('target' in repaired.pump, false, 'the old key is gone');
+});
+
+test('the pump repair drops duplicates, unowned plots, dead crops and excess targets', () => {
+  const state = buildInitialState(SESSION);
+  state.plots = state.plots.map((plot) => ({ ...plot, owned: true }));
+  state.plots[3] = { ...state.plots[3], dead: true };
+  state.pump = {
+    on: true,
+    level: 3,
+    targets: [0, 0, 3, 99, 1, 2, 4],
+  };
+
+  const repaired = ensurePump(state);
+  assert.equal(repaired.pump.level, 3);
+  assert.deepEqual(repaired.pump.targets, [0, 1, 2, 4],
+    'level 3 waters four plots; dead, unknown and duplicate ids are removed');
+});
+
+test('a pump repair leaves an already-canonical pump as the same object', () => {
+  const state = buildInitialState(SESSION);
+  assert.equal(ensurePump(state), state);
+});
+
+test('a nonsense pump level falls back to the free one', () => {
+  const state = buildInitialState(SESSION);
+  state.pump = { on: false, level: 'five', targets: [] };
+  assert.equal(ensurePump(state).pump.level, 1);
 });
 
 test('an older save with no land is given the starter plot', () => {

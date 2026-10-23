@@ -175,11 +175,11 @@ So the standing warning now has two shapes:
 | | function | says |
 | :--- | :--- | :--- |
 | **the weather sentence** | `currentTrouble()` | *"3 plots are running dry in a drought."* |
-| **the actionable list** | `wateringAdvice()` | *"The pump is on plot 3. Plots 1 and 2 need water too — move it or take the loss."* |
+| **the actionable list** | `wateringAdvice()` | *"The pump is on plot 3. plot 1, plot 2 need water too — move it onto them or take the loss."* |
 
-**It names the plots by number**, because the pump waters one square at a time (DEC-040) and
-"some crops are dry" is not a decision anyone can make. It also says **where the pump is
-pointed**, so "turn the pump on" is never offered to a player whose pump is already on.
+**It names the plots by number**, because the pump only reaches the targets the player has added
+(DEC-058) and "some crops are dry" is not a decision anyone can make. It also says **where the
+pump is pointed**, so "turn the pump on" is never offered to a player whose pump is already on.
 
 It keys on the **set** of thirsty plot ids, so the toast re-fires when the set changes —
 one more plot going dry is new information, the same plot still being dry is not.
@@ -195,6 +195,6 @@ string produced ISS-091. Three cases, three genuinely different situations:
 
 | the pump was | says | why |
 | :--- | :--- | :--- |
-| **off** | *"Turn the pump on and aim it at that plot."* | advice is fair |
-| **on, aimed elsewhere** | *"The pump was watering plot 3 — move it, or take the loss."* | one plot at a time always leaves somebody out, and the player is not at fault |
-| **aimed at this plot, and it died** | *"That is a bug — please tell us."* + `log.error` | blaming the player for a fault in the code is worse than silence |
+| **off, or on with no targets** | *"Turn the pump on and add that plot."* | advice is fair |
+| **on, watering other plots** | *"The pump was watering plot 3 — add that plot, or take the loss."* | a level always has a capacity, so there is always somebody it is not on; the player is not at fault |
+| **watering this plot, and it died** | *"That is a bug — please tell us."* + `log.error` | blaming the player for a fault in the code is worse than silence |

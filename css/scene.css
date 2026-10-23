@@ -224,6 +224,12 @@
   z-index: 100;
 }
 
+/* The pump's own targets get a cool rim, so a multi-plot run is visible on the field
+ * rather than only in the inspector. Cosmetic; the water meter still carries the fact. */
+.plot--pumping .plot__ground {
+  filter: drop-shadow(0 0 6px rgba(96, 198, 255, 0.9));
+}
+
 .plot--locked {
   cursor: not-allowed;
 }
@@ -859,7 +865,8 @@
 
 .inspector__level,
 .inspector__eta,
-.inspector__flow {
+.inspector__flow,
+.inspector__pump-status {
   font-size: var(--text-xs, 0.75rem);
   color: var(--text-muted, #5d6a61);
 }
@@ -899,6 +906,14 @@
   color: #7a1b12;
   background: #f6d5d1;
   border: 1px solid #b3453a;
+}
+
+.inspector__pump[disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+  color: var(--text-muted, #5d6a61);
+  background: var(--surface-sunken, #eef1ec);
+  border: 1px solid rgb(0 0 0 / 15%);
 }
 
 .inspector__action {

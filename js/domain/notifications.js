@@ -245,7 +245,7 @@ export function currentTrouble(state, now = Date.now()) {
  * died, the pump would have saved them" with the pump running — the player was told after
  * the fact, in the past tense, about a situation that was visible for hours. This says it
  * while it is still a decision, and it names the plots by number, because "some crops are
- * dry" is not actionable when the pump waters one square at a time.
+ * dry" is not actionable when the pump only reaches the plots the player has added.
  *
  * Distinct from `currentTrouble`, which is one sentence about the weather. This is a list
  * the player can act on: plot 3 and plot 7 are low, the pump is on plot 1.
@@ -262,22 +262,27 @@ export function wateringAdvice(state) {
   if (thirsty.length === 0) return null;
 
   const ids = thirsty.map((p) => p.id);
-  const aimed = state.pump?.on ? (state.pump.target ?? null) : null;
-  const others = ids.filter((id) => id !== aimed);
+  const pump = state.pump ?? {};
+  const targets = pump.on
+    ? (Array.isArray(pump.targets) ? pump.targets : (pump.target == null ? [] : [pump.target]))
+    : [];
+  const others = ids.filter((id) => !targets.includes(id));
 
   const list = (arr) => arr.map((id) => `plot ${id + 1}`).join(', ');
   let message;
-  if (aimed == null) {
+  if (targets.length === 0) {
     message = others.length === 1
       ? `${list(others)} needs water. Turn the pump on and click it.`
       : `${list(others)} need water. Turn the pump on and click one.`;
   } else if (others.length === 0) {
-    message = `The pump is watering ${list(ids)} - that is the only plot it can do.`;
+    message = `The pump is already watering ${list(targets)} - nothing else is below its band.`;
   } else {
-    message = `The pump is on ${list([aimed])}. ${others.length === 1 ? list(others) + ' needs' : list(others) + ' need'} water too - move it or take the loss.`;
+    message = `The pump is on ${list(targets)}. `
+      + `${others.length === 1 ? list(others) + ' needs' : list(others) + ' need'} water too - `
+      + 'move it onto them or take the loss.';
   }
 
-  return { key: `watering:${ids.join(',')}`, message, plots: ids, aimedAt: aimed };
+  return { key: `watering:${ids.join(',')}`, message, plots: ids, aimedAt: targets[0] ?? null };
 }
 
 /** One hour of forecast as a reading, for `classifyHour`. */
