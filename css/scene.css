@@ -224,6 +224,12 @@
   z-index: 100;
 }
 
+/* The pump's own targets get a cool rim, so a multi-plot run is visible on the field
+ * rather than only in the inspector. Cosmetic; the water meter still carries the fact. */
+.plot--pumping .plot__ground {
+  filter: drop-shadow(0 0 6px rgba(96, 198, 255, 0.9));
+}
+
 .plot--locked {
   cursor: not-allowed;
 }
