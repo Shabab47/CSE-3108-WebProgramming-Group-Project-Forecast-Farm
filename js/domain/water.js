@@ -28,7 +28,7 @@ import { DIFFICULTY, HEALTH, WATER } from '../config/game.js';
 import { classifyHour } from '../config/weatherEvents.js';
 import { indexOfHour } from './weather.js';
 import { harvestsIn } from '../land_squares/index.js';
-import { pumpRun } from './pump.js';
+import { pumpRuns, pumpTargetIds } from './pump.js';
 import { bandFor, pumpedWindow, ratesFor, targetFor, timeOutsideBand } from './plotWater.js';
 import { applyDamage, damageFor } from './damage.js';
 
@@ -96,12 +96,12 @@ function settlePlot(plot, eventId, hours) {
 /**
  * Advance every plot's water to `now`, and bill for a pump that ran.
  *
- * The pump waters **one plot at a time** — `pump.target` — because a per-second cost
- * across sixteen plots would make the bill scale with how much land you own rather
- * than with how thirsty you are, which is the wrong incentive.
+ * The pump waters every plot in `pump.targets`, up to the machine's level capacity.
+ * Every outlet delivers the same rate, so the bill scales with how much water lands
+ * rather than with how much land the player owns (DEC-040, extended by DEC-058).
  *
- * **The pump auto-stops at zero gold and at a full plot.** A pump that keeps billing
- * into an empty purse, or past 100 water, is charging for nothing.
+ * **The pump auto-stops at zero gold and when every target is full.** A pump that keeps
+ * billing into an empty purse, or past the last useful drop, is charging for nothing.
  *
  * @param {object} state
  * @param {number} [now]
@@ -121,18 +121,18 @@ export function tick(state, now = Date.now()) {
   // moves growth and this timestamp together, but not the water the sky delivered.
   const at = now + (state?.clock?.timeOffsetMs ?? 0);
 
-  // The machine's business — is it on, where is it aimed, what does that cost — is
-  // `pump.js`, and the target is handed in rather than looked up there: the pump
-  // imports nothing from this file, so there is no cycle and each module knows exactly
-  // what it depends on.
-  const aimed = state.plots.find((p) => p.id === state.pump?.target);
-  const run = pumpRun(
-    state,
-    hours,
-    aimed ? targetFor(aimed) : WATER.max,
-    aimed ? ratesFor(aimed, eventId).dry : 0,
-  );
-  const pumpedId = run.plot ? run.plot.id : null;
+  // The machine's business — is it on, which plots are targeted, what does that cost —
+  // is `pump.js`, and each target and its evaporation rate are handed in rather than
+  // looked up there: the pump imports nothing from this file, so there is no cycle and
+  // each module knows exactly what it depends on.
+  const jobs = [];
+  for (const id of pumpTargetIds(state)) {
+    const plot = state.plots.find((p) => p.id === id);
+    if (!plot) continue;
+    jobs.push({ plot, target: targetFor(plot), dryRate: ratesFor(plot, eventId).dry });
+  }
+  const run = pumpRuns(state, hours, jobs);
+  const pumped = new Map(run.runs.map((entry) => [entry.plot.id, entry]));
 
   const plots = state.plots.map((plot) => {
     // **Easy mode: a ripe crop is untouchable.**
@@ -151,7 +151,8 @@ export function tick(state, now = Date.now()) {
 
     const rates = ratesFor(plot, eventId);
     const before = plot.waterLevel ?? 0;
-    const isPumped = pumpedId !== null && plot.id === pumpedId && run.autoOff !== 'gold';
+    const pumpRun = pumped.get(plot.id);
+    const isPumped = Boolean(pumpRun) && pumpRun.autoOff !== 'gold';
 
     let level;
     let dryHours;
@@ -164,9 +165,9 @@ export function tick(state, now = Date.now()) {
       // 90/h against 10.8/h of evaporation the plot simply never dips — and since 90/h
       // beats the worst possible evaporation (24/h, bare soil in drought) the net is
       // always positive, so a pumped plot is **never dry at all**.
-      const net = run.grossPerHour + rates.rain - rates.dry;
+      const net = pumpRun.grossPerHour + rates.rain - rates.dry;
       level = Math.min(
-        aimed ? targetFor(plot) : WATER.max,
+        targetFor(plot),
         WATER.max,
         Math.max(0, before + net * hours),
       );
@@ -208,7 +209,7 @@ export function tick(state, now = Date.now()) {
     // and a plot that was bare when damage latched must not carry that damage into a
     // newly planted crop. See test "a plot with no crop cannot be damaged".
     const window = isPumped
-      ? pumpedWindow(plot, bandFor(plot), run.grossPerHour, rates, hours)
+      ? pumpedWindow(plot, bandFor(plot), pumpRun.grossPerHour, rates, hours)
       : timeOutsideBand(plot, bandFor(plot), before, level, hours);
     const damaged = plot.cropId != null
       ? applyDamage({ ...plot, health, dead: died || plot.dead }, damageFor(plot, window), at)
@@ -232,18 +233,18 @@ export function tick(state, now = Date.now()) {
   const damaged = plots.filter(
     (p, i) => p.damage && p.damage !== state.plots[i].damage && p.cropId != null,
   );
-  const pump = state.pump ?? { on: false, target: null };
+  const pump = state.pump ?? { on: false, level: 1, targets: [] };
 
   return {
     state: {
       ...state,
       plots,
       gold: Math.max(0, (state.gold ?? 0) - run.spent),
-      // **The pump stops itself at a full plot and at an empty purse** — the two reasons
-      // it would otherwise be charging for water nobody can use. An empty purse cannot
-      // restart itself, and a full plot has nothing left to deliver, so neither leaves the
-      // toggle reading "on" while billing nothing. That was a lie the meter used to tell:
-      // the plot sat at its target and the gold kept falling.
+      // **The pump stops itself when every target is full and at an empty purse** — the
+      // two reasons it would otherwise be charging for water nobody can use. An empty
+      // purse cannot restart itself, and full targets have nothing left to deliver, so
+      // neither leaves the toggle reading "on" while billing nothing. That was a lie the
+      // meter used to tell: the point sat at its target and the gold kept falling.
       //
       // Both auto-offs are the same event to the player — the machine did its job — so the
       // `autoOff` code is returned either way and `farmActions` says which.

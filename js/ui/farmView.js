@@ -2,12 +2,13 @@ import { el, clear } from '../utils/dom.js';
 import { plotToScreen, pumpBox, frameY } from '../utils/iso.js';
 import { FIELD } from '../config/field.js';
 import { WATER } from '../config/game.js';
+import { pumpFrame } from '../config/assets.js';
 import { waterState } from '../domain/plotWater.js';
+import { pumpLevelOf, pumpTargetIds } from '../domain/pump.js';
 import { harvestsIn, isNextUnlockable } from '../land_squares/index.js';
 import { plotName } from './plotLabel.js';
 import { patchGround, patchWaterMeter, plotLayers } from './plotLayers.js';
 
-const PUMP_IMG = 'assets/images/pump.png';
 const BASE_IMG = 'assets/images/base.png';
 
 /**
@@ -54,6 +55,7 @@ export function plotSignature(plot, state) {
   const isOwned = Boolean(plot.owned);
   const isSelected = state?.selection?.plotId === plot.id;
   const isNext = !isOwned && isNextUnlockable(state, plot.id);
+  const isPumping = Boolean(state?.pump?.on) && pumpTargetIds(state).includes(plot.id);
 
   const grown = isOwned ? harvestsIn(plot, nowOf(state)) : null;
 
@@ -61,6 +63,7 @@ export function plotSignature(plot, state) {
     isOwned,
     isNext,
     isSelected,
+    isPumping,
     Boolean(plot.dead),
     plot.cropId ?? '',
     grown?.stage ?? '',
@@ -110,11 +113,13 @@ export function plotSignature(plot, state) {
 export function plotSignatureWithoutWater(plot, state) {
   const isOwned = Boolean(plot.owned);
   const grown = isOwned ? harvestsIn(plot, nowOf(state)) : null;
+  const isPumping = Boolean(state?.pump?.on) && pumpTargetIds(state).includes(plot.id);
 
   return [
     isOwned,
     !isOwned && isNextUnlockable(state, plot.id),
     state?.selection?.plotId === plot.id,
+    isPumping,
     Boolean(plot.dead),
     plot.cropId ?? '',
     grown?.stage ?? '',
@@ -127,9 +132,9 @@ export function plotSignatureWithoutWater(plot, state) {
 }
 
 export function fieldSignature(state) {
-  return (state?.plots ?? [])
+  return `${pumpLevelOf(state)}§${(state?.plots ?? [])
     .map((plot) => plotSignature(plot, state))
-    .join('§');
+    .join('§')}`;
 }
 
 /**
@@ -193,9 +198,9 @@ export function mountFarmView(root, state) {
   // every time, and it is why the tick can run for six hours unheeded — ISS-088.
   if (live && live.signature === fieldSignature(state)) return live.controller;
 
-  // Something changed: keep the card, the stage and the two static images, and repaint
-  // the plots. `base.png` and `pump.png` never change and are 62 KB and 73 KB of art,
-  // and a fresh `<img>` re-decodes even when the bitmap is already in memory.
+  // Something changed: keep the card, the stage and the static images, and repaint
+  // the plots. `base.png` never changes; the pump art does, but only when the level
+  // changes, so `repaint` swaps its `src` rather than rebuilding the `<img>`.
   if (live) {
     // `repaint` rebinds `state` rather than reading it off the controller, because
     // `renderPlot` closes over this binding. Storing it on the controller instead is a
@@ -222,8 +227,8 @@ export function mountFarmView(root, state) {
         el('div', { class: 'field-stage__plots', id: 'field-plots' }),
         el('img', {
           class: 'field-stage__pump',
-          src: PUMP_IMG,
-          alt: 'Water pump',
+          src: pumpFrame(pumpLevelOf(state)),
+          alt: `Water pump, level ${pumpLevelOf(state)}`,
           'aria-hidden': 'true',
           style: pumpStyle(),
         }),
@@ -234,6 +239,7 @@ export function mountFarmView(root, state) {
   root.append(card);
 
   const plotsEl = card.querySelector('#field-plots');
+  const pumpEl = card.querySelector('.field-stage__pump');
 
   /** This mount's own tiles. Per-mount, so two fields cannot share a node map. */
   const tiles = new Map();
@@ -255,6 +261,15 @@ export function mountFarmView(root, state) {
    */
   function repaint(nextState) {
     state = nextState;
+
+    // The pump art is the one static image that changes during play. Swapping `src` on
+    // the existing element re-decodes only when the level actually moved, and the
+    // browser serves the new file from cache on every later switch.
+    const art = pumpFrame(pumpLevelOf(state));
+    if (pumpEl.getAttribute('src') !== art) {
+      pumpEl.setAttribute('src', art);
+      pumpEl.setAttribute('alt', `Water pump, level ${pumpLevelOf(state)}`);
+    }
 
     for (const plot of state?.plots ?? []) {
       const signature = plotSignature(plot, state);
@@ -301,11 +316,13 @@ export function mountFarmView(root, state) {
 
     const grown = isOwned ? harvestsIn(plot, nowOf(state)) : null;
     const isReady = Boolean(grown?.ready);
+    const isPumping = Boolean(state?.pump?.on) && pumpTargetIds(state).includes(plot.id);
 
     const classes = [
       'plot',
       isOwned ? 'plot--owned' : isNext ? 'plot--next' : 'plot--locked',
       isSelected ? 'plot--selected' : '',
+      isPumping ? 'plot--pumping' : '',
       hasCrop ? 'plot--planted' : '',
       plot.dead ? 'plot--dead' : '',
       isReady ? 'plot--ready' : '',

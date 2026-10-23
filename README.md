@@ -19,8 +19,9 @@ If you sow from one location and travel to another location before the harvest t
 Play is one loop: **plant → water → wait → harvest.** Crops grow in real time, so a six-hour crop
 takes six hours whether or not the game is open. Every plot carries its own water meter, and
 clicking one opens that plot's gauge and the button that waters it. Spending is the tension — the
-pump waters **one plot at a time** and charges gold every second it runs until that plot reaches
-its target and no further, and rain on the way means it might be better not to. A crop left dry,
+pump starts on **one plot**, and can be upgraded through five levels to water **two, four, eight or
+sixteen at once**, charging gold for every drop it actually delivers until each target reaches its
+own target and no further, and rain on the way means it might be better not to. A crop left dry,
 or left drowned, is **damaged for good**: it still harvests, but for less. The player is always
 reacting to genuine conditions, so decisions carry weight rather than luck.
 
@@ -43,8 +44,9 @@ rest of the five crops. Two weeks of building remain.
   crop takes six hours whether the game is open or not. → [crops.md](docs/crops.md)
 - The weather acts on the field. Rain waters the soil, sun and heat dry it out, and wind, hail and
   frost wound a crop — damage that stays. → [weather-events.md](docs/weather-events.md)
-- The pump **waters one plot at a time** and **bills nothing once that plot is full**, so which
-  square you aim it at is the decision, not whether to run it.
+- The pump starts watering **one plot at a time** and can be upgraded to **2, 4, 8 or 16** outlets,
+  each delivering the same rate. It **bills only the water that actually lands**, so expanding the
+  machine widens what it can reach without making water cheaper.
   → [weather-events.md](docs/weather-events.md)
 - The forecast warns you in advance, crop by crop — *"Heavy rain coming — wheat rots in standing
   water"* — so checking tomorrow's weather is worth doing.
@@ -232,7 +234,8 @@ Each week is broken out per person, because "all four" tells you nothing about w
 | 3 | The weather reaches the farm | ✅ Complete | Plantings judged against 6 h of live forecast · seasons from latitude · the seed picker refuses without a verdict | **Shabab** |
 | 3 | Difficulty, and selling seeds | ✅ Complete | Easy and normal modes · existing saves read normal · seeds sell back at 75% | **Shabab** |
 | 3 | Free first plot, and what it unlocks | ✅ Complete | The first plot free · locked plots carry a price tag · seeds unlock every 4 plots · a growth timer on each crop | **Shabab**, **Hisham** |
-| 3 | Water, and a pump that works | ✅ Complete | Rain and evaporation · a water meter on every plot · the pump aimed at one plot · click a plot for its gauge · damage that is permanent | **Hisham** |
+| 3 | Water, and a pump that works | ✅ Complete | Rain and evaporation · a water meter on every plot · the level-1 pump waters one plot · click a plot for its gauge · damage that is permanent | **Hisham** |
+| 3 | Five pump levels, and multi-plot watering | ✅ Complete | 1 / 2 / 4 / 8 / 16 plots · land gates at 4 / 8 / 12 / 16 owned · shop Pump section · level art on the field · targets add and remove per plot | **Hisham** |
 | 3 | The pump stops billing for water it throws away | ✅ Complete | Nothing billed once a plot is full · the quote matches the bill · the meters animate | **Shabab** |
 | 3 | The environment card | ✅ Complete | The rail reports the weather and what it does to the farm · three meters — water loss, frost and heat — always all shown | **Hisham** |
 | 3 | Weather board and shop, rebuilt | ✅ Complete | Weather board to the design · shop repainted to the Figma reference · profile moved to its own page · five tomato growth stages | **Kafi** |

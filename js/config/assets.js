@@ -44,7 +44,18 @@ export const ASSET_STATUSES = ['done', 'empty', 'placeholder', 'duplicate'];
 export const ASSETS = [
   // --- Field (farm view) ---
   { path: 'assets/images/base.png', name: 'Base slab', size: 63740, dimensions: '1000x1000', status: 'done', category: 'environment', page: 'field' },
-  { path: 'assets/images/pump.png', name: 'Pump', size: 73567, dimensions: '1000x1000', status: 'done', category: 'environment', page: 'field' },
+  // The original single pump, byte-identical to `pump/pump_1.png`. Nothing loads this
+  // path any more — `farmView.js` asks `pumpFrame(level)` — but the file is real art and
+  // the registry records what is on disk. Kept as a duplicate rather than deleted.
+  { path: 'assets/images/pump.png', name: 'Pump (original, unused copy of pump_1)', size: 73567, dimensions: '1000x1000', status: 'duplicate', category: 'environment', page: 'field' },
+  // One drawing per pump level. All five share a 1000×1000 canvas and the same anchor, so
+  // the field can swap `src` without moving the machine. Levels 1–5 are the five cards
+  // the shop sells and the five machines the field draws (DEC-058).
+  { path: 'assets/images/pump/pump_1.png', name: 'Pump — level 1', size: 73567, dimensions: '1000x1000', status: 'done', category: 'environment', page: 'field' },
+  { path: 'assets/images/pump/pump_2.png', name: 'Pump — level 2', size: 98399, dimensions: '1000x1000', status: 'done', category: 'environment', page: 'field' },
+  { path: 'assets/images/pump/pump_3.png', name: 'Pump — level 3', size: 125968, dimensions: '1000x1000', status: 'done', category: 'environment', page: 'field' },
+  { path: 'assets/images/pump/pump_4.png', name: 'Pump — level 4', size: 163596, dimensions: '1000x1000', status: 'done', category: 'environment', page: 'field' },
+  { path: 'assets/images/pump/pump_5.png', name: 'Pump — level 5', size: 186471, dimensions: '1000x1000', status: 'done', category: 'environment', page: 'field' },
   { path: 'assets/images/ground/ground_unwatered.png', name: 'Ground (unwatered)', size: 313529, dimensions: '1000x1000', status: 'done', category: 'environment', page: 'field' },
   { path: 'assets/images/ground/ground_watered.png', name: 'Ground (watered)', size: 318028, dimensions: '1000x1000', status: 'done', category: 'environment', page: 'field' },
   // The lock pins on unowned plots: green on the one plot that can be bought next,
@@ -322,7 +333,13 @@ export function cropIcon(cropId) {
   return `assets/icons/crops/${cropId}.svg`;
 }
 
-/** A pump animation frame, 1 to 3. */
+/**
+ * A pump's art for its level, 1 to 5.
+ *
+ * All five files share a 1000×1000 canvas and a centred drawing, so changing the level
+ * changes what the field shows without changing where the machine sits. The shop card
+ * asks for the *next* level; the field asks for the current one.
+ */
 export function pumpFrame(frame) {
   return `assets/images/pump/pump_${frame}.png`;
 }

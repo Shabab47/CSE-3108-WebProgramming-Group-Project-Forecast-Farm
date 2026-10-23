@@ -1,8 +1,11 @@
 .shop-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  grid-template-rows: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  /* As many columns as fit, never narrower than 280px, so cards wrap onto new rows
+     instead of being squeezed into one line where the buy buttons overlap. */
+  grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
+  grid-auto-rows: auto;
+  gap: 16px;
+  align-items: stretch;
 }
 
 /* --- a card ----------------------------------------------------------------- */
@@ -25,7 +28,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 90px;
+  height: 140px;
   overflow: hidden;
   background: radial-gradient(
     circle at 50% 50%,
@@ -54,8 +57,9 @@
 /* Item shadow under the packet. */
 .shop-card__shadow {
   position: absolute;
-  left: 129px;
-  top: 94px;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
   width: 120px;
   height: 8px;
   border-radius: 100px;
@@ -63,8 +67,9 @@
 }
 
 .shop-card__art img {
-  height: 99px;
+  height: 112px;
   width: auto;
+  margin-bottom: 6px;
   object-fit: contain;
   filter: drop-shadow(0 4px 4px rgba(60, 40, 10, 0.25));
   position: relative;
@@ -113,6 +118,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: 6px;
 }
@@ -132,7 +138,9 @@
 
 .shop-card__actions {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: 6px;
 }
 
@@ -295,22 +303,113 @@
   box-shadow: 0 3px 0 0 #5c5544;
 }
 
-/* --- responsive: the grid --------------------------------------------------- */
+/* --- the pump card ---------------------------------------------------------- */
 
-@media (max-width: 1200px) {
-  .shop-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
+/* A machine, not a packet: horizontal, one picture, one decision. It sits in its own
+   section below the seed grid and deliberately does not reuse `.shop-card`. */
+.shop-pump {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  max-width: 820px;
+  padding: 14px 20px 14px 14px;
+  border: 3px solid #e2c482;
+  border-radius: 18px;
+  background: #fff8df;
+  box-shadow: 0 6px 4px 0 rgba(17, 42, 33, 0.38);
 }
 
-@media (max-width: 900px) {
-  .shop-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+.shop-pump__art {
+  position: relative;
+  flex: 0 0 200px;
+  width: 200px;
+  height: 200px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(255, 233, 150, 1) 0%,
+    rgba(245, 204, 108, 1) 55%,
+    rgba(234, 175, 66, 1) 100%
+  );
+}
+
+/* The source canvas is 1000x1000 and the machine fills only the middle ~35% of it.
+   Drawing the whole canvas at 450px and centring it shows just that middle, so the pump
+   fills the box. `max-width: none` matters: the global reset caps every img at 100% of
+   its parent, which squashed this one to the box width while its height stayed tall. */
+.shop-pump__art img {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 450px;
+  height: 450px;
+  max-width: none;
+  transform: translate(-50%, -50%);
+  filter: drop-shadow(0 5px 5px rgba(60, 40, 10, 0.28));
+}
+
+.shop-pump__body {
+  min-width: 0;
+}
+
+.shop-pump__name {
+  margin: 0 0 2px;
+  font-family:
+    irish grover,
+    var(--font-ui);
+  font-weight: 600;
+  font-size: 22px;
+  line-height: 1.15;
+  color: #392b18;
+}
+
+.shop-pump__level,
+.shop-pump__next,
+.shop-pump__gate {
+  margin: 0 0 3px;
+  font-family: "Nunito", var(--font-sans);
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.shop-pump__level {
+  color: #4a3418;
+}
+
+.shop-pump__next {
+  color: #7a6844;
+}
+
+.shop-pump__gate {
+  color: #8a5b08;
+}
+
+.shop-pump[data-locked="false"] .shop-pump__gate {
+  color: #2f7a3a;
+}
+
+.shop-pump[data-locked="true"] .shop-pump__art img {
+  filter: saturate(0.6) drop-shadow(0 5px 5px rgba(60, 40, 10, 0.2));
+}
+
+.shop-pump__buy {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-top: 8px;
 }
 
 @media (max-width: 600px) {
-  .shop-grid {
-    grid-template-columns: minmax(0, 1fr);
+  .shop-pump {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .shop-pump__art {
+    align-self: center;
+    flex: 0 0 auto;
   }
 }

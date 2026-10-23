@@ -30,6 +30,37 @@ Format: who decided, the choice, why, and what was rejected.
 
 ---
 
+### DEC-059 The seed picker shows small separable cards, with details behind an info icon
+**Decided by:** Jim · 2026-10-23
+
+**Choice:** The picker frame (`182:129`) shows one small separable row per seed type — sprite
+(44×50 in a 56×56 box), name, and "×count · hours" — with an info icon (16×16) at the right of
+each row. Clicking a row plants that seed. The info icon opens the seed-details frame (`188:23`)
+in the same host: full sprite (66×74 in an 80×88 box), name, quantity, grow time, sell value,
+growing advice, and a weather-outlook box, with a "Back to seed choices" button to return.
+The footer keeps "Open the shop" (empty bag) / "Plant {crop}" / "Never mind".
+
+**Why:** The previous design made the whole detail card the plant button, which packed the
+grow note and weather verdict onto every row and made it hard to tell where to click when
+multiple seeds are available. Small separable cards make each seed its own clear target, and
+the info icon defers the secondary information (advice, outlook, sell value) to a details
+dialog rather than crowding the picker. One row per seed type keeps the list scannable, and
+the disabled attribute (styled with opacity) honestly reflects "no forecast" without hiding
+the seed.
+
+**Rejected:** the whole-card-is-the-button design from T-78 (two targets for one action,
+crowded rows); showing the grow note and weather on every small card; a separate "Plant"
+footer button beside each card.
+
+**Consequence:** `css/crop-picker.css` now carries both the small card styles and the
+details-dialog styles. `.crop-picker__weather` moved from the picker row into the details
+outlook box. The harvest value ("sells for Xg") moved from the picker row into the details
+dialog. `tests/cropPicker.test.js` was updated to check the details dialog for the weather
+line and sell value, and to check disabled state rather than a "waiting" message for no
+forecast.
+
+---
+
 ### DEC-058 The plot inspector and seed picker share one timber dialog
 **Decided by:** Jim · 2026-10-23
 
@@ -64,34 +95,50 @@ Do not convert them to borders without re-measuring. `#farm-picker` stays in
 
 ---
 
-### DEC-059 The seed picker shows small separable cards, with details behind an info icon
-**Decided by:** Jim · 2026-10-23
+### DEC-058 The pump has five levels, and every outlet waters one plot
+**Decided by:** Hisham · 2026-10-23
 
-**Choice:** The picker frame (`182:129`) shows one small separable row per seed type — sprite
-(44×50 in a 56×56 box), name, and "×count · hours" — with an info icon (16×16) at the right of
-each row. Clicking a row plants that seed. The info icon opens the seed-details frame (`188:23`)
-in the same host: full sprite (66×74 in an 80×88 box), name, quantity, grow time, sell value,
-growing advice, and a weather-outlook box, with a "Back to seed choices" button to return.
-The footer keeps "Open the shop" (empty bag) / "Plant {crop}" / "Never mind".
+**Choice:** `state.pump` is `{ on, level, targets: [] }`. Five levels, bought in the shop's own
+**Pump** section, each adding outlets at the same per-outlet rate:
 
-**Why:** The previous design made the whole detail card the plant button, which packed the
-grow note and weather verdict onto every row and made it hard to tell where to click when
-multiple seeds are available. Small separable cards make each seed its own clear target, and
-the info icon defers the secondary information (advice, outlook, sell value) to a details
-dialog rather than crowding the picker. One row per seed type keeps the list scannable, and
-the disabled attribute (styled with opacity) honestly reflects "no forecast" without hiding
-the seed.
+| level | plots watered | land gate | price |
+| ---: | ---: | ---: | ---: |
+| 1 | 1 | none — free starter | 0 |
+| 2 | 2 | 4 owned | 1,000 |
+| 3 | 4 | 8 owned | 5,000 |
+| 4 | 8 | 12 owned | 25,000 |
+| 5 | 16 | 16 owned | 100,000 |
 
-**Rejected:** the whole-card-is-the-button design from T-78 (two targets for one action,
-crowded rows); showing the grow note and weather on every small card; a separate "Plant"
-footer button beside each card.
+The player adds or removes targets by clicking plots; the inspector's button carries the intent
+(`add`, `remove`, `resume`, or a disabled `full`). `aimPump()` refuses past capacity and
+`pumpRuns()` caps the job list again, because the tick is the path that actually spends gold.
+Every target is billed only for the water that lands, in target order; gold runs out on the
+last target that can be paid for. The pump stops itself only when **every** target has reached
+its target, or the purse is empty. A legacy `{ on, target }` save is repaired to
+`{ on, level: 1, targets: [target] }` by `ensurePump()` on load and import, without a
+`STATE_VERSION` bump. The shop card shows exactly one image — the **next** level's art, or
+level 5 at max — and exactly one button, `UPGRADE`; at max the button is replaced by “Fully
+upgraded”. The card always states the gate and the owned count: *“Requires 4 owned plots —
+you own 2.”*, appending *“Ready.”* when met.
 
-**Consequence:** `css/crop-picker.css` now carries both the small card styles and the
-details-dialog styles. `.crop-picker__weather` moved from the picker row into the details
-outlook box. The harvest value ("sells for Xg") moved from the picker row into the details
-dialog. `tests/cropPicker.test.js` was updated to check the details dialog for the weather
-line and sell value, and to check disabled state rather than a "waiting" message for no
-forecast.
+**Why:** The old one-plot rule made the bill scale with thirst instead of land, which was the
+right instinct, but it also made a sixteen-plot farm unable to answer a drought without the
+player moving the pump by hand. Keeping the **per-litre** price and adding outlets solves both:
+capacity buys reach, not cheaper water, so a bigger machine does not erase the decision to run
+it. The land gates reuse the same progression counter seed unlocks already read, and the prices
+are steep enough that level 5 is a late-game convenience rather than a purchase that competes
+with the next seed packet. The art changes on the field immediately because the pump's level is
+part of the field signature.
+
+**Supersedes:** the pump entry of **DEC-040** (the weather/water one — see ISS-100) from “one
+plot at a time” to “one plot per outlet, with capacity bought”. It also supersedes the
+*“Buying it is later”* sentence of **DEC-008**; the machine is still pre-owned at level 1, so
+DEC-008's reason — do not gate the drought answer behind 250 gold — survives intact.
+
+**Rejected:** watering the whole farm at level 1 (makes the bill scale with land, the thing
+DEC-040 was avoiding); reducing each outlet's rate as capacity grows (makes “2× rain” a lie);
+bumping `STATE_VERSION` for a field that `ensurePump()` can repair in place; and making the
+pump a sixth seed card (it is one machine bought in steps, not a repeat purchase).
 
 ---
 
@@ -608,6 +655,10 @@ water by how much land you own rather than by how thirsty you are.
 leaves the pump incoherent.
 
 **1. The pump waters ONE plot, aimed by clicking it.** Not the whole farm.
+
+**Superseded in part by DEC-058 (2026-10-23).** A level-1 pump still waters exactly one plot, and
+every outlet still waters one plot. Levels 2–5 add outlets, so the rule is now “one plot per
+outlet” rather than “one plot for the machine”. The per-litre price is untouched.
 
 **Why:** a per-second gold bill that scaled with the number of plots would price water by
 **how much land you own** rather than **how thirsty you are**. A player with sixteen plots
@@ -1752,6 +1803,10 @@ purchase first would gate the core mechanic behind 250 gold that a new player ca
 without already surviving a drought.
 
 **Rejected:** selling the pump in the shop from the start.
+
+**Superseded in part by DEC-058 (2026-10-23).** The pump is still pre-owned at level 1, so the
+drought answer is never gated behind a shop purchase. What is bought later is capacity: levels
+2–5.
 
 ---
 

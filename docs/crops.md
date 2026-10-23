@@ -106,10 +106,11 @@ This is the payoff for `waterNeed` being a number rather than a word. Before thi
 scaled how fast a crop dried; now it also decides what "done" looks like, which is the
 thing the meter, the pump and the warning all read from.
 
-**The pump stops at the target**, not at `WATER.max`. Filling past the point of any use
-costs gold and buys nothing, so "water this plot for 30–60 minutes" is a promise the game
+**The pump stops each target at its own target**, not at `WATER.max`. Filling past the point of any
+use costs gold and buys nothing, so "water this plot for 30–60 minutes" is a promise the game
 can keep. The estimate counts the evaporation happening while the pump runs, which is why
-rice takes 58 minutes rather than the 51 a naive `needed ÷ rate` would claim.
+rice takes 58 minutes rather than the 51 a naive `needed ÷ rate` would claim. Levels 2–5 can do this
+for several plots at once, but every outlet still follows the same rule independently (DEC-058).
 
 ### Four states, and the middle one is the point
 

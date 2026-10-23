@@ -18,7 +18,7 @@ import { mountInventoryLauncher } from './ui/inventoryLauncher.js';
 import { mountSeasonCard } from './ui/seasonCard.js';
 import { mountEnvMetrics } from './ui/envMetrics.js';
 import { tick } from './domain/water.js';
-import { setPump } from './domain/pump.js';
+import { pumpTargetIds } from './domain/pump.js';
 import { damageWord } from './domain/damage.js';
 import { alertsToRaise, currentTrouble, wateringAdvice } from './domain/notifications.js';
 import { mountWeatherPanel } from './ui/weatherPanel.js';
@@ -243,11 +243,11 @@ function mountShell(session) {
  * Three cases, because there are three genuinely different situations:
  *
  *  - **The pump was off.** Advice is fair. It is the ordinary death.
- *  - **The pump was on, aimed elsewhere.** The crop was not being watered — but the
- *    player is not at fault either, because one plot at a time (DEC-040) means there is
- *    always somebody the pump is not on. Saying so is the difference between a lesson
- *    and a scolding.
- *  - **The pump was aimed at this plot and it died anyway.** That is a bug. It is logged
+ *  - **The pump was on, watering other plots.** The crop was not being watered — but the
+ *    player is not necessarily at fault either, because the machine only reaches its
+ *    level's capacity and there is always somebody it is not on. Saying which plots it
+ *    *was* watering is the difference between a lesson and a scolding.
+ *  - **The pump was watering this plot and it died anyway.** That is a bug. It is logged
  *    as one and it says so, instead of blaming the player for a fault in the code.
  *
  * @param {object} before the state this tick ran against
@@ -256,12 +256,13 @@ function mountShell(session) {
  */
 function deathMessage(before, deaths) {
   const n = deaths.length;
-  const aimed = before.pump?.on ? before.pump.target : null;
-  const aimedHere = deaths.filter((p) => p.id === aimed);
+  const targets = before.pump?.on ? pumpTargetIds(before) : [];
+  const targetedHere = deaths.filter((p) => targets.includes(p.id));
+  const list = (ids) => ids.map((id) => `plot ${id + 1}`).join(', ');
 
-  if (aimedHere.length > 0) {
-    log.error('[water] a crop died while the pump was aimed straight at it', {
-      plotIds: aimedHere.map((p) => p.id),
+  if (targetedHere.length > 0) {
+    log.error('[water] a crop died while the pump was watering it', {
+      plotIds: targetedHere.map((p) => p.id),
       deaths: n,
     });
     return {
@@ -271,19 +272,20 @@ function deathMessage(before, deaths) {
     };
   }
 
-  if (aimed == null) {
+  if (targets.length === 0) {
     return {
       bug: false,
       message: n === 1
-        ? 'A crop died of thirst. Turn the pump on and aim it at that plot.'
-        : `${n} crops died of thirst. Turn the pump on - it waters one plot at a time.`,
+        ? 'A crop died of thirst. Turn the pump on and water that plot.'
+        : `${n} crops died of thirst. Turn the pump on and add those plots to it.`,
     };
   }
 
   return {
     bug: false,
     message: `${n === 1 ? 'A crop' : `${n} crops`} died of thirst - the pump was watering `
-      + `plot ${aimed + 1}. Move it, or take the loss on ${n === 1 ? 'this one' : 'these'}.`,
+      + `${list(targets)}. Add ${n === 1 ? 'that plot' : 'those plots'} to the pump, `
+      + `or take the loss on ${n === 1 ? 'this one' : 'these'}.`,
   };
 }
 
@@ -315,12 +317,14 @@ function announceForecast() {
   }
 }
 
-function repaintFarm(state) {  const offer = nextUnlockable(state);
+function repaintFarm(state) {
+  const offer = nextUnlockable(state);
 
   mountFarmView(qsOrNull('#farm-view'), {
     plots: state?.plots ?? [],
     selection: state?.selection,
     clock: state?.clock,
+    pump: state?.pump,
     nextPrice: offer?.price ?? 0,
     onPlotClick,
   });
