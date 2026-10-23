@@ -141,11 +141,11 @@ export class FakeNode {
     this.hidden = false;
     this.value = '';
     /**
-     * A live `style` object, so `el.style.height = '41.2%'` and reading it back both work,
+     * A live `style` object, so `el.style.width = '41.2%'` and reading it back both work,
      * round-tripping through the `style` attribute as the browser does.
      *
      * Every real element has one, and the in-place water meter now depends on it:
-     * `plotInspector.js` assigns `fill.style.height` each tick rather than rebuilding the
+     * `plotInspector.js` assigns `fill.style.width` each tick rather than rebuilding the
      * node, because a CSS transition only runs when the same element's value changes.
      * Without this it threw `Cannot set properties of undefined` — a harness failure that
      * reads exactly like a game failure, which is the worst kind of both, and the reason

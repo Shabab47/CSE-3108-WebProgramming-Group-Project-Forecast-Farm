@@ -792,7 +792,8 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   ├── phone-weather.css       the phone board, search pill and current-condition note
 │   ├── phone-forecast.css      the phone three-meter row and six-hour strip
 │   ├── scene.css               the isometric stage, the plot layers, locked/next/ready
-│   ├── crop-picker.css         the seed picker overlay and its rows
+│   ├── farm-dialog.css         the timber/parchment dialog shared by the inspector and picker
+│   ├── crop-picker.css         the picker's viewport host and the seed detail cards
 │   ├── shop.css                the shop sign and the seed list
 │   ├── almanac.css             the almanac page and its crop cards
 │   ├── inventory.css           the inventory page and its seed cards
@@ -875,7 +876,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── almanacWeather.js   a crop's reaction to each weather event
 │   │   ├── authErrors.js       provider code → sentence, enumeration guard
 │   │   ├── authViews.js        the login page's view graph — menu, forms, avatar, reset
-│   │   ├── cropPicker.js       which seed to sow on a plot
+│   │   ├── cropPicker.js       the timber seed picker — one detail card per seed, the card plants
 │   │   ├── dangerAction.js     the arm-and-confirm control, with its password gate
 │   │   ├── difficultyCard.js   the Normal / Easy setting, with what each mode does
 │   │   ├── farmView.js         the isometric field — geometry, plus the repaint guard
@@ -886,7 +887,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── plotLayers.js       what is painted inside one plot, back to front
 │   │   ├── plotLabel.js        a plot's accessible name — the whole of it
 │   │   ├── plotClick.js        plotAction(): what a click on a plot means
-│   │   ├── plotInspector.js    the panel a click on a plot opens — gauge, pump, action
+│   │   ├── plotInspector.js    the timber panel a click opens — horizontal gauge, pump, action
 │   │   ├── pumpPanel.js        the pump toggle, the time-to-optimal, and the rate readout
 │   │   ├── envMetrics.js       the environment card: the rail's three meters
 │   │   ├── loadingTips.js      the boot veil and its rotating facts
@@ -1347,14 +1348,30 @@ it.
 
 ```
 click a plot  →  farmActions.onPlotClick(plotId)
-              →  ui/plotInspector.js  — that plot's gauge, its target, the countdown,
-                                       what the pump would cost, and that plot's own action
+              →  ui/plotInspector.js  — the timber inspector: horizontal gauge, target,
+                                       countdown, pump cost, and that plot's own action
+              →  "Plant a seed"       — ui/cropPicker.js in the same host: one seed card per
+                                       seed type, the card itself plants
 ```
 
 The action the click used to perform is **inside** the panel, as a button labelled with what it will
-do — *"Sow rice"*, *"Harvest — 10 units"*, *"Aim the pump here"*, *"Clear this plot"*. The panel is
-also where the pump lives: the toggle, the time-to-optimal and the in/out rate all moved out of the
-rail and into the plot they apply to.
+do — *"Plant a seed"*, *"Harvest"*, *"Buy this plot"*, *"Clear the plot"*. The panel is also where
+the pump lives: the toggle, the time-to-optimal and the in/out rate all moved out of the rail and
+into the plot they apply to.
+
+The inspector and the picker are the same **timber-and-parchment dialog**, `css/farm-dialog.css`:
+a 402px frame, a 384px parchment panel, a 68px heading with a close tile or leaf ornament, a 1px
+rule and a 140px stacked action column. The inspector is the short variant with a close tile; the
+picker is the tall variant with the leaf. Its gauge is horizontal: an 18px track whose fill width is
+the water level, a `2×24px` green notch for the target, and a pill that carries only the live water
+state. The permanent damage word is in the status sentence, so a dry-damaged crop cannot read
+"Dry" twice for two different facts (ISS-119).
+
+The picker draws **one detail card per seed type in the bag**, stacked and scrollable. The card —
+packet art, name, count, grow time, likes/hates and the next-six-hours verdict — is itself the
+plant button. The Figma frame has no separate *Plant* button, and two targets for one action is
+the ambiguity the panel was introduced to remove. The footer keeps *"Open the shop"* and
+*"Never mind"* (DEC-058).
 
 **Why.** The rail can hold one pump readout. It cannot hold sixteen. Aiming at one plot and reading
 one plot's meter are the same decision, so they are now the same screen. And a button that says

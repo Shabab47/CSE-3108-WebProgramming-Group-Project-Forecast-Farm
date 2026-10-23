@@ -1,122 +1,351 @@
+/* The seed picker: the shared timber dialog (css/farm-dialog.css) plus the seed
+ * rows and the seed-details frame.
+ *
+ * Picker frame (182:129): small separable seed rows — sprite, quantity, grow time,
+ * name and an info icon. Clicking a row plants that seed; the info icon opens the
+ * details frame (188:23) in the same host.
+ *
+ * Details frame (188:23): full sprite, name, quantity, grow time, sell value,
+ * growing advice, weather outlook, and a "Back to seed choices" button.
+ *
+ * The footer keeps "Open the shop" (empty bag) / "Plant {crop}" / "Never mind"
+ * per the Figma frame (DEC-058).
+ *
+ * `#farm-picker` is the host the picker mounts in. It is also reused by the plot
+ * inspector, but the host itself is the picker's overlay — the fixed, full-viewport
+ * surface that dims the field and centres whatever dialog is inside it.
+ */
+
 #farm-picker {
   position: fixed;
   inset: 0;
   z-index: 300;
   display: grid;
   place-items: center;
-  padding: var(--space-4, 1rem);
+  /* 14px leaves the 402px frame exactly 14px each side on the 430px phone frame. */
+  padding: 14px;
   background: rgba(20, 28, 22, 0.45);
 }
 
-/* The whole point of the host existing separately from the card. Without this the empty
- * overlay dims the screen and eats every click from page load. */
+/* The host exists separately from the dialog. Without this an empty overlay dims
+ * the screen and eats every click from page load. */
 #farm-picker:empty {
   display: none;
 }
 
-.crop-picker {
-  width: min(22rem, 92%);
-  max-height: 100%;
-  overflow-y: auto;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+/* --- picker frame --------------------------------------------------------- */
+
+.crop-picker__body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px 20px 0;
+}
+
+.crop-picker__intro {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.crop-picker__intro-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 20px;
+  color: #493219;
+}
+
+.crop-picker__intro-note {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+  color: #7a6746;
 }
 
 .crop-picker__list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+  display: flex;
+  flex-direction: column;
 }
 
-.crop-picker__item + .crop-picker__item {
-  border-top: 1px solid var(--border, #dfe4dc);
+/* One separable seed row, 76px tall: art, name, "×n · hours", info icon. */
+.crop-picker__item {
+  display: contents;
 }
 
-/* One seed per row: the packet art, then the three facts the decision rests on. */
 .crop-picker__seed {
   display: flex;
+  gap: 12px;
   align-items: center;
-  gap: var(--space-3, 0.75rem);
-  width: 100%;
-  padding: var(--space-2, 0.5rem) var(--space-3, 0.75rem);
-  background: none;
-  border: 0;
-  border-radius: 0;
-  cursor: pointer;
-  text-align: left;
-  font: inherit;
+  height: 76px;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1.5px solid #325d29;
+  background: #fff8e6;
   color: inherit;
+  font: inherit;
+  cursor: pointer;
+  box-sizing: border-box;
+  width: 100%;
 }
 
-.crop-picker__seed:hover,
 .crop-picker__seed:focus-visible {
-  background: var(--accent-soft);
+  outline: 3px solid #325d29;
+  outline-offset: 2px;
+}
+
+.crop-picker__seed:not(:disabled):hover {
+  border-color: #20882f;
+}
+
+.crop-picker__seed:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.crop-picker__overview {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.crop-picker__art-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+  border: 1px solid #d9bb77;
+  background: #f4e3ad;
+  flex: 0 0 auto;
 }
 
 .crop-picker__art {
-  width: 3rem;
-  height: 3rem;
+  width: 44px;
+  height: 50px;
   object-fit: contain;
-  flex: 0 0 auto;
+  max-width: none;
+  max-height: none;
 }
 
 .crop-picker__meta {
   display: flex;
   flex-direction: column;
-  gap: 0.1rem;
+  gap: 4px;
   min-width: 0;
 }
 
 .crop-picker__name {
-  /* `--font-body` does not exist; the theme defines `--font-display`. The unresolved
-   * `var()` invalidated the declaration, so this name was inheriting the body face.
-   * Same bug as the plot price tag — see ISS-107. */
+  margin: 0;
   font-family: var(--font-display);
-  font-size: var(--text-md, 1rem);
+  font-size: 22px;
+  font-weight: 400;
+  line-height: 1;
+  color: #493219;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* The numbers, in a smaller face than the name — read second, not first. */
 .crop-picker__facts {
-  font-size: var(--text-sm, 0.875rem);
-  color: var(--text-muted);
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 19px;
+  color: #7a6746;
+  white-space: nowrap;
 }
 
-.crop-picker__note {
-  font-size: var(--text-xs, 0.75rem);
-  color: var(--text-faint);
+.crop-picker__info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  border: 1.5px solid #d9bb77;
+  background: #fff8e6;
+  cursor: pointer;
+  flex: 0 0 auto;
 }
 
-.crop-picker__weather {
-  font-size: var(--text-xs, 0.75rem);
-  font-weight: 600;
-  color: var(--text-muted);
+.crop-picker__info:focus-visible {
+  outline: 3px solid #325d29;
+  outline-offset: 2px;
 }
 
-.crop-picker__weather[data-rating="2"],
-.crop-picker__weather[data-rating="1"] {
-  color: var(--success, #2f7d4f);
+.crop-picker__info:not(:disabled):hover {
+  border-color: #20882f;
 }
 
-.crop-picker__weather[data-rating="-1"] {
-  color: var(--warning, #96690d);
-}
-
-.crop-picker__weather[data-rating="-2"] {
-  color: var(--danger, #b3392f);
+.crop-picker__info img {
+  width: 16px;
+  height: 16px;
+  max-width: none;
+  max-height: none;
 }
 
 .crop-picker__empty {
   margin: 0;
-  padding: var(--space-3, 0.75rem);
-  color: var(--text-muted);
+  padding: 4px 0 8px;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 23px;
+  color: #493219;
 }
+
+/* --- details frame -------------------------------------------------------- */
+
+.crop-picker__details-overview {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.crop-picker__details-art-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 88px;
+  border-radius: 10px;
+  border: 1px solid #d9bb77;
+  background: #f4e3ad;
+  flex: 0 0 auto;
+}
+
+.crop-picker__details-art {
+  width: 66px;
+  height: 74px;
+  object-fit: contain;
+  max-width: none;
+  max-height: none;
+}
+
+.crop-picker__details-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.crop-picker__details-name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 400;
+  line-height: 1;
+  color: #493219;
+}
+
+.crop-picker__details-facts {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 19px;
+  color: #7a6746;
+}
+
+.crop-picker__details-sell {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 19px;
+  color: #493219;
+}
+
+.crop-picker__details-advice {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 22px;
+  color: #493219;
+}
+
+.crop-picker__weather-outlook {
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1.5px solid #d9bb77;
+  background: #fff8e6;
+}
+
+/* The forecast line — kept as `.crop-picker__weather` so existing tests still
+ * find it, restyled for the details outlook box. */
+.crop-picker__weather {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 21px;
+  color: #325d29;
+}
+
+.crop-picker__weather[data-rating="-1"] {
+  color: #a0442c;
+}
+
+/* --- footer actions ------------------------------------------------------- */
 
 .crop-picker__actions {
   display: flex;
-  gap: var(--space-2, 0.5rem);
-  padding: var(--space-3, 0.75rem);
-  border-top: 1px solid var(--border, #dfe4dc);
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 20px 20px;
 }
 
-.crop-picker__actions > * {
-  flex: 1 1 0;
+.crop-picker__plant,
+.crop-picker__close,
+.crop-picker__shop,
+.crop-picker__back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1.5px solid;
+  color: inherit;
+  font: inherit;
+  font-weight: 900;
+  font-size: 16px;
+  line-height: 19px;
+  cursor: pointer;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.crop-picker__plant,
+.crop-picker__back {
+  background: #20882f;
+  border-color: #325d29;
+  color: #ffffff;
+}
+
+.crop-picker__close,
+.crop-picker__shop {
+  background: #fff8e6;
+  border-color: #d9bb77;
+  color: #325d29;
+}
+
+.crop-picker__plant:focus-visible,
+.crop-picker__close:focus-visible,
+.crop-picker__shop:focus-visible,
+.crop-picker__back:focus-visible {
+  outline: 3px solid #325d29;
+  outline-offset: 2px;
+}
+
+.crop-picker__plant:not(:disabled):hover {
+  background: #1a7226;
+}
+
+.crop-picker__close:not(:disabled):hover,
+.crop-picker__shop:not(:disabled):hover,
+.crop-picker__back:not(:disabled):hover {
+  background: #f2e8c4;
 }

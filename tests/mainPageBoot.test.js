@@ -352,14 +352,14 @@ test('clicking your own empty plot opens a picker that stays open', async () => 
 test('the water meter animates, because the same fill element survives a tick', async () => {
   // **This is the assertion that matters, and it is about identity rather than a number.**
   //
-  // `.inspector__fill` carries `transition: height`, and a CSS transition only runs when
+  // `.inspector__fill` carries `transition: width`, and a CSS transition only runs when
   // the *same element* changes value. The inspector used to answer every tick by clearing
   // the host and building the whole card again — correct output, no animation ever, because
-  // a node that is destroyed and recreated has no previous height to move from. The bar
+  // a node that is destroyed and recreated has no previous width to move from. The bar
   // jumped once a second and read as broken rather than busy.
   //
   // So the claim is: after a tick raises the water, the element holding the fill is *the
-  // same object*, and its height is a new value. Unit tests on the domain cannot see this
+  // same object*, and its width is a new value. Unit tests on the domain cannot see this
   // at all — they never load a DOM — which is why it belongs here.
   const { onPlotClick, refreshInspectorOnTick } = await import('../js/farmActions.js');
   const { apply, getState } = await import('../js/state/store.js');
@@ -369,7 +369,7 @@ test('the water meter animates, because the same fill element survives a tick', 
 
   const fillBefore = host.querySelector('.inspector__fill');
   assert.ok(fillBefore, 'the gauge has a fill element to animate');
-  const heightBefore = fillBefore.style.height;
+  const widthBefore = fillBefore.style.width;
 
   // One tick's worth of pumping, through the real store so the real subscriber chain runs.
   apply((state) => ({
@@ -389,15 +389,15 @@ test('the water meter animates, because the same fill element survives a tick', 
     'the fill must be the SAME element after a tick - a new one cannot transition',
   );
   assert.notEqual(
-    fillAfter.style.height,
-    heightBefore,
-    'and its height must actually have changed, or there is nothing to animate',
+    fillAfter.style.width,
+    widthBefore,
+    'and its width must actually have changed, or there is nothing to animate',
   );
-  assert.match(fillAfter.style.height, /%$/, 'a percentage, as the stylesheet expects');
+  assert.match(fillAfter.style.width, /%$/, 'a percentage, as the stylesheet expects');
 
-  // The band moves with the crop's target, so it is patched in the same pass.
+  // The target marker moves with the crop's target, so it is patched in the same pass.
   const band = host.querySelector('.inspector__band');
-  assert.ok(band?.style.bottom, 'the band is positioned by the same update');
+  assert.ok(band?.style.left, 'the target marker is positioned by the same update');
 });
 
 test('the gauge shows the pump running only for the plot the pump is aimed at', async () => {

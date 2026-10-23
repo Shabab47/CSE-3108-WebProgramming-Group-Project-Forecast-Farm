@@ -926,6 +926,14 @@ or `assets.test.js` fails in the other direction.
 | ISS-113 | `weather-events.md` said dry damage latches after two hours; the code uses one | Low | Jim | **fixed** | T-72 |
 | ISS-114 | A save written before ISS-112 kept the stale damage sprite, and a living crop could not be cleared | Medium | Jim | **fixed** | T-73 |
 | ISS-115 | A damaged living crop drew its growth stage under the damage sprite | Low | Jim | **fixed** | T-75 |
+| ISS-116 | The current temperature printed its degree symbol twice | Low | Jim | **fixed** | T-76 |
+| ISS-117 | Phone typography drifted from PC font stacks | Low | Jim | **fixed** | T-77 |
+| ISS-118 | The plot inspector dimmed the field twice | Low | Jim | **fixed** | T-78 |
+| ISS-119 | A dry-damaged crop read "Dry · Dry" in the inspector's water pill | Low | Jim | **fixed** | T-78 |
+| ISS-120 | The inspector's water-rates line could not be hidden | Low | Jim | **fixed** | T-78 |
+| ISS-121 | Tomato's new damage sprites are not in the asset registry, and three stage sizes are stale | Medium | Jim | **open** | — |
+| ISS-122 | Farmer 3's six black bars are back in `HEAD` | **High** | Jim | **open** | — |
+| ISS-123 | `.plot__damage` no longer shares the crop's box, so `farmView.test.js` fails | Low | Jim | **open** | — |
 
 ---
 
@@ -2540,4 +2548,101 @@ or `assets.test.js` fails in the other direction.
 - Problem: the phone layout used Irish Grover (via `--font-ui`) for the gold amount and big temperature, and Nunito for environment card text, while the PC game page uses Luckiest Guy for gold/temperature and system UI for everything else. Also the PC and phone both carried redundant "Gold" and "Purse" labels.
 - Cause: phone styles were written against the Figma frame, which used placeholder fonts, and the label removal was deferred.
 - Fix: phone font families swapped to PC stacks (Luckiest Guy for gold/big temp, system UI elsewhere); "Gold" and "Purse" labels removed from DOM in `main.js` and `shopView.js`; shop purse also gets Luckiest Guy via `shop.css`. Fixed in T-77.
+
+---
+
+### ISS-118 The plot inspector dimmed the field twice
+- Reported: 2026-10-23 by Jim · Owner: Jim · Status: **fixed** in T-78 · Severity: Low
+- Where: `js/ui/plotInspector.js`, `css/scene.css`, `css/farm-dialog.css`
+- Problem: opening a plot painted two dimming layers: `#farm-picker`'s full-viewport
+  `rgba(20, 28, 22, 0.45)` and the inspector's own `.inspector__scrim` inside it. The field
+  behind the inspector was darker than the field behind the seed picker, and the extra layer was
+  one more full-screen box to keep in step.
+- Cause: the inspector was written before `#farm-picker` became the shared viewport host and kept
+  its own scrim after the host gained one. Two components owned the same surface.
+- Fix: removed `.inspector__scrim` and append the dialog directly to the host. The host is the
+  only overlay, and it still hides itself when empty (`:empty`). `tests/mainPageBoot.test.js` pins
+  the host's fixed/inset/`:empty` behaviour.
+
+---
+
+### ISS-119 A dry-damaged crop read "Dry · Dry" in the inspector
+- Reported: 2026-10-23 by Jim · Owner: Jim · Status: **fixed** in T-78 · Severity: Low
+- Where: `js/ui/plotInspector.js`
+- Problem: a crop with the permanent `dry` damage latch and a live dry water level showed the same
+  word twice in the water card: the pill concatenated the live state and the damage word. The two
+  facts are different — one can be watered away, the other cannot — so the repetition read as a
+  stuck label rather than two readings.
+- Cause: the old pill was the only place with room for damage, so it carried both.
+- Fix: the pill carries only the live water state (`Dry`, `Low`, `Optimal`, `Saturated`); the
+  permanent damage word is in the status sentence (`Rice — dry`). A damaged crop that has been
+  watered back to optimal now reads `Rice — dry` and `Optimal`, which is the distinction the
+  player needs. The same split was already made on the field tile for ISS-103.
+
+---
+
+### ISS-120 The inspector's water-rates line could not be hidden
+- Reported: 2026-10-23 by Jim · Owner: Jim · Status: **fixed** in T-78 · Severity: Low
+- Where: `js/ui/plotInspector.js` (`update`)
+- Problem: when a plot had no rain and no drying, the inspector still reserved the
+  `rain +0/h · drying −0/h · net +0/h` line. The update path assigned `hidden` to the `flow`
+  object returned by `flowFor()` instead of to the paragraph, so the flag was written to a
+  throwaway number holder and the DOM never changed. The line either stayed visible with zeroes
+  or stayed visible with stale text.
+- Cause: the object and the element had confusingly similar names (`flow` vs `flowLine`), and the
+  assignment is silent on a plain object.
+- Fix: `flowLine.hidden = !(flow && (flow.in > 0 || flow.out > 0))`, and the text is written only
+  when the line is visible. The rates line now disappears in settled weather and the actions move
+  up with the body.
+
+---
+
+### ISS-121 Tomato's new damage sprites are not in the asset registry
+- Reported: 2026-10-23 by Jim · Owner: Jim · Status: **open** · Severity: Medium
+- Where: `js/config/assets.js`, `assets/images/crops/tomato/`
+- Problem: `46bd5d4` replaced `tomato_3/4/5.png` and added `tomato_drought_killed.png` and
+  `tomato_rain_damaged.png`, but the registry still carries the old sizes and neither damage
+  file. `npm test` fails in `tests/assets.test.js`:
+  `tomato_drought_killed.png exists on disk but is not listed`, and `tomato_3.png size mismatch:
+  registry says 1132288, disk says 1132776`.
+- Cause: the art commit did not run the asset-registry test. The test reports only the first
+  missing file and the first size mismatch, so `tomato_rain_damaged.png`, `tomato_4.png`
+  (1112876) and `tomato_5.png` (1127648) are also stale.
+- Fix: not fixed here — the art is someone else's recent commit and tomato still has
+  `available: false` (ISS-093). Register both `1024x1024` damage sprites and update the three
+  stage sizes, then run `node --test tests/assets.test.js`. Do not delete or re-export the art
+  without its owner.
+
+---
+
+### ISS-122 Farmer 3's six black bars are back in `HEAD`
+- Reported: 2026-10-23 by Jim · Owner: Jim · Status: **open** · Severity: High
+- Where: `js/ui/avatarArt.js` (`FARMER_THREE`)
+- Problem: `tests/avatar.test.js` fails again: the third preset carries six black rotated
+  `<rect>` elements behind the head and the `clip0_3_11` id, exactly the state ISS-111 fixed in
+  T-70. At 40px in the navbar they read as a swastika.
+- Cause: the fix did not survive a later artwork commit; `avatarArt.js` was last rewritten by
+  `2143a02` ("farmer 4 added"), and the current `FARMER_THREE` is the pre-fix export. The
+  progress log has been calling this failure "pre-existing" since T-76, but ISS-111 is still
+  marked fixed and the test is the only guard.
+- Fix: not applied here — it is another owner's art. Re-apply T-70's fix: remove the six
+  `<rect fill="black">` elements, the `<g clip-path="url(#clip0_3_11)">` wrapper and the
+  `clipPath` definition; the remaining drawing is clipped by the same circular CSS as the other
+  presets. The test already rejects both shapes.
+
+---
+
+### ISS-123 The damage sprite layer no longer shares the crop's box
+- Reported: 2026-10-23 by Jim · Owner: Jim · Status: **open** · Severity: Low
+- Where: `css/scene.css` (`.plot__damage`), `tests/farmView.test.js`
+- Problem: `tests/farmView.test.js` fails because `.plot__crop` is
+  `width: 93%; bottom: 6.5%; left: 50.5%` while `.plot__damage` is
+  `width: 100%; bottom: 9.5%; left: 50.5%`. `AGENTS.md` section 5 and DEC-048 say the pair must
+  carry the same three numbers so they cannot drift.
+- Cause: `8993181` and/or `7d0cad4` repositioned the damage layer while adding the new tomato
+  damage art. It may be the right box for that art, but the test and the documented rule were
+  not updated with it, so the change is indistinguishable from a regression.
+- Fix: not applied here — the new art is someone else's work. Either restore the shared box if
+  the old sprites still fit, or, if the new patches genuinely need a different box, update the
+  rule in `AGENTS.md`/DEC-048 and the test together. Do not change one without the other.
 
