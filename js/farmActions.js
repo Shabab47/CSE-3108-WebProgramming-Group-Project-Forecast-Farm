@@ -27,7 +27,8 @@ import { apply, emit, getState } from './state/store.js';
 import { clearPlot, harvest, plant } from './domain/farm.js';
 import { buyPlot } from './domain/land.js';
 import { verdictFor } from './domain/weather.js';
-import { aimPump, pumpTargetIds, removePumpTarget, setPump } from './domain/pump.js';
+import { pumpTargetIds, removePumpTarget, setPump } from './domain/pump.js';
+import { aimPumpOrRelease } from './domain/pumpSwap.js';
 import { mountPlotInspector } from './ui/plotInspector.js';
 import { isSeedUnlocked } from './utils/seedUnlocks.js';
 import { formatGold } from './utils/formatGold.js';
@@ -233,7 +234,7 @@ function inspectorActions() {
         return;
       }
 
-      const aimed = aimPump(current, id);
+      const aimed = aimPumpOrRelease(current, id);
       if (!aimed.ok) {
         emit('toast', {
           message: aimed.reason === 'pump_full'
@@ -247,8 +248,11 @@ function inspectorActions() {
 
       apply(() => ({ ok: true, state: aimed.state }));
       const targets = pumpTargetIds(getState());
+      const watering = targets.map((plotId) => `plot ${plotId + 1}`).join(', ');
       emit('toast', {
-        message: `Pump on — watering ${targets.map((plotId) => `plot ${plotId + 1}`).join(', ')}.`,
+        message: aimed.released === null
+          ? `Pump on — watering ${watering}.`
+          : `Plot ${aimed.released + 1} reached optimal and was released. Pump on — watering ${watering}.`,
         tone: 'info',
       });
       refreshInspector();

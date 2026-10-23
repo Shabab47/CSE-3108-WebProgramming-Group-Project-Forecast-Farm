@@ -51,6 +51,7 @@ import { bandFor, flowFor, minutesToOptimal, waterState } from '../domain/plotWa
 import { damageWord } from '../domain/damage.js';
 import { currentEvent } from '../domain/water.js';
 import { pumpCapacity, pumpLevelOf, pumpTargetIds } from '../domain/pump.js';
+import { releasableTarget } from '../domain/pumpSwap.js';
 import { formatGold } from '../utils/formatGold.js';
 
 const STATE_WORDS = {
@@ -271,6 +272,12 @@ function buildCard(plotId, actions) {
           // resuming and then stopping that plot, which is one extra tap in a rarer case.
           pumpButton.dataset.mode = 'resume';
           setText(pumpButton, 'Resume the pump');
+        } else if (targets.length >= capacity && releasableTarget(state) !== null) {
+          // Every outlet is taken, but one of them is on a plot that has reached its
+          // optimal level. The pump lets that one go, so this is an action, not a refusal.
+          pumpButton.dataset.mode = 'swap';
+          pumpButton.title = `Plot ${releasableTarget(state) + 1} is at optimal and will be released.`;
+          setText(pumpButton, 'Water this plot instead');
         } else if (targets.length >= capacity) {
           pumpButton.dataset.mode = 'full';
           pumpButton.disabled = true;

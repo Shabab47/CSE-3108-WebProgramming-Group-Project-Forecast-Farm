@@ -98,3 +98,15 @@ test('the button sends its mode, so the join does not have to guess intent', asy
   await resume.button.click();
   assert.deepEqual(resume.calls, [{ id: 0, mode: 'resume' }]);
 });
+
+test('a full pump whose plot is at optimal offers to swap instead of refusing', () => {
+  // Plot 0 is on the pump and full; the open panel is plot 1.
+  const { state } = field({ pump: { on: false, level: 1, targets: [0] }, plotId: 1 });
+  state.plots[0].waterLevel = 80; // inside rice's optimal band, so it counts as finished
+  mountPlotInspector(root, state, 1, { onPump: () => {} });
+  const button = root.querySelector('.inspector__pump');
+
+  assert.equal(button.dataset.mode, 'swap');
+  assert.equal(button.disabled, false);
+  assert.equal(button.textContent.trim(), 'Water this plot instead');
+});
