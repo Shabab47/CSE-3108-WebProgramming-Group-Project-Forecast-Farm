@@ -13,7 +13,7 @@
  * `seedPrice * 2 = yield * sellPrice`: 500 in, 1,000 out at full health.
  */
 
-import { stageAt } from './stageMath.js';
+import { hoursForMonths, stageAt } from './stageMath.js';
 
 export const CORN = {
   id: 'corn',
@@ -21,7 +21,8 @@ export const CORN = {
   shopUnit: '5 SEEDS',
   seedPrice: 500,
   sellPrice: 100, // 10 × 100 = 1,000, twice the seed
-  growHours: 8,
+  realMonths: 2, // minimum real-life growing time
+  growHours: hoursForMonths(2), // 1 real hour = half a month
   waterNeed: 0.7,
   yield: 10,
   growNote: 'The slowest crop and the thirstiest — a season-long bet.',

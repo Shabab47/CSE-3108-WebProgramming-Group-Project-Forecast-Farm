@@ -155,7 +155,7 @@ test('a new player can plant on their free plot within a minute of starting', ()
   assert.equal(ready.state.gold, START_GOLD - 100, 'and the gold left the purse');
 });
 
-test('the field steps through the sprites once an hour and holds the last one', () => {
+test('the field swaps sprites every 1.5 hours for rice and holds the ripe one', () => {
   const farm = harness({ seeds: { rice: 1 } });
   farm.render();
   farm.click(0);
@@ -179,11 +179,14 @@ test('the field steps through the sprites once an hour and holds the last one', 
   }
 
   assert.deepEqual(seen, [
-    'rice_1.png', 'rice_2.png', 'rice_3.png', 'rice_4.png',
-    'rice_5.png', // 5h
-    'rice_5.png', // 6h — held, because there is no rice_6.png
-    'rice_5.png',
-    'rice_5.png',
+    'rice_1.png', // 0h
+    'rice_1.png', // 1h
+    'rice_2.png', // 2h
+    'rice_3.png', // 3h
+    'rice_3.png', // 4h
+    'rice_4.png', // 5h
+    'rice_5.png', // 6h — ripe, exactly at harvest
+    'rice_5.png', // 7h — held, because there is no rice_6.png
   ]);
 
   // And nothing ever asks for a file that is not on disk.
@@ -191,8 +194,8 @@ test('the field steps through the sprites once an hour and holds the last one', 
 });
 
 test('a finished-looking crop is not harvestable until it is actually ready', () => {
-  // The distinction the sprite cannot show: stage 5 is drawn from four hours, and
-  // rice takes six. Judging readiness by the picture would pay out two hours early.
+  // Readiness is judged on progress, not on the picture, so the two can never be
+  // allowed to drift apart. Rice takes six hours.
   const farm = harness({ seeds: { rice: 1 } });
   farm.render();
   farm.click(0);

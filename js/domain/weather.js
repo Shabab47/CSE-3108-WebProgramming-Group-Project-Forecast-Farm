@@ -25,9 +25,8 @@ import { seasonFor, seasonRating } from './seasons.js';
 /**
  * How far ahead a planting is judged, in hours.
  *
- * Six is not arbitrary: `rice` and `tomato` are `growHours: 6`, `wheat` is 5 and
- * `potato` is 4, so the window covers essentially the whole life of every crop
- * there is. `corn` at 8 hours is the only one that outlives it.
+ * Six is not arbitrary: `rice` and `wheat` are `growHours: 6` and `potato`, `tomato`
+ * and `corn` are 4, so the window covers the whole life of every crop there is.
  */
 export const FORECAST_WINDOW_HOURS = 6;
 

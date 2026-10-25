@@ -14,9 +14,21 @@ Land is described the same way: one file per segment in `js/land_squares/`, asse
 | :--- | :--- | ---: | ---: | ---: | ---: | :--- | :--- |
 | `rice` | Rice | 6 | 100 | 20 | 10 | Very high (0.9) | **yes** |
 | `potato` | Potato | 4 | 200 | 40 | 10 | Medium (0.5) | **yes** |
-| `tomato` | Tomato | 6 | 300 | 60 | 10 | Medium (0.5) | **yes** |
-| `wheat` | Wheat | 5 | 400 | 80 | 10 | Medium (0.5) | no |
-| `corn` | Corn | 8 | 500 | 100 | 10 | High (0.7) | no |
+| `tomato` | Tomato | 4 | 300 | 60 | 10 | Medium (0.5) | **yes** |
+| `wheat` | Wheat | 6 | 400 | 80 | 10 | Medium (0.5) | no |
+| `corn` | Corn | 4 | 500 | 100 | 10 | High (0.7) | no |
+
+**Grow time follows the game clock: one real hour = half a month of crop growth**
+(`MONTHS_PER_HOUR` in `crops_logics/stageMath.js`). Each crop's `growHours` is its *minimum*
+real-life growing time divided by that scale — `realMonths` in its file:
+
+| Crop | Min. real-life time | `realMonths` | Grow hours |
+| :--- | ---: | ---: | ---: |
+| Rice | ~3 months | 3 | 6 |
+| Potato (early) | ~2 months | 2 | 4 |
+| Tomato | ~2 months | 2 | 4 |
+| Wheat (spring) | ~3 months | 3 | 6 |
+| Corn (early sweet) | ~2 months | 2 | 4 |
 
 Each crop also carries `shopUnit` — the short label shown in the shop card's top-left pill
 ("5 SEEDS", "1 TOOL", etc.). It is display copy, not balance, and lives in `js/config/crops.js`
@@ -228,44 +240,40 @@ when the formula changes.
 ```
 hoursElapsed = (now - plantedAt) / 3_600_000      clamped to [0, growHours]
 progress     = hoursElapsed / crop.growHours     clamped to [0, 1]
-stage        = min(floor(hoursElapsed) + 1, 5)
+stage        = hoursElapsed >= growHours ? 5
+               : min(floor(hoursElapsed / (growHours / 4)) + 1, 4)
 ```
 
 `now = Date.now() + state.clock.timeOffsetMs`, so the debug time-skip buttons move growth too.
 
-**The stage advances on the hour and is stable in between.** The field re-renders every
-`TICK_MS`, but the sprite only changes when a whole hour has passed, so the art does not flicker
-and the number means something a player can hold on to.
+**The sprite is stable between swaps.** The field re-renders every `TICK_MS`, but the four
+growing sprites split the grow time evenly (a 6 h crop swaps every 1.5 h, a 4 h crop every hour)
+and the ripe fifth sprite appears only at harvest, so the art does not flicker and never looks
+finished before it can be picked.
 
 ### Rice, which takes six hours and has five sprites
 
-This is the whole table for rice, and it is not a general rule — it is what
-falls out of `min(floor(hours) + 1, 5)` when `growHours` is 6:
+Rice (about three real months) takes six hours. The four growing sprites split that evenly:
 
 | Elapsed | Stage | Art | Ready? |
 | ---: | ---: | :--- | :--- |
-| 0 – 1h | 1 | `rice_1.png` sprouted | no |
-| 1 – 2h | 2 | `rice_2.png` | no |
-| 2 – 3h | 3 | `rice_3.png` | no |
-| 3 – 4h | 4 | `rice_4.png` | no |
-| 4 – 6h | 5 | `rice_5.png` golden | **at 6h** |
-| 6h + | 5 | `rice_5.png` | yes |
+| 0 – 1.5h | 1 | `rice_1.png` sprouted | no |
+| 1.5 – 3h | 2 | `rice_2.png` | no |
+| 3 – 4.5h | 3 | `rice_3.png` | no |
+| 4.5 – 6h | 4 | `rice_4.png` | no |
+| 6h + | 5 | `rice_5.png` golden | **yes** |
 
-**The last sprite is held for two hours, and that is deliberate.** Five stages spread evenly
-over six hours would give every stage an arbitrary, uneven slice of time and still land on the
-same five files. When `rice_6.png` is drawn, widen the `5` in `stageMath.js` and hour six picks
-up the new sprite on its own — no crop file, no UI, no formula changes. Until then it is what
-stops `cropStageImg(cropId, 6)` building a URL that 404s and leaving a blank diamond at the
-exact moment the player most wants to see the payoff.
+The four-hour crops (potato, tomato, corn) swap every hour, and their ripe sprite arrives at hour
+four. When a sixth sprite is drawn, widen `STAGE_COUNT` in `stageMath.js`; nothing else changes.
 
 ### Readiness is not the sprite
 
 > **Ready to harvest requires `progress >= 1` and `not dead`. It is deliberately *not*
 > `stage === 5`.**
 
-Stage 5 is drawn from four hours, so a rice crop at 5h05m already looks finished and is not
-harvestable for another 55 minutes. Judging readiness by the picture would let a player pull a
-crop an hour early, and would put the money and the artwork on two different clocks.
+The ripe sprite and readiness now arrive together, but readiness is still judged on `progress`,
+not on the picture, so the money and the artwork cannot drift onto two different clocks if the
+sprite schedule is ever changed again.
 
 A dead crop never becomes ready, which is why `farm.clearPlot()` exists — see
 `docs/team/issues.md` ISS-006.

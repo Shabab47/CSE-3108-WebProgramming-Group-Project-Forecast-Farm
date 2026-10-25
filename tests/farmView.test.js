@@ -402,11 +402,11 @@ test('a planted potato draws its own sprites, not the rice fallback', () => {
   );
 });
 
-test('a tomato swaps sprite on the hour, and stage 4 lasts two hours', () => {
+test('a tomato swaps sprite every hour, and ripens at hour four', () => {
   // The swap is the growth animation: the 1 Hz tick repaints the tile when the stage
-  // in `harvestsIn()` changes, and this pins which picture each hour draws. Tomato's
-  // schedule is its own (`stageHours`, DEC-060), not the shared `stageAt()` formula,
-  // so hour 4 must still be `tomato_4.png` rather than the ripe fifth stage.
+  // in `harvestsIn()` changes, and this pins which picture each hour draws. Tomato
+  // takes four hours (about two real months at half a month per hour), so each of
+  // the four growing sprites gets one hour and the ripe fifth arrives at harvest.
   const HOUR = 3_600_000;
   const plantedAt = (hours) => buildPlots().map((plot) =>
     plot.id === 5
@@ -428,8 +428,8 @@ test('a tomato swaps sprite on the hour, and stage 4 lasts two hours', () => {
   assert.match(spriteAt(1.5), /\/tomato\/tomato_2\.png$/, 'one hour later');
   assert.match(spriteAt(2.5), /\/tomato\/tomato_3\.png$/, 'two hours later');
   assert.match(spriteAt(3.1), /\/tomato\/tomato_4\.png$/, 'three hours later');
-  assert.match(spriteAt(4.5), /\/tomato\/tomato_4\.png$/, 'stage 4 is held for a second hour');
-  assert.match(spriteAt(5.1), /\/tomato\/tomato_5\.png$/, 'and ripens for the last hour');
+  assert.match(spriteAt(3.9), /\/tomato\/tomato_4\.png$/, 'still stage 4 just before harvest');
+  assert.match(spriteAt(4.1), /\/tomato\/tomato_5\.png$/, 'and ripe once it can be picked');
 });
 
 test('an empty plot still shows a meter, because that is where a farm mostly is', () => {
