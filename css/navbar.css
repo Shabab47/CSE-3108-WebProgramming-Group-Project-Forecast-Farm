@@ -118,14 +118,35 @@
   height: 100%;
 }
 
-/* Only the settings and profile tiles are real links, so only they react to hover. */
-a.navbar__tile {
+/* The settings and profile tiles are links; the bug report tile is a button. Both
+   react to hover, and the button has to shed the browser's default padding and
+   font before it can sit level with the links. */
+a.navbar__tile,
+button.navbar__tile {
   cursor: pointer;
   transition: background var(--speed) var(--ease);
 }
 
-a.navbar__tile:hover {
+a.navbar__tile:hover,
+button.navbar__tile:hover {
   background: #d3e3d3;
+}
+
+button.navbar__tile {
+  padding: 0;
+  font: inherit;
+}
+
+a.navbar__tile:focus-visible,
+button.navbar__tile:focus-visible {
+  outline: 3px solid rgba(50, 93, 41, 0.35);
+  outline-offset: 2px;
+}
+
+/* The bug tile carries a small rust tint so it reads as a report, not another
+   setting, without competing with the green wordmark. */
+.navbar__tile--report {
+  color: #8c4f2f;
 }
 
 .navbar__btn {

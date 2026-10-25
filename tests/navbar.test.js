@@ -84,3 +84,23 @@ test('the sound and settings tiles are unchanged', () => {
   assert.equal(settings.getAttribute('href'), 'settings.html');
   assert.ok(settings.querySelector('.navbar__tile-icon'), 'the settings icon is missing');
 });
+
+test('the report tile is a button on the right that opens its dialog', async () => {
+  mount();
+
+  const report = root.querySelector('.navbar__tile--report');
+  assert.ok(report, 'the report tile is missing');
+  assert.equal(report.tagName, 'BUTTON');
+  assert.equal(report.getAttribute('aria-label'), 'Report a bug');
+  assert.equal(report.getAttribute('aria-haspopup'), 'dialog');
+  assert.ok(report.querySelector('.navbar__tile-icon'), 'the bug icon is missing');
+
+  const dialog = root.querySelector('.report-bug');
+  assert.ok(dialog, 'the report dialog was never mounted');
+  assert.equal(dialog.hidden, true, 'the dialog starts out of the way');
+
+  await report.click();
+
+  assert.equal(dialog.hidden, false, 'the button did not open the dialog');
+  assert.equal(root.querySelector('.report-bug__message').focusCount, 1, 'the message field should take focus');
+});

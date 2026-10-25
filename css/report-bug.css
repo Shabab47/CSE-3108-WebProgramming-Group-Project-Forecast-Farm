@@ -1,0 +1,257 @@
+/* The bug report dialog behind the navbar's bug tile.
+ *
+ * A viewport-level overlay, a body child rather than anything inside `.app`, for
+ * the same reason as `#farm-picker`: `.app` is overflow-hidden and viewport-high,
+ * so an overlay anchored inside it would be clipped to the game shell.
+ *
+ * Painted parchment, like `css/farm-dialog.css`, rather than a themed surface:
+ * the dialog is a piece of paper on the desk, and a sheet of paper is the same
+ * colour in a dark theme too.
+ */
+
+.report-bug {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(20, 28, 22, 0.55);
+}
+
+.report-bug[hidden] {
+  display: none;
+}
+
+.report-bug-open {
+  overflow: hidden;
+}
+
+.report-bug__dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(480px, 100%);
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  padding: 22px;
+  overflow-y: auto;
+  font-family: "Nunito", var(--font-sans);
+  color: #493219;
+  background: linear-gradient(180deg, #fffdf6 0%, #fff3d4 100%);
+  border: 2px solid #573015;
+  border-radius: 18px;
+  box-shadow:
+    0 12px 30px rgba(20, 16, 10, 0.35),
+    inset 0 2px 0 rgba(255, 243, 204, 0.8);
+}
+
+.report-bug__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.report-bug__heading {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.report-bug__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 400;
+  line-height: 1.12;
+  color: #325d29;
+}
+
+.report-bug__lead {
+  margin: 4px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 19px;
+  color: #7a6746;
+}
+
+.report-bug__close {
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  font-family: inherit;
+  font-size: 28px;
+  line-height: 1;
+  color: #70431f;
+  background: #fff8e6;
+  border: 1.5px solid #d9bb77;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.report-bug__close:hover {
+  background: #fff3d4;
+}
+
+.report-bug__context {
+  margin: 0;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+  color: #7a6746;
+  background: #fffcf3;
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 1px #e6d6ad;
+}
+
+.report-bug__url {
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
+  font-size: 12px;
+  color: #493219;
+}
+
+.report-bug__label {
+  margin-top: 4px;
+  font-size: 14px;
+  font-weight: 800;
+  color: #493219;
+}
+
+.report-bug__input {
+  width: 100%;
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 20px;
+  color: #493219;
+  background: #fffcf3;
+  border: 1.5px solid #d9bb77;
+  border-radius: 10px;
+}
+
+.report-bug__input:focus {
+  outline: 3px solid rgba(50, 93, 41, 0.25);
+  outline-offset: 1px;
+  border-color: #325d29;
+}
+
+.report-bug__input:disabled {
+  color: #7a6746;
+  background: #f4ecd9;
+  cursor: not-allowed;
+}
+
+.report-bug__message {
+  min-height: 132px;
+  resize: vertical;
+}
+
+.report-bug__hint {
+  margin: -4px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 17px;
+  color: #7a6746;
+}
+
+.report-bug__status {
+  min-height: 20px;
+  margin: 4px 0 0;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 20px;
+  color: #7a6746;
+}
+
+.report-bug__status:empty {
+  min-height: 0;
+  margin: 0;
+}
+
+.report-bug__status--ok {
+  color: #20882f;
+}
+
+.report-bug__status--error {
+  color: #a0442c;
+}
+
+.report-bug__actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.report-bug__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  padding: 10px 18px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 900;
+  color: #fff;
+  background: #20882f;
+  border: 0;
+  border-radius: 11px;
+  box-shadow: inset 0 0 0 1.5px #325d29;
+  cursor: pointer;
+  transition:
+    background 120ms ease,
+    transform 80ms ease;
+}
+
+.report-bug__button:hover {
+  background: #1a7226;
+}
+
+.report-bug__button:active {
+  background: #17651f;
+  transform: translateY(1px);
+}
+
+.report-bug__button--ghost {
+  color: #325d29;
+  background: #fff8e6;
+  box-shadow: inset 0 0 0 1.5px #d9bb77;
+}
+
+.report-bug__button--ghost:hover {
+  background: #fff3d4;
+}
+
+.report-bug__button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.report-bug :focus-visible {
+  outline: 3px solid rgba(50, 93, 41, 0.35);
+  outline-offset: 2px;
+}
+
+@media (max-width: 520px) {
+  .report-bug {
+    padding: 10px;
+  }
+
+  .report-bug__dialog {
+    padding: 18px;
+  }
+
+  .report-bug__title {
+    font-size: 24px;
+  }
+
+  .report-bug__actions {
+    flex-direction: column-reverse;
+  }
+
+  .report-bug__button {
+    width: 100%;
+  }
+}

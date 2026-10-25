@@ -28,6 +28,7 @@ import { nextUnlockable } from './land_squares/index.js';
 import * as farmActions from './farmActions.js';
 import { onPlotClick } from './farmActions.js';
 import { fetchWeather } from './services/weatherApi.js';
+import { submitBugReport } from './services/reportApi.js';
 import { formatCoordinates, isPlaceholderName, placeLabel, reverseGeocode, searchPlaces } from './services/geocodeApi.js';
 import { AUTOSAVE_MS, TICK_MS } from './config/game.js';
 import { REFRESH_MS, SUGGEST_COUNT } from './config/api.js';
@@ -162,6 +163,7 @@ function mountShell(session) {
   mountNavbar(qsOrNull('#top-bar'), {
     session,
     avatar: getState()?.profile?.avatar ?? null,
+    onSubmitBugReport: (report) => submitBugReport(report),
   });
   mountShopLauncher(qsOrNull('#shop-launch'), { href: shopHref(session) });
 

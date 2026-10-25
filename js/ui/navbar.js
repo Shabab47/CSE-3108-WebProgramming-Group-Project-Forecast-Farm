@@ -13,17 +13,18 @@ import { createLog } from '../utils/log.js';
 import { icon } from './icon.js';
 import { iconEl } from './icons.js';
 import { avatarArt } from './avatarArt.js';
+import { mountReportBug } from './reportBug.js';
 import { profileHref, settingsHref } from '../main.js';
 
 const log = createLog('navbar');
 
 /**
  * @param {HTMLElement} root
- * @param {{ session: object, avatar?: string|null }} actions
+ * @param {{ session: object, avatar?: string|null, onSubmitBugReport?: Function }} actions
  * @returns {{ unmount: Function }}
  */
 export function mountNavbar(root, actions) {
-  const { session, avatar = null } = actions;
+  const { session, avatar = null, onSubmitBugReport } = actions;
   clear(root);
 
   // The farmer's name and the sign-out button both live on the profile page now.
@@ -41,6 +42,20 @@ export function mountNavbar(root, actions) {
     title: 'Profile',
   }, [face]);
 
+  const report = el('button', {
+    class: 'navbar__tile navbar__tile--report',
+    type: 'button',
+    'aria-label': 'Report a bug',
+    'aria-haspopup': 'dialog',
+    title: 'Report a bug',
+  }, [
+    icon('bug', 'navbar__tile-icon'),
+  ]);
+  const reportBug = mountReportBug(report, {
+    session,
+    onSubmit: onSubmitBugReport,
+  });
+
   const card = el('div', { class: 'navbar' }, [
     el('a', { class: 'navbar__logo', href: 'index.html', 'aria-label': 'Forecast Farm home' }, [
       el('span', { class: 'navbar__word', text: 'Forecast Farm' }),
@@ -56,6 +71,8 @@ export function mountNavbar(root, actions) {
       }, [
         icon('volume-2', 'navbar__tile-icon'),
       ]),
+
+      report,
 
       el('a', {
         class: 'navbar__tile',
@@ -74,6 +91,7 @@ export function mountNavbar(root, actions) {
 
   return {
     unmount() {
+      reportBug.unmount();
       clear(root);
     },
   };
