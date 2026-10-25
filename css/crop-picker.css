@@ -67,11 +67,20 @@
 .crop-picker__list {
   display: flex;
   flex-direction: column;
+  /* Rows own a real box now (see `.crop-picker__item`), so the list is where the
+   * separation between two seeds lives. */
+  gap: 10px;
 }
 
-/* One separable seed row, 76px tall: art, name, "×n · hours", info icon. */
+/* One separable seed row, 76px tall: art, name, "×n · hours", info icon.
+ *
+ * `position: relative` is load-bearing. The info button is a **sibling** of the seed
+ * button, not a child — a <button> inside a <button> is invalid — so the icon is
+ * placed against this box instead. `display: contents` here is what put the icon in
+ * a row of its own under every card (ISS-125). */
 .crop-picker__item {
-  display: contents;
+  position: relative;
+  display: block;
 }
 
 .crop-picker__seed {
@@ -79,7 +88,9 @@
   gap: 12px;
   align-items: center;
   height: 76px;
-  padding: 10px;
+  /* 52px on the right is where the info button sits, so the name and the count can
+   * never run underneath it. */
+  padding: 10px 52px 10px 10px;
   border-radius: 12px;
   border: 1.5px solid #325d29;
   background: #fff8e6;
@@ -161,6 +172,10 @@
 }
 
 .crop-picker__info {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
   display: flex;
   align-items: center;
   justify-content: center;

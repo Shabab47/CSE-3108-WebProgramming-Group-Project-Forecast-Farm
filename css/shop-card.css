@@ -412,4 +412,12 @@
     align-self: center;
     flex: 0 0 auto;
   }
+
+  /* The art and the button are 229px in a 226px card at 320px, and the card clips
+   * its own overflow — so the UPGRADE label loses its right edge. Let the button
+   * drop under the art instead (ISS-124). */
+  .shop-pump__buy {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
 }

@@ -24,7 +24,7 @@ import { alertsToRaise, currentTrouble, wateringAdvice } from './domain/notifica
 import { mountWeatherPanel } from './ui/weatherPanel.js';
 import { mountFarmView } from './ui/farmView.js';
 import { mountLocationBar } from './ui/locationBar.js';
-import { nextUnlockable } from './land_squares/index.js';
+import { harvestsIn, nextUnlockable } from './land_squares/index.js';
 import * as farmActions from './farmActions.js';
 import { onPlotClick } from './farmActions.js';
 import { fetchWeather } from './services/weatherApi.js';
@@ -32,6 +32,7 @@ import { submitBugReport } from './services/reportApi.js';
 import { formatCoordinates, isPlaceholderName, placeLabel, reverseGeocode, searchPlaces } from './services/geocodeApi.js';
 import { AUTOSAVE_MS, TICK_MS } from './config/game.js';
 import { REFRESH_MS, SUGGEST_COUNT } from './config/api.js';
+import { play as playSound, startPumpLoop, stopPumpLoop } from './utils/sound.js';
 
 const log = createLog('main');
 
@@ -736,6 +737,15 @@ async function start() {
 
   /** The farm, once there is a session to open it with. */
   async function play(session) {
+    // Global UI click handler. Triggers click.mp3 for buttons and links,
+    // but specifically ignores the farm field to avoid overlap with click_p.mp3.
+    document.addEventListener('click', (event) => {
+      const target = event.target;
+      if (target.closest('button, a, .nav-link, .btn') && !target.closest('#farm-view')) {
+        playSound('click.mp3');
+      }
+    });
+
     // Only a signed-in account can have chosen an avatar on the sign-up path.
     // The choice is used by the builder when there is no save, so the very first
     // write already carries it rather than a null avatar followed by a repair.
@@ -761,6 +771,49 @@ async function start() {
     subscribe((state) => {
       if (state) renderPanels(state);
     });
+
+    // Sound: pump loop and the crop-ready chime. Snapshot on the first call so nothing
+    // plays while the farm boots, then react to transitions.
+    let soundFirst = true;
+    let previousPumpOn = false;
+    /** Plot ids that are currently ready to harvest. */
+    let previousReady = new Set();
+
+    subscribe((state) => {
+      if (!state) return;
+      if (soundFirst) {
+        soundFirst = false;
+        previousPumpOn = Boolean(state.pump?.on);
+        previousReady = readyPlotIds(state);
+        return;
+      }
+
+      // Pump on/off: start the loop when the machine starts (including a resume), and
+      // stop it when it stops — including the tick-driven auto-off, which commits
+      // through `apply` and so reaches this subscriber too.
+      const nowPumpOn = Boolean(state.pump?.on);
+      if (!previousPumpOn && nowPumpOn) startPumpLoop();
+      if (previousPumpOn && !nowPumpOn) stopPumpLoop();
+      previousPumpOn = nowPumpOn;
+
+      // Crop ready: a plot that ripens (not-ready → ready) chimes once. Already-ready
+      // plots stay in the set, so a ripening is only announced the first time.
+      const nowReady = readyPlotIds(state);
+      for (const plotId of nowReady) {
+        if (!previousReady.has(plotId)) playSound('crop_ready.mp3');
+      }
+      previousReady = nowReady;
+    });
+
+    function readyPlotIds(state) {
+      const now = Date.now() + (state?.clock?.timeOffsetMs ?? 0);
+      const ids = new Set();
+      for (const plot of state?.plots ?? []) {
+        if (!plot.owned || !plot.cropId || plot.dead) continue;
+        if (harvestsIn(plot, now).ready) ids.add(plot.id);
+      }
+      return ids;
+    }
 
     // Before `bootWeather()`, and before the veil lifts: the chip has to be on
     // screen before the first save can fail, or the player never learns their farm

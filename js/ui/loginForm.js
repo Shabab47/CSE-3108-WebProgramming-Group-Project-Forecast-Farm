@@ -18,6 +18,7 @@
 import { el } from '../utils/dom.js';
 import { RULE_LIST, SIGN_IN_FIELDS, SIGN_UP_FIELDS, field } from './loginFields.js';
 import { backButton } from './signBoard.js';
+import { play } from '../utils/sound.js';
 
 /**
  * @param {'signIn'|'signUp'} mode
@@ -90,6 +91,16 @@ export function buildLoginForm(mode, actions) {
 /* --- internals ------------------------------------------------------------ */
 
 /** A quiet text button. Still a `<button>`, so it is a button to a keyboard. */
-function link(text, onClick) {
-  return el('button', { class: 'sign__link', type: 'button', text, on: { click: onClick } });
-}
+  function link(text, onClick) {
+    return el('button', {
+      class: 'sign__link',
+      type: 'button',
+      text,
+      on: {
+        click: () => {
+          play('click.mp3');
+          onClick();
+        },
+      },
+    });
+  }

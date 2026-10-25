@@ -101,7 +101,30 @@ body.painted-page {
 }
 
 @media (max-width: 900px) {
+  /* Phones scroll the document rather than a board inside a viewport-locked body:
+   * `100dvh` puts the last 32px under the browser's bottom bar with nothing left to
+   * scroll it clear (ISS-124, DEC-061). */
+  body.painted-page {
+    height: auto;
+    min-height: 100vh;
+    min-height: 100svh;
+    overflow: visible;
+  }
+
   .painted-page .page-shell {
+    height: auto;
+    min-height: 100vh;
+    min-height: 100svh;
     padding: 10px 18px 0;
+  }
+
+  /* Was `fixed`: on a page that scrolls, a fixed beam and garland hover over the
+   * cards after the header itself has scrolled away. The -18px matches the shell's
+   * padding above, so the wall still reaches both screen edges instead of stopping
+   * at the content column. */
+  .painted-page .page-frame {
+    position: absolute;
+    left: -18px;
+    right: -18px;
   }
 }

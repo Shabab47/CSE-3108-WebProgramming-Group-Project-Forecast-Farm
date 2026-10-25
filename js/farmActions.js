@@ -23,6 +23,7 @@
 
 import { clear, qsOrNull } from './utils/dom.js';
 import { createLog } from './utils/log.js';
+import { play } from './utils/sound.js';
 import { apply, emit, getState } from './state/store.js';
 import { clearPlot, harvest, plant } from './domain/farm.js';
 import { buyPlot } from './domain/land.js';
@@ -106,9 +107,11 @@ export function onPlotClick(plotId) {
     return;
   }
 
+  play('click_p.mp3');
   closePicker();
   openPlot = plotId;
   inspectorView = mountPlotInspector(pickerHost(), getState(), plotId, inspectorActions());
+  play('pop.MP3');
 }
 
 /** The old switch, now one action of the inspector rather than the click itself. */
@@ -123,6 +126,7 @@ function runPlotAction(plotId) {
       // A success is worth announcing: the gold moves somewhere else on the page, and
       // a harvest that silently pays reads as a bug rather than as a payout.
       if (result.ok) {
+        play('harvest.mp3');
         const earned = getState().gold - state.gold;
         emit('toast', { message: `Harvested — ${formatGold(earned)} gold.`, tone: 'success' });
       }
@@ -137,10 +141,14 @@ function runPlotAction(plotId) {
       openPicker(plotId);
       break;
 
-    case 'clear':
-      apply(clearPlot, plotId);
+    case 'clear': {
+      const result = apply(clearPlot, plotId);
+      if (result.ok) {
+        play('dead_crop_clear.mp3');
+      }
       closePicker();
       break;
+    }
 
     case 'buy':
       buyNextPlot(plotId);
@@ -247,6 +255,7 @@ function inspectorActions() {
       }
 
       apply(() => ({ ok: true, state: aimed.state }));
+      play('watering.mp3');
       const targets = pumpTargetIds(getState());
       const watering = targets.map((plotId) => `plot ${plotId + 1}`).join(', ');
       emit('toast', {
@@ -294,7 +303,10 @@ function buyNextPlot(plotId) {
 
   const result = apply(buyPlot, plotId);
   if (result.ok) {
+    play('unlock.mp3');
     emit('toast', { message: `Bought plot ${plotId + 1} for ${offer.price} gold.`, tone: 'success' });
+  } else if (String(result.reason).includes('gold')) {
+    play('insufficient.mp3');
   }
 }
 
@@ -328,7 +340,10 @@ function openPicker(plotId) {
       // Close *before* applying, so the list of seeds the player just spent is never on
       // screen for even one frame.
       closePicker();
-      apply(plant, plotId, cropId);
+      const result = apply(plant, plotId, cropId);
+      if (result.ok) {
+        play('plant.mp3');
+      }
     },
     onShop: () => {
       closePicker();
@@ -360,4 +375,5 @@ export function closePicker() {
 
   const host = pickerHost();
   if (host) clear(host);
+  play('pop.MP3');
 }

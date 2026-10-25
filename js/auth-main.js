@@ -38,6 +38,7 @@ import { mountAuthViews } from './ui/authViews.js';
 import { isAvatarId } from './config/avatars.js';
 import { MENU_BG } from './config/assets.js';
 import * as localAuth from './services/localAuth.js';
+import { play } from './utils/sound.js';
 
 const log = createLog('auth-main');
 
@@ -232,6 +233,7 @@ mountAuthViews(root, {
     recoveryToken: () => recoveryToken,
 
     onAuthenticated(authenticated, { avatar } = {}) {
+      if (authenticated?.status === 'authed') play('login.mp3');
       // The address and farmer name would be safe to log, but the panel hands us
       // nothing secret and this is not the place to start.
       log.info('authenticated, entering the farm');
