@@ -46,7 +46,7 @@
 import { el, clear, setText } from '../utils/dom.js';
 import { cropOf } from '../config/crops.js';
 import { WATER } from '../config/game.js';
-import { DIALOG_CLOSE_IMG, DIALOG_PEG_IMG } from '../config/assets.js';
+import { DIALOG_CLOSE_IMG, DIALOG_PEG_IMG, cropSeedImg } from '../config/assets.js';
 import { plotAction } from './plotClick.js';
 import { bandFor, flowFor, minutesToOptimal, waterState } from '../domain/plotWater.js';
 import { damageWord } from '../domain/damage.js';
@@ -153,6 +153,10 @@ function buildCard(plotId, actions) {
   const levelLine = el('p', { class: 'inspector__level' });
   const etaLine = el('p', { class: 'inspector__eta' });
   const flowLine = el('p', { class: 'inspector__flow' });
+  // Kept off the field itself; this is the inspector's one line on the pump's
+  // overall state — how big it is and how full — so "watering 1 of 2 plots" is
+  // legible without opening anything. DEC-058.
+  const pumpLine = el('p', { class: 'inspector__pump-status' });
 
   // The button reads its own `data-on` rather than capturing a value, because the same
   // node survives every tick now and a captured `isAimed` would be stale by the time the
@@ -173,7 +177,18 @@ function buildCard(plotId, actions) {
     on: { click: () => actions.onAction?.(plotId) },
   });
 
-  const cropLine = el('p', { class: 'inspector__crop' });
+  // The crop line: the packet on the left, the name and state on the right. The
+  // packet is the art the shop, the bag and the seed picker already use, so "this is
+  // rice" is one glance rather than a word to read — DEC-060. It is decorative: the
+  // name is right beside it.
+  const cropArt = el('img', {
+    alt: '',
+    'aria-hidden': 'true',
+    draggable: 'false',
+  });
+  const cropArtBox = el('span', { class: 'inspector__crop-art', 'aria-hidden': 'true' }, [cropArt]);
+  const cropText = el('span', { class: 'inspector__crop-text' });
+  const cropLine = el('p', { class: 'inspector__crop' }, [cropArtBox, cropText]);
   const title = el('h2', {
     class: 'inspector__title farm-dialog__title',
     text: `Plot ${plotId + 1}`,
@@ -223,6 +238,7 @@ function buildCard(plotId, actions) {
         cropLine,
         waterCard,
         flowLine,
+        pumpLine,
       ]),
       el('div', { class: 'inspector__actions farm-dialog__actions' }, [
         pumpButton,
@@ -275,10 +291,17 @@ function buildCard(plotId, actions) {
         // The pill is short on purpose; damage belongs in the status sentence, or a
         // dry-damaged crop would read "Dry · Dry" in the same line (ISS-119).
         const suffix = plot.dead ? ' — dead' : (damage ? ` — ${damage.toLowerCase()}` : '');
-        setText(cropLine, `${cropName}${suffix}`);
+        setText(cropText, `${cropName}${suffix}`);
       } else {
-        setText(cropLine, plot.owned ? 'Empty — nothing planted yet' : 'Not yours yet');
+        setText(cropText, plot.owned ? 'Empty — nothing planted yet' : 'Not yours yet');
       }
+
+      // One `src` write per crop rather than one per tick: reassigning the same URL
+      // every second restarts the image load and flickers. `shapeOf` already rebuilds
+      // the card when the crop changes, so the guard only covers a repaint in between.
+      const packet = plot.cropId ? cropSeedImg(plot.cropId) : null;
+      cropArtBox.hidden = !packet;
+      if (packet && cropArt.getAttribute('src') !== packet) cropArt.setAttribute('src', packet);
 
       if (ownedAndAlive) {
         setText(stateLine, STATE_WORDS[wState]);
@@ -297,12 +320,51 @@ function buildCard(plotId, actions) {
         }
 
         pumpButton.hidden = false;
+        const targets = pumpTargets;
+        const isTargeted = targets.includes(plotId);
+        const pumpOn = Boolean(state.pump?.on);
+        const capacity = pumpCapacity(state);
+        const pumpLevel = pumpLevelOf(state);
+
+        setText(pumpLine,
+          `Pump Lv ${pumpLevel} · watering ${targets.length} of ${capacity} `
+          + `${capacity === 1 ? 'plot' : 'plots'}`);
+        pumpLine.hidden = false;
+
+        // The button reads its own data-mode, so the join (main.js ->
+        // farmActions.onPump) never has to guess intent. The four states DEC-058
+        // introduced: remove (stop this plot), resume (carry on after an auto-off),
+        // swap (make room by releasing a finished plot), and full (refuse before the
+        // press). `add` is the fifth, the idle case.
         pumpButton.dataset.on = aimed ? 'true' : 'false';
-        // Set mode for the new pump system: remove (stop this), add (start this)
-        pumpButton.dataset.mode = aimed ? 'remove' : 'add';
-        setText(pumpButton, aimed
-          ? 'Stop watering this'
-          : (state.pump?.on ? 'Water this plot instead' : 'Water this plot'));
+        pumpButton.disabled = false;
+        if (isTargeted && pumpOn) {
+          pumpButton.dataset.mode = 'remove';
+          setText(pumpButton, 'Stop watering this plot');
+          pumpButton.title = '';
+        } else if (isTargeted) {
+          // The target list survives an auto-off, so the useful action is to carry on with
+          // the same plots. Removing a target while the machine is off is done by
+          // resuming and then stopping that plot, which is one extra tap in a rarer case.
+          pumpButton.dataset.mode = 'resume';
+          setText(pumpButton, 'Resume the pump');
+          pumpButton.title = '';
+        } else if (targets.length >= capacity && releasableTarget(state) !== null) {
+          // Every outlet is taken, but one of them is on a plot that has reached its
+          // optimal level. The pump lets that one go, so this is an action, not a refusal.
+          pumpButton.dataset.mode = 'swap';
+          pumpButton.title = `Plot ${releasableTarget(state) + 1} is at optimal and will be released.`;
+          setText(pumpButton, 'Water this plot instead');
+        } else if (targets.length >= capacity) {
+          pumpButton.dataset.mode = 'full';
+          pumpButton.disabled = true;
+          setText(pumpButton, `Pump full (${capacity} ${capacity === 1 ? 'plot' : 'plots'})`);
+          pumpButton.title = 'Stop watering another plot before adding this one.';
+        } else {
+          pumpButton.dataset.mode = 'add';
+          pumpButton.title = '';
+          setText(pumpButton, pumpOn ? 'Water this plot too' : 'Water this plot');
+        }
       } else if (plot.owned) {
         setText(stateLine, 'Dead');
         stateLine.dataset.state = 'dead';
@@ -310,6 +372,7 @@ function buildCard(plotId, actions) {
         setText(levelLine, 'Clear the plot to use it again');
         setText(etaLine, 'Nothing to water');
         flowLine.hidden = true;
+        pumpLine.hidden = true;
         pumpButton.hidden = true;
       } else {
         setText(stateLine, '');
@@ -318,6 +381,7 @@ function buildCard(plotId, actions) {
         setText(levelLine, 'Buy this plot to farm it');
         setText(etaLine, 'Nothing to water');
         flowLine.hidden = true;
+        pumpLine.hidden = true;
         pumpButton.hidden = true;
       }
 
