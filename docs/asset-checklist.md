@@ -19,9 +19,9 @@ assets/images/crops/<cropId>/<cropId>_<stage>.png
 ```
 
 All crop art is square with transparent corners — rice is 1000×1000, the newer potato, tomato and
-damage sprites are 1024×1024 (`tomato_5.png` is 1024×807, ISS-093). Match the existing rice sprites
-for line weight, palette and perspective — the diamond is 0.538 h/w for ground tiles and 0.589 for
-crops, because plants stand proud of the soil. See `docs/architecture.md` for the geometry.
+damage sprites are 1024×1024. Match the existing rice sprites for line weight, palette and
+perspective — the diamond is 0.538 h/w for ground tiles and 0.589 for crops, because plants stand
+proud of the soil. See `docs/architecture.md` for the geometry.
 
 ---
 
@@ -97,7 +97,7 @@ to need it.
 | Crop | Stages 1–5 | Damage sprites | Folders | Playable |
 | :--- | :--- | :--- | :--- | :--- |
 | Rice | ✅ 5 of 5 | ✅ 2 of 3 | `rice/` ready | **yes** |
-| Tomato | ✅ 5 of 5 | ⬜ 0 of 3 | `tomato/` ready | no — see ISS-093 |
+| Tomato | ✅ 5 of 5 | ✅ 2 of 3 | `tomato/` ready | **yes** — behind the 8-plot land gate (DEC-041) |
 | Wheat | ⬜ 0 of 5 | ⬜ 0 of 3 | `wheat/` ready | no |
 | Potato | ✅ 5 of 5 | ✅ 2 of 3 | `potato/` ready | **yes** — behind the 4-plot land gate (DEC-041) |
 | Corn | ⬜ 0 of 5 | ⬜ 0 of 3 | `corn/` ready | no |
@@ -107,11 +107,12 @@ to need it.
 in place under the same filenames, which is why the registry's sizes had to be re-measured (ISS-105)
 and why `cropFailureImg()` needed a `potato` entry for its custom damage filenames (ISS-106).
 
-**Tomato's art has landed** and all five stages are registered. Two things stand between it and
-`available: true` (T-14): its damage sprites, and **ISS-093 — `tomato_5.png` is 1024×807 while
-stages 1–4 are 1024×1024**, so the plant visibly shrinks on the step that should be its biggest.
-That is Jim's file; the registry records the dimensions the file actually has rather than the ones
-the rice pattern suggests.
+**Tomato's art has landed** — all five square stages, `tomato seed.png`, and both damage
+sprites (`tomato_drought_killed.png`, `tomato_rain_damaged.png`). It is `available: true`
+behind the same land gate as every seed. `tomato_5.png` was re-exported at **1024×1024**, so
+ISS-093's shrink at the last stage is gone, and the registry's stale sizes are updated
+(ISS-121). Tomato repeats stage 4 across hours 3–5 rather than holding the ripe sprite for
+two hours; see DEC-060.
 
 Until a crop's images exist it stays `available: false` and shows greyed with "coming soon" in
 the picker. Empty folders already exist for all of them, with a `.gitkeep`, so art can be dropped

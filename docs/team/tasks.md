@@ -141,7 +141,7 @@ Kafi and Jim are the same person. T-56 was never used. The next free ID is **T-9
 | ID | Who | What | Status |
 | :--- | :--- | :--- | :--- |
 | — | Everyone | Land economy and market (week 4); includes the confirm popover (T-07) and the sell tab (T-10) | todo |
-| T-14 | Shabab | Turn on the other crops as art arrives; `tomato_5.png` is a different size (ISS-093) | todo |
+| T-14 | Shabab | Turn on the other crops as art arrives; tomato done in DEC-060 | done |
 | T-16 | Shabab | Handover: final docs and the `v0.1` tag | todo |
 | T-15 | Kafi (Jim) | Polish: almanac done; empty and error states still open | doing |
 | T-26 | Kafi (Jim) | Missing art: 2 rice failure sprites, 28 for other crops, 14 icons | todo |
@@ -150,7 +150,6 @@ Kafi and Jim are the same person. T-56 was never used. The next free ID is **T-9
 
 ## Still open (from `issues.md`)
 
-- ISS-093: `tomato_5.png` is a different size from stages 1–4 (blocks T-14).
 - ISS-007: pump's transparent canvas eats clicks.
 - ISS-009, ISS-011, ISS-012: weather sample and geocode edge cases.
 - ISS-010: `check-imports` fails on `utils/dom.js`.

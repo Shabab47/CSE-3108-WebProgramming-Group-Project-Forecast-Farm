@@ -51,13 +51,13 @@ test('seed prices run 100 to 500 in steps of 100, cheapest first', () => {
   }
 });
 
-test('rice and potato are the crops available to plant', () => {
-  // Rice and potato have their five growth sprites; the other three have a price
+test('rice, potato and tomato are the crops available to plant', () => {
+  // All three have their five growth sprites on disk; wheat and corn have a price
   // and a packet but no growth art yet. The shop still lists all five; the field
   // draws the rice fallback for the ones without art.
   assert.deepEqual(
     SHOP_ORDER.filter((id) => CROPS[id].available),
-    ['rice', 'potato'],
+    ['rice', 'potato', 'tomato'],
   );
 });
 

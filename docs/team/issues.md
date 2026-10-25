@@ -258,7 +258,7 @@ meter out of the branch and forget what was sharing it.
 ---
 
 ## ISS-093 Tomato stage 5 is not square, and it is not registered
-- Reported by Hisham · Owner: Jim (art), Hisham (registry) · Status: **registry fixed, art open**
+- Reported by Hisham · Owner: Jim (art), Hisham (registry) · Status: **fixed** in DEC-060
 - Where: `assets/images/crops/tomato/tomato_5.png`, `js/config/assets.js`
 
 **Found** while registering the tomato stages, which arrived in `d131de4` without a registry
@@ -271,17 +271,18 @@ file per `ownership.md`, and the registry is the thing AGENTS §6 makes load-bea
 entries are added — with the dimensions the files **actually** have, read from the PNG IHDR
 rather than assumed from the rice pattern.
 
-**2. `tomato_5.png` is 1024×807 and the other four are 1024×1024. Still open.**
+**2. `tomato_5.png` is 1024×807 and the other four are 1024×1024. Fixed in DEC-060.**
 
-That is not cosmetic. Every other stage in the game is square — rice is 1000×1000 and so is
+That was not cosmetic. Every other stage in the game is square — rice is 1000×1000 and so is
 `base.png` — because the isometric geometry in `AGENTS.md` §5 was derived from square alpha
 bounding boxes, and `tileAspect: 0.538` is meaningless against a rectangle. A crop drawn from
-a 1024×807 source in a slot sized for a square **shrinks at stage 5**, so a tomato visibly
-gets smaller on the step that is supposed to be the biggest and nearly ripe.
+a 1024×807 source in a slot sized for a square **shrank at stage 5**, so a tomato visibly got
+smaller on the step that is supposed to be the biggest and nearly ripe.
 
-Worth measuring rather than eyeballing: the fix is either a re-export at 1024×1024, or a
-deliberate decision to allow non-square crop art — and the second needs a real answer about
-how `plotLayers.js` sizes a non-square sprite, because right now it does not have one.
+A re-export at **1024×1024** landed in `46bd5d4`; the registry now records `1024x1024` for all
+five stages, and `tests/assets.test.js` passes. The alternative — allowing non-square crop art —
+was not taken, because it would need a rule for how `plotLayers.js` sizes a rectangle and there
+is not one.
 
 **Why it was not caught.** `assets.test.js` checks that files are *listed*, not that a
 listed entry's dimensions are consistent with its siblings. That check is worth adding, but
@@ -903,7 +904,7 @@ or `assets.test.js` fails in the other direction.
 | ISS-090 | The pump did nothing, and nothing ever changed a plot's water | **High** | Hisham | **fixed** | T-09 |
 | ISS-091 | Crops died of thirst while the pump was running, and the game blamed the pump | **High** | Hisham | **fixed** | T-09 |
 | ISS-092 | Damage and water were the same thing, so neither could be drawn | **High** | Hisham | **fixed** | T-09 |
-| ISS-093 | Tomato stage 5 is not square (1024×807 against 1024×1024) | Low | Jim (art) | **art open** | T-26 |
+| ISS-093 | Tomato stage 5 is not square (1024×807 against 1024×1024) | Low | Jim (art) | **fixed** | DEC-060 |
 | ISS-094 | The water meter only existed on plots that already had a crop | Low | Hisham | **fixed** | T-09 |
 | ISS-095 | A typo in an asset status shipped silently, because nothing read the status | Low | Hisham | **fixed** | — |
 | ISS-096 | The time-to-optimal quote ignores rain, in the file that already knows the rain rate | Medium | Hisham | **open** | T-09 |
@@ -931,9 +932,9 @@ or `assets.test.js` fails in the other direction.
 | ISS-118 | The plot inspector dimmed the field twice | Low | Jim | **fixed** | T-78 |
 | ISS-119 | A dry-damaged crop read "Dry · Dry" in the inspector's water pill | Low | Jim | **fixed** | T-78 |
 | ISS-120 | The inspector's water-rates line could not be hidden | Low | Jim | **fixed** | T-78 |
-| ISS-121 | Tomato's new damage sprites are not in the asset registry, and three stage sizes are stale | Medium | Jim | **open** | — |
+| ISS-121 | Tomato's new damage sprites are not in the asset registry, and three stage sizes are stale | Medium | Jim | **fixed** | DEC-060 |
 | ISS-122 | Farmer 3's six black bars are back in `HEAD` | **High** | Jim | **open** | — |
-| ISS-123 | `.plot__damage` no longer shares the crop's box, so `farmView.test.js` fails | Low | Jim | **open** | — |
+| ISS-123 | `.plot__damage` no longer shares the crop's box, so `farmView.test.js` fails | Low | Jim | **fixed** | DEC-060 |
 
 ---
 
@@ -2598,20 +2599,20 @@ or `assets.test.js` fails in the other direction.
 ---
 
 ### ISS-121 Tomato's new damage sprites are not in the asset registry
-- Reported: 2026-10-23 by Jim · Owner: Jim · Status: **open** · Severity: Medium
+- Reported: 2026-10-23 by Jim · Owner: Jim · Status: **fixed** in DEC-060 · Severity: Medium
 - Where: `js/config/assets.js`, `assets/images/crops/tomato/`
 - Problem: `46bd5d4` replaced `tomato_3/4/5.png` and added `tomato_drought_killed.png` and
-  `tomato_rain_damaged.png`, but the registry still carries the old sizes and neither damage
-  file. `npm test` fails in `tests/assets.test.js`:
+  `tomato_rain_damaged.png`, but the registry still carried the old sizes and neither damage
+  file. `npm test` failed in `tests/assets.test.js`:
   `tomato_drought_killed.png exists on disk but is not listed`, and `tomato_3.png size mismatch:
   registry says 1132288, disk says 1132776`.
 - Cause: the art commit did not run the asset-registry test. The test reports only the first
   missing file and the first size mismatch, so `tomato_rain_damaged.png`, `tomato_4.png`
-  (1112876) and `tomato_5.png` (1127648) are also stale.
-- Fix: not fixed here — the art is someone else's recent commit and tomato still has
-  `available: false` (ISS-093). Register both `1024x1024` damage sprites and update the three
-  stage sizes, then run `node --test tests/assets.test.js`. Do not delete or re-export the art
-  without its owner.
+  (1112876) and `tomato_5.png` (1127648) were also stale.
+- Fix: both `1024x1024` damage sprites are registered, the three stage sizes are corrected, and
+  `CUSTOM_FAILURE_NAMES` maps tomato's `dry`/`waterlogged` sprites to their real filenames. The
+  registry test now normalises line endings, because a Windows checkout's CRLF added a byte per
+  line to every multi-line SVG and looked like a stale registry.
 
 ---
 
@@ -2633,16 +2634,17 @@ or `assets.test.js` fails in the other direction.
 ---
 
 ### ISS-123 The damage sprite layer no longer shares the crop's box
-- Reported: 2026-10-23 by Jim · Owner: Jim · Status: **open** · Severity: Low
+- Reported: 2026-10-23 by Jim · Owner: Jim · Status: **fixed** in DEC-060 · Severity: Low
 - Where: `css/scene.css` (`.plot__damage`), `tests/farmView.test.js`
-- Problem: `tests/farmView.test.js` fails because `.plot__crop` is
-  `width: 93%; bottom: 6.5%; left: 50.5%` while `.plot__damage` is
+- Problem: `tests/farmView.test.js` failed because `.plot__crop` is
+  `width: 93%; bottom: 6.5%; left: 50.5%` while `.plot__damage` was
   `width: 100%; bottom: 9.5%; left: 50.5%`. `AGENTS.md` section 5 and DEC-048 say the pair must
   carry the same three numbers so they cannot drift.
 - Cause: `8993181` and/or `7d0cad4` repositioned the damage layer while adding the new tomato
-  damage art. It may be the right box for that art, but the test and the documented rule were
-  not updated with it, so the change is indistinguishable from a regression.
-- Fix: not applied here — the new art is someone else's work. Either restore the shared box if
-  the old sprites still fit, or, if the new patches genuinely need a different box, update the
-  rule in `AGENTS.md`/DEC-048 and the test together. Do not change one without the other.
+  damage art. It may have been aimed at that art, but the test and the documented rule were not
+  updated with it, so the change was indistinguishable from a regression.
+- Fix: the shared box is restored (`93% / 6.5% / 50.5%`). Measuring the alpha boxes showed why
+  it is the right one: tomato's damage PNGs are full replacement patches on the same square
+  canvas as a growth stage (0.956 and 0.914 of the canvas wide), so they belong in the crop's
+  box, not the ground's.
 

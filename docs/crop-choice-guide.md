@@ -72,8 +72,8 @@ crop **latches damage** that never comes off.
 | Rice | **85** | yes | 17 gold · 51 min |
 | Corn | **70** | no | 14 gold · 42 min |
 | Wheat | **55** | no | 11 gold · 33 min |
-| Potato | 55 | no | — |
-| Tomato | 55 | no — art landed, blocked by ISS-093 | — |
+| Potato | 55 | yes — 4-plot land gate | — |
+| Tomato | 55 | yes — 8-plot land gate | — |
 
 Measured from `minutesToOptimal(plot, 'clearSky')` on a plot at zero water, not scaled by hand.
 Full sun is the worst case: the pump fills while the sun empties, so shade is cheaper and quicker.

@@ -22,7 +22,7 @@ import { POTATO } from '../crops_logics/potato.js';
 import { TOMATO } from '../crops_logics/tomato.js';
 import { WHEAT } from '../crops_logics/wheat.js';
 import { CORN } from '../crops_logics/corn.js';
-import { progressAt, stageAt } from '../crops_logics/stageMath.js';
+import { progressAt, stageAt, stageFromHours } from '../crops_logics/stageMath.js';
 
 /**
  * Every crop, by id.
@@ -99,15 +99,18 @@ export function harvestValue(cropId) {
  * Which sprite a crop planted `elapsedHours` ago should show, 1..5.
  *
  * Delegates to the shared formula in `crops_logics/stageMath.js` rather than to each
- * crop's own `stageFor()`. Both reach the same answer for every crop, and this one
- * has the virtue of working for a crop id that is not in the table — which is what a
- * hand-edited save hands over. See `stageMath.js` for why the count is five sprites
- * and not six hours.
+ * crop's own `stageFor()`, because it has the virtue of working for a crop id that is
+ * not in the table — which is what a hand-edited save hands over. A crop that declares
+ * `stageHours` uses its own schedule instead, so a crop's `stageFor()` and the field
+ * still reach the same answer. See `stageMath.js` for why the count is five sprites
+ * and not six hours, and DEC-060 for tomato's two-hour stage 4.
  */
 export function growthStage(cropId, elapsedHours) {
   const crop = cropOf(cropId);
   if (!crop) return 1;
-  return stageAt(elapsedHours, crop.growHours);
+  return crop.stageHours
+    ? stageFromHours(elapsedHours, crop.stageHours)
+    : stageAt(elapsedHours, crop.growHours);
 }
 
 /**

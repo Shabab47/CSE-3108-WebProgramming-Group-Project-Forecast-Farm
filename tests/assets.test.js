@@ -24,6 +24,28 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 const assetsDir = path.join(root, 'assets');
 
+/**
+ * Extensions whose byte size depends on the checkout's line endings.
+ *
+ * `core.autocrlf` rewrites every LF to CRLF on a Windows checkout, which adds a byte
+ * per line to a text asset. The registry records the file as committed, so a plain
+ * `stat.size` comparison fails here for every multi-line SVG while the same tree is
+ * green on Linux — and the failure looks like a stale registry rather than a platform
+ * difference. Sizes below are therefore counted with the carriage returns removed.
+ */
+const TEXT_EXTENSIONS = new Set(['.svg', '.json', '.txt', '.html', '.css', '.js']);
+
+/** Bytes as committed: text files measured with LF, everything else as-is. */
+function sizeOf(full, entry) {
+  if (!TEXT_EXTENSIONS.has(path.extname(entry.name).toLowerCase())) {
+    return fs.statSync(full).size;
+  }
+  const bytes = fs.readFileSync(full);
+  let count = 0;
+  for (const byte of bytes) if (byte === 13) count += 1;
+  return bytes.length - count;
+}
+
 /** Recursively collect all files under dir, returning {path, size} objects. */
 function walk(dir) {
   const results = [];
@@ -32,10 +54,9 @@ function walk(dir) {
     if (entry.isDirectory()) {
       results.push(...walk(full));
     } else {
-      const stat = fs.statSync(full);
       results.push({
         path: full.replace(root + path.sep, '').replace(/\\/g, '/'),
-        size: stat.size,
+        size: sizeOf(full, entry),
       });
     }
   }

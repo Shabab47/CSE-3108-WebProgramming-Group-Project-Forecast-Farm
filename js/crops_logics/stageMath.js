@@ -59,6 +59,37 @@ export function stageAt(elapsedHours, growHours) {
 }
 
 /**
+ * Which sprite to draw when a crop's stages do not start on consecutive hours.
+ *
+ * `stageAt()` spreads five sprites evenly over the grow time, so a six-hour crop
+ * holds its last sprite for two hours. Most crops accept that. Tomato does not: it
+ * holds **stage 4** for hours 3–5 and saves `tomato_5.png` for the final hour, so the
+ * ripe picture is not on screen for two hours before the crop can actually be picked.
+ *
+ * The schedule is a crop's own data (`stageHours` in its file), not a branch here, so
+ * adding a sixth crop with an unusual cadence is still a data change. Hours before the
+ * first entry, and non-finite input, fall back to stage 1 exactly as `stageAt()` does.
+ *
+ * @param {number} elapsedHours hours since planting; negatives clamp to 0
+ * @param {number[]} starts ascending hour at which each stage begins, e.g. `[0, 1, 2, 3, 5]`
+ * @returns {number} 1..STAGE_COUNT
+ */
+export function stageFromHours(elapsedHours, starts) {
+  if (!Array.isArray(starts) || starts.length === 0) return 1;
+  if (!Number.isFinite(elapsedHours)) return 1;
+
+  const elapsed = Math.max(elapsedHours, 0);
+  let stage = 1;
+
+  for (let i = 0; i < starts.length; i += 1) {
+    if (elapsed >= starts[i]) stage = i + 1;
+    else break;
+  }
+
+  return Math.min(stage, STAGE_COUNT);
+}
+
+/**
  * How far through its grow time a crop is, 0..1.
  *
  * Separate from `stageAt` because "how far along is it" is a different question

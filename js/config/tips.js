@@ -134,7 +134,7 @@ export const TIPS = [
   {
     id: 'rice-first',
     kind: 'game',
-    text: 'Rice and potato are ready to plant. Wheat, corn and tomato are in the shop, greyed out for now.',
+    text: 'Rice, potato and tomato are ready to plant. Wheat and corn are in the shop, greyed out for now.',
   },
   {
     id: 'read-the-forecast',

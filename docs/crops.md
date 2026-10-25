@@ -13,8 +13,8 @@ Land is described the same way: one file per segment in `js/land_squares/`, asse
 | id | Name | Grow hours | Seed price | Sell / unit | Yield units | Water need | Available |
 | :--- | :--- | ---: | ---: | ---: | ---: | :--- | :--- |
 | `rice` | Rice | 6 | 100 | 20 | 10 | Very high (0.9) | **yes** |
-| `potato` | Potato | 4 | 200 | 40 | 10 | Medium (0.5) | no |
-| `tomato` | Tomato | 6 | 300 | 60 | 10 | Medium (0.5) | no |
+| `potato` | Potato | 4 | 200 | 40 | 10 | Medium (0.5) | **yes** |
+| `tomato` | Tomato | 6 | 300 | 60 | 10 | Medium (0.5) | **yes** |
 | `wheat` | Wheat | 5 | 400 | 80 | 10 | Medium (0.5) | no |
 | `corn` | Corn | 8 | 500 | 100 | 10 | High (0.7) | no |
 
@@ -56,12 +56,18 @@ it. A farm that ignores the forecast stops growing; one that reads it compounds.
 Tune `seedPrice` and `sellPrice` together — a crop that sells for less than its
 seed makes the sixteen-plot goal unreachable.
 
-Rice is the only playable crop because it is the only crop with art. A crop becomes playable
-when its five stage images exist: `assets/images/crops/<id>/<id>_1.png` through
-`<id>_5.png`. Each crop gets its own folder, so the folder name and the file prefix always agree
-and a missing crop is an empty folder rather than a scattering of loose files.
-Flip `available: true` and it appears in the picker and the shop. No code changes should be
-needed. If one is, that is an architecture bug — log it in `docs/team/issues.md`.
+Rice, potato and tomato are playable because their five stage images exist:
+`assets/images/crops/<id>/<id>_1.png` through `<id>_5.png`. Each crop gets its own folder,
+so the folder name and the file prefix always agree and a missing crop is an empty folder
+rather than a scattering of loose files. Flip `available: true` and it appears in the
+picker and the shop. No code changes should be needed. If one is, that is an architecture
+bug — log it in `docs/team/issues.md`.
+
+Tomato is the one crop whose sprite does not follow `stageAt()`'s even spread: it takes six
+hours and has five sprites, so one stage must cover two hours. Tomato repeats **stage 4**
+(hours 3–5) and saves the ripe fifth sprite for the last hour, so the field never shows a
+finished-looking crop two hours before it can be picked. That schedule is `stageHours` in
+`js/crops_logics/tomato.js`; see DEC-060.
 
 ## Likes and hates
 
@@ -233,7 +239,7 @@ and the number means something a player can hold on to.
 
 ### Rice, which takes six hours and has five sprites
 
-This is the whole table for the only playable crop, and it is not a general rule — it is what
+This is the whole table for rice, and it is not a general rule — it is what
 falls out of `min(floor(hours) + 1, 5)` when `growHours` is 6:
 
 | Elapsed | Stage | Art | Ready? |

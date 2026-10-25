@@ -68,15 +68,15 @@ export const ASSETS = [
   { path: 'assets/images/crops/rice/rice_3.png', name: 'Rice — stage 3', size: 557278, dimensions: '1000x1000', status: 'done', category: 'crop-sprite', page: 'field' },
   { path: 'assets/images/crops/rice/rice_4.png', name: 'Rice — stage 4', size: 646392, dimensions: '1000x1000', status: 'done', category: 'crop-sprite', page: 'field' },
   { path: 'assets/images/crops/rice/rice_5.png', name: 'Rice - stage 5', size: 589773, dimensions: '1000x1000', status: 'done', category: 'crop-sprite', page: 'field' },
-  // Tomato stages, added in d131de4. The first four are square at 1024x1024; **stage 5 is
-  // 1024x807**, which is not — see ISS-093. Registered with the dimensions the files
-  // actually have rather than the ones the rice pattern would suggest, because the whole
-  // point of the registry is to be the thing you can trust.
+  // Tomato stages. All five are 1024x1024 — `tomato_5.png` was re-exported square, so
+  // the old ISS-093 "stage 5 is not square" note is gone. Sizes are the files' own, read
+  // from disk rather than assumed, because that is the only way the registry can be
+  // trusted. See ISS-121.
   { path: 'assets/images/crops/tomato/tomato_1.png', name: 'Tomato - stage 1', size: 557156, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
   { path: 'assets/images/crops/tomato/tomato_2.png', name: 'Tomato - stage 2', size: 780860, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
-  { path: 'assets/images/crops/tomato/tomato_3.png', name: 'Tomato - stage 3', size: 1132288, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
-  { path: 'assets/images/crops/tomato/tomato_4.png', name: 'Tomato - stage 4', size: 1112306, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
-  { path: 'assets/images/crops/tomato/tomato_5.png', name: 'Tomato - stage 5 (ISS-093: not square)', size: 1125057, dimensions: '1024x807', status: 'done', category: 'crop-sprite', page: 'field' },
+  { path: 'assets/images/crops/tomato/tomato_3.png', name: 'Tomato - stage 3', size: 1132776, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
+  { path: 'assets/images/crops/tomato/tomato_4.png', name: 'Tomato - stage 4', size: 1112876, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
+  { path: 'assets/images/crops/tomato/tomato_5.png', name: 'Tomato - stage 5', size: 1127648, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
 
   // Potato stages, all five now delivered art. Stages 1-2 arrived first; stages 3-5
   // replaced the rice placeholders in place (same filenames) in `a02a62e`, so the
@@ -88,8 +88,8 @@ export const ASSETS = [
   { path: 'assets/images/crops/potato/potato_5.png', name: 'Potato - stage 5', size: 880078, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
 
   // Damage sprites, built by `cropFailureImg(cropId, failure)` with failure one of
-  // `dry`, `waterlogged`, `dead`. Rice and potato both use custom filenames for
-  // dry/waterlogged; see `cropFailureImg()`. `dead` art has not landed for either;
+  // `dry`, `waterlogged`, `dead`. Rice, potato and tomato all use custom filenames for
+  // dry/waterlogged; see `cropFailureImg()`. `dead` art has not landed for any crop;
   // the entry is omitted until the file exists. `plotLayers.js` draws the
   // `damageWord()` text beside it, which is the DEC-014 rule: the text carries the
   // meaning, the image is a hole for now.
@@ -97,6 +97,8 @@ export const ASSETS = [
   { path: 'assets/images/crops/rice/rice_rain_damaged.png', name: 'Rice - waterlogged damage (rain damaged)', size: 689884, dimensions: '1000x1000', status: 'done', category: 'crop-sprite', page: 'field' },
   { path: 'assets/images/crops/potato/potato_drought_killed.png', name: 'Potato - dry damage (drought killed)', size: 943834, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
   { path: 'assets/images/crops/potato/potato_rain_damaged.png', name: 'Potato - waterlogged damage (rain damaged)', size: 909060, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
+  { path: 'assets/images/crops/tomato/tomato_drought_killed.png', name: 'Tomato - dry damage (drought killed)', size: 759539, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
+  { path: 'assets/images/crops/tomato/tomato_rain_damaged.png', name: 'Tomato - waterlogged damage (rain damaged)', size: 1157647, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
 
   // Flat copies of the five rice sprites, delivered at this path before the per-crop
   // folder convention existed. Byte-identical to `crops/rice/rice_N.png` and kept,
@@ -179,7 +181,7 @@ export const ASSETS = [
   { path: 'assets/icons/weather/high-humidity.svg', name: 'High humidity icon', size: 0, dimensions: '', status: 'empty', category: 'icon', page: 'weather' },
 
   // --- Global ---
-  { path: 'assets/icons/favicon.svg', name: 'Favicon', size: 376, dimensions: '', status: 'done', category: 'icon', page: 'global' },
+  { path: 'assets/icons/favicon.svg', name: 'Favicon', size: 369, dimensions: '', status: 'done', category: 'icon', page: 'global' },
 
   // --- Farm dialogs (plot inspector + seed picker) ---
   // The timber frame's close tile, leaf ornament and peg, exported from the Figma
@@ -300,9 +302,9 @@ export function cropStageImg(cropId, stage) {
  *
  * Two crops shipped their dry/waterlogged art under custom names rather than the generic
  * `<cropId>_<failure>.png`, and the game has to ask for what is actually on disk — rice
- * first, then potato, whose two sprites were delivered in `a02a62e` (ISS-106). Everything
- * without an entry here uses the generic pattern; the crops still waiting on damage art
- * get a hole and the `damageWord()` text, which is DEC-014's rule.
+ * first, then potato (ISS-106), then tomato. Everything without an entry here uses the
+ * generic pattern; the crops still waiting on damage art get a hole and the
+ * `damageWord()` text, which is DEC-014's rule.
  */
 const CUSTOM_FAILURE_NAMES = {
   rice: {
@@ -312,6 +314,10 @@ const CUSTOM_FAILURE_NAMES = {
   potato: {
     dry: 'potato_drought_killed.png',
     waterlogged: 'potato_rain_damaged.png',
+  },
+  tomato: {
+    dry: 'tomato_drought_killed.png',
+    waterlogged: 'tomato_rain_damaged.png',
   },
 };
 
