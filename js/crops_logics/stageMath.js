@@ -12,7 +12,8 @@
  * ```
  * hoursElapsed = (now - plantedAt) / 3_600_000
  * hoursElapsed = clamp(hoursElapsed, 0, growHours)   // never negative, never past done
- * stage        = min(floor(hoursElapsed) + 1, STAGE_COUNT)
+ * period       = growHours / 4                        // four growing sprites, evenly spaced
+ * stage        = hoursElapsed >= growHours ? 5 : min(floor(hoursElapsed / period) + 1, 4)
  * ```
  *
  * **The stage advances on the hour and is stable in between.** The field re-renders
@@ -39,6 +40,24 @@
 /** Growth sprites that exist per crop, `rice_1.png` through `rice_5.png`. */
 export const STAGE_COUNT = 5;
 
+/**
+ * The game's clock: **one real hour of play is half a month of crop growth.**
+ *
+ * A crop's `growHours` is its minimum real-life growing time in months divided by
+ * this number, so rice (about 3 months) takes 6 real hours and an early potato,
+ * tomato or sweet corn (about 2 months) takes 4. Change the scale here and every
+ * crop follows; change a crop's `realMonths` and only that crop moves.
+ */
+export const MONTHS_PER_HOUR = 0.5;
+
+/** Real-life months of growth -> real hours of play, under `MONTHS_PER_HOUR`. */
+export function hoursForMonths(months) {
+  return months / MONTHS_PER_HOUR;
+}
+
+/** Sprites that show a crop still growing; the last one (ripe) is reserved for harvest. */
+export const GROWING_STAGES = STAGE_COUNT - 1;
+
 /** The stages there are, so a caller can say "one of five" without hard-coding it. */
 export const STAGES = [1, 2, 3, 4, 5];
 
@@ -55,7 +74,14 @@ export function stageAt(elapsedHours, growHours) {
   }
 
   const clamped = Math.min(Math.max(elapsedHours, 0), growHours);
-  return Math.min(Math.floor(clamped) + 1, STAGE_COUNT);
+
+  // Ripe sprite only once the crop can actually be harvested.
+  if (clamped >= growHours) return STAGE_COUNT;
+
+  // The four growing sprites split the grow time evenly: a 6 h crop swaps every
+  // 1.5 h, a 4 h crop every 1 h.
+  const period = growHours / GROWING_STAGES;
+  return Math.min(Math.floor(clamped / period) + 1, GROWING_STAGES);
 }
 
 /**

@@ -13,7 +13,7 @@
  * the game's risk model, and the two columns are never tuned apart.
  */
 
-import { stageAt } from './stageMath.js';
+import { hoursForMonths, stageAt } from './stageMath.js';
 
 export const POTATO = {
   id: 'potato',
@@ -21,7 +21,8 @@ export const POTATO = {
   shopUnit: '5 SEEDS',
   seedPrice: 200,
   sellPrice: 40, // 10 × 40 = 400, twice the seed
-  growHours: 4,
+  realMonths: 2, // minimum real-life growing time
+  growHours: hoursForMonths(2), // 1 real hour = half a month
   waterNeed: 0.5,
   yield: 10,
   growNote: 'The quickest to mature, and happy in cool, moist soil.',

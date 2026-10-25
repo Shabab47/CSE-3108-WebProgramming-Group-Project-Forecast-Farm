@@ -10,7 +10,7 @@
  * `seedPrice * 2 = yield * sellPrice`: 400 in, 800 out at full health.
  */
 
-import { stageAt } from './stageMath.js';
+import { hoursForMonths, stageAt } from './stageMath.js';
 
 export const WHEAT = {
   id: 'wheat',
@@ -18,7 +18,8 @@ export const WHEAT = {
   shopUnit: '5 SEEDS',
   seedPrice: 400,
   sellPrice: 80, // 10 × 80 = 800, twice the seed
-  growHours: 5,
+  realMonths: 3, // minimum real-life growing time
+  growHours: hoursForMonths(3), // 1 real hour = half a month
   waterNeed: 0.5,
   yield: 10,
   growNote: 'Hardy in cool, dry weather and quick to bring in.',

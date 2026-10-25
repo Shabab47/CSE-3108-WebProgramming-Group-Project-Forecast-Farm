@@ -8,17 +8,13 @@
  * `assets/images/crops/tomato/`. Only the `dead` sprite is still missing, which is
  * true of every crop.
  *
- * `stageHours` is tomato's one deviation from the shared `stageAt()` formula. Tomato
- * takes six hours and has five sprites, so one stage has to cover two hours. Holding
- * **stage 4** across hours 3–5 and letting `tomato_5.png` arrive at hour 5 means the
- * ripe picture is only up for the last hour, not for two hours before the crop can
- * be harvested. `config/crops.js` reads this same array, so the field and the crop's
- * own `stageFor()` cannot disagree. See DEC-060.
+ * Tomato uses the shared `stageAt()` like every other crop: four growing sprites
+ * spread evenly over the grow time, and `tomato_5.png` only at harvest.
  *
  * `seedPrice * 2 = yield * sellPrice`: 300 in, 600 out at full health.
  */
 
-import { stageFromHours } from './stageMath.js';
+import { hoursForMonths, stageAt } from './stageMath.js';
 
 export const TOMATO = {
   id: 'tomato',
@@ -26,7 +22,8 @@ export const TOMATO = {
   shopUnit: '5 SEEDS',
   seedPrice: 300,
   sellPrice: 60, // 10 × 60 = 600, twice the seed
-  growHours: 6,
+  realMonths: 2, // minimum real-life growing time
+  growHours: hoursForMonths(2), // 1 real hour = half a month
   waterNeed: 0.5,
   yield: 10,
   growNote: 'Wants steady water and a warm spell to finish.',
@@ -37,12 +34,9 @@ export const TOMATO = {
   // Plain season names, not `SEASON` constants: this layer imports nothing. See the
   // same note in `rice.js`, and `tests/seasons.test.js` for the guard.
   seasons: ['Summer', 'Spring'],
-
-  // Stage 1 at 0h, 2 at 1h, 3 at 2h, 4 at 3h, and stage 5 at 5h.
-  stageHours: [0, 1, 2, 3, 5],
 };
 
 /** Growth stage 1..5 for tomato planted `elapsedHours` ago. */
 export function stageFor(elapsedHours) {
-  return stageFromHours(elapsedHours, TOMATO.stageHours);
+  return stageAt(elapsedHours, TOMATO.growHours);
 }

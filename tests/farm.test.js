@@ -129,15 +129,15 @@ test('planting is refused for every reason that would be wrong', () => {
 
 /* --- growth ---------------------------------------------------------------- */
 
-test('a rice crop changes sprite once an hour, and holds the last one', () => {
-  // Rice takes six hours and there are five sprites, so the last hour holds stage 5.
-  // The pairs below are the whole table; anything off by one fails here.
+test('a rice crop swaps sprite every 1.5 hours, and ripens only when harvestable', () => {
+  // Rice takes six hours (about three real months at half a month per hour). The four
+  // growing sprites split that evenly, so one swap every 1.5 h, and the ripe sprite
+  // arrives exactly at hour six. The pairs below are the whole table.
   const expected = [
-    [0, 1], [0.9, 1],
-    [1, 2], [1.9, 2],
-    [2, 3], [2.9, 3],
-    [3, 4], [3.9, 4],
-    [4, 5], [5.9, 5],
+    [0, 1], [1.4, 1],
+    [1.5, 2], [2.9, 2],
+    [3, 3], [4.4, 3],
+    [4.5, 4], [5.9, 4],
     [6, 5], [99, 5],
   ];
 
@@ -147,18 +147,15 @@ test('a rice crop changes sprite once an hour, and holds the last one', () => {
   }
 });
 
-test('tomato holds stage 4 from hour 3 to hour 5, and ripens at hour 5', () => {
-  // Tomato also takes six hours and has five sprites, but the hour it repeats is
-  // stage 4, not stage 5 (DEC-060). `tomato_5.png` is the ripe picture, so showing it
-  // from hour 4 would promise a harvest the player cannot take for two hours. The
-  // pairs below are the whole table; anything off by one fails here.
+test('tomato swaps sprite every hour, and ripens at hour four', () => {
+  // Tomato takes four hours (about two real months). Four growing sprites, one per
+  // hour, and `tomato_5.png` — the ripe picture — only once it can be harvested.
   const expected = [
     [0, 1], [0.9, 1],
     [1, 2], [1.9, 2],
     [2, 3], [2.9, 3],
-    [3, 4], [4, 4], [4.9, 4],
-    [5, 5], [5.9, 5],
-    [6, 5], [99, 5],
+    [3, 4], [3.9, 4],
+    [4, 5], [99, 5],
   ];
 
   for (const [hours, stage] of expected) {
@@ -171,27 +168,29 @@ test("tomato's own stageFor agrees with the field's growthStage", () => {
   // `config/crops.js` is where the field asks, and `crops_logics/tomato.js` exports
   // the crop's own answer. If they disagree the sprite and the readiness rule drift
   // apart, which is the kind of bug that only shows on a running page.
-  for (const hours of [0, 1, 2, 3, 4, 4.5, 5, 5.9, 6, 99]) {
+  for (const hours of [0, 1, 2, 3, 3.9, 4, 4.5, 5, 99]) {
     assert.equal(growthStage('tomato', hours), tomatoStage(hours), `${hours}h in`);
   }
 });
 
 test('readiness is progress, not the sprite — the last stage is not "ready" early', () => {
-  // The bug this guards: stage 5 is drawn from 4h, so a player looking at a finished
-  // rice plant must still not be able to harvest it for two more hours.
+  // The ripe sprite (stage 5) is reserved for the moment the crop is harvestable, so
+  // the picture and the readiness rule agree. Just short of six hours it is still
+  // growing and not ready.
   const atFiveHours = harvestsIn(
-    { cropId: 'rice', plantedAt: Date.now() - 5 * HOUR },
+    { cropId: 'rice', plantedAt: Date.now() - 5.9 * HOUR },
     Date.now(),
     1,
   );
-  assert.equal(atFiveHours.stage, 5, 'it looks finished');
-  assert.equal(atFiveHours.ready, false, 'but it is not');
+  assert.equal(atFiveHours.stage, 4, 'it is not showing the ripe sprite yet');
+  assert.equal(atFiveHours.ready, false, 'and it is not ready');
 
   const atSixHours = harvestsIn(
     { cropId: 'rice', plantedAt: Date.now() - 6 * HOUR },
     Date.now(),
     1,
   );
+  assert.equal(atSixHours.stage, 5, 'ripe sprite at harvest time');
   assert.equal(atSixHours.ready, true);
   assert.equal(atSixHours.msLeft, 0);
 });
@@ -214,7 +213,7 @@ test('growth runs on the game clock, and the debug speed moves it too', () => {
   // question, so both have to move the crop — otherwise a demo under `?fast` shows a
   // season card and a season's worth of weather over an unchanging field.
   assert.equal(harvestsIn(plot, now, 1).stage, 1, 'just sown');
-  assert.equal(harvestsIn(plot, now + 3 * HOUR, 1).stage, 4, 'three hours later, stage 4');
+  assert.equal(harvestsIn(plot, now + 3 * HOUR, 1).stage, 3, 'three hours later, stage 3');
 
   // 30 minutes real: a sixth of an hour at 1x, half an hour of crop at 60x.
   const halfHourAgo = { cropId: 'rice', plantedAt: now - HOUR / 2 };
@@ -233,7 +232,7 @@ test('a nonsensical speed is ignored rather than producing a zero-length crop', 
 
   for (const speed of [0, -5, NaN, Infinity, 'fast', null, undefined]) {
     const grown = harvestsIn(plot, now, speed);
-    assert.equal(grown.stage, 3, `speed ${String(speed)} falls back to 1x`);
+    assert.equal(grown.stage, 2, `speed ${String(speed)} falls back to 1x`);
     assert.ok(grown.progress > 0, `speed ${String(speed)} did not freeze the crop`);
   }
 });

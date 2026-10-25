@@ -25,7 +25,7 @@
  * hiding them would leave a player wondering where the missing fourth seed went.
  */
 
-import { stageAt } from './stageMath.js';
+import { hoursForMonths, stageAt } from './stageMath.js';
 
 export const RICE = {
   id: 'rice',
@@ -33,7 +33,8 @@ export const RICE = {
   shopUnit: '5 SEEDS',
   seedPrice: 100,
   sellPrice: 20, // 10 × 20 = 200, twice the seed
-  growHours: 6,
+  realMonths: 3, // minimum real-life growing time
+  growHours: hoursForMonths(3), // 1 real hour = half a month
   waterNeed: 0.9, // thirstiest crop — the multiplier on evaporation
   yield: 10,
   growNote: 'Cheapest seed, and the thirstiest crop — keep it watered.',
