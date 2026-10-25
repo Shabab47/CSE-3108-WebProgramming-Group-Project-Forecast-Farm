@@ -24,7 +24,8 @@ import {
 import { damageSprite } from '../js/domain/damage.js';
 import { buyPlot, canBuyPlot, LAND_REASONS } from '../js/domain/land.js';
 import { plotAction } from '../js/ui/plotClick.js';
-import { cropOf } from '../js/config/crops.js';
+import { cropOf, growthStage } from '../js/config/crops.js';
+import { stageFor as tomatoStage } from '../js/crops_logics/tomato.js';
 import { HEALTH, START_GOLD } from '../js/config/game.js';
 import { PLOT_PRICES, STARTER_PLOT_ID, UNLOCK_ORDER } from '../js/config/field.js';
 import { buildInitialState } from '../js/state/initialState.js';
@@ -143,6 +144,35 @@ test('a rice crop changes sprite once an hour, and holds the last one', () => {
   for (const [hours, stage] of expected) {
     const grown = harvestsIn({ cropId: 'rice', plantedAt: Date.now() - hours * HOUR }, Date.now(), 1);
     assert.equal(grown.stage, stage, `${hours}h in`);
+  }
+});
+
+test('tomato holds stage 4 from hour 3 to hour 5, and ripens at hour 5', () => {
+  // Tomato also takes six hours and has five sprites, but the hour it repeats is
+  // stage 4, not stage 5 (DEC-060). `tomato_5.png` is the ripe picture, so showing it
+  // from hour 4 would promise a harvest the player cannot take for two hours. The
+  // pairs below are the whole table; anything off by one fails here.
+  const expected = [
+    [0, 1], [0.9, 1],
+    [1, 2], [1.9, 2],
+    [2, 3], [2.9, 3],
+    [3, 4], [4, 4], [4.9, 4],
+    [5, 5], [5.9, 5],
+    [6, 5], [99, 5],
+  ];
+
+  for (const [hours, stage] of expected) {
+    const grown = harvestsIn({ cropId: 'tomato', plantedAt: Date.now() - hours * HOUR }, Date.now(), 1);
+    assert.equal(grown.stage, stage, `${hours}h in`);
+  }
+});
+
+test("tomato's own stageFor agrees with the field's growthStage", () => {
+  // `config/crops.js` is where the field asks, and `crops_logics/tomato.js` exports
+  // the crop's own answer. If they disagree the sprite and the readiness rule drift
+  // apart, which is the kind of bug that only shows on a running page.
+  for (const hours of [0, 1, 2, 3, 4, 4.5, 5, 5.9, 6, 99]) {
+    assert.equal(growthStage('tomato', hours), tomatoStage(hours), `${hours}h in`);
   }
 });
 

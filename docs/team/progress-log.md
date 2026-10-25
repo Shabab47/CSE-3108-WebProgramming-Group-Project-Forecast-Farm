@@ -16,6 +16,26 @@ The per-person weekly notes that used to live in the README table are now in `me
 ISS-127: restore 5-state pump mode
 
 
+## Tomato grows hour by hour, and holds stage 4 for two of them — 2026-10-25
+
+- **Did:** turned tomato on (`available: true`) and gave it its own stage schedule — stages 1–3
+  hourly, **stage 4 held from hour 3 to hour 5**, ripe `tomato_5.png` only in the last hour
+  (DEC-060). `stageFromHours()` in `stageMath.js` implements the schedule; `growthStage()` reads
+  a crop's `stageHours` when it has one and leaves rice/potato/wheat/corn on `stageAt()`.
+- **Also fixed:** ISS-093 (stage 5 is square now, so the tomato no longer shrinks at the last
+  step), ISS-121 (registry sizes + both tomato damage sprites, and `CUSTOM_FAILURE_NAMES` maps
+  them), ISS-123 (`.plot__damage` back in the crop's box). `tests/assets.test.js` now measures
+  text assets with LF, because a Windows checkout's CRLF made every multi-line SVG look stale.
+- **Touched:** `js/crops_logics/{stageMath,tomato}.js`, `js/config/{crops,assets,tips}.js`,
+  `css/scene.css`, `tests/{farm,farmView,shop,assets}.test.js`, `docs/{crops,architecture,
+  asset-checklist}.md`, `docs/game-design/implementation-plan.md`,
+  `docs/team/{issues,tasks,decisions,progress-log}.md`.
+- **Verified:** `npm test` — 716 pass, the 8 failures are the pre-existing plot-inspector, Farmer
+  3 and pump cases (ISS-122 and friends), none in a file this change touched. `npm run check`
+  reports no new layering violations. Server still up at `http://127.0.0.1:5173/`.
+
+---
+
 ## The plot inspector and seed picker wear the timber dialog — 2026-10-23
 
 - **Did:** implemented the three Figma frames (`182:81`, `182:109`, `182:129`) in the running game.

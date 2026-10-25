@@ -402,6 +402,36 @@ test('a planted potato draws its own sprites, not the rice fallback', () => {
   );
 });
 
+test('a tomato swaps sprite on the hour, and stage 4 lasts two hours', () => {
+  // The swap is the growth animation: the 1 Hz tick repaints the tile when the stage
+  // in `harvestsIn()` changes, and this pins which picture each hour draws. Tomato's
+  // schedule is its own (`stageHours`, DEC-060), not the shared `stageAt()` formula,
+  // so hour 4 must still be `tomato_4.png` rather than the ripe fifth stage.
+  const HOUR = 3_600_000;
+  const plantedAt = (hours) => buildPlots().map((plot) =>
+    plot.id === 5
+      ? { ...plot, owned: true, cropId: 'tomato', plantedAt: Date.now() - hours * HOUR, waterLevel: 60 }
+      : plot,
+  );
+  const spriteAt = (hours) => {
+    mount({ plots: plantedAt(hours) });
+    const crop = root.querySelectorAll('.plot')[5].querySelector('.plot__crop');
+    assert.ok(crop, `${hours}h in: a tomato still has a sprite`);
+    assert.ok(
+      !crop.classList.contains('plot__crop--fallback'),
+      `${hours}h in: its own art, not the tinted rice fallback`,
+    );
+    return crop.getAttribute('src');
+  };
+
+  assert.match(spriteAt(0.5), /\/tomato\/tomato_1\.png$/, 'sprouting');
+  assert.match(spriteAt(1.5), /\/tomato\/tomato_2\.png$/, 'one hour later');
+  assert.match(spriteAt(2.5), /\/tomato\/tomato_3\.png$/, 'two hours later');
+  assert.match(spriteAt(3.1), /\/tomato\/tomato_4\.png$/, 'three hours later');
+  assert.match(spriteAt(4.5), /\/tomato\/tomato_4\.png$/, 'stage 4 is held for a second hour');
+  assert.match(spriteAt(5.1), /\/tomato\/tomato_5\.png$/, 'and ripens for the last hour');
+});
+
 test('an empty plot still shows a meter, because that is where a farm mostly is', () => {
   // Reported as "no watering meter". The bar rendered, and rendered correctly: a plot at 0
   // water drew a fill at `height:0%`, which is zero pixels tall. On a fresh farm, and on

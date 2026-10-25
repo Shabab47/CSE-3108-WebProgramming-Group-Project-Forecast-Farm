@@ -835,9 +835,9 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │                           evaporation / rain-water tables (T-09)
 │   ├── crops_logics/           one file per crop — imports nothing (DEC-039)
 │   │   ├── stageMath.js        stageAt, progressAt — the one growth formula
-│   │   ├── rice.js             the only playable crop
+│   │   ├── rice.js             the first crop; five square stages
 │   │   ├── potato.js
-│   │   ├── tomato.js
+│   │   ├── tomato.js           own `stageHours` — DEC-060
 │   │   ├── wheat.js
 │   │   └── corn.js
 │   ├── land_squares/           one file per segment — identity, never live state (DEC-039)
@@ -944,11 +944,11 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── book/              book.png + the six almanac crop entries
 │   │   └── inventory/         inventory.png — the seed-bag button
 │   │   ├── crops/
-│   │   │   ├── rice/           rice_1.png … rice_5.png + "rice seed.png"
+│   │   │   ├── rice/           rice_1.png … rice_5.png + damage + "rice seed.png"
 │   │   │   ├── wheat/          "wheat seed.png" — stages awaiting art
-│   │   │   ├── potato/         "potato seed.png" — stages awaiting art
+│   │   │   ├── potato/         potato_1.png … potato_5.png + damage + "potato seed.png"
 │   │   │   ├── corn/           "corn seed.png" — stages awaiting art
-│   │   │   └── tomato/         "tomato seed.png" — stages awaiting art
+│   │   │   └── tomato/         tomato_1.png … tomato_5.png + damage + "tomato seed.png"
 │   │   └── ground/
 │   │       ├── ground_watered.png
 │   │       └── ground_unwatered.png

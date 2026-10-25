@@ -30,6 +30,38 @@ Format: who decided, the choice, why, and what was rejected.
 
 ---
 
+### DEC-060 Tomato is playable, and holds stage 4 from hour 3 to hour 5
+**Decided by:** Shabab · 2026-10-25
+
+**Choice:** Tomato is `available: true`. All five growth sprites are square 1024×1024, the
+registry records their real sizes, and the two damage sprites are registered and mapped in
+`CUSTOM_FAILURE_NAMES`. Tomato also carries its own stage schedule, `stageHours: [0, 1, 2, 3, 5]`:
+stages 1–3 change hourly, **stage 4 is held for hours 3–5**, and `tomato_5.png` arrives at hour 5
+for the final hour before harvest. `growthStage()` in `js/config/crops.js` reads `stageHours`
+when a crop declares it and otherwise keeps using the shared `stageAt()` formula, so rice, potato,
+wheat and corn are untouched.
+
+**Why:** tomato takes six hours and has five sprites, so exactly one stage must cover two hours.
+`stageAt()` would repeat stage 5, which puts the ripe picture on the field from hour 4 — two hours
+before the crop can be harvested. Repeating stage 4 instead means the "finished" look appears only
+one hour early. Keeping the schedule in the crop's own file means the next unusual cadence is
+still a data change, and having both the crop's `stageFor()` and the field's `growthStage()` read
+the same array stops the picture and the readiness rule from drifting apart.
+
+**Rejected:** holding stage 5 for two hours (`stageAt()`'s default, consistent with rice but
+promises a harvest that is not there); shortening `growHours` to 5 (would change the economy and
+make tomato faster than rice); commissioning a sixth sprite (no art yet, and `STAGE_COUNT` stays
+five until every crop has six); a special case for tomato inside `growthStage()` (would put crop
+data in the index).
+
+**Consequence:** `js/crops_logics/stageMath.js` gains `stageFromHours()`; `tomato.js` gains
+`stageHours`; `tests/farm.test.js` pins the whole hour table and checks that `growthStage()` and
+tomato's own `stageFor()` agree. `.plot__damage` keeps the crop's box (`93% / 6.5% / 50.5%`), and
+`tests/assets.test.js` now measures text assets with LF so a Windows checkout's CRLF does not read
+as a stale registry. ISS-093, ISS-121 and ISS-123 are closed by this.
+
+---
+
 ### DEC-059 The seed picker shows small separable cards, with details behind an info icon
 **Decided by:** Jim · 2026-10-23
 

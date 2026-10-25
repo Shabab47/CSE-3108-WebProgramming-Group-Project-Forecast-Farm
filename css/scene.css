@@ -446,9 +446,9 @@
 
 .plot__damage {
   position: absolute;
-  bottom: 9.5%;
+  bottom: 6.5%;
   left: 50.5%;
-  width: 100%;
+  width: 93%;
   object-fit: contain;
   transform: translateX(-50%);
   pointer-events: none;
