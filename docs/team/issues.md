@@ -2648,3 +2648,61 @@ or `assets.test.js` fails in the other direction.
   canvas as a growth stage (0.956 and 0.914 of the canvas wide), so they belong in the crop's
   box, not the ground's.
 
+---
+
+### ISS-124 Shop, settings and profile clip their last card on a phone
+- Reported: 2026-10-25 by Jim · Owner: Jim · Status: **fixing** · Severity: Medium
+- Where: `css/shop.css`, `css/page-frame.css`, `css/page-header.css`,
+  `css/shop-card.css`
+- Problem: on a phone the bottom of each of these three pages is cut off. The last line of the
+  settings save card, the shop's closing hint and the pump card's UPGRADE button all sit partly
+  behind the browser bar, and there is no way to scroll them clear because the page itself is
+  locked. At 320px the pump buy row is 229px inside a 226px card, so the button clips its own
+  card as well.
+- Cause: each page is a fixed viewport column — `body.shop-page` and `body.painted-page` are
+  `height: 100dvh; overflow: hidden`, and `.shop-board` / `.page-board` are the only scrollers
+  with 24px and 32px of bottom padding. `dvh` includes the area under a mobile browser's bottom
+  toolbar, so the last padding lands where the user cannot see or reach it, and nothing carries
+  `env(safe-area-inset-bottom)`.
+- Fix: below 900px the document scrolls instead of an inner board — body and shell go
+  `height: auto; min-height: 100svh; overflow: visible`, the board becomes
+  `flex: 0 0 auto; overflow: visible` with `calc(44px + env(safe-area-inset-bottom))`, and the
+  painted `.page-frame` changes from `fixed` to `absolute` so the beam and vines scroll away
+  with the header instead of floating over the cards. The pump buy row wraps. See DEC-061.
+
+---
+
+### ISS-125 The seed info button renders outside its card
+- Reported: 2026-10-25 by Jim · Owner: Jim · Status: **fixing** · Severity: Low
+- Where: `css/crop-picker.css` (`.crop-picker__item`, `.crop-picker__info`)
+- Problem: every seed row in the picker draws its (i) button as a separate 32px row underneath
+  the card it belongs to, so the list reads as "card, icon, card, icon" and the icon looks like
+  a control for the next seed rather than the one above it.
+- Cause: `.crop-picker__item` is `display: contents`. The `<li>` generates no box, so its two
+  children — the seed button and the info button — become direct flex rows of
+  `.crop-picker__list`. The DOM was always correct; only the box was missing.
+- Fix: give the item a real box (`position: relative; display: block`), add the list gap the
+  discarded `<li>` was supposed to provide, and position `.crop-picker__info` absolutely at the
+  card's right edge with 52px of padding reserved on `.crop-picker__seed`. No JS change: the two
+  buttons stay siblings, so no `<button>` is nested inside another.
+
+---
+
+### ISS-126 The shop loses its top-right purse on a phone
+- Reported: 2026-10-25 by Jim · Owner: Jim · Status: **fixing** · Severity: Low
+- Where: `css/shop.css` (`.shop-top`, `.shop-purse`), `@media (max-width: 600px)`
+- Problem: at 600px and below the purse drops out of the top-right corner and stacks under the
+  back pill and the sign, so the gold readout is no longer where it is on PC and the header
+  grows to about 207px before the board starts.
+- Cause: the ≤600 block collapses `.shop-top` to `grid-template-columns: 1fr`, which overrides
+  the desktop three-column layout and turns the three children into three rows.
+- Fix: keep two rows but two columns — `"back purse" / "sign sign"` — with a smaller back pill
+  and purse so both fit at 320px, and `padding-bottom` on the header to hold the board at its
+  current 219px top edge.
+
+### ISS-127 restore 5-state pump mode
+- Reported: 2026-10-25 by Jim · Owner: Jim · Status: **fixed** · Severity: Medium
+- Where: `js/ui/plotInspector.js`
+- Problem: Commit `5ae96c3` collapsed the 5-state pump mode branch into `remove`/`add` only, dropping the `pumpLine` status element and 3 mode handlers (`resume`, `swap`, `full`). 6 pump test failures resulted.
+- Cause: Inadvertent collapse during refactor, removing 5-state logic that had been implemented under DEC-058.
+- Fix: restored `pumpLine` declaration, template append, mode-write handlers L322–346, and `pumpLine.hidden` toggles L374 & L383 in `js/ui/plotInspector.js`; `npm run check` passes; 6/6 pump tests green.

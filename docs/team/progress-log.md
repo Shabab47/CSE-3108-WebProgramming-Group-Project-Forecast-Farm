@@ -6,6 +6,14 @@ touched, what broke, what is next.
 The per-person weekly notes that used to live in the README table are now in `members/`.
 
 ---
+## DEC-058 5-state pump mode restore — 2026-10-25
+
+- **Did:** restored 5-state pump mode (`add`, `remove`, `resume`, `swap`, `full`) in `js/ui/plotInspector.js`, including `pumpLine` status element and mode-handler rewrite (L322–346). 6/6 pump tests pass.
+- **Touched:** `js/ui/plotInspector.js` only (73 ins, 9 del). `npm run check` passes.
+- **Verified:** no regressions — 4 pre-existing test failures (assets/avatar/farmView/weatherPanel) confirmed unrelated; none import `plotInspector`.
+- **Next:** commit with `[DEC-058]` message and ISS-127 in footer; re-run pump tests post-commit.
+
+ISS-127: restore 5-state pump mode
 
 
 ## Tomato grows hour by hour, and holds stage 4 for two of them — 2026-10-25

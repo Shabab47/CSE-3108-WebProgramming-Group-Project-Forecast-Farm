@@ -5,8 +5,10 @@ body.shop-page {
     linear-gradient(180deg, #3f7d33 0%, #356b2a 100%);
   background-color: #356b2a;
   margin: 0;
-  /* The page never scrolls. .shop-board is the only scrollable region, and with
-   * five crops at these sizes it never needs to. */
+  /* The page does not scroll *on a desktop*: .shop-board is the only scrollable
+   * region, and with five crops at these sizes it never needs to. Phones are the
+   * exception — see the ≤900px block, which lets the document scroll instead
+   * (ISS-124, DEC-061). */
   height: 100dvh;
   height: 100vh;
   overflow: hidden;
@@ -397,6 +399,36 @@ body.shop-page::after {
 /* --- responsive ------------------------------------------------------------- */
 
 @media (max-width: 900px) {
+  /* Phones scroll the document. A 100dvh column hides its last 24px under the
+   * browser's bottom bar and offers nothing to scroll it clear (ISS-124, DEC-061).
+   * `svh` is the small viewport, so the painted stall still fills the screen while
+   * that bar is showing. */
+  body.shop-page {
+    height: auto;
+    min-height: 100vh;
+    min-height: 100svh;
+    overflow: visible;
+  }
+
+  .shop-shell {
+    height: auto;
+    min-height: 100vh;
+    min-height: 100svh;
+  }
+
+  /* The stall art is `inset: 0` inside the scene, so the scene has to take its
+   * height from the content rather than from the viewport. */
+  .shop-scene {
+    flex: 1 0 auto;
+  }
+
+  .shop-board {
+    flex: 0 0 auto;
+    overflow: visible;
+    /* The page foot: clear of the browser bar and the home indicator. */
+    padding-bottom: calc(44px + env(safe-area-inset-bottom));
+  }
+
   body.shop-page::before,
   body.shop-page::after {
     display: none;
@@ -430,12 +462,48 @@ body.shop-page::after {
 }
 
 @media (max-width: 600px) {
+  /* Two rows, two columns: the purse keeps the top-right corner it has on PC and the
+   * sign spans underneath both. The old single column stacked all three, so the gold
+   * readout sat under the back pill (ISS-126). */
   .shop-top {
-    grid-template-columns: 1fr;
-    justify-items: start;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "back purse"
+      "sign sign";
+    align-items: center;
+    row-gap: 10px;
+    /* Holds the board at its 219px top edge now that the header is two rows instead
+     * of three; the sign's pegs hang into this space. */
+    padding-bottom: 69px;
+  }
+
+  .shop-back {
+    grid-area: back;
+    justify-self: start;
+    padding: 7px 12px;
+    font-size: 0.78rem;
+  }
+
+  .shop-purse {
+    grid-area: purse;
+    justify-self: end;
+    align-self: center;
+    min-width: 0;
+    padding: 5px 9px;
+  }
+
+  /* Smaller than the PC pill: the wide one plus the back pill do not fit at 320px. */
+  .shop-purse__gold {
+    font-size: 0.95rem;
+  }
+
+  .shop-purse__coin svg {
+    width: 26px;
+    height: 26px;
   }
 
   .shop-sign {
+    grid-area: sign;
     justify-self: stretch;
   }
 }

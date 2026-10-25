@@ -201,7 +201,12 @@
 
   .painted-page .page-board {
     margin-top: 20px;
-    padding: 4px 4px 32px;
+    /* On a phone the document scrolls, so this is content-height rather than the
+     * viewport's spare space, and its bottom padding is the page foot: clear of the
+     * browser bar and the home indicator (ISS-124). */
+    flex: 0 0 auto;
+    overflow: visible;
+    padding: 4px 4px calc(44px + env(safe-area-inset-bottom));
   }
 }
 

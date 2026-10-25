@@ -34,6 +34,7 @@ import { mountBlockedScreen } from './ui/blockedScreen.js';
 import { mountBootLoader } from './ui/loadingTips.js';
 import { mountToastStack } from './ui/toastStack.js';
 import { AUTOSAVE_MS } from './config/game.js';
+import { play } from './utils/sound.js';
 
 const log = createLog('shop-main');
 
@@ -57,19 +58,30 @@ function shopActions() {
     onState: subscribe,
     buy(cropId, quantity) {
       const result = apply(buySeeds, cropId, quantity);
-      if (result.ok) saveNow();
+      if (result.ok) {
+        play('buy.mp3');
+        saveNow();
+      } else if (String(result.reason).includes('gold')) {
+        play('insufficient.mp3');
+      }
       return result;
     },
     sell(cropId, quantity) {
       const result = apply(sellSeeds, cropId, quantity);
-      if (result.ok) saveNow();
+      if (result.ok) {
+        play('sell.mp3');
+        saveNow();
+      }
       return result;
     },
     upgradePump() {
       const result = apply(buyPumpUpgrade);
       if (result.ok) {
+        play('pump_up.mp3');
         saveNow();
         return { ok: true, level: getState()?.pump?.level };
+      } else if (String(result.reason).includes('gold')) {
+        play('insufficient.mp3');
       }
       return result;
     },

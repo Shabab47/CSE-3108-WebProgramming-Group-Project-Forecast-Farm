@@ -221,6 +221,26 @@ export const SAVE_DEBOUNCE_MS = 800;
 export const STATE_VERSION = 1;
 
 /**
+ * Per-SFX playback volume, 0.0 (silent) to 1.0 (full).
+ *
+ * Applied in `js/utils/sound.js` `play()` by effect key, so a loud or repetitive
+ * effect (a plot click, a UI pop, the pump's watering chime) can be turned down
+ * without touching any call site. Anything not listed here plays at 1.0.
+ *
+ * These are balance placeholders — tune them against the real art, not in advance.
+ */
+export const SFX_VOLUMES = {
+  /** Fired on every plot click, so it repeats a lot. */
+  'click_p.mp3': 0.4,
+  /** The inspector / picker open-close pop. */
+  'pop.MP3': 0.0,
+  /** The pump's watering chime, once per aimed plot. */
+  'watering.mp3': 0.08,
+  /** General UI button click. */
+  'click.mp3': 0.3,
+};
+
+/**
  * How the farm treats a crop that has finished growing.
  *
  * ## The two modes

@@ -209,6 +209,22 @@ export const ASSETS = [
   { path: 'assets/sounds/notification.mp3', name: 'Notification sound', size: 0, dimensions: '', status: 'empty', category: 'sound', page: 'global' },
   { path: 'assets/sounds/rain.mp3', name: 'Rain sound', size: 0, dimensions: '', status: 'empty', category: 'sound', page: 'global' },
   { path: 'assets/sounds/storm.mp3', name: 'Storm sound', size: 0, dimensions: '', status: 'empty', category: 'sound', page: 'global' },
+  // --- SFX (in scope) ---
+  { path: 'assets/sounds/sfx/buy.mp3', name: 'Buy SFX', size: 21459, dimensions: '', status: 'done', category: 'sound', page: 'global' },
+  { path: 'assets/sounds/sfx/click.MP3', name: 'Click SFX', size: 6830, dimensions: '', status: 'done', category: 'sound', page: 'global' },
+  { path: 'assets/sounds/sfx/click_p.mp3', name: 'Plot click SFX', size: 7248, dimensions: '', status: 'done', category: 'sound', page: 'global' },
+  { path: 'assets/sounds/sfx/crop_ready.mp3', name: 'Crop ready SFX', size: 23966, dimensions: '', status: 'done', category: 'sound', page: 'global' },
+  { path: 'assets/sounds/sfx/dead_crop_clear.mp3', name: 'Dead crop clear SFX', size: 18533, dimensions: '', status: 'done', category: 'sound', page: 'global' },
+  { path: 'assets/sounds/sfx/harvest.mp3', name: 'Harvest SFX', size: 27311, dimensions: '', status: 'done', category: 'sound', page: 'global' },
+  { path: 'assets/sounds/sfx/insufficient.mp3', name: 'Insufficient gold SFX', size: 6830, dimensions: '', status: 'done', category: 'sound', page: 'global' },
+  { path: 'assets/sounds/sfx/login.mp3', name: 'Login SFX', size: 11844, dimensions: '', status: 'done', category: 'sound', page: 'global' },
+  { path: 'assets/sounds/sfx/plant.mp3', name: 'Plant SFX', size: 31908, dimensions: '', status: 'done', category: 'sound', page: 'global' },
+  { path: 'assets/sounds/sfx/pop.MP3', name: 'Pop SFX', size: 8920, dimensions: '', status: 'done', category: 'sound', page: 'global' },
+  { path: 'assets/sounds/sfx/pump_running1.mp3', name: 'Pump running start SFX', size: 137234, dimensions: '', status: 'done', category: 'sound', page: 'global' },
+  { path: 'assets/sounds/sfx/pump_up.mp3', name: 'Pump upgrade SFX', size: 49043, dimensions: '', status: 'done', category: 'sound', page: 'global' },
+  { path: 'assets/sounds/sfx/sell.mp3', name: 'Sell SFX', size: 12263, dimensions: '', status: 'done', category: 'sound', page: 'global' },
+  { path: 'assets/sounds/sfx/unlock.mp3', name: 'Unlock SFX', size: 13100, dimensions: '', status: 'done', category: 'sound', page: 'global' },
+  { path: 'assets/sounds/sfx/watering.MP3', name: 'Watering SFX', size: 23131, dimensions: '', status: 'done', category: 'sound', page: 'global' },
 
   // --- Folder placeholders ---
   { path: 'assets/images/crops/corn/.gitkeep', name: 'Corn folder placeholder', size: 0, dimensions: '', status: 'placeholder', category: 'meta', page: 'field' },
@@ -348,6 +364,11 @@ export function cropIcon(cropId) {
  */
 export function pumpFrame(frame) {
   return `assets/images/pump/pump_${frame}.png`;
+}
+
+/** A sound effect in `assets/sounds/sfx/`. Pass the file name, e.g. `sfx('plant.mp3')`. */
+export function sfx(name) {
+  return `assets/sounds/sfx/${name}`;
 }
 
 /** Every asset that appears on one page — 'field', 'shop', 'settings', 'weather', 'global'. */
