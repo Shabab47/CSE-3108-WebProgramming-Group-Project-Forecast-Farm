@@ -163,6 +163,25 @@ forced weather, plot IDs.
 > **Site URL**. Both are set on the live project. Without them, "forgot password" silently never
 > delivers an email ([ISS-031](docs/team/issues.md)).
 >
+> **Custom SMTP is required for real players.** Supabase's built-in mailer only delivers to
+> addresses on the project's team, and answers every other address with *"Email address not
+> authorized"* — which the app now reports instead of pretending an email was sent. The live
+> project uses Brevo's SMTP relay. Its free plan is 300 messages/day and rewrites the sender to a
+> shared `brevosend.com` domain, so reset mail lands in **spam** until a custom sending domain is
+> verified in Brevo.
+>
+> **The recovery template must point at our page.** Authentication → Emails → **Recovery**:
+>
+> ```html
+> <h2>Reset your password</h2>
+> <p>Follow this link to choose a new password:</p>
+> <p><a href="http://127.0.0.1:5173/login.html?token_hash={{ .TokenHash }}&type=recovery">Reset password</a></p>
+> ```
+>
+> `{{ .ConfirmationURL }}` must not appear anywhere in it. That variable produces the old
+> `/auth/v1/verify` redirect chain, which loses the token on the way back — see
+> [ISS-031](docs/team/issues.md). Swap the hardcoded origin for the deployed one before a demo.
+>
 > **Confirm email** is currently **off**, so a new account signs in immediately. Turn it on before a
 > demo to exercise the confirmation step — but the free tier's SMTP allowance is a few emails an
 > hour shared by everyone, so a reviewer who signs up after the first may receive nothing.

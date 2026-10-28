@@ -1122,6 +1122,19 @@ or `assets.test.js` fails in the other direction.
   `/auth/v1/recover` returned 200 for every origin including one that was deliberately not
   allowed, so the endpoint's response **cannot** be used to check this — it has to be verified by
   receiving an actual email. The README carries it as a setup step.
+- **Update 2026-10-27 — the redirect chain was the wrong thing to fix.** Mail delivery is now
+  proven end to end on custom SMTP (Brevo), and the failure moved: GoTrue's `/verify` redirect
+  kept substituting the **Site URL** for our `redirect_to`, the token landed on `/` instead of
+  `/login.html`, and `js/main.js` bounced the visitor with `location.replace('login.html')` —
+  which **drops the fragment**, so the token was gone before the reset form could read it. A
+  probe also showed the same link producing two `/verify` calls, i.e. the one-time token was
+  being spent by something other than the player's own navigation.
+  Both halves are fixed in code: the emailed link now carries `{{ .TokenHash }}` straight to
+  `login.html?token_hash=…`, and the page calls `verifyOtp` itself — no `/verify`, no
+  `redirect_to`, no Site URL, no fragment, and a prefetcher that fetches the page spends
+  nothing. `js/domain/authArrival.js` reads all three arrival shapes, and `js/main.js` forwards
+  an auth payload instead of dropping it. Status stays **open** until the recovery template is
+  changed on the project and one real reset completes end to end.
 - **Confirm email** is deliberately left **off** while the game is iterated on: the free tier's SMTP
   allowance is a few emails an hour shared by everyone, so a reviewer who signs up second gets
   nothing and no explanation. Turn it on before a demo, which is what makes the `CONFIRM_EMAIL` state

@@ -30,6 +30,44 @@ Format: who decided, the choice, why, and what was rejected.
 
 ---
 
+### DEC-061 A recovery link carries a token hash to our own page, and the page verifies it
+**Decided by:** Shabab · 2026-10-27
+
+**Choice:** The Supabase **Recovery** email template links to
+`login.html?token_hash={{ .TokenHash }}&type=recovery`, and `js/auth-main.js` exchanges that hash
+with `verifyOtp` (`POST /auth/v1/verify`) before mounting anything. `{{ .ConfirmationURL }}` is no
+longer used. The old shapes are still read — `#access_token=…` and `#error=…` — because links
+already sitting in inboxes cannot be recalled, and because a broken link must be *explained*, not
+swallowed.
+
+**Why:** every failure in ISS-031 came from one property of the old link: GoTrue exchanged a
+one-time token on a plain `GET` and then `303`-ed the browser through `redirect_to`, the Site URL
+and the redirect allow list, handing the result over in a URL fragment. Four things then had to be
+right at once, and each of them went wrong in practice:
+
+- `redirect_to` was silently replaced with the Site URL, so the token landed on `/`;
+- `js/main.js` bounced the anonymous visitor with `location.replace('login.html')`, which **drops
+  the fragment** — the token was destroyed by our own code on the way to the page that reads it;
+- the same link produced two `/verify` calls, so the token was often spent before the player's
+  navigation arrived;
+- and when it failed, `#error=otp_expired` reached the page unread and the player saw the menu.
+
+A token hash fixes all four at the root: there is no redirect, so no Site URL and no allow list; no
+fragment, so nothing can be dropped; and the token is spent by an explicit JS call, so a mail
+scanner or link preview that fetches the URL consumes nothing.
+
+**Rejected:** keeping the implicit flow and fixing the configuration. It was tried for several
+hours — Site URL set to `login.html`, the exact URL and `/**` both allow-listed, probes confirming
+both were honoured — and a brand-new email still arrived with `redirect_to=http://127.0.0.1:5173/`.
+Even had that been solved, the prefetch problem and the fragment-dropping bounce would have
+remained.
+
+**Also rejected:** persisting the session from `verifyOtp`. The refresh token is deliberately
+dropped: the player is about to choose a password and sign in with it, and a session kept alive
+across an abandoned reset is a credential nobody asked for.
+
+---
+
 ### DEC-060 Tomato is playable, and holds stage 4 from hour 3 to hour 5
 **Decided by:** Shabab · 2026-10-25
 

@@ -242,7 +242,7 @@ what was read out of the URL at boot:
 
 | Arriving | Lands on | Why |
 | :--- | :--- | :--- |
-| with a recovery token in the URL fragment | `reset` | they followed a link from their inbox to choose a password, nothing else |
+| with a recovery arrival — `?token_hash=…`, `#access_token=…`, or a broken-link `#error=…` | `reset` | they followed a link from their inbox to choose a password, nothing else; a broken link lands here too so the reason can be shown |
 | with `?deleted=1` | `signIn`, with a notice | the sentence is about an account they had; the menu would hide it under three buttons |
 
 Focus moves with the view: onto the first field for a form, onto Farmer 1 for the
@@ -344,19 +344,47 @@ sent     told to check the inbox, no address field any more
 set      back from the link ─► PUT /auth/v1/user ─► new password, then back to sign-in
 ```
 
-The recovery link returns to `login.html#access_token=…`. The fragment is read
-**once**, in `auth-main.js`, and then cleared from the address bar with
-`history.replaceState` so the token cannot be copied from a screenshot. Fragments
-never reach a server, which is why it is safe to read there at all.
+The recovery link arrives in one of three shapes, all read by
+`js/domain/authArrival.js` — a pure module, so the parsing is testable without a
+browser:
 
-`requestPasswordReset` **always reports success**, even for an address with no
-account, and the panel shows the same confirmation either way. A reset form that
-says "no such account" is the same enumeration oracle as the sign-in form
-(DEC-019). Rate-limit failures are the one thing it does surface, because those
-say nothing about whether the address is registered.
+```
+?token_hash=…&type=recovery     the shape the email template produces now
+#access_token=…&type=recovery   the old implicit flow, still accepted for links already sent
+#error=access_denied&error_code=otp_expired
+                                an expired or already-used link
+```
 
-This flow cannot complete without a configured project and an allowed redirect
-URL — see ISS-031 and ISS-032.
+A `token_hash` is exchanged by `auth-main.js` through `verifyOtp`
+(`POST /auth/v1/verify`) **before** anything is mounted, and only then is the address
+bar cleared — the token must survive a slow connection. The other two shapes are read
+once and scrubbed immediately. A link that failed opens the reset flow anyway, with
+the sentence from `js/ui/authErrors.js` on screen; the old behaviour was the main
+menu, with the reason never read.
+
+**Why the hash and not `{{ .ConfirmationURL }}`:** the confirmation URL makes GoTrue
+exchange the token on a plain `GET` and `303` the browser through `redirect_to`, the
+Site URL and the redirect allow list, delivering the result in a fragment. Four
+things then had to be right at once, and all four failed in practice (ISS-031). A
+hash removes the redirect entirely, and a mail scanner that fetches the link spends
+nothing, because only a browser running our JavaScript can consume it. DEC-061 has
+the full account.
+
+`js/main.js` is part of the contract: an anonymous visitor bounced to the login page
+goes through `recoveryRedirect(location.href)`, not `location.replace('login.html')`.
+The bare replace **drops the fragment**, which is how a working token was destroyed on
+the way to the page that reads it.
+
+`requestPasswordReset` **reports success for an account-existence reason only** —
+`no_account` and `invalid_credentials` — and the panel shows the same confirmation
+either way. A reset form that says "no such account" is the same enumeration oracle as
+the sign-in form (DEC-019). Everything else is surfaced: rate limiting says nothing
+about whether the address is registered, and a mailer that refused to send is a real
+failure that used to be reported as *"a reset link is on its way"*.
+
+This flow cannot complete without custom SMTP on the project — the built-in mailer
+only delivers to team addresses — and a recovery template that uses
+`{{ .TokenHash }}`. See ISS-031.
 
 ### Two panels that never talk
 
@@ -700,6 +728,7 @@ farm and still reported that nothing had changed.
 | **selling a harvested crop** | **nowhere** — ISS-099 |
 | forecast → alert strings | `js/domain/notifications.js` |
 | what counts as a valid email or password | `js/domain/authRules.js` |
+| how a recovery link arrived, and where an anonymous bounce should go | `js/domain/authArrival.js` |
 | provider error code → player-facing sentence | `js/ui/authErrors.js` |
 | which sign-in failures must look identical | `js/ui/authErrors.js` (`ENUMERATION_SENSITIVE`) |
 | the opening menu | `js/ui/menuPanel.js` |
@@ -845,6 +874,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── s1.js … s16.js      id, col, row, zone, isStarter + a createPlotN() factory
 │   ├── domain/                 game rules — no DOM, no fetch
 │   │   ├── authRules.js        what counts as a valid username, email or password
+│   │   ├── authArrival.js      how a recovery link arrives, and where a bounce should go
 │   │   ├── shop.js             buySeeds, canAfford, the refusal reasons
 │   │   ├── farm.js             plant, harvest, clearPlot
 │   │   ├── land.js             buyPlot, canBuyPlot
@@ -1125,7 +1155,7 @@ imports it. That is a DEC, not a cleanup, because it reverses a documented choic
 | `ui/syncIndicator.js` | `mountSyncIndicator`, `chipLabelFor`, `copyFor`, `describeStaleFor`, `SYNCED_NOTE` | the fixed corner chip. Label persistent, notice one-shot — DEC-037, ISS-076 |
 | `state/transfer.js` | `exportToText`, `exportFilename`, `readExport`, `rebaseState`, `importFromText`, `verifySignature`, `SAVE_EXTENSION` | pure; the caller passes `now` |
 | `utils/checksum.js` | `checksum`, `checksumsMatch` | FNV-1a. Detects damage, **not** tampering |
-| `services/authApi.js` | `signIn`, `signUp`, `signOut`, `currentSession`, `requestPasswordReset`, `updatePassword`, `restoreSession`, `accessToken` | same contract as `localAuth.js`, except **`restoreSession()` answers `{ok, session\|reason}`, not `session\|null`** (ISS-048) |
+| `services/authApi.js` | `signIn`, `signUp`, `signOut`, `currentSession`, `requestPasswordReset`, `updatePassword`, `verifyRecovery`, `restoreSession`, `accessToken` | same contract as `localAuth.js`, except **`restoreSession()` answers `{ok, session\|reason}`, not `session\|null`** (ISS-048), and `verifyRecovery({tokenHash})` has no local counterpart — it exchanges a recovery link's hash for an access token and deliberately does **not** persist the session it returns |
 | `services/gotrue.js` | `post`, `postAuthed`, `bestEffort`, `reasonFor` | transport only; never throws. Every call carries `AUTH_TIMEOUT_MS`, and failures carry the HTTP `status` |
 | `services/tokenStore.js` | `readRefreshToken`, `writeRefreshToken` | the only writer of a token |
 | `utils/log.js` | `createLog(scope)` | returns `{ info, warn, error }` |
@@ -1420,8 +1450,10 @@ chooses which one is visible.
   destroys that farm permanently and it cannot be exported. Signed-in play is real, via Supabase.
   ISS-026 stays open because the anon key in the client is only safe while Row Level Security is
   on, and no schema exists yet.
-- **Password reset needs a dashboard setting.** It only works if the requesting origin is in
-  Supabase's **Redirect URLs**, which cannot be committed — ISS-031. The README says so.
+- **Password reset needs dashboard settings that cannot be committed.** Custom SMTP (the built-in
+  mailer only delivers to team addresses) and a **Recovery** email template that links with
+  `{{ .TokenHash }}` — ISS-031. The README carries both. The redirect allow list still matters for
+  old-style links already in inboxes, but the flow no longer depends on it.
 - **An exported `.farm` file is integrity-checked, not authenticated.** A corrupted or
   hand-edited file is refused, but anyone who reads `utils/checksum.js` can recompute the
   checksum and change the numbers. There is a test that does exactly that and asserts it
