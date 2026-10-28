@@ -844,13 +844,13 @@ test('the pump level and every target are in the field signature', () => {
 });
 
 test('the field draws the pump art for its level', () => {
-  // Level 2 wears pump_3.png: the retired first drawing is skipped, so every level's
-  // picture is one further along than its number. See `pumpFrame()` in config/assets.js.
+  // Level N wears pump_N.png, so the picture and the level number always match.
+  // See `pumpFrame()` in config/assets.js.
   mount({ pump: { on: false, level: 2, targets: [] } });
 
   const pump = root.querySelector('.field-stage__pump');
   assert.ok(pump, 'the pump is on the field');
-  assert.equal(pump.getAttribute('src'), 'assets/images/pump/pump_3.png');
+  assert.equal(pump.getAttribute('src'), 'assets/images/pump/pump_2.png');
   assert.equal(pump.getAttribute('alt'), 'Water pump, level 2');
 });
 
@@ -863,8 +863,8 @@ test('an upgrade swaps the pump src without rebuilding the element', () => {
   };
   mountFarmView(root, state);
   const before = root.querySelector('.field-stage__pump');
-  assert.equal(before.getAttribute('src'), 'assets/images/pump/pump_2.png',
-    'a new farm starts on the second drawing; the first is retired');
+  assert.equal(before.getAttribute('src'), 'assets/images/pump/pump_1.png',
+    'a new farm starts on pump_1.png, the drawing for level 1');
 
   mountFarmView(root, { ...state, pump: { on: false, level: 5, targets: [] } });
   const after = root.querySelector('.field-stage__pump');

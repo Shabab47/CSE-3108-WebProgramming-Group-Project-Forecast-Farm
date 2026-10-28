@@ -173,20 +173,20 @@ Do not convert them to borders without re-measuring. `#farm-picker` stays in
 
 | level | plots watered | land gate | price | field drawing |
 | ---: | ---: | ---: | ---: | :--- |
-| 1 | 2 | none — free starter | 0 | `pump_2.png` |
-| 2 | 4 | 4 owned | 1,000 | `pump_3.png` |
-| 3 | 8 | 8 owned | 5,000 | `pump_4.png` |
+| 1 | 2 | none — free starter | 0 | `pump_1.png` |
+| 2 | 4 | 4 owned | 1,000 | `pump_2.png` |
+| 3 | 8 | 8 owned | 5,000 | `pump_3.png` |
 | 4 | 12 | 12 owned | 25,000 | `pump_4.png` |
 | 5 | 16 | 16 owned | 100,000 | `pump_5.png` |
 
-**Revised 2026-10-28 (capacities and art only).** The first version of this table watered
-1 / 2 / 4 / 8 / 16 plots and drew `pump_1.png` … `pump_5.png`. The starter pump now waters two
-plots, and from level 2 up a pump waters exactly as many plots as the land that unlocks it
-(4, 8, 12, 16). `pump_1.png` is retired: it stays on disk and in the asset registry but no
-level draws it. Four drawings serve five levels, so levels 3 and 4 share `pump_4.png`; the
-mapping is the one table `PUMP_DRAWING` in `js/config/assets.js`, so a sixth drawing is a
-one-line change. Gates and prices are unchanged. Level numbers are unchanged too, so no save
-needs migrating: an existing farm keeps its level and simply reaches further.
+**Revised 2026-10-28 (capacities only).** The first version of this table watered
+1 / 2 / 4 / 8 / 16 plots. The starter pump now waters two plots, and from level 2 up a pump
+waters exactly as many plots as the land that unlocks it (4, 8, 12, 16). The art is unchanged
+and one-to-one: level **N** wears `pump_N.png`, so the five drawings serve the five levels in
+order and nothing is retired. The mapping is the one table `PUMP_DRAWING` in
+`js/config/assets.js`, so retiring or adding a drawing is a one-line change. Gates and prices
+are unchanged. Level numbers are unchanged too, so no save needs migrating: an existing farm
+keeps its level and simply reaches further.
 
 The player adds or removes targets by clicking plots; the inspector's button carries the intent
 (`add`, `remove`, `resume`, or a disabled `full`). `aimPump()` refuses past capacity and

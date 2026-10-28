@@ -375,16 +375,16 @@ test('the final pump needs sixteen plots, and sixteen plots are what it waters',
   assert.equal(pumpTargetIds(current).length, 16);
 });
 
-test('the first pump drawing is retired: no level wears pump_1.png', () => {
+test('each pump level wears its own drawing, in order', () => {
   const files = PUMP.levels.map((entry) => pumpFrame(entry.level));
 
   assert.deepEqual(files, [
-    'assets/images/pump/pump_2.png', // level 1, the starter pump
-    'assets/images/pump/pump_3.png', // level 2
-    'assets/images/pump/pump_4.png', // level 3
-    'assets/images/pump/pump_4.png', // level 4 shares level 3's drawing
+    'assets/images/pump/pump_1.png', // level 1, the starter pump
+    'assets/images/pump/pump_2.png', // level 2
+    'assets/images/pump/pump_3.png', // level 3
+    'assets/images/pump/pump_4.png', // level 4
     'assets/images/pump/pump_5.png', // level 5, the final pump
   ]);
-  assert.equal(files.includes('assets/images/pump/pump_1.png'), false);
-  assert.equal(pumpFrame(99), 'assets/images/pump/pump_2.png', 'an unknown level never builds a 404');
+  assert.equal(new Set(files).size, PUMP.levels.length, 'no two levels share a drawing');
+  assert.equal(pumpFrame(99), 'assets/images/pump/pump_1.png', 'an unknown level never builds a 404');
 });

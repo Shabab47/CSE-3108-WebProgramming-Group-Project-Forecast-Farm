@@ -56,9 +56,9 @@ test('the card pictures the next level, not the one the player owns', () => {
   card.update(state);
 
   const image = elements(card.node, 'img')[0];
-  // Level 2 is what the gold buys, and it wears pump_3.png: the first drawing is retired,
-  // so the starter pump already uses pump_2.png. See `pumpFrame()` in config/assets.js.
-  assert.equal(image.getAttribute('src'), 'assets/images/pump/pump_3.png',
+  // Level 2 is what the gold buys, and level N wears pump_N.png, so the card shows
+  // pump_2.png while the field behind it still shows pump_1.png.
+  assert.equal(image.getAttribute('src'), 'assets/images/pump/pump_2.png',
     'level 2 is what the gold buys');
   assert.equal(image.getAttribute('alt'), 'Water pump, level 2');
 });

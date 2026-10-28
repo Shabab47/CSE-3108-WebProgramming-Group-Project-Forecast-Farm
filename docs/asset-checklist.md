@@ -184,15 +184,16 @@ is the wordmark alone until then.
 | `assets/images/ground/ground_unwatered.png` | Dry soil tile | ✅ done |
 | `assets/images/ground/ground_watered.png` | Watered soil tile | ✅ done |
 | `assets/images/pump.png` | The original pump — a byte-copy of `pump/pump_1.png`, no longer loaded | ✅ done (duplicate) |
-| `assets/images/pump/pump_1.png` | Pump — first drawing, retired: no level draws it | ✅ done (unused) |
-| `assets/images/pump/pump_2.png` | Pump level 1 — the starter pump, waters 2 plots | ✅ done |
-| `assets/images/pump/pump_3.png` | Pump level 2 — waters 4 plots | ✅ done |
-| `assets/images/pump/pump_4.png` | Pump levels 3 and 4 — waters 8 and 12 plots | ✅ done |
+| `assets/images/pump/pump_1.png` | Pump level 1 — the starter pump, waters 2 plots | ✅ done |
+| `assets/images/pump/pump_2.png` | Pump level 2 — waters 4 plots | ✅ done |
+| `assets/images/pump/pump_3.png` | Pump level 3 — waters 8 plots | ✅ done |
+| `assets/images/pump/pump_4.png` | Pump level 4 — waters 12 plots | ✅ done |
 | `assets/images/pump/pump_5.png` | Pump level 5 — the final pump, waters 16 plots | ✅ done |
 
 All five level images share a 1000×1000 canvas and a centred drawing, so the field swaps `src`
-without moving the machine. The shop shows the next level's art; the field shows the current one
-(DEC-058). The old `pump.png` is kept on disk but is not requested by any code path.
+without moving the machine. One drawing per level, in order: level N wears `pump_N.png`. The shop
+shows the next level's art; the field shows the current one (DEC-058). The old `pump.png` is kept
+on disk but is not requested by any code path.
 
 ---
 

@@ -48,17 +48,14 @@ export const ASSETS = [
   // path any more — `farmView.js` asks `pumpFrame(level)` — but the file is real art and
   // the registry documents what is on disk, so it stays listed.
   { path: 'assets/images/pump.png', name: 'Pump (original, unused copy of pump_1)', size: 73567, dimensions: '1000x1000', status: 'duplicate', category: 'environment', page: 'field' },
-  // Four drawings serve five pump levels (see `pumpFrame()` below). `pump_1.png` is the
-  // plain starter drawing and is no longer shown anywhere: the pump a new farm owns is
-  // drawn with `pump_2.png`. The file stays on disk and in this list, because the
-  // registry documents what is on disk and `tests/assets.test.js` fails both ways.
+  // Five drawings, one per level: level N wears `pump_N.png` (see `pumpFrame()` below).
   // All five share a 1000×1000 canvas and the same anchor, so swapping between them
   // never moves the machine.
-  { path: 'assets/images/pump/pump_1.png', name: 'Pump — first drawing (no longer used)', size: 73567, dimensions: '1000x1000', status: 'done', category: 'environment', page: 'field' },
-  { path: 'assets/images/pump/pump_2.png', name: 'Pump — level 1 (the starter pump)', size: 98399, dimensions: '1000x1000', status: 'done', category: 'environment', page: 'field' },
-  { path: 'assets/images/pump/pump_3.png', name: 'Pump — level 2', size: 125968, dimensions: '1000x1000', status: 'done', category: 'environment', page: 'field' },
-  { path: 'assets/images/pump/pump_4.png', name: 'Pump — levels 3 and 4', size: 163596, dimensions: '1000x1000', status: 'done', category: 'environment', page: 'field' },
-  { path: 'assets/images/pump/pump_5.png', name: 'Pump — level 5 (the final pump)', size: 186471, dimensions: '1000x1000', status: 'done', category: 'environment', page: 'field' },
+  { path: 'assets/images/pump/pump_1.png', name: 'Pump — level 1 (the starter pump, waters 2 plots)', size: 73567, dimensions: '1000x1000', status: 'done', category: 'environment', page: 'field' },
+  { path: 'assets/images/pump/pump_2.png', name: 'Pump — level 2 (waters 4 plots)', size: 98399, dimensions: '1000x1000', status: 'done', category: 'environment', page: 'field' },
+  { path: 'assets/images/pump/pump_3.png', name: 'Pump — level 3 (waters 8 plots)', size: 125968, dimensions: '1000x1000', status: 'done', category: 'environment', page: 'field' },
+  { path: 'assets/images/pump/pump_4.png', name: 'Pump — level 4 (waters 12 plots)', size: 163596, dimensions: '1000x1000', status: 'done', category: 'environment', page: 'field' },
+  { path: 'assets/images/pump/pump_5.png', name: 'Pump — level 5 (the final pump, waters 16 plots)', size: 186471, dimensions: '1000x1000', status: 'done', category: 'environment', page: 'field' },
   { path: 'assets/images/ground/ground_unwatered.png', name: 'Ground (unwatered)', size: 313529, dimensions: '1000x1000', status: 'done', category: 'environment', page: 'field' },
   { path: 'assets/images/ground/ground_watered.png', name: 'Ground (watered)', size: 318028, dimensions: '1000x1000', status: 'done', category: 'environment', page: 'field' },
   // The lock pins on unowned plots: green on the one plot that can be bought next,
@@ -387,19 +384,18 @@ export function cropIcon(cropId) {
 /**
  * Which drawing in `assets/images/pump/` each pump level wears.
  *
- * There are five levels but four drawings in use, because `pump_1.png` (the plain first
- * drawing) is retired: the pump a new farm starts with is drawn with `pump_2.png`, and
- * the last level wears `pump_5.png`. That leaves one drawing short, so levels 3 and 4
- * share `pump_4.png`. When a sixth drawing arrives, point level 4 at it here — this
- * table is the only place that decides.
+ * One drawing per level, in order, so level N wears `pump_N.png` and nothing is
+ * retired. The numbers also happen to be the level numbers; the table stays a table
+ * because it is the only place that decides, so retiring or adding a drawing is a
+ * one-line change rather than a rename of every file.
  *
- *   level 1 (starter, waters 2)    pump_2.png
- *   level 2 (waters 4)             pump_3.png
- *   level 3 (waters 8)             pump_4.png
- *   level 4 (waters 12)            pump_4.png   <- shares level 3's drawing
+ *   level 1 (starter, waters 2)    pump_1.png
+ *   level 2 (waters 4)             pump_2.png
+ *   level 3 (waters 8)             pump_3.png
+ *   level 4 (waters 12)            pump_4.png
  *   level 5 (final, waters 16)     pump_5.png
  */
-const PUMP_DRAWING = { 1: 2, 2: 3, 3: 4, 4: 4, 5: 5 };
+const PUMP_DRAWING = { 1: 1, 2: 2, 3: 3, 4: 4, 5: 5 };
 
 /**
  * A pump's art for its level, 1 to 5.
