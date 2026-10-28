@@ -4,11 +4,18 @@
  * One file per crop; `docs/crops.md` explains every number. The shape is identical
  * across all five files, and `config/crops.js` assembles them into `CROPS`.
  *
- * `available: false` — `assets/images/crops/corn/` holds only the seed packet and a
- * `.gitkeep`. The shop lists it anyway and refuses to sell it.
+ * `available: true` — all five growth stages and both damage sprites are on disk in
+ * `assets/images/crops/corn/`. Only the `dead` sprite is still missing, which is true
+ * of every crop.
  *
- * Eight hours to grow is the longest on the farm, and at 500 a packet it is the
- * mid-game goal rather than a first purchase.
+ * Corn uses the shared `stageAt()` like rice and tomato: four growing sprites spread
+ * evenly over its four-hour grow time, so it swaps on the hour, and `corn_5.png` — the
+ * ripe picture — only appears when it can be harvested.
+ *
+ * Its grow note still calls it "the slowest crop", which stopped being true when the
+ * clock was recalibrated in `c128550`: at two real months it is now level with tomato
+ * and potato, and rice and wheat are the six-hour crops. The note is Jim's copy, so it
+ * is flagged in `docs/team/issues.md` rather than rewritten here.
  *
  * `seedPrice * 2 = yield * sellPrice`: 500 in, 1,000 out at full health.
  */
@@ -26,7 +33,7 @@ export const CORN = {
   waterNeed: 0.7,
   yield: 10,
   growNote: 'The slowest crop and the thirstiest — a season-long bet.',
-  available: false,
+  available: true,
 
   likes: 'Warm, sun, moderate rain',
   hates: 'Drought, strong wind',

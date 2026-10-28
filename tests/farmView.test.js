@@ -432,6 +432,42 @@ test('a tomato swaps sprite every hour, and ripens at hour four', () => {
   assert.match(spriteAt(4.1), /\/tomato\/tomato_5\.png$/, 'and ripe once it can be picked');
 });
 
+test('wheat and corn draw their own stages, not the rice fallback', () => {
+  // The last two crops to get art, delivered together in `db4177b`. Both take the shared
+  // `stageAt` path, so the only thing that changed when they were enabled is that
+  // `fieldSpriteFor()` stops substituting rice. Wheat grows for six hours, so each of
+  // its four growing sprites holds 1.5 h; corn grows for four, so each holds one.
+  const HOUR = 3_600_000;
+  const spriteAt = (cropId, hours) => {
+    mount({
+      plots: buildPlots().map((plot) =>
+        plot.id === 5
+          ? { ...plot, owned: true, cropId, plantedAt: Date.now() - hours * HOUR, waterLevel: 60 }
+          : plot,
+      ),
+    });
+    const crop = root.querySelectorAll('.plot')[5].querySelector('.plot__crop');
+    assert.ok(crop, `${cropId} ${hours}h in: still has a sprite`);
+    assert.ok(
+      !crop.classList.contains('plot__crop--fallback'),
+      `${cropId} ${hours}h in: its own art, not the tinted rice fallback`,
+    );
+    return crop.getAttribute('src');
+  };
+
+  assert.match(spriteAt('wheat', 0.5), /\/wheat\/wheat_1\.png$/, 'wheat sprouting');
+  assert.match(spriteAt('wheat', 2), /\/wheat\/wheat_2\.png$/, 'wheat after 1.5 h');
+  assert.match(spriteAt('wheat', 3.5), /\/wheat\/wheat_3\.png$/, 'wheat after 3 h');
+  assert.match(spriteAt('wheat', 5), /\/wheat\/wheat_4\.png$/, 'wheat after 4.5 h');
+  assert.match(spriteAt('wheat', 6.1), /\/wheat\/wheat_5\.png$/, 'wheat ripe');
+
+  assert.match(spriteAt('corn', 0.5), /\/corn\/corn_1\.png$/, 'corn sprouting');
+  assert.match(spriteAt('corn', 1.5), /\/corn\/corn_2\.png$/, 'corn after 1 h');
+  assert.match(spriteAt('corn', 2.5), /\/corn\/corn_3\.png$/, 'corn after 2 h');
+  assert.match(spriteAt('corn', 3.5), /\/corn\/corn_4\.png$/, 'corn after 3 h');
+  assert.match(spriteAt('corn', 4.1), /\/corn\/corn_5\.png$/, 'corn ripe');
+});
+
 test('an empty plot still shows a meter, because that is where a farm mostly is', () => {
   // Reported as "no watering meter". The bar rendered, and rendered correctly: a plot at 0
   // water drew a fill at `height:0%`, which is zero pixels tall. On a fresh farm, and on

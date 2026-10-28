@@ -142,8 +142,9 @@ export function buildCropCard(crop, actions) {
       const count = state?.inventory?.seeds?.[crop.id] ?? 0;
       setText(owned, count > 0 ? `In your bag: ${format(count)}` : 'None in your bag');
 
-      // Land is the only gate. A land-unlocked crop without art yet shows its blurb with
-      // a fallback note — buyable and plantable, drawn as rice until its own sprites land.
+      // Land is the only gate. A crop with no art yet shows its blurb with a fallback
+      // note — buyable and plantable, drawn as rice until its own sprites land. Every
+      // crop is `available: true` today, so this branch is the guard for the next one.
       const unlocked = isSeedUnlocked(state, crop.id);
 
       node.classList.toggle('shop-card--locked', !unlocked);

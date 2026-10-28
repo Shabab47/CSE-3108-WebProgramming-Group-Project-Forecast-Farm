@@ -51,13 +51,14 @@ test('seed prices run 100 to 500 in steps of 100, cheapest first', () => {
   }
 });
 
-test('rice, potato and tomato are the crops available to plant', () => {
-  // All three have their five growth sprites on disk; wheat and corn have a price
-  // and a packet but no growth art yet. The shop still lists all five; the field
-  // draws the rice fallback for the ones without art.
+test('all five crops are available to plant', () => {
+  // Every crop now has its five growth sprites on disk. `available` is what
+  // `fieldSpriteFor()` reads to decide between a crop's own art and the tinted rice
+  // fallback, so a crop missing from this list draws as rice no matter what is in its
+  // folder — that was wheat and corn until `db4177b` added their stages.
   assert.deepEqual(
     SHOP_ORDER.filter((id) => CROPS[id].available),
-    ['rice', 'potato', 'tomato'],
+    ['rice', 'potato', 'tomato', 'wheat', 'corn'],
   );
 });
 
@@ -123,10 +124,10 @@ test('exact change is affordable — the purse may reach zero', () => {
   assert.equal(result.state.gold, 0);
 });
 
-test('a land-unlocked crop without art can still be bought — land is the only gate', () => {
-  // Tomato needs 8 plots. A 1-plot farm is refused with the plot count; a
-  // 8-plot farm buys, even though `available` is still false — the field draws
-  // the rice fallback until the real sprites land, so nothing 404s.
+test('a land-unlocked crop can be bought — land is the only gate', () => {
+  // Tomato needs 8 plots. A 1-plot farm is refused with the plot count; an 8-plot farm
+  // buys. `available` is not consulted here on purpose (DEC-041 as amended): land is the
+  // only gate, so a farm that earned an unlock can spend it.
   const small = buySeeds(farmWithPlots(1), 'tomato', 1);
   assert.equal(small.ok, false);
   assert.equal(small.reason, SHOP_REASONS.locked('Tomato', 8, 1));

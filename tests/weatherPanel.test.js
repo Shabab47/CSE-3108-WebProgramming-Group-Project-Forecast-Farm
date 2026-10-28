@@ -1109,17 +1109,23 @@ test('a plot with no crop cannot be damaged', () => {
 });
 
 test('damage sprites are asked for by the names that are on disk', () => {
-  // ISS-106. Rice and potato both delivered their dry/waterlogged art under custom names,
-  // and the generic `<cropId>_<failure>.png` for either is a file that does not exist —
-  // which shows as a broken image on the plot while nothing says why. The registry test
-  // proves the paths below are files; this proves the game asks for those paths.
+  // ISS-106, extended to every crop. Rice, potato, tomato, wheat and corn all delivered
+  // their dry/waterlogged art under custom names, and the generic
+  // `<cropId>_<failure>.png` for any of them is a file that does not exist — which shows
+  // as a broken image on the plot while nothing says why. The registry test proves the
+  // paths below are files; this proves the game asks for those paths.
   assert.equal(cropFailureImg('rice', 'dry'), 'assets/images/crops/rice/rice_drought_killed.png');
   assert.equal(cropFailureImg('rice', 'waterlogged'), 'assets/images/crops/rice/rice_rain_damaged.png');
   assert.equal(cropFailureImg('potato', 'dry'), 'assets/images/crops/potato/potato_drought_killed.png');
   assert.equal(cropFailureImg('potato', 'waterlogged'), 'assets/images/crops/potato/potato_rain_damaged.png');
+  assert.equal(cropFailureImg('tomato', 'dry'), 'assets/images/crops/tomato/tomato_drought_killed.png');
+  assert.equal(cropFailureImg('tomato', 'waterlogged'), 'assets/images/crops/tomato/tomato_rain_damaged.png');
+  assert.equal(cropFailureImg('wheat', 'dry'), 'assets/images/crops/wheat/wheat_drought_killed.png');
+  assert.equal(cropFailureImg('wheat', 'waterlogged'), 'assets/images/crops/wheat/wheat_rain_damaged.png');
+  assert.equal(cropFailureImg('corn', 'dry'), 'assets/images/crops/corn/corn_drought_killed.png');
+  assert.equal(cropFailureImg('corn', 'waterlogged'), 'assets/images/crops/corn/corn_rain_damaged.png');
 
-  // Everything else follows the documented pattern, including the art that has not landed.
-  assert.equal(cropFailureImg('wheat', 'dry'), 'assets/images/crops/wheat/wheat_dry.png');
+  // The `dead` sprite has not landed for any crop, so it follows the documented pattern.
   assert.equal(cropFailureImg('tomato', 'dead'), 'assets/images/crops/tomato/tomato_dead.png');
 });
 

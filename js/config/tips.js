@@ -134,7 +134,7 @@ export const TIPS = [
   {
     id: 'rice-first',
     kind: 'game',
-    text: 'Rice, potato and tomato are ready to plant. Wheat and corn are in the shop, greyed out for now.',
+    text: 'All five crops are for sale now. Rice and wheat take six hours; potato, tomato and corn take four.',
   },
   {
     id: 'read-the-forecast',

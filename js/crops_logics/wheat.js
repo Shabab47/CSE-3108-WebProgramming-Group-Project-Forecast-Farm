@@ -4,8 +4,13 @@
  * One file per crop; `docs/crops.md` explains every number. The shape is identical
  * across all five files, and `config/crops.js` assembles them into `CROPS`.
  *
- * `available: false` — `assets/images/crops/wheat/` holds only the seed packet and
- * a `.gitkeep`. The shop lists it anyway and refuses to sell it.
+ * `available: true` — all five growth stages and both damage sprites are on disk in
+ * `assets/images/crops/wheat/`. Only the `dead` sprite is still missing, which is true
+ * of every crop.
+ *
+ * Wheat uses the shared `stageAt()` like rice and tomato: four growing sprites spread
+ * evenly over its six-hour grow time, so it swaps every 1.5 h, and `wheat_5.png` — the
+ * ripe picture — only appears when it can be harvested.
  *
  * `seedPrice * 2 = yield * sellPrice`: 400 in, 800 out at full health.
  */
@@ -23,7 +28,7 @@ export const WHEAT = {
   waterNeed: 0.5,
   yield: 10,
   growNote: 'Hardy in cool, dry weather and quick to bring in.',
-  available: false,
+  available: true,
 
   likes: 'Cool, mild, light rain',
   hates: 'Heat, drought, heavy rain',

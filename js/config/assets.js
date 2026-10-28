@@ -87,8 +87,25 @@ export const ASSETS = [
   { path: 'assets/images/crops/potato/potato_4.png', name: 'Potato - stage 4', size: 795681, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
   { path: 'assets/images/crops/potato/potato_5.png', name: 'Potato - stage 5', size: 880078, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
 
+  // Wheat and corn stages, delivered together in `db4177b`. Both are 1024x1024, and both
+  // use the shared growth rule in `stageMath.js` — four growing sprites spread evenly
+  // over `growHours`, the ripe fifth only at harvest — exactly as rice and tomato do. So
+  // the only thing these needed was `available: true` in their own crop files; no new
+  // arithmetic. Wheat grows for 6 h, so it swaps every 1.5 h; corn grows for 4 h, so it
+  // swaps on the hour.
+  { path: 'assets/images/crops/wheat/wheat_1.png', name: 'Wheat - stage 1', size: 447002, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
+  { path: 'assets/images/crops/wheat/wheat_2.png', name: 'Wheat - stage 2', size: 618695, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
+  { path: 'assets/images/crops/wheat/wheat_3.png', name: 'Wheat - stage 3', size: 727369, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
+  { path: 'assets/images/crops/wheat/wheat_4.png', name: 'Wheat - stage 4', size: 878448, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
+  { path: 'assets/images/crops/wheat/wheat_5.png', name: 'Wheat - stage 5', size: 886923, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
+  { path: 'assets/images/crops/corn/corn_1.png', name: 'Corn - stage 1', size: 501417, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
+  { path: 'assets/images/crops/corn/corn_2.png', name: 'Corn - stage 2', size: 707528, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
+  { path: 'assets/images/crops/corn/corn_3.png', name: 'Corn - stage 3', size: 971478, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
+  { path: 'assets/images/crops/corn/corn_4.png', name: 'Corn - stage 4', size: 1485510, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
+  { path: 'assets/images/crops/corn/corn_5.png', name: 'Corn - stage 5', size: 1552501, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
+
   // Damage sprites, built by `cropFailureImg(cropId, failure)` with failure one of
-  // `dry`, `waterlogged`, `dead`. Rice, potato and tomato all use custom filenames for
+  // `dry`, `waterlogged`, `dead`. All five crops use custom filenames for
   // dry/waterlogged; see `cropFailureImg()`. `dead` art has not landed for any crop;
   // the entry is omitted until the file exists. `plotLayers.js` draws the
   // `damageWord()` text beside it, which is the DEC-014 rule: the text carries the
@@ -99,19 +116,16 @@ export const ASSETS = [
   { path: 'assets/images/crops/potato/potato_rain_damaged.png', name: 'Potato - waterlogged damage (rain damaged)', size: 909060, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
   { path: 'assets/images/crops/tomato/tomato_drought_killed.png', name: 'Tomato - dry damage (drought killed)', size: 759539, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
   { path: 'assets/images/crops/tomato/tomato_rain_damaged.png', name: 'Tomato - waterlogged damage (rain damaged)', size: 1157647, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
+  { path: 'assets/images/crops/wheat/wheat_drought_killed.png', name: 'Wheat - dry damage (drought killed)', size: 828311, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
+  { path: 'assets/images/crops/wheat/wheat_rain_damaged.png', name: 'Wheat - waterlogged damage (rain damaged)', size: 962861, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
+  { path: 'assets/images/crops/corn/corn_drought_killed.png', name: 'Corn - dry damage (drought killed)', size: 1545068, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
+  { path: 'assets/images/crops/corn/corn_rain_damaged.png', name: 'Corn - waterlogged damage (rain damaged)', size: 1566344, dimensions: '1024x1024', status: 'done', category: 'crop-sprite', page: 'field' },
 
-  // Flat copies of the five rice sprites, delivered at this path before the per-crop
-  // folder convention existed. Byte-identical to `crops/rice/rice_N.png` and kept,
-  // because they were delivered art and this registry documents what is on disk rather
-  // than deciding what should be. **Nothing loads these** — `cropStageImg()` builds the
-  // folder path, so the game never requests them. If they are ever cleaned up, delete
-  // these five entries in the same commit; `tests/assets.test.js` fails in both
-  // directions, which is the point of it.
-  { path: 'assets/images/crops/rice_1.png', name: 'Rice — stage 1 (flat copy, unused)', size: 624896, dimensions: '1000x1000', status: 'duplicate', category: 'crop-sprite', page: 'field' },
-  { path: 'assets/images/crops/rice_2.png', name: 'Rice — stage 2 (flat copy, unused)', size: 712164, dimensions: '1000x1000', status: 'duplicate', category: 'crop-sprite', page: 'field' },
-  { path: 'assets/images/crops/rice_3.png', name: 'Rice — stage 3 (flat copy, unused)', size: 557278, dimensions: '1000x1000', status: 'duplicate', category: 'crop-sprite', page: 'field' },
-  { path: 'assets/images/crops/rice_4.png', name: 'Rice — stage 4 (flat copy, unused)', size: 646392, dimensions: '1000x1000', status: 'duplicate', category: 'crop-sprite', page: 'field' },
-  { path: 'assets/images/crops/rice_5.png', name: 'Rice — stage 5 (flat copy, unused)', size: 589773, dimensions: '1000x1000', status: 'duplicate', category: 'crop-sprite', page: 'field' },
+  // The five flat `assets/images/crops/rice_N.png` copies that used to be listed here as
+  // `duplicate` were deleted by `db4177b` ("wheat and corn sprites added"), so their
+  // entries went with them. That is the cleanup the earlier note in this file asked for:
+  // the registry documents what is on disk, and both directions are enforced by
+  // `tests/assets.test.js`.
 
   // --- Shop ---
   { path: 'assets/images/Shop/shop.png', name: 'Shop sign (button to open the shop)', size: 1523803, dimensions: '1254x1254', status: 'done', category: 'button-art', page: 'shop' },
@@ -316,11 +330,11 @@ export function cropStageImg(cropId, stage) {
  * under different filenames, change this and the `damageSprite()` cases together, rather
  * than leaving a sprite that never resolves.
  *
- * Two crops shipped their dry/waterlogged art under custom names rather than the generic
+ * Every crop ships its dry/waterlogged art under custom names rather than the generic
  * `<cropId>_<failure>.png`, and the game has to ask for what is actually on disk — rice
- * first, then potato (ISS-106), then tomato. Everything without an entry here uses the
- * generic pattern; the crops still waiting on damage art get a hole and the
- * `damageWord()` text, which is DEC-014's rule.
+ * first, then potato (ISS-106), then tomato, then wheat and corn. Everything without an
+ * entry here uses the generic pattern; a crop still waiting on damage art gets a hole
+ * and the `damageWord()` text, which is DEC-014's rule.
  */
 const CUSTOM_FAILURE_NAMES = {
   rice: {
@@ -334,6 +348,14 @@ const CUSTOM_FAILURE_NAMES = {
   tomato: {
     dry: 'tomato_drought_killed.png',
     waterlogged: 'tomato_rain_damaged.png',
+  },
+  wheat: {
+    dry: 'wheat_drought_killed.png',
+    waterlogged: 'wheat_rain_damaged.png',
+  },
+  corn: {
+    dry: 'corn_drought_killed.png',
+    waterlogged: 'corn_rain_damaged.png',
   },
 };
 

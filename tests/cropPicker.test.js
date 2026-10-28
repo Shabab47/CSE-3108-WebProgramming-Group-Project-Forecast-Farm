@@ -52,9 +52,10 @@ test('it offers only the seeds the player actually has', () => {
 });
 
 test('a seed in the bag is offered even without art — the field draws the fallback', () => {
-  // Wheat is in the bag with `available: false`. Land is the only gate now, so
-  // the picker offers it and the field draws rice tinted by
-  // `plot__crop--fallback` until the real sprites land — no 404, no brick.
+  // Land is the only gate on buying, and the picker offers whatever is in the bag. The
+  // fallback path is still real even now that all five crops have stages: a crop whose
+  // `available` is false draws tinted rice rather than 404ing, so a save carrying a
+  // crop id the table does not know still renders. See `fieldSpriteFor()`.
   const { options } = mount({ seeds: { rice: 1, wheat: 99, corn: 99 } });
 
   assert.deepEqual(options.map((o) => o.dataset.cropId), ['rice', 'wheat', 'corn']);

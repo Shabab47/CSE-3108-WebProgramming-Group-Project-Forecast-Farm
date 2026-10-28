@@ -49,10 +49,10 @@ export const SHOP_REASONS = {
  * a hand-edited save must not bypass it.
  *
  * Land is the *only* unlock gate (DEC-041 as fixed): `available` is ignored
- * here on purpose. The art for potato→corn does not exist yet, but their seed
- * packets and numbers do — and a 4-plot farm that earned its unlock must be
- * able to spend it. The field draws a rice-sprite fallback with a tint until
- * the real sprites land, so nothing 404s and nothing bricks.
+ * here on purpose. Every crop has its seed packet and its numbers, and a 4-plot
+ * farm that earned its unlock must be able to spend it — even on a crop whose
+ * field art is still missing, which `fieldSpriteFor()` draws as tinted rice so
+ * nothing 404s and nothing bricks.
  *
  * @param {object} state
  * @param {string} cropId
