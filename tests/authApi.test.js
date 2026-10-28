@@ -26,6 +26,7 @@ import {
   signOut,
   signUp,
   updatePassword,
+  verifyRecovery,
 } from '../js/services/authApi.js';
 import { readRefreshToken } from '../js/services/tokenStore.js';
 import { SUPABASE_NOT_CONFIGURED, __setForTest, connection } from '../js/config/supabase.js';
@@ -369,6 +370,89 @@ test('a reset request still surfaces rate limiting', async () => {
   // Rate limiting says nothing about whether the address is registered.
   assert.equal(result.ok, false);
   assert.equal(result.reason, 'too_many_requests');
+});
+
+test('a reset request reports a mailer that refused the address', async () => {
+  // This used to be swallowed as `auth_unknown`, so the panel claimed an email was on
+  // its way. "Not authorized" only happens for an address that HAS an account, so the
+  // sentence is shared with `mailer_failed` — but the reason must not be swallowed.
+  stubFetch(() => ({ status: 400, body: { error_description: 'Email address not authorized' } }));
+
+  const result = await requestPasswordReset({ email: 'farmer@rice.bd' });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'email_not_authorized');
+});
+
+test('a reset request reports a mailer failure instead of claiming success', async () => {
+  stubFetch(() => ({ status: 500, body: { error_description: 'Error sending recovery email' } }));
+
+  const result = await requestPasswordReset({ email: 'farmer@rice.bd' });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'mailer_failed');
+});
+
+test('the 60-second reset cooldown is reported, not swallowed', async () => {
+  stubFetch(() => ({
+    status: 429,
+    body: { error_description: 'For security purposes, you can only request this after 43 seconds.' },
+  }));
+
+  const result = await requestPasswordReset({ email: 'farmer@rice.bd' });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'too_many_requests');
+});
+
+test('verifyRecovery exchanges a token_hash for an access token', async () => {
+  stubFetch(() => ({ status: 200, body: { access_token: 'access-token', refresh_token: 'refresh-token' } }));
+
+  const result = await verifyRecovery({ tokenHash: 'hash-123' });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.accessToken, 'access-token');
+  assert.equal(result.refreshToken, undefined, 'the refresh token is deliberately not handed back');
+  assert.deepEqual(calls[0].body, { type: 'recovery', token_hash: 'hash-123' });
+  assert.match(calls[0].url, /\/auth\/v1\/verify$/);
+});
+
+test('verifyRecovery reports a spent link', async () => {
+  stubFetch(() => ({ status: 403, body: { error_description: 'One-time token not found' } }));
+
+  const result = await verifyRecovery({ tokenHash: 'hash-123' });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'recovery_link_invalid');
+});
+
+test('verifyRecovery reports an expired link', async () => {
+  stubFetch(() => ({ status: 403, body: { error_description: 'Email link is invalid or has expired' } }));
+
+  const result = await verifyRecovery({ tokenHash: 'hash-123' });
+
+  assert.equal(result.ok, false);
+  // Not `email_invalid`: the address is fine, the link is not.
+  assert.equal(result.reason, 'recovery_link_invalid');
+});
+
+test('verifyRecovery never treats a tokenless 200 as a session', async () => {
+  stubFetch(() => ({ status: 200, body: { user: { id: 'uuid-1234' } } }));
+
+  const result = await verifyRecovery({ tokenHash: 'hash-123' });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'recovery_link_invalid');
+});
+
+test('verifyRecovery refuses to call GoTrue with no hash', async () => {
+  stubFetch(() => ({ status: 200, body: { access_token: 'x' } }));
+
+  const result = await verifyRecovery({ tokenHash: '' });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'recovery_link_invalid');
+  assert.equal(calls.length, 0, 'nothing is sent for an empty hash');
 });
 
 test('signing in with a username looks up the email and signs in', async () => {

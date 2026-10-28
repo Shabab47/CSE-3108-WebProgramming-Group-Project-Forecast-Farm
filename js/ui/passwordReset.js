@@ -23,6 +23,7 @@
  *   requestPasswordReset({email}) → Promise<{ok, reason?}>
  *   updatePassword({accessToken, password}) → Promise<{ok, reason?}>
  *   recoveryToken() → string | null
+ *   notice          → string | undefined, why this view opened (a broken link)
  *   onBack(notice?) → return to the sign-in form
  */
 
@@ -121,6 +122,10 @@ export function mountPasswordReset(root, actions) {
   // Arriving from an emailed link means there is a recovery session, so skip
   // straight to choosing a password rather than asking for the address again.
   show(actions.recoveryToken() ? 'set' : 'request');
+
+  // An arrival with a broken link opens the address form and says why. `show`
+  // clears the message line first, so this has to come after it.
+  if (actions.notice) announce(actions.notice, 'error');
 
   return { unmount() { clear(root); } };
 }

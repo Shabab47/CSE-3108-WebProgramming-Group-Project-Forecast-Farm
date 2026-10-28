@@ -64,6 +64,18 @@ const MESSAGES = {
 
   // --- password reset ---
   no_recovery_session: 'That reset link is no longer valid. Ask for a new one.',
+  recovery_link_invalid: 'That reset link is no longer valid. Ask for a new one.',
+  // GoTrue's own fragment codes. They mean the same thing to the player, and the
+  // distinction only matters in the log, so they share a sentence.
+  otp_expired: 'That reset link has expired or was already used. Ask for a new one.',
+  access_denied: 'That reset link has expired or was already used. Ask for a new one.',
+
+  // Deliberately identical. "Email address not authorized" is only ever raised for
+  // an address that has an account, so a distinct sentence would say "this account
+  // exists" — the enumeration oracle DEC-019 exists to prevent. The two reasons stay
+  // distinct in the log, which is where that difference is useful.
+  email_not_authorized: 'We could not send that email. Try again in a moment.',
+  mailer_failed: 'We could not send that email. Try again in a moment.',
   // The local provider keeps accounts in localStorage, so there is nowhere to send
   // a link from. Saying "check your connection" would blame the player's network
   // for a missing server.

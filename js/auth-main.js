@@ -35,6 +35,8 @@ import { createLog } from './utils/log.js';
 import { mountBootLoader } from './ui/loadingTips.js';
 import { mountBlockedScreen } from './ui/blockedScreen.js';
 import { mountAuthViews } from './ui/authViews.js';
+import { authErrorToMessage } from './ui/authErrors.js';
+import { parseAuthArrival } from './domain/authArrival.js';
 import { isAvatarId } from './config/avatars.js';
 import { MENU_BG } from './config/assets.js';
 import * as localAuth from './services/localAuth.js';
@@ -89,21 +91,21 @@ function paintScene() {
 }
 
 /**
- * Supabase sends the recovery link back with the access token in the URL
- * fragment. Fragments never reach a server, so this is the one place the value is
- * read, and it is passed into the panel rather than used to call the provider
- * directly. Read once at boot: the fragment stays out of `location` afterwards so
- * a token cannot be copied out of the address bar or a screenshot.
+ * The recovery link, whatever shape it arrived in.
+ *
+ * Read once at boot, and passed into the panel rather than used to call the provider
+ * directly — except for the `token_hash`, which has to be exchanged before the panel
+ * exists.
+ *
+ * `scrub` is returned rather than called here: a `token_hash` must stay in the
+ * address bar until it has been exchanged, or a slow connection would throw away the
+ * only copy of a one-time token we have. Fragments are cleared immediately, because
+ * nothing needs them again.
  */
-function readRecoveryToken() {
-  const raw = location.hash.startsWith('#') ? location.hash.slice(1) : '';
-  if (!raw) return null;
-
-  const token = new URLSearchParams(raw).get('access_token');
-  if (!token) return null;
-
-  history.replaceState(null, '', location.pathname + location.search);
-  return token;
+function readAuthArrival() {
+  const arrival = parseAuthArrival(location.search, location.hash);
+  const scrub = () => history.replaceState(null, '', location.pathname);
+  return { arrival, scrub };
 }
 
 /**
@@ -133,13 +135,16 @@ function readArrivalNotice() {
  * for one specific thing, and the menu — three equally-weighted buttons — would
  * bury the reason they are here.
  *
- *   a recovery token in the fragment   -> the reset form: they clicked a link in
+ *   a recovery arrival                 -> the reset form: they clicked a link in
  *                                        their inbox to choose a password
  *   ?deleted=1                         -> sign in, with a notice: the sentence
  *                                        is about an account they had
  */
-function chooseStartView({ recoveryToken, arrivalNotice }) {
-  if (recoveryToken) return 'reset';
+function chooseStartView({ arrival, arrivalNotice }) {
+  // A *broken* link opens the reset flow too — the address form, with the reason on
+  // screen. Falling through to the menu was the old behaviour, and it left the
+  // player holding an expired link with nothing to read and nowhere to go.
+  if (arrival.tokenHash || arrival.accessToken || arrival.error) return 'reset';
   if (arrivalNotice) return 'signIn';
   return 'menu';
 }
@@ -156,8 +161,32 @@ async function start() {
   paintScene();
 
   const provider = await loadProvider();
-  const recoveryToken = readRecoveryToken();
+  const { arrival, scrub } = readAuthArrival();
   const arrivalNotice = readArrivalNotice();
+
+  let recoveryToken = arrival.accessToken;
+
+  // A `token_hash` is exchanged before anything else: it is the only arrival that can
+  // become a working session, and restoring an unrelated session first would redirect
+  // to the farm and drop the player's intent. The address bar is cleared only once the
+  // exchange has settled, so a slow connection does not lose the token.
+  if (arrival.tokenHash) {
+    const verified = await provider.verifyRecovery?.({ tokenHash: arrival.tokenHash });
+    scrub();
+
+    if (verified?.ok) {
+      recoveryToken = verified.accessToken;
+    } else {
+      log.warn('recovery link refused -', String(verified?.reason));
+      arrival.error = verified?.reason ?? 'recovery_link_invalid';
+    }
+  } else if (arrival.accessToken || arrival.error) {
+    scrub();
+  }
+
+  const recoveryNotice = arrival.error
+    ? authErrorToMessage(arrival.error, 'session')
+    : null;
 
   // The Supabase access token lives in memory only, so on any fresh page load
   // `currentSession()` is null even for a player who is genuinely signed in.
@@ -171,7 +200,10 @@ async function start() {
   // being wrongly logged out, so treating "offline" as "signed out" is what turned
   // one dropped connection into a password prompt. `localAuth` still returns a
   // bare session, so both shapes are handled.
-  const restored = await provider.restoreSession?.();
+  //
+  // Skipped entirely when a recovery token is in hand: the player is here to change
+  // a password, and a session cannot redirect them while that token exists.
+  const restored = recoveryToken ? null : await provider.restoreSession?.();
   const session =
     provider.currentSession() ??
     (restored && typeof restored === 'object' && 'ok' in restored
@@ -188,7 +220,10 @@ async function start() {
       ? restored.reason
       : null;
 
-  if (offlineReason && !session && !recoveryToken) {
+  // A broken link is not a connection problem, so it must not be replaced by the
+  // blocked screen: the player needs the address form and the reason, both of which
+  // are local.
+  if (offlineReason && !session && !recoveryToken && !arrival.error) {
     log.warn('cannot reach the server; showing the connection screen -', offlineReason);
     loader.done();
     mountBlockedScreen(root, { reason: offlineReason, onRetry: () => location.reload() });
@@ -213,18 +248,18 @@ async function start() {
   }
 
 mountAuthViews(root, {
-    startView: chooseStartView({ recoveryToken, arrivalNotice }),
-    notice: arrivalNotice ?? undefined,
+    startView: chooseStartView({ arrival, arrivalNotice }),
+    notice: recoveryNotice ?? arrivalNotice ?? undefined,
 
     signIn: provider.signIn,
     signUp: provider.signUp,
     signOut: provider.signOut,
 
-    // Wrapped rather than passed straight through, so the redirect target is
-    // derived from the page actually being served. Without it GoTrue sends the
-    // recovery link to the project's Site URL, and this page is the only one that
-    // reads the token out of the fragment -- so a Site URL pointing anywhere else
-    // means the reset silently never completes (ISS-031).
+    // `redirect_to` is still sent, but it no longer decides anything: the recovery
+    // template now links straight to this page with a `token_hash`, so GoTrue never
+    // builds a redirect. It is kept because links already sitting in inboxes use the
+    // old shape, and those still need to come back here rather than to the Site URL
+    // (ISS-031). Remove it once the old links have aged out.
     requestPasswordReset: (options) => provider.requestPasswordReset({
       ...options,
       redirectTo: new URL('login.html', location.href).href,

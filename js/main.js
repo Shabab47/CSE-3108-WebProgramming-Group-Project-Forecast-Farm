@@ -2,6 +2,7 @@ import { qsOrNull, el } from './utils/dom.js';
 import { createLog } from './utils/log.js';
 import { formatGold } from './utils/formatGold.js';
 import { loadProvider } from './auth-main.js';
+import { recoveryRedirect } from './domain/authArrival.js';
 import { signInAsGuest } from './services/localAuth.js';
 import { buildServerSave } from './remoteSave.js';
 import { mountConnectionStatus, wireSaveOnExit } from './connection.js';
@@ -36,7 +37,6 @@ import { play as playSound, startPumpLoop, stopPumpLoop } from './utils/sound.js
 
 const log = createLog('main');
 
-const LOGIN_URL = 'login.html';
 const SHOP_URL = 'shop.html';
 const FARM_URL = 'index.html';
 const ALMANAC_URL = 'almanac.html';
@@ -715,14 +715,18 @@ async function start() {
 
     if (!resolved.ok) {
       // **The branch that is not a redirect — ISS-048.** A dead connection used to
-      // land here too, and answering it with `location.replace(LOGIN_URL)` is what
+      // land here too, and answering it with `location.replace('login.html')` is what
       // logged players out at random on the hosted build. Only a genuinely invalid
       // token goes to the login page; anything else says so and offers a retry,
       // because the player is disconnected, not signed out.
       if (resolved.reason === 'invalid_token') {
         log.info('no session, handing off to login');
         loader.done();
-        location.replace(LOGIN_URL);
+        // **`recoveryRedirect`, not a bare `LOGIN_URL`.** A plain `replace('login.html')`
+        // drops the fragment, so a recovery link that GoTrue sent to `/` arrived at the
+        // login page with the token already gone — the player saw the menu and the link
+        // looked dead. Any auth payload now survives the hop.
+        location.replace(recoveryRedirect(location.href));
         return;
       }
 

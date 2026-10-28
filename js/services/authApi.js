@@ -53,8 +53,16 @@ let token = null;
 /** Reasons that must all look like "those details did not work" on sign-in. */
 const CREDENTIAL_REASONS = ['invalid_credentials', 'email_not_confirmed', 'not_confirmed'];
 
-/** Reasons a reset request swallows, so it cannot become an enumeration oracle. */
-const RESET_SWALLOWED = ['invalid_credentials', 'auth_unknown'];
+/**
+ * Reasons a reset request swallows, so it cannot become an enumeration oracle.
+ *
+ * Only "this address has no account" belongs here. `auth_unknown` used to be in the
+ * list, and that is what made the panel claim *"a reset link is on its way"* for a
+ * mailer that had refused to send anything — the player was told to check an inbox
+ * that would never receive the message. A mailer failure says nothing about whether
+ * the address exists, so reporting it honestly costs no oracle.
+ */
+const RESET_SWALLOWED = ['no_account', 'invalid_credentials'];
 
 /* --- session shaping -------------------------------------------------------- */
 
@@ -453,9 +461,9 @@ export async function requestPasswordReset({ email, redirectTo }) {
 /**
  * Set a new password, after the player returns from the emailed link.
  *
- * The recovery link carries an access token in the URL fragment. `js/auth-main.js`
- * reads and clears that fragment, then hands the token in here — this function
- * stays free of DOM so it stays testable.
+ * `js/auth-main.js` obtains the access token — either by exchanging a `token_hash`
+ * through `verifyRecovery` below, or from the fragment of an older implicit-flow
+ * link — and hands it in here. This function stays free of DOM so it stays testable.
  */
 export async function updatePassword({ accessToken, password }) {
   if (!isSupabaseConfigured()) return { ok: false, reason: SUPABASE_NOT_CONFIGURED };
@@ -472,6 +480,42 @@ export async function updatePassword({ accessToken, password }) {
 
   log.info('password updated');
   return { ok: true };
+}
+
+/**
+ * Turn a `token_hash` from the emailed link into an access token.
+ *
+ * This replaces the `/verify` redirect the old link relied on. GoTrue used to
+ * exchange the token on a `GET` and `303` the browser back to the app with a
+ * session in the fragment; that meant a Site URL, a redirect allow list, and a
+ * fragment that any intermediate hop could lose — all three of which went wrong in
+ * practice. Worse, a token in a URL is spent by whatever fetches it, so a mail
+ * scanner could kill the link before the player clicked.
+ *
+ * Nothing is spent until this call happens, which is the point.
+ *
+ * **The refresh token in the response is deliberately not stored.** The player is
+ * about to choose a password and then sign in with it; keeping a session alive
+ * across an abandoned reset would leave a credential on disk that nobody asked for.
+ */
+export async function verifyRecovery({ tokenHash }) {
+  if (!isSupabaseConfigured()) return { ok: false, reason: SUPABASE_NOT_CONFIGURED };
+  if (!tokenHash) return { ok: false, reason: 'recovery_link_invalid' };
+
+  const result = await post('verify', { type: 'recovery', token_hash: tokenHash });
+
+  if (!result.ok) {
+    log.warn('recovery link refused -', result.reason);
+    return { ok: false, reason: result.reason };
+  }
+
+  const accessToken = result.data?.access_token;
+  // A 200 with no token is not a success — treating it as one would open the reset
+  // form with nothing to submit against, and the failure would surface later as a
+  // confusing "that link is no longer valid" after the player typed a password.
+  if (!accessToken) return { ok: false, reason: 'recovery_link_invalid' };
+
+  return { ok: true, accessToken };
 }
 
 /**

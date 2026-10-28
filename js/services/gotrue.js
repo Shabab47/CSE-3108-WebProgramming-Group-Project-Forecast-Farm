@@ -61,6 +61,16 @@ const REASONS = [
   [/user already registered/i, 'email_taken'],
   [/user already exists/i, 'email_taken'],
   [/password should be at least/i, 'password_weak'],
+  // **These four must stay above the `is invalid` pattern below.** GoTrue's wording
+  // for a spent recovery link is "Email link is invalid or has expired", which that
+  // pattern would otherwise claim and report as a bad email address — the player
+  // would be told to retype an address that is perfectly fine.
+  [/email address not authorized/i, 'email_not_authorized'],
+  [/error sending (recovery|confirmation|invite|email) email|error sending email/i, 'mailer_failed'],
+  [/token has expired|token is expired|invalid or has expired|one-time token not found/i, 'recovery_link_invalid'],
+  // "For security purposes, you can only request this after 43 seconds."
+  [/for security purposes, you can only request this after/i, 'too_many_requests'],
+  [/user not found/i, 'no_account'],
   // GoTrue's actual wording for a refused address is
   // `Email address "someone@example.com" is invalid` — not "invalid email", which is what this
   // pattern originally expected and why ISS-035 happened. The wording was confirmed against the

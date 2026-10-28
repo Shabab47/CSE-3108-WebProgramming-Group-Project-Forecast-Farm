@@ -22,7 +22,7 @@
  *   signOut()        → Promise<{ok}>
  *   requestPasswordReset({email}) → Promise<{ok}>
  *   updatePassword({accessToken, password}) → Promise<{ok}>
- *   recoveryToken()  → string | null, the token out of the URL fragment
+ *   recoveryToken() → string | null, the access token for a reset already in progress
  *   onAuthenticated(session | null, { avatar }?) → route onward; null means awaiting confirmation
  *   onGuest()        → continue without an account
  */
@@ -75,6 +75,10 @@ export function mountAuthViews(root, actions) {
         requestPasswordReset: actions.requestPasswordReset,
         updatePassword: actions.updatePassword,
         recoveryToken: actions.recoveryToken,
+        // The arrival sentence, when the player came back from a link that did not
+        // work. `show(view, notice)` has carried it since this module was written;
+        // the reset branch was the one place that dropped it on the floor.
+        notice,
         // Back from a reset goes to the form the player left, not to the menu:
         // "I forgot my password" is only ever said from the sign-in form.
         onBack(resetNotice) {

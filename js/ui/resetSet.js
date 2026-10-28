@@ -93,9 +93,11 @@ export function mountResetSet(actions) {
 
     const accessToken = actions.recoveryToken();
     if (!accessToken) {
-      // The player opened the page directly, or the link expired.
-      actions.announce('That reset link is no longer valid. Ask for a new one.', 'error');
+      // The player opened the page directly, or the link expired. Go back to the
+      // address form *first*: `onExpired` clears the message line, so announcing
+      // before it is what made this sentence invisible.
       actions.onExpired();
+      actions.announce(authErrorToMessage('no_recovery_session', 'session'), 'error');
       return;
     }
 
@@ -128,7 +130,15 @@ export function mountResetSet(actions) {
     setBusy(false);
     if (!result?.ok) {
       log.warn('password update refused -', String(result?.reason));
-      actions.announce(authErrorToMessage(String(result?.reason ?? 'unknown'), 'session'));
+      const sentence = authErrorToMessage(String(result?.reason ?? 'unknown'), 'session');
+      if (result?.reason === 'no_recovery_session') {
+        // The link is dead. Sending them back to the address form is the only useful
+        // next step, and `onExpired` clears the message line, so announce after it.
+        actions.onExpired();
+        actions.announce(sentence, 'error');
+        return;
+      }
+      actions.announce(sentence);
       return;
     }
 
