@@ -531,7 +531,12 @@ test('the pump stops itself when the plot is full and when the gold is gone', ()
   const empty = tick(broke, Date.now());
   assert.equal(empty.autoOff, 'gold', 'an empty purse stops it too');
   assert.equal(empty.state.pump.on, false, 'and turns it off, because it cannot restart itself');
-  assert.equal(empty.state.gold, 0, 'without going negative');
+  // The purse cannot cover a whole run to the target, so `pumpRuns` delivers nothing
+  // rather than taking the last gold for water the plot never received. The pump
+  // stops; the gold stays where it is.
+  assert.equal(empty.watered, 0, 'no water was delivered');
+  assert.equal(empty.spent, 0, 'and nothing was billed for it');
+  assert.equal(empty.state.gold, 1, 'so the purse is not emptied for nothing');
 });
 
 test('a closed tab catches up instead of skipping the hours it slept through', () => {

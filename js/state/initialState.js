@@ -144,9 +144,9 @@ export function ensureDifficulty(state) {
  * Give a save written before pump levels existed the shape the rest of the game reads.
  *
  * The old save has `{ on, target }`: one plot, no level. This rewrites it as
- * `{ on, level: 1, targets: [...] }` — the free starter pump waters exactly the one
- * plot the old save was aimed at, so the player's machine keeps doing what it was
- * doing. It also repairs a hand-edited save: an unknown level falls back to 1, a
+ * `{ on, level: 1, targets: [...] }` — the free starter pump keeps watering the one
+ * plot the old save was aimed at (it now has room for a second), so the player's
+ * machine keeps doing what it was doing. It also repairs a hand-edited save: an unknown level falls back to 1, a
  * duplicate or unowned target is dropped, and a target list longer than the level's
  * capacity is trimmed to the first plots in order.
  *

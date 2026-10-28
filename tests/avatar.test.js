@@ -20,16 +20,22 @@ const SESSION = { status: 'authed', userId: 'acc_test', email: 'a@b.bd', farmerN
 test('the preset list has distinct ids, and an id is checked exactly', () => {
   assert.deepEqual(
     AVATARS.map((avatar) => avatar.id),
-    ['farmer1', 'farmer2', 'farmer3', 'farmer4'],
+    ['farmer1', 'farmer2', 'farmer3', 'farmer4', 'farmer5', 'farmer6', 'farmer7'],
   );
-  assert.equal(new Set(AVATARS.map((avatar) => avatar.id)).size, 4, 'no duplicate id');
-  assert.equal(isAvatarId('farmer1'), true);
-  assert.equal(isAvatarId('farmer2'), true);
-  assert.equal(isAvatarId('farmer3'), true);
-  assert.equal(isAvatarId('farmer4'), true);
-  assert.equal(isAvatarId('farmer5'), false);
+  assert.equal(new Set(AVATARS.map((avatar) => avatar.id)).size, AVATARS.length, 'no duplicate id');
+
+  for (const { id } of AVATARS) assert.equal(isAvatarId(id), true, `${id} is a preset`);
+  assert.equal(isAvatarId('farmer8'), false);
   assert.equal(isAvatarId(''), false);
   assert.equal(isAvatarId(null), false, 'null is the default, not a preset');
+});
+
+test('an avatar with no art is null, and an unknown id is not echoed into the page', () => {
+  assert.equal(avatarArt(null), null, 'null means the gray default, not Farmer 1');
+  assert.equal(avatarArt(undefined), null);
+  assert.equal(avatarArt('farmer8'), null);
+  assert.equal(avatarArt('<script>alert(1)</script>'), null);
+  assert.equal(avatarArt('constructor'), null, 'a prototype name is not a preset');
 });
 
 test('every listed preset has inline art with no duplicated element ids', () => {
@@ -119,7 +125,7 @@ test('an unknown avatar id is treated as the default, and other profile fields s
 });
 
 test('a valid avatar is left exactly as it is, and junk profile shapes do not throw', () => {
-  for (const id of ['farmer1', 'farmer2', 'farmer3', 'farmer4']) {
+  for (const { id } of AVATARS) {
     const state = buildInitialState(SESSION);
     state.profile = { avatar: id };
     assert.equal(ensureProfile(state), state, `${id} is already valid`);

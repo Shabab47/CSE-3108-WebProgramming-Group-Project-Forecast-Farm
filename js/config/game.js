@@ -90,17 +90,19 @@ export const PUMP = {
    *
    * `requiredPlots` is the land gate — the same progression counter seed unlocks read
    * (`utils/seedUnlocks.js`), including the free starter plot. Level 1 is the
-   * machine every new farm already owns, so its gate and price are both zero.
+   * machine every new farm already owns, so its gate and price are both zero. It waters
+   * two plots from the first minute; each later level waters as many plots as the land
+   * that unlocks it (4, 8, 12 and 16), so the gate and the capacity read as one number.
    *
    * The prices are deliberately steep at the top: 1,000 / 5,000 / 25,000 / 100,000.
    * A pump that can water sixteen plots at once is a late-game convenience, not a
    * purchase that competes with the next seed packet.
    */
   levels: [
-    { level: 1, capacity: 1, requiredPlots: 0, price: 0 },
-    { level: 2, capacity: 2, requiredPlots: 4, price: 1_000 },
-    { level: 3, capacity: 4, requiredPlots: 8, price: 5_000 },
-    { level: 4, capacity: 8, requiredPlots: 12, price: 25_000 },
+    { level: 1, capacity: 2, requiredPlots: 0, price: 0 },
+    { level: 2, capacity: 4, requiredPlots: 4, price: 1_000 },
+    { level: 3, capacity: 8, requiredPlots: 8, price: 5_000 },
+    { level: 4, capacity: 12, requiredPlots: 12, price: 25_000 },
     { level: 5, capacity: 16, requiredPlots: 16, price: 100_000 },
   ],
 };

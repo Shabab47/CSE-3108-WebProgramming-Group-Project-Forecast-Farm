@@ -53,12 +53,12 @@ function mount({ pump, plotId = 0 } = {}) {
 }
 
 test('an untargeted plot offers to add it, and says how much of the pump is in use', () => {
-  const view = mount({ pump: { on: true, level: 2, targets: [1] } });
+  const view = mount({ pump: { on: true, level: 1, targets: [1] } });
 
   assert.equal(view.button.textContent.trim(), 'Water this plot too');
   assert.equal(view.button.dataset.mode, 'add');
   assert.equal(view.button.disabled, false);
-  assert.match(view.status.textContent, /Pump Lv 2 · watering 1 of 2 plots/);
+  assert.match(view.status.textContent, /Pump Lv 1 · watering 1 of 2 plots/);
 });
 
 test('a targeted plot on a running pump offers to stop watering it', () => {
@@ -78,7 +78,8 @@ test('a targeted plot on an auto-stopped pump offers to resume, not remove', () 
 });
 
 test('a full pump disables the button instead of refusing after the press', () => {
-  const view = mount({ pump: { on: true, level: 2, targets: [1, 2] } });
+  // Level 1 is the smallest pump there is, and it waters two plots.
+  const view = mount({ pump: { on: true, level: 1, targets: [1, 2] } });
 
   assert.equal(view.button.disabled, true);
   assert.equal(view.button.dataset.mode, 'full');
@@ -101,7 +102,8 @@ test('the button sends its mode, so the join does not have to guess intent', asy
 
 test('a full pump whose plot is at optimal offers to swap instead of refusing', () => {
   // Plot 0 is on the pump and full; the open panel is plot 1.
-  const { state } = field({ pump: { on: false, level: 1, targets: [0] }, plotId: 1 });
+  // Level 1 holds two plots, so it is full with plot 0 (finished) and plot 2 (still thirsty).
+  const { state } = field({ pump: { on: false, level: 1, targets: [0, 2] }, plotId: 1 });
   state.plots[0].waterLevel = 80; // inside rice's optimal band, so it counts as finished
   mountPlotInspector(root, state, 1, { onPump: () => {} });
   const button = root.querySelector('.inspector__pump');

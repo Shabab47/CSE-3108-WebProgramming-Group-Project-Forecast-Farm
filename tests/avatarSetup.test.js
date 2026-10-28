@@ -2,7 +2,7 @@
  * The avatar step after sign-up. `node --test tests/`
  *
  * The screen has one job: guarantee that the id handed to the game is one of the
- * four presets. The provider and the store are covered elsewhere; this file checks
+ * presets. The provider and the store are covered elsewhere; this file checks
  * what the player sees and what the button reports.
  */
 
@@ -37,7 +37,7 @@ const options = () => root.querySelectorAll('.sign-avatar__option');
 const start = () => root.querySelectorAll('button').find((button) => button.textContent === 'Start farming');
 const caption = () => root.querySelector('.sign-avatar__caption')?.textContent;
 
-test('the avatar step is a sign with the four presets, Farmer 1 preselected', () => {
+test('the avatar step is a sign with every preset, Farmer 1 preselected', () => {
   mount();
 
   assert.equal(root.querySelector('.sign__title')?.textContent, 'Choose your avatar');
@@ -63,7 +63,7 @@ test('choosing another preset repaints the preview and reports that id', async (
 
   assert.equal(options()[2].getAttribute('aria-pressed'), 'true');
   assert.equal(options()[0].getAttribute('aria-pressed'), 'false');
-  assert.equal(caption(), 'Farmer 3');
+  assert.equal(caption(), AVATARS[2].label);
   assert.equal(options()[2].focusCount, 1, 'and the chosen option keeps focus');
 
   await start().click();

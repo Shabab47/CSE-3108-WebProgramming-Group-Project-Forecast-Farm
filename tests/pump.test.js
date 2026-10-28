@@ -12,6 +12,7 @@ import assert from 'node:assert/strict';
 
 import { buildInitialState } from '../js/state/initialState.js';
 import { DIFFICULTY, PUMP } from '../js/config/game.js';
+import { pumpFrame } from '../js/config/assets.js';
 import {
   aimPump,
   pumpCapacity,
@@ -42,7 +43,7 @@ function plot(id, waterLevel = 0, extra = {}) {
 
 /* --- targets --------------------------------------------------------------- */
 
-test('a level-1 pump aims at one plot and refuses a second', () => {
+test('a level-1 pump aims at two plots and refuses a third', () => {
   const state = farm(4);
 
   const first = aimPump(state, 0);
@@ -51,26 +52,35 @@ test('a level-1 pump aims at one plot and refuses a second', () => {
   assert.deepEqual(first.state.pump, { on: true, level: 1, targets: [0] });
 
   const second = aimPump(first.state, 1);
-  assert.deepEqual(second, { ok: false, reason: 'pump_full', level: 1, capacity: 1 },
+  assert.equal(second.ok, true);
+  assert.deepEqual(second.state.pump, { on: true, level: 1, targets: [0, 1] });
+
+  const third = aimPump(second.state, 2);
+  assert.deepEqual(third, { ok: false, reason: 'pump_full', level: 1, capacity: 2 },
     'the refusal comes with the level and capacity the toast needs');
 });
 
-test('a level-2 pump waters two plots, and removing one keeps the other running', () => {
-  const state = farm(4);
+test('a level-2 pump waters four plots, and removing one keeps the others running', () => {
+  const state = farm(8);
   state.pump = { on: false, level: 2, targets: [] };
 
-  const one = aimPump(state, 0);
-  const two = aimPump(one.state, 1);
-  assert.deepEqual(two.state.pump, { on: true, level: 2, targets: [0, 1] });
+  let current = state;
+  for (const id of [0, 1, 2, 3]) {
+    const result = aimPump(current, id);
+    assert.equal(result.ok, true, `plot ${id} fits on a level-2 pump`);
+    current = result.state;
+  }
+  assert.deepEqual(current.pump, { on: true, level: 2, targets: [0, 1, 2, 3] });
 
-  const third = aimPump(two.state, 2);
-  assert.equal(third.ok, false);
-  assert.equal(third.capacity, 2);
+  const fifth = aimPump(current, 4);
+  assert.equal(fifth.ok, false);
+  assert.equal(fifth.capacity, 4);
 
-  const oneLeft = removePumpTarget(two.state, 0);
-  assert.deepEqual(oneLeft.pump, { on: true, level: 2, targets: [1] });
+  const threeLeft = removePumpTarget(current, 0);
+  assert.deepEqual(threeLeft.pump, { on: true, level: 2, targets: [1, 2, 3] });
 
-  const noneLeft = removePumpTarget(oneLeft, 1);
+  let noneLeft = threeLeft;
+  for (const id of [1, 2, 3]) noneLeft = removePumpTarget(noneLeft, id);
   assert.deepEqual(noneLeft.pump, { on: false, level: 2, targets: [] },
     'removing the last target switches the machine off');
 });
@@ -106,7 +116,8 @@ test('the old single-target shape is still readable', () => {
   const state = farm(4);
   state.pump = { on: true, target: 2 };
   assert.deepEqual(pumpTargetIds(state), [2]);
-  assert.equal(pumpCapacity(state), 1);
+  // An old save has no level, so it reads as the free level 1, which now waters two plots.
+  assert.equal(pumpCapacity(state), 2);
 });
 
 /* --- the bill, for more than one plot -------------------------------------- */
@@ -129,17 +140,18 @@ test('every target is watered at the full rate, and every target is billed', () 
 
 test('a target is capped at its level capacity even if more jobs are handed in', () => {
   const state = farm(16);
-  state.pump = { on: true, level: 1, targets: [0, 1] };
+  state.pump = { on: true, level: 1, targets: [0, 1, 2] };
   const jobs = [
     { plot: plot(0), target: 50, dryRate: 0 },
     { plot: plot(1), target: 50, dryRate: 0 },
+    { plot: plot(2), target: 50, dryRate: 0 },
   ];
 
   const result = pumpRuns(state, 1, jobs);
-  assert.equal(result.runs.length, 1, 'level 1 reaches only one plot');
-  assert.equal(result.runs[0].plot.id, 0, 'in target order');
-  assert.equal(result.watered, 50);
-  assert.equal(result.spent, 10);
+  assert.equal(result.runs.length, 2, 'level 1 reaches only two plots');
+  assert.deepEqual(result.runs.map((run) => run.plot.id), [0, 1], 'in target order');
+  assert.equal(result.watered, 100);
+  assert.equal(result.spent, 20);
 });
 
 test('gold is spent in target order, and the later target gets nothing when it runs out', () => {
@@ -256,7 +268,7 @@ test('the next upgrade names its land gate, capacity and price', () => {
   const state = farm(1);
   const next = nextPumpUpgrade(state);
   assert.equal(next.level, 2);
-  assert.equal(next.capacity, 2);
+  assert.equal(next.capacity, 4);
   assert.equal(next.requiredPlots, 4);
   assert.equal(next.price, 1_000);
   assert.equal(next.owned, 1);
@@ -314,11 +326,65 @@ test('each level has the capacity and gate the shop advertises', () => {
   assert.deepEqual(
     PUMP.levels.map((entry) => [entry.level, entry.capacity, entry.requiredPlots, entry.price]),
     [
-      [1, 1, 0, 0],
-      [2, 2, 4, 1_000],
-      [3, 4, 8, 5_000],
-      [4, 8, 12, 25_000],
+      [1, 2, 0, 0],
+      [2, 4, 4, 1_000],
+      [3, 8, 8, 5_000],
+      [4, 12, 12, 25_000],
       [5, 16, 16, 100_000],
     ],
   );
+});
+
+/* --- the starter pump, and which drawing each level wears ------------------- */
+
+test('a brand-new farm owns a pump that already waters two plots', () => {
+  const fresh = buildInitialState(SESSION);
+
+  assert.equal(fresh.pump.level, 1);
+  assert.equal(pumpCapacity(fresh), 2);
+});
+
+test('capacity grows with the land that unlocks it: 2, then 4, 8, 12 and 16', () => {
+  assert.deepEqual(PUMP.levels.map((entry) => entry.capacity), [2, 4, 8, 12, 16]);
+  assert.deepEqual(PUMP.levels.map((entry) => entry.requiredPlots), [0, 4, 8, 12, 16]);
+
+  // From level 2 up, the pump waters exactly as many plots as the land that bought it.
+  for (const entry of PUMP.levels.slice(1)) {
+    assert.equal(entry.capacity, entry.requiredPlots, `level ${entry.level}`);
+  }
+});
+
+test('the final pump needs sixteen plots, and sixteen plots are what it waters', () => {
+  const fifteen = farm(15, 200_000);
+  fifteen.pump = { on: false, level: 4, targets: [] };
+  assert.equal(canUpgradePump(fifteen), false, 'fifteen plots is one short');
+  assert.match(upgradePump(fifteen).reason, /needs 16 owned plots — you own 15/);
+
+  const sixteen = farm(16, 200_000);
+  sixteen.pump = { on: false, level: 4, targets: [] };
+  const bought = upgradePump(sixteen);
+  assert.equal(bought.ok, true);
+  assert.equal(pumpCapacity(bought.state), 16);
+
+  let current = bought.state;
+  for (let id = 0; id < 16; id += 1) {
+    const result = aimPump(current, id);
+    assert.equal(result.ok, true, `plot ${id} fits on the final pump`);
+    current = result.state;
+  }
+  assert.equal(pumpTargetIds(current).length, 16);
+});
+
+test('the first pump drawing is retired: no level wears pump_1.png', () => {
+  const files = PUMP.levels.map((entry) => pumpFrame(entry.level));
+
+  assert.deepEqual(files, [
+    'assets/images/pump/pump_2.png', // level 1, the starter pump
+    'assets/images/pump/pump_3.png', // level 2
+    'assets/images/pump/pump_4.png', // level 3
+    'assets/images/pump/pump_4.png', // level 4 shares level 3's drawing
+    'assets/images/pump/pump_5.png', // level 5, the final pump
+  ]);
+  assert.equal(files.includes('assets/images/pump/pump_1.png'), false);
+  assert.equal(pumpFrame(99), 'assets/images/pump/pump_2.png', 'an unknown level never builds a 404');
 });

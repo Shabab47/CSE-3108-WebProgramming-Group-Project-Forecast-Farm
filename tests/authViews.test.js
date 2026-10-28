@@ -11,6 +11,7 @@ import { afterEach, beforeEach, test } from 'node:test';
 
 import { installDom, uninstallDom } from './helpers/fakeDom.js';
 import { mountAuthViews } from '../js/ui/authViews.js';
+import { AVATARS } from '../js/config/avatars.js';
 
 const SESSION = {
   status: 'authed',
@@ -76,7 +77,7 @@ test('a successful sign-up lands on the avatar step, and the choice is handed ov
   await submit();
 
   assert.equal(root.querySelector('.sign__title')?.textContent, 'Choose your avatar');
-  assert.equal(avatarOptions().length, 4);
+  assert.equal(avatarOptions().length, AVATARS.length);
   assert.deepEqual(calls.authenticated, [], 'nothing is routed before the avatar is chosen');
 
   await avatarOptions()[1].click();

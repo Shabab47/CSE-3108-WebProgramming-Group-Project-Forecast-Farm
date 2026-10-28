@@ -46,16 +46,19 @@ export const ASSETS = [
   { path: 'assets/images/base.png', name: 'Base slab', size: 63740, dimensions: '1000x1000', status: 'done', category: 'environment', page: 'field' },
   // The original single pump, byte-identical to `pump/pump_1.png`. Nothing loads this
   // path any more — `farmView.js` asks `pumpFrame(level)` — but the file is real art and
-  // the registry records what is on disk. Kept as a duplicate rather than deleted.
+  // the registry documents what is on disk, so it stays listed.
   { path: 'assets/images/pump.png', name: 'Pump (original, unused copy of pump_1)', size: 73567, dimensions: '1000x1000', status: 'duplicate', category: 'environment', page: 'field' },
-  // One drawing per pump level. All five share a 1000×1000 canvas and the same anchor, so
-  // the field can swap `src` without moving the machine. Levels 1–5 are the five cards
-  // the shop sells and the five machines the field draws (DEC-058).
-  { path: 'assets/images/pump/pump_1.png', name: 'Pump — level 1', size: 73567, dimensions: '1000x1000', status: 'done', category: 'environment', page: 'field' },
-  { path: 'assets/images/pump/pump_2.png', name: 'Pump — level 2', size: 98399, dimensions: '1000x1000', status: 'done', category: 'environment', page: 'field' },
-  { path: 'assets/images/pump/pump_3.png', name: 'Pump — level 3', size: 125968, dimensions: '1000x1000', status: 'done', category: 'environment', page: 'field' },
-  { path: 'assets/images/pump/pump_4.png', name: 'Pump — level 4', size: 163596, dimensions: '1000x1000', status: 'done', category: 'environment', page: 'field' },
-  { path: 'assets/images/pump/pump_5.png', name: 'Pump — level 5', size: 186471, dimensions: '1000x1000', status: 'done', category: 'environment', page: 'field' },
+  // Four drawings serve five pump levels (see `pumpFrame()` below). `pump_1.png` is the
+  // plain starter drawing and is no longer shown anywhere: the pump a new farm owns is
+  // drawn with `pump_2.png`. The file stays on disk and in this list, because the
+  // registry documents what is on disk and `tests/assets.test.js` fails both ways.
+  // All five share a 1000×1000 canvas and the same anchor, so swapping between them
+  // never moves the machine.
+  { path: 'assets/images/pump/pump_1.png', name: 'Pump — first drawing (no longer used)', size: 73567, dimensions: '1000x1000', status: 'done', category: 'environment', page: 'field' },
+  { path: 'assets/images/pump/pump_2.png', name: 'Pump — level 1 (the starter pump)', size: 98399, dimensions: '1000x1000', status: 'done', category: 'environment', page: 'field' },
+  { path: 'assets/images/pump/pump_3.png', name: 'Pump — level 2', size: 125968, dimensions: '1000x1000', status: 'done', category: 'environment', page: 'field' },
+  { path: 'assets/images/pump/pump_4.png', name: 'Pump — levels 3 and 4', size: 163596, dimensions: '1000x1000', status: 'done', category: 'environment', page: 'field' },
+  { path: 'assets/images/pump/pump_5.png', name: 'Pump — level 5 (the final pump)', size: 186471, dimensions: '1000x1000', status: 'done', category: 'environment', page: 'field' },
   { path: 'assets/images/ground/ground_unwatered.png', name: 'Ground (unwatered)', size: 313529, dimensions: '1000x1000', status: 'done', category: 'environment', page: 'field' },
   { path: 'assets/images/ground/ground_watered.png', name: 'Ground (watered)', size: 318028, dimensions: '1000x1000', status: 'done', category: 'environment', page: 'field' },
   // The lock pins on unowned plots: green on the one plot that can be bought next,
@@ -235,6 +238,10 @@ export const ASSETS = [
   { path: 'assets/sounds/sfx/plant.mp3', name: 'Plant SFX', size: 31908, dimensions: '', status: 'done', category: 'sound', page: 'global' },
   { path: 'assets/sounds/sfx/pop.MP3', name: 'Pop SFX', size: 8920, dimensions: '', status: 'done', category: 'sound', page: 'global' },
   { path: 'assets/sounds/sfx/pump_running1.mp3', name: 'Pump running start SFX', size: 137234, dimensions: '', status: 'done', category: 'sound', page: 'global' },
+  // Added with the other SFX but never wired up: `startPumpLoop()` plays the one-shot
+  // `pump_running1.mp3`. The file is real audio, so the registry documents it; it is
+  // not deleted in case the loop is wanted later.
+  { path: 'assets/sounds/sfx/pump_running_loop.mp3', name: 'Pump running loop SFX (unused)', size: 130129, dimensions: '', status: 'done', category: 'sound', page: 'global' },
   { path: 'assets/sounds/sfx/pump_up.mp3', name: 'Pump upgrade SFX', size: 49043, dimensions: '', status: 'done', category: 'sound', page: 'global' },
   { path: 'assets/sounds/sfx/sell.mp3', name: 'Sell SFX', size: 12263, dimensions: '', status: 'done', category: 'sound', page: 'global' },
   { path: 'assets/sounds/sfx/unlock.mp3', name: 'Unlock SFX', size: 13100, dimensions: '', status: 'done', category: 'sound', page: 'global' },
@@ -378,14 +385,33 @@ export function cropIcon(cropId) {
 }
 
 /**
+ * Which drawing in `assets/images/pump/` each pump level wears.
+ *
+ * There are five levels but four drawings in use, because `pump_1.png` (the plain first
+ * drawing) is retired: the pump a new farm starts with is drawn with `pump_2.png`, and
+ * the last level wears `pump_5.png`. That leaves one drawing short, so levels 3 and 4
+ * share `pump_4.png`. When a sixth drawing arrives, point level 4 at it here — this
+ * table is the only place that decides.
+ *
+ *   level 1 (starter, waters 2)    pump_2.png
+ *   level 2 (waters 4)             pump_3.png
+ *   level 3 (waters 8)             pump_4.png
+ *   level 4 (waters 12)            pump_4.png   <- shares level 3's drawing
+ *   level 5 (final, waters 16)     pump_5.png
+ */
+const PUMP_DRAWING = { 1: 2, 2: 3, 3: 4, 4: 4, 5: 5 };
+
+/**
  * A pump's art for its level, 1 to 5.
  *
- * All five files share a 1000×1000 canvas and a centred drawing, so changing the level
+ * All the files share a 1000×1000 canvas and a centred drawing, so changing the level
  * changes what the field shows without changing where the machine sits. The shop card
- * asks for the *next* level; the field asks for the current one.
+ * asks for the *next* level; the field asks for the current one. An unknown level falls
+ * back to the starter pump's drawing rather than building a URL that 404s.
  */
-export function pumpFrame(frame) {
-  return `assets/images/pump/pump_${frame}.png`;
+export function pumpFrame(level) {
+  const drawing = PUMP_DRAWING[level] ?? PUMP_DRAWING[1];
+  return `assets/images/pump/pump_${drawing}.png`;
 }
 
 /** A sound effect in `assets/sounds/sfx/`. Pass the file name, e.g. `sfx('plant.mp3')`. */

@@ -28,29 +28,30 @@ function farm({ level = 1, targets = [], levels = [] } = {}) {
 const RICE = targetFor({ cropId: 'rice' });
 const THIRSTY = 20; // well below rice's band floor
 
-test('a level-1 pump on a finished plot hands over to the next plot', () => {
-  const state = farm({ level: 1, targets: [0], levels: [RICE] });
-  state.pump.on = false; // the tick switched it off when the plot filled
+test('a full level-1 pump on finished plots hands over to the next plot', () => {
+  // Level 1 holds two plots. Both are finished, so the tie goes to the older target.
+  const state = farm({ level: 1, targets: [0, 1], levels: [RICE, RICE] });
+  state.pump.on = false; // the tick switched it off when the plots filled
 
-  assert.equal(aimPump(state, 1).ok, false, 'the plain rule still refuses');
-  const result = aimPumpOrRelease(state, 1);
+  assert.equal(aimPump(state, 2).ok, false, 'the plain rule still refuses');
+  const result = aimPumpOrRelease(state, 2);
 
   assert.equal(result.ok, true);
   assert.equal(result.released, 0);
-  assert.deepEqual(result.state.pump, { on: true, level: 1, targets: [1] });
+  assert.deepEqual(result.state.pump, { on: true, level: 1, targets: [1, 2] });
 });
 
 test('a pump that is still filling its plot does not let go of it', () => {
-  const state = farm({ level: 1, targets: [0], levels: [THIRSTY] });
+  const state = farm({ level: 1, targets: [0, 1], levels: [THIRSTY, THIRSTY] });
 
   assert.equal(releasableTarget(state), null);
-  assert.equal(wouldSwap(state, 1), false);
-  assert.deepEqual(aimPumpOrRelease(state, 1),
-    { ok: false, reason: 'pump_full', level: 1, capacity: 1 });
+  assert.equal(wouldSwap(state, 2), false);
+  assert.deepEqual(aimPumpOrRelease(state, 2),
+    { ok: false, reason: 'pump_full', level: 1, capacity: 2 });
 });
 
 test('with several outlets, only a finished plot is released, and the others keep running', () => {
-  const state = farm({ level: 2, targets: [0, 1], levels: [THIRSTY, RICE] });
+  const state = farm({ level: 1, targets: [0, 1], levels: [THIRSTY, RICE] });
 
   const result = aimPumpOrRelease(state, 2);
   assert.equal(result.released, 1, 'plot 0 is still thirsty, so plot 1 is the one let go');
@@ -83,7 +84,7 @@ test('a plot that cannot take water is still refused, with no release', () => {
 test('a plot that has dried a little since the pump stopped still counts as finished', () => {
   // The pump switches off when the plot fills, then evaporation takes it just under the
   // target. It still reads Optimal, so it must still be releasable.
-  const state = farm({ level: 1, targets: [0], levels: [RICE - 3] });
+  const state = farm({ level: 1, targets: [0, 2], levels: [RICE - 3, 0, THIRSTY] });
   state.pump.on = false;
 
   assert.equal(releasableTarget(state), 0);

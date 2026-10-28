@@ -1,5 +1,5 @@
 /**
- * The last step of creating an account: choose one of the four preset avatars.
+ * The last step of creating an account: choose one of the preset avatars.
  *
  * Shown only after sign-up has produced a session, before the game page opens. It
  * is a fifth view on the wooden sign rather than a field on the sign-up form: the

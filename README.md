@@ -253,8 +253,8 @@ Each week is broken out per person, because "all four" tells you nothing about w
 | 3 | The weather reaches the farm | ✅ Complete | Plantings judged against 6 h of live forecast · seasons from latitude · the seed picker refuses without a verdict | **Shabab** |
 | 3 | Difficulty, and selling seeds | ✅ Complete | Easy and normal modes · existing saves read normal · seeds sell back at 75% | **Shabab** |
 | 3 | Free first plot, and what it unlocks | ✅ Complete | The first plot free · locked plots carry a price tag · seeds unlock every 4 plots · a growth timer on each crop | **Shabab**, **Hisham** |
-| 3 | Water, and a pump that works | ✅ Complete | Rain and evaporation · a water meter on every plot · the level-1 pump waters one plot · click a plot for its gauge · damage that is permanent | **Hisham** |
-| 3 | Five pump levels, and multi-plot watering | ✅ Complete | 1 / 2 / 4 / 8 / 16 plots · land gates at 4 / 8 / 12 / 16 owned · shop Pump section · level art on the field · targets add and remove per plot | **Hisham** |
+| 3 | Water, and a pump that works | ✅ Complete | Rain and evaporation · a water meter on every plot · the level-1 pump waters two plots · click a plot for its gauge · damage that is permanent | **Hisham** |
+| 3 | Five pump levels, and multi-plot watering | ✅ Complete | 2 / 4 / 8 / 12 / 16 plots · land gates at 4 / 8 / 12 / 16 owned · shop Pump section · level art on the field · targets add and remove per plot | **Hisham** |
 | 3 | The pump stops billing for water it throws away | ✅ Complete | Nothing billed once a plot is full · the quote matches the bill · the meters animate | **Shabab** |
 | 3 | The environment card | ✅ Complete | The rail reports the weather and what it does to the farm · three meters — water loss, frost and heat — always all shown | **Hisham** |
 | 3 | Weather board and shop, rebuilt | ✅ Complete | Weather board to the design · shop repainted to the Figma reference · profile moved to its own page · five tomato growth stages | **Kafi** |

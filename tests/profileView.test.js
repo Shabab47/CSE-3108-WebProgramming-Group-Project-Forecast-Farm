@@ -12,6 +12,7 @@ import { afterEach, beforeEach, test } from 'node:test';
 
 import { closestWith, installDom, uninstallDom, visibleText } from './helpers/fakeDom.js';
 import { el } from '../js/utils/dom.js';
+import { AVATARS } from '../js/config/avatars.js';
 import { mountProfile } from '../js/ui/profileView.js';
 
 const SESSION = {
@@ -131,10 +132,10 @@ test('the avatar picker offers the default and all presets, and reports a choice
   const card = cardTitled(root, 'Account');
   const options = card.querySelectorAll('.profile-avatar-option');
 
-  assert.equal(options.length, 5, 'default plus four presets');
+  assert.equal(options.length, AVATARS.length + 1, 'default plus every preset');
   assert.deepEqual(
     options.map((option) => option.getAttribute('aria-label')),
-    ['Default avatar', 'Farmer 1', 'Farmer 2', 'Farmer 3', 'Farmer 4'],
+    ['Default avatar', ...AVATARS.map((preset) => preset.label)],
   );
   assert.equal(options[1].getAttribute('aria-pressed'), 'true', 'farmer1 is selected');
   assert.ok(card.querySelector('.profile-avatar__art'), 'the preset art fills the main circle');
@@ -143,7 +144,7 @@ test('the avatar picker offers the default and all presets, and reports a choice
   assert.deepEqual(chosen, ['farmer2'], 'the second preset was reported');
 
   const fresh = card.querySelectorAll('.profile-avatar-option');
-  assert.equal(fresh.length, 5, 'the picker is still there after repainting');
+  assert.equal(fresh.length, AVATARS.length + 1, 'the picker is still there after repainting');
   assert.equal(fresh[2].getAttribute('aria-pressed'), 'true');
   assert.ok(
     card.querySelector('.profile-avatar__art'),
@@ -178,7 +179,7 @@ test('a refused avatar choice leaves the picture alone', () => {
   card.querySelectorAll('.profile-avatar-option')[2].click();
 
   const selected = card.querySelector('.profile-avatar-option--selected');
-  assert.equal(selected.getAttribute('aria-label'), 'Farmer 1', 'the store refusal kept the old choice');
+  assert.equal(selected.getAttribute('aria-label'), AVATARS[0].label, 'the store refusal kept the old choice');
 });
 
 test('a guest sees no account rows and the guest hint instead', () => {

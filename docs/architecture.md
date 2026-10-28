@@ -198,7 +198,7 @@ login.html ──► js/auth-main.js ──► mountAuthViews(root, actions)
              js/ui/authViews.js ──► show(view)
                    ├─► js/ui/menuPanel.js      menu, sign in, create account
                    ├─► js/ui/loginPanel.js     one form, on js/ui/signBoard.js
-                   ├─► js/ui/avatarSetup.js    the four presets after sign-up
+                   ├─► js/ui/avatarSetup.js    the presets after sign-up
                    └─► js/ui/passwordReset.js  request, sent, set
                    │
                    ▼
@@ -273,7 +273,7 @@ contradict it.
 
 The avatar step is `js/ui/avatarSetup.js`, mounted as
 `show('avatar', undefined, session)` only after a sign-up returned a session. It
-offers the four presets, preselects `farmer1`, and has no Back or Skip: the
+offers every preset, preselects `farmer1`, and has no Back or Skip: the
 account already exists, so there is nothing behind it to return to. **Start
 farming** calls `onAuthenticated(session, { avatar })`. Signing in still calls
 `onAuthenticated(session)` with no options, so an existing player never sees the
@@ -900,7 +900,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   ├── ui/                     render only, reads the store
 │   │   ├── accountCard.js      the account facts card, with the preset avatar picker
 │   │   ├── avatarArt.js        the inline-SVG farmer busts (DEC-051)
-│   │   ├── avatarSetup.js      the post-sign-up step: four presets on the wooden sign
+│   │   ├── avatarSetup.js      the post-sign-up step: the presets on the wooden sign
 │   │   ├── almanac.js          the almanac page — header, back link, crop grid
 │   │   ├── almanacCard.js      one crop's entry: portrait, facts, reactions
 │   │   ├── almanacWeather.js   a crop's reaction to each weather event

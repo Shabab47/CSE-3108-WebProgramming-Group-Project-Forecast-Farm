@@ -171,13 +171,22 @@ Do not convert them to borders without re-measuring. `#farm-picker` stays in
 **Choice:** `state.pump` is `{ on, level, targets: [] }`. Five levels, bought in the shop's own
 **Pump** section, each adding outlets at the same per-outlet rate:
 
-| level | plots watered | land gate | price |
-| ---: | ---: | ---: | ---: |
-| 1 | 1 | none — free starter | 0 |
-| 2 | 2 | 4 owned | 1,000 |
-| 3 | 4 | 8 owned | 5,000 |
-| 4 | 8 | 12 owned | 25,000 |
-| 5 | 16 | 16 owned | 100,000 |
+| level | plots watered | land gate | price | field drawing |
+| ---: | ---: | ---: | ---: | :--- |
+| 1 | 2 | none — free starter | 0 | `pump_2.png` |
+| 2 | 4 | 4 owned | 1,000 | `pump_3.png` |
+| 3 | 8 | 8 owned | 5,000 | `pump_4.png` |
+| 4 | 12 | 12 owned | 25,000 | `pump_4.png` |
+| 5 | 16 | 16 owned | 100,000 | `pump_5.png` |
+
+**Revised 2026-10-28 (capacities and art only).** The first version of this table watered
+1 / 2 / 4 / 8 / 16 plots and drew `pump_1.png` … `pump_5.png`. The starter pump now waters two
+plots, and from level 2 up a pump waters exactly as many plots as the land that unlocks it
+(4, 8, 12, 16). `pump_1.png` is retired: it stays on disk and in the asset registry but no
+level draws it. Four drawings serve five levels, so levels 3 and 4 share `pump_4.png`; the
+mapping is the one table `PUMP_DRAWING` in `js/config/assets.js`, so a sixth drawing is a
+one-line change. Gates and prices are unchanged. Level numbers are unchanged too, so no save
+needs migrating: an existing farm keeps its level and simply reaches further.
 
 The player adds or removes targets by clicking plots; the inspector's button carries the intent
 (`add`, `remove`, `resume`, or a disabled `full`). `aimPump()` refuses past capacity and
@@ -357,13 +366,20 @@ a page that needs none.
 ### DEC-051 Profile avatars are presets stored as an id, not uploaded files
 **Decided by:** Jim · 2026-10-20
 
-**Choice:** the profile page offers the default gray person plus four inline-SVG farmer busts,
-`farmer1`, `farmer2`, `farmer3` and `farmer4`. `state.profile.avatar` holds one of those ids, or
-`null` for the default.
+**Choice:** the profile page offers the default gray person plus seven inline-SVG presets:
+`farmer1` (Farmer 1), `farmer2` (Farmer 2), `farmer3` (Painter), `farmer4` (Party Guy),
+`farmer5` (Neta Yahoo), `farmer6` (Boltu) and `farmer7` (Apa). `state.profile.avatar` holds
+one of those ids, or `null` for the default.
 `js/config/avatars.js` owns the list the store validates, `js/ui/avatarArt.js` owns the drawings,
 and `accountCard.js` renders the picker. The choice is saved through `setAvatar()` like any other
 state change, so it syncs on an authed farm and stays local for a guest. Erasing progress keeps the
 avatar — it is a profile choice, not farm progress. Deleting the account removes it with the save.
+
+**Revised 2026-10-28 (more presets, same rules).** The first version offered four presets. Three
+more were added with their own artwork and names; the storage rule is unchanged, and an id this
+build does not know still reads as the default. `avatarArt()` returns `null` for that default and
+suffixes its internal SVG ids per render, because the profile page shows the selected preset twice
+(main circle and picker option).
 
 **Why presets.** An upload needs a file picker, image decoding, canvas resizing, compression, a size
 and MIME check, data-URL or object-storage handling, and browser-only tests to get one picture onto
@@ -726,9 +742,9 @@ leaves the pump incoherent.
 
 **1. The pump waters ONE plot, aimed by clicking it.** Not the whole farm.
 
-**Superseded in part by DEC-058 (2026-10-23).** A level-1 pump still waters exactly one plot, and
-every outlet still waters one plot. Levels 2–5 add outlets, so the rule is now “one plot per
-outlet” rather than “one plot for the machine”. The per-litre price is untouched.
+**Superseded in part by DEC-058 (2026-10-23, revised 2026-10-28).** A level-1 pump now waters
+two plots, and every outlet still waters one plot. Levels 2–5 add outlets, so the rule is
+“one plot per outlet” rather than “one plot for the machine”. The per-litre price is untouched.
 
 **Why:** a per-second gold bill that scaled with the number of plots would price water by
 **how much land you own** rather than **how thirsty you are**. A player with sixteen plots
