@@ -47,6 +47,7 @@ import { el, clear, setText } from '../utils/dom.js';
 import { cropOf } from '../config/crops.js';
 import { WATER } from '../config/game.js';
 import { DIALOG_CLOSE_IMG, DIALOG_PEG_IMG, cropSeedImg } from '../config/assets.js';
+import { dismissOnBackdrop } from './backdropDismiss.js';
 import { plotAction } from './plotClick.js';
 import { bandFor, flowFor, minutesToOptimal, waterState } from '../domain/plotWater.js';
 import { damageWord } from '../domain/damage.js';
@@ -89,6 +90,16 @@ export function mountPlotInspector(root, state, plotId, actions = {}) {
   // dimmed the field a second time; the dialog is the only child now.
   root.append(view.card);
 
+  // The × and the backdrop are the same exit, so they share one callback. `stop` is
+  // called by `unmount`; a panel that is cleared without it would leave the document
+  // Escape listener behind, and the next Escape would run a closed panel's `onClose`.
+  const stopDismiss = dismissOnBackdrop(root, () => actions.onClose?.());
+
+  function unmount() {
+    stopDismiss();
+    clear(root);
+  }
+
   view.update(state);
 
   return {
@@ -103,14 +114,14 @@ export function mountPlotInspector(root, state, plotId, actions = {}) {
         const rebuilt = buildCard(plotId, actions);
         root.append(rebuilt.card);
         rebuilt.update(next);
-        return rebuilt;
+        // The rebuilt card brings fresh element handles but the *mount's* teardown:
+        // there is still one listener on the host, and this is what removes it.
+        return { ...rebuilt, unmount };
       }
       view.update(next);
       return view;
     },
-    unmount() {
-      clear(root);
-    },
+    unmount,
   };
 }
 

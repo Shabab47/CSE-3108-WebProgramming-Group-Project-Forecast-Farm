@@ -163,6 +163,17 @@ Do not convert them to borders without re-measuring. `#farm-picker` stays in
 `css/crop-picker.css`: it is the picker's viewport host (reused by the inspector), and
 `tests/mainPageBoot.test.js` reads that file for its fixed/inset/`:empty` contract.
 
+**Revised 2026-10-28 (three ways out).** Each dialog now closes from the dimmed background and
+from Escape as well as from its × / *Never mind*, and all three run the dialog's one `onClose`, so
+they cannot disagree about what closing means. The rule is `event.target === #farm-picker`: the
+host is the overlay, so a click on its margin is a dismissal and a click on the card — even a
+button inside it — is not. Escape listens on the `document`, because neither card takes focus
+when it opens, so a keydown aimed at the overlay would only arrive after the player had already
+clicked inside it. `js/ui/backdropDismiss.js` owns both listeners, one registration per host,
+and the panels detach it on `unmount`; a handler left behind would let an Escape on the farm run
+a closed card's `onClose`. The host stays `display: none` while empty, so there is no invisible
+surface eating clicks.
+
 ---
 
 ### DEC-058 The pump has five levels, and every outlet waters one plot

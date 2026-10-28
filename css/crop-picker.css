@@ -14,6 +14,11 @@
  * `#farm-picker` is the host the picker mounts in. It is also reused by the plot
  * inspector, but the host itself is the picker's overlay — the fixed, full-viewport
  * surface that dims the field and centres whatever dialog is inside it.
+ *
+ * Because the dialogs are centred children of this host, the dimmed margin is also
+ * the exit: a click whose target is `#farm-picker` itself closes the open dialog
+ * (`js/ui/backdropDismiss.js`). A click inside the timber frame is a child of the
+ * host and changes nothing.
  */
 
 #farm-picker {

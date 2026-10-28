@@ -44,6 +44,7 @@ import { el, clear } from '../utils/dom.js';
 import { cropOf, SHOP_ORDER, harvestValue } from '../config/crops.js';
 import { RATING_WORDS } from '../config/cropWeatherMatrix.js';
 import { cropSeedImg, DIALOG_INFO_IMG, DIALOG_LEAF_IMG, DIALOG_PEG_IMG } from '../config/assets.js';
+import { dismissOnBackdrop } from './backdropDismiss.js';
 
 /**
  * Mount the seed picker.
@@ -75,6 +76,10 @@ export function mountCropPicker(root, state) {
 
   // Which crop's details frame is showing, or null when the picker frame shows.
   let detailsFor = null;
+
+  // The dimmed host and Escape are the same exit as the × and "Never mind": one
+  // callback, so the three cannot disagree about what closing means.
+  const stopDismiss = dismissOnBackdrop(root, () => state?.onClose?.());
 
   /** Rebuild whatever frame is current, in place. */
   const render = () => {
@@ -336,6 +341,7 @@ export function mountCropPicker(root, state) {
 
   return {
     unmount() {
+      stopDismiss();
       clear(root);
     },
   };

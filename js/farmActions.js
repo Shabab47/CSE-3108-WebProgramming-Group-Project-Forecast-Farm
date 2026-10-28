@@ -81,6 +81,14 @@ function pickerHost() {
 let inspectorView = null;
 
 /**
+ * The open seed picker, if there is one.
+ *
+ * Kept for the same reason as `inspectorView`: closing has to *unmount* the panel, not
+ * just empty the host, or its backdrop and Escape listeners would outlive it.
+ */
+let pickerView = null;
+
+/**
  * Handle a click on a plot.
  *
  * **One place decides this**, and it asks `plotAction()` rather than re-deriving the
@@ -317,7 +325,7 @@ function openPicker(plotId) {
 
   clear(host);
 
-  mountCropPicker(host, {
+  pickerView = mountCropPicker(host, {
     seeds: getState()?.inventory?.seeds ?? {},
     plotId,
     // The picker hides locked seeds, and the domain refuses them — belt and
@@ -369,9 +377,15 @@ export function closePicker() {
   // leave `openPlot` set and the next `renderPanels()` would mount it again into an empty
   // host — a panel nobody clicked on, reappearing on every state change.
   openPlot = null;
-  // The handle goes with it. Left set, it would let a later `refreshInspector` patch a
+
+  // Unmount rather than just clear: the panel owns the backdrop click and the document
+  // Escape listener, and emptying the host would leave both running for a closed card.
+  // The handles go with them. Left set, they would let a later `refreshInspector` patch a
   // panel whose DOM `clear` has already removed.
+  inspectorView?.unmount?.();
+  pickerView?.unmount?.();
   inspectorView = null;
+  pickerView = null;
 
   const host = pickerHost();
   if (host) clear(host);

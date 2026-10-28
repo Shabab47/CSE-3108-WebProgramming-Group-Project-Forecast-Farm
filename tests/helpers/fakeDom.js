@@ -298,13 +298,18 @@ export class FakeNode {
    * also submit, and `key` to tell ArrowDown from ArrowUp. Neither is expressible without this.
    *
    * @param {string} type
-   * @param {{key?: string}} [init] extra event fields, merged onto the object
+   * @param {{key?: string, target?: object}} [init] extra event fields, merged onto the object
    * @returns {Promise<object>} the event, so a test can read `defaultPrevented`
    */
   async dispatch(type, init = {}) {
     const event = {
       type,
-      target: this,
+      // **Who the click landed on, which is not always the listener's element.** These
+      // listeners do not bubble (this fake DOM has no tree walk), so a dialog that closes
+      // "when the target is the overlay" would otherwise look correct while the
+      // press-a-button-inside-the-card case was never exercised at all. `target` lets a
+      // test say "the click arrived at the host, but it landed on the card".
+      target: init.target ?? this,
       key: init.key ?? '',
       defaultPrevented: false,
       preventDefault() {
@@ -397,12 +402,12 @@ class FakeTextNode extends FakeNode {
 /**
  * Install `globalThis.document` and `globalThis.Node`, and return a root to mount into.
  *
- * `addEventListener` / `removeEventListener` are no-ops because the real `document` has
- * them and `js/connection.js` calls them on it. Their absence made a boot smoke test
- * fail with `target.addEventListener is not a function` — a harness failure that reads
- * exactly like a game failure, which is the worst kind of both. `hidden` is here for
- * the same reason: `main.js`'s tick reads it to skip repaints on a backgrounded tab,
- * and `undefined` reads as falsy, i.e. always repaint.
+ * The document is a `FakeNode` rather than a plain object, so `document.dispatch('keydown',
+ * {key: 'Escape'})` works: the dialogs close on Escape with a listener on the document,
+ * because neither card takes focus when it opens. It used to expose no-op `addEventListener`
+ * / `removeEventListener`, which was enough for `js/connection.js` and silently useless for
+ * anything a test wanted to fire. `querySelector` still reads the returned root, so a test
+ * that mounts into `root` and a module that asks `document` see the same tree.
  *
  * @returns {FakeNode}
  */
@@ -410,17 +415,16 @@ export function installDom() {
   const root = new FakeNode('div');
   root.id = 'root';
 
+  const doc = new FakeNode('document');
+  doc.body = root;
+  doc.hidden = false;
+  doc.createElement = (tag) => new FakeNode(tag);
+  doc.createTextNode = (text) => new FakeTextNode(text);
+  doc.querySelector = (selector) => root.querySelector(selector);
+  doc.querySelectorAll = (selector) => root.querySelectorAll(selector);
+
   globalThis.Node = FakeNode;
-  globalThis.document = {
-    body: root,
-    hidden: false,
-    createElement: (tag) => new FakeNode(tag),
-    createTextNode: (text) => new FakeTextNode(text),
-    querySelector: (selector) => root.querySelector(selector),
-    querySelectorAll: (selector) => root.querySelectorAll(selector),
-    addEventListener: () => {},
-    removeEventListener: () => {},
-  };
+  globalThis.document = doc;
 
   return root;
 }

@@ -719,6 +719,7 @@ farm and still reported that nothing had changed.
 | **what the weather is doing *to the farm*** | `js/domain/environment.js` (`environmentFacts`) |
 | **the environment card in the rail** | `js/ui/envMetrics.js` |
 | **what a click on a plot does** | `js/farmActions.js` (`onPlotClick`) → `js/ui/plotInspector.js` |
+| **how a dialog closes** | `js/ui/backdropDismiss.js` — the dimmed host (`#farm-picker`), Escape, or the ×; all three call the dialog's one `onClose` |
 | evaporation / rain-water rates | `js/config/weatherEvents.js` (`EVAPORATION_PER_HOUR`, `RAIN_WATER_PER_HOUR`) |
 | plant / harvest / clear rules | `js/domain/farm.js` |
 | buying land | `js/domain/land.js` — **not** `plots.js`, which does not exist |

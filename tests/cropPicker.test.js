@@ -213,3 +213,27 @@ test('a picker with no verdict handler still works, for the older callers', () =
   assert.equal(options.length, 1, 'the seed is listed');
   assert.equal(root.querySelectorAll('.crop-picker__empty').length, 0, 'and nothing is refused');
 });
+
+test('the dimmed background and Escape close it, and the card itself does not', async () => {
+  const { calls } = mount();
+  const card = root.children[0];
+
+  await root.dispatch('click', { target: card });
+  assert.equal(calls.close, 0, 'pressing the seed card is not an exit');
+
+  await root.dispatch('click');
+  assert.equal(calls.close, 1, 'the backdrop is');
+
+  await globalThis.document.dispatch('keydown', { key: 'Escape' });
+  assert.equal(calls.close, 2, 'and so is Escape');
+});
+
+test('an unmounted picker answers neither the backdrop nor Escape', async () => {
+  const calls = { close: 0 };
+  const view = mountCropPicker(root, { seeds: { rice: 1 }, plotId: 0, onClose: () => { calls.close += 1; } });
+  view.unmount();
+
+  await root.dispatch('click');
+  await globalThis.document.dispatch('keydown', { key: 'Escape' });
+  assert.equal(calls.close, 0);
+});
