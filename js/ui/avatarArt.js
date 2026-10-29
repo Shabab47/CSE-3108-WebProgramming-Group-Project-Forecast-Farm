@@ -47,7 +47,14 @@ export const FARMER_TWO = `
 
 export const FARMER_THREE = `
 <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3_11)">
 <path d="M32 64C49.6731 64 64 49.6731 64 32C64 14.3269 49.6731 0 32 0C14.3269 0 0 14.3269 0 32C0 49.6731 14.3269 64 32 64Z" fill="#DCEBC8"/>
+<rect x="12" y="15.5355" width="5" height="50.9648" transform="rotate(-45 12 15.5355)" fill="black"/>
+<rect width="5" height="50.5846" transform="matrix(-0.707107 -0.707107 -0.707107 0.707107 51.5146 15.5355)" fill="black"/>
+<rect width="5" height="20.5252" transform="matrix(0.707107 -0.707107 -0.707107 -0.707107 59.2441 29.7796)" fill="black"/>
+<rect width="5" height="20.5252" transform="matrix(0.707107 -0.707107 -0.707107 -0.707107 15.5135 51.049)" fill="black"/>
+<rect x="15.5355" y="19.049" width="5" height="20.5252" transform="rotate(-135 15.5355 19.049)" fill="black"/>
+<rect x="36.5355" y="63.049" width="5" height="20.5252" transform="rotate(-135 36.5355 63.049)" fill="black"/>
 <path d="M7 64C7 51 17 43 32 43C47 43 57 51 57 64H7Z" fill="#625E3D"/>
 <path d="M25 44H39L32 54L25 44Z" fill="#EEEADD"/>
 <path d="M24 46L28 38ZM40 46L36 38Z" fill="black"/>
@@ -74,6 +81,12 @@ export const FARMER_THREE = `
 <circle cx="37.675" cy="54.675" r="0.675" fill="#D9CF9B"/>
 <circle cx="37.675" cy="58.675" r="0.675" fill="#D9CF9B"/>
 <circle cx="37.675" cy="62.675" r="0.675" fill="#D9CF9B"/>
+</g>
+<defs>
+<clipPath id="clip0_3_11">
+<rect width="64" height="64" fill="white"/>
+</clipPath>
+</defs>
 </svg>
 `;
 
@@ -803,44 +816,58 @@ export const AVATARS = {
   four: FARMER_FOUR,
   five: FARMER_FIVE,
   six: FARMER_SIX,
-  seven: FARMER_SEVEN,
-  1: FARMER_ONE,
-  2: FARMER_TWO,
-  3: FARMER_THREE,
-  4: FARMER_FOUR,
-  5: FARMER_FIVE,
-  6: FARMER_SIX,
-  7: FARMER_SEVEN,
+  seven: FARMER_SEVEN
 };
 
 /**
- * How many drawings have been rendered, so each copy gets its own SVG ids.
- *
- * The same preset is shown twice on the profile page - once in the main circle and
- * once as the selected picker option - so an internal `clip0_…` id repeated across
- * the two copies would put the same id in the document twice. The old code did this
- * with a fixed suffix and the duplicates came back; this counter is the fix.
+ * Returns the requested avatar SVG string with unique clipPath IDs 
+ * and references substituted based on the provided suffix.
  */
-let renderCount = 0;
+export function avatarArt(preset, suffix = '1') {
+  let svg = '';
+  switch (String(preset).toLowerCase()) {
+    case 'farmer1':
+    case 'one':
+    case '1':
+      svg = FARMER_ONE;
+      break;
+    case 'farmer2':
+    case 'two':
+    case '2':
+      svg = FARMER_TWO;
+      break;
+    case 'farmer3':
+    case 'three':
+    case '3':
+      svg = FARMER_THREE;
+      break;
+    case 'farmer4':
+    case 'four':
+    case '4':
+      svg = FARMER_FOUR;
+      break;
+    case 'farmer5':
+    case 'five':
+    case '5':
+      svg = FARMER_FIVE;
+      break;
+    case 'farmer6':
+    case 'six':
+    case '6':
+      svg = FARMER_SIX;
+      break;
+    case 'farmer7':
+    case 'seven':
+    case '7':
+      svg = FARMER_SEVEN;
+      break;
+    default:
+      svg = preset || FARMER_ONE;
+  }
 
-/**
- * SVG markup for a preset id, or `null` when the id has no art.
- *
- * `null` is the default avatar, and callers fall back to the gray person for it. An
- * unknown id is treated the same way rather than being echoed into the page, so a
- * hand-edited save cannot inject markup through this function.
- *
- * @param {string|null} preset a preset id from `config/avatars.js`
- * @returns {string|null}
- */
-export function avatarArt(preset) {
-  const key = String(preset);
-  const art = Object.hasOwn(AVATARS, key) ? AVATARS[key] : null;
-  if (!art) return null;
-  if (!art.includes('id="')) return art;
+  if (!suffix) return svg;
 
-  const suffix = `-${++renderCount}`;
-  return art
-    .replace(/\bid="([^"]+)"/g, (_, name) => `id="${name}${suffix}"`)
-    .replace(/url\(#([^)]+)\)/g, (_, name) => `url(#${name}${suffix})`);
+  return svg
+    .replace(/id="([^"]+)"/g, (match, id) => `id="${id}_${suffix}"`)
+    .replace(/url\(#([^)]+)\)/g, (match, id) => `url(#${id}_${suffix})`);
 }
