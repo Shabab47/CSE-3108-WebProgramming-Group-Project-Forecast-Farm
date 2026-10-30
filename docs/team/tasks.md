@@ -2,7 +2,7 @@
 
 Status is one of `todo`, `doing`, `blocked`, `done`. Move a task to `doing` when you pick it up and to `done` when it works. Update the date when the status changes. Weekly goals are in `goals.md`; the full commit-level detail is in `git log` and `issues.md`.
 
-Kafi and Jim are the same person. T-56 was never used. The next free ID is **T-92**.
+Kafi and Jim are the same person. T-56 was never used. The next free ID is **T-93**.
 
 ---
 
@@ -65,7 +65,7 @@ Kafi and Jim are the same person. T-56 was never used. The next free ID is **T-9
 | T-87 | Pump no longer bills for water it wastes | done |
 | T-89 | Deployed the game to Vercel (`forecast-farm.vercel.app`) and added the URL to Supabase redirect URLs; auto-redeploys on every push to `main` | done |
 | T-90 | Brevo SMTP relay wired into Supabase Auth for forgotten-password recovery email | done |
-| T-91 | Pump behavior scales with its level: 2/4/8/12/16 plots and `pump_1`–`pump_5` drawings | done |
+| T-91 | Pump logic scales with its level: 2/4/8/12/16 plots and per-level target handling | done |
 | T-07 | Free first plot (with Hisham) | doing |
 | T-10 | Seeds can be sold; selling harvested crops still open (with Hisham) | doing |
 | T-12 | Seed picker shows the forecast verdict and refuses to plant without one (with Hisham) | done |
@@ -131,6 +131,7 @@ Kafi and Jim are the same person. T-56 was never used. The next free ID is **T-9
 | T-83 | Game page CSS split by component | done |
 | T-84 | Spacing and radii moved into each file | doing |
 | T-85 | `topbar` renamed to `navbar` | done |
+| T-92 | Five pump level drawings (`pump_1.png`–`pump_5.png`), one per level | done |
 
 ### Afif
 
