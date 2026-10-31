@@ -43,7 +43,8 @@ export const ASSET_STATUSES = ['done', 'empty', 'placeholder', 'duplicate'];
 
 export const ASSETS = [
   // --- Field (farm view) ---
-  { path: 'assets/images/base.png', name: 'Base slab', size: 63740, dimensions: '1000x1000', status: 'done', category: 'environment', page: 'field' },
+  { path: 'assets/images/base.png', name: 'Base slab', size: 57637, dimensions: '1024x1024', status: 'done', category: 'environment', page: 'field' },
+  { path: 'assets/images/base_phone.png', name: 'Base slab — phone', size: 63740, dimensions: '1000x1000', status: 'done', category: 'environment', page: 'field' },
   // The original single pump, byte-identical to `pump/pump_1.png`. Nothing loads this
   // path any more — `farmView.js` asks `pumpFrame(level)` — but the file is real art and
   // the registry documents what is on disk, so it stays listed.
@@ -219,6 +220,14 @@ export const ASSETS = [
   { path: 'assets/fonts/Nunito-ExtraBold.ttf', name: 'Nunito ExtraBold — shop footer hint', size: 125416, dimensions: '', status: 'done', category: 'font', page: 'shop' },
   { path: 'assets/fonts/Nunito-Black.ttf', name: 'Nunito Black — shop item names', size: 125376, dimensions: '', status: 'done', category: 'font', page: 'shop' },
 
+  // --- Game page (the farm) ---
+  // The painted yard behind the whole farm page, on wide screens only. `css/layout.css`
+  // hides the layer below 901px, so a phone never requests the file.
+  //
+  // Same weight problem as the menu background: 2.2MB as a PNG, no caching headers from
+  // the dev server, so it costs every first desktop visit until someone ships WebP.
+  { path: 'assets/images/farm_bg.png', name: 'Farm page backdrop', size: 1675823, dimensions: '1488x714', status: 'done', category: 'background', page: 'game' },
+
   // --- Sounds (out of scope for v1) ---
   { path: 'assets/sounds/notification.mp3', name: 'Notification sound', size: 0, dimensions: '', status: 'empty', category: 'sound', page: 'global' },
   { path: 'assets/sounds/rain.mp3', name: 'Rain sound', size: 0, dimensions: '', status: 'empty', category: 'sound', page: 'global' },
@@ -254,6 +263,12 @@ export const ASSETS = [
 /** The shop sign, used as the button that opens the shop. 1254×1254. */
 export const SHOP_IMG = 'assets/images/Shop/shop.png';
 
+/** The field slab, 1024×1024. */
+export const BASE_IMG = 'assets/images/base.png';
+
+/** The field slab for narrow screens, 1000×1000. */
+export const BASE_PHONE_IMG = 'assets/images/base_phone.png';
+
 /**
  * The opening menu's painted background. 1440×1024.
  *
@@ -263,6 +278,16 @@ export const SHOP_IMG = 'assets/images/Shop/shop.png';
  * rather than white.
  */
 export const MENU_BG = 'assets/images/menu_bg.png';
+
+/**
+ * The farm page's painted backdrop — the yard the field sits in. 1488×714.
+ *
+ * Set from JS rather than from `css/layout.css`, because every image path in this
+ * project lives here — the same rule the login page's `MENU_BG` follows. The layer
+ * that receives it is `display: none` below 901px (`css/layout.css`), and a box that
+ * is not generated never fetches its background, so a phone never pays for the file.
+ */
+export const FARM_BG = 'assets/images/farm_bg.png';
 
 /** The game logo on the opening menu, cloud and straw hat included. 1188×373. */
 export const TITLE_IMG = 'assets/images/title.png';

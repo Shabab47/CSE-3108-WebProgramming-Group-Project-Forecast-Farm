@@ -2,14 +2,20 @@ import { el, clear } from '../utils/dom.js';
 import { plotToScreen, pumpBox, frameY } from '../utils/iso.js';
 import { FIELD } from '../config/field.js';
 import { WATER } from '../config/game.js';
-import { pumpFrame } from '../config/assets.js';
+import { BASE_IMG, BASE_PHONE_IMG, pumpFrame } from '../config/assets.js';
+
 import { waterState } from '../domain/plotWater.js';
 import { pumpLevelOf, pumpTargetIds } from '../domain/pump.js';
 import { harvestsIn, isNextUnlockable } from '../land_squares/index.js';
 import { plotName } from './plotLabel.js';
 import { patchGround, patchWaterMeter, plotLayers } from './plotLayers.js';
 
-const BASE_IMG = 'assets/images/base.png';
+/** Slab under the plots: the phone-built one on a narrow viewport, the base image elsewhere. */
+const BASE_IMAGE = (
+  typeof window !== 'undefined'
+  && typeof window.matchMedia === 'function'
+  && window.matchMedia('(max-width: 900px)').matches
+) ? BASE_PHONE_IMG : BASE_IMG;
 
 /**
  * What each root has already been painted with, so a repaint can be skipped or made
@@ -219,11 +225,10 @@ export function mountFarmView(root, state) {
       el('span', { class: 'farm-view__hint', text: 'Click a plot to plant' }),
     ]),
     el('div', { class: 'field-stage', id: 'field-stage' }, [
-      // Every part of the farm lives inside the mount, which is the frame `iso.js`
-      // measures against — the base's own shape, fitted into the stage. `css/scene.css`
-      // explains why the two boxes are not the same one.
+      // The base slab sits under every plot. Geometry is measured by `iso.js`
+      // against this canvas. `css/scene.css` keeps the stage frame rules.
       el('div', { class: 'field-stage__mount' }, [
-        el('img', { class: 'field-stage__base', src: BASE_IMG, alt: '', 'aria-hidden': 'true' }),
+        el('img', { class: 'field-stage__base', src: BASE_IMAGE, alt: '', 'aria-hidden': 'true' }),
         el('div', { class: 'field-stage__plots', id: 'field-plots' }),
         el('img', {
           class: 'field-stage__pump',

@@ -741,6 +741,7 @@ farm and still reported that nothing had changed.
 | the avatar step after sign-up | `js/ui/avatarSetup.js`, `css/avatar-setup.css` |
 | the forgot-password flow | `js/ui/passwordReset.js` |
 | the menu background and logo paths | `js/config/assets.js` (`MENU_BG`, `TITLE_IMG`) |
+| the farm page's painted backdrop, and why the phone never loads it | `js/config/assets.js` (`FARM_BG`), `js/main.js` (`paintFarmScene`), `css/layout.css` (`.app__scene`) — DEC-062 |
 | the two display faces | `css/fonts.css`, the `--font-display` / `--font-ui` tokens |
 | the auth provider call (Supabase) | `js/services/authApi.js` |
 | the temporary local provider | `js/services/localAuth.js` |
@@ -822,6 +823,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   ├── phone-weather.css       the phone board, search pill and current-condition note
 │   ├── phone-forecast.css      the phone three-meter row and six-hour strip
 │   ├── scene.css               the isometric stage, the plot layers, locked/next/ready
+│   ├── env-card.css            the timber environment plaque and its (i) description strips
 │   ├── farm-dialog.css         the timber/parchment dialog shared by the inspector and picker
 │   ├── crop-picker.css         the picker's viewport host and the seed detail cards
 │   ├── shop.css                the shop sign and the seed list
@@ -965,6 +967,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   └── IrishGrover-Regular.ttf   labels, body text, the small links
 │   ├── images/
 │   │   ├── base.png            the slab under the field
+│   │   ├── farm_bg.png         the painted yard behind the game page (wide screens only)
 │   │   ├── menu_bg.png         the opening menu's painted background
 │   │   ├── title.png           the game logo on the opening menu
 │   │   ├── pump.png            moves to pump/pump.png
@@ -1431,11 +1434,18 @@ still puts the urgent row first, and calm rows keep a fixed order (`ORDER` in `e
 the card does not reshuffle while nothing changes. Each fact compares against *that crop's* target
 rather than a number the weather service supplied.
 
-`envMetrics.js` draws each fact as an `.env__pill`: label and value on the left, the note through the
-middle, and a decorative emoji on the right over the fill, so the text sits on the bar rather than
-beside it. On the phone the card becomes a 40% / 60% reading grid and the emoji is replaced by the
+`envMetrics.js` draws each fact as an `.env__pill`: the label, the (i) that opens its description, and
+the reading across the fill, with a decorative emoji on the right, so the text sits on the bar rather
+than beside it. On the phone the card becomes a 40% / 60% reading grid and the emoji is replaced by the
 Lucide glyphs `droplets`, `snowflake` and `flame`; the desktop markup keeps its emoji and only CSS
 chooses which one is visible.
+
+**The sentence is behind the (i) now** (DEC-063). The card is a timber plaque — the same 2px border,
+7px grain rim and parchment panel as the dialogs, in `css/env-card.css` — and each meter opens a strip
+*under its own row*, one at a time, with the live note and a static line saying what the meter measures.
+The strip is in flow rather than a popover because `.env__pill` is `overflow: hidden` for the fill, and
+because a strip needs no viewport maths on a phone. The tone colours stay on the row, so an urgent
+meter is still obvious with everything closed.
 
 ## Known simplifications
 

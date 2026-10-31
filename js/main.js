@@ -8,6 +8,7 @@ import { buildServerSave } from './remoteSave.js';
 import { mountConnectionStatus, wireSaveOnExit } from './connection.js';
 import { adoptState, apply, emit, exportPayload, flushPendingSave, getState, getSync, init, on, reset, saveNow, subscribe } from './state/store.js';
 import { buildInitialState } from './state/initialState.js';
+import { FARM_BG } from './config/assets.js';
 import { isAvatarId } from './config/avatars.js';
 import { mountBootLoader } from './ui/loadingTips.js';
 import { mountBlockedScreen } from './ui/blockedScreen.js';
@@ -697,6 +698,22 @@ function bootWeather() {
   }, REFRESH_MS);
 }
 
+/**
+ * Paint the farm page's backdrop.
+ *
+ * Set from here rather than from `css/layout.css` because every image path in the
+ * project lives in `js/config/assets.js` — the same rule the login page's
+ * `paintScene()` follows. Called before the first `await` in `start()`, so the art is
+ * already in place under the boot loader instead of arriving after the farm does.
+ *
+ * Below 901px the layer is `display: none`, so a phone never downloads the file.
+ */
+function paintFarmScene() {
+  const scene = qsOrNull('.app__scene');
+  if (!scene) return;
+  scene.style.backgroundImage = `url('${FARM_BG}')`;
+}
+
 async function start() {
   const root = qsOrNull('#app') ?? document.body;
 
@@ -706,6 +723,8 @@ async function start() {
   // now that `gotrue.js` has a deadline (ISS-049). It paints nothing until
   // `SHOW_AFTER_MS`, so a warm load still shows no loader at all.
   const loader = mountBootLoader({ label: 'Loading your farm' });
+
+  paintFarmScene();
 
   const provider = await loadProvider();
 

@@ -30,6 +30,63 @@ Format: who decided, the choice, why, and what was rejected.
 
 ---
 
+### DEC-062 The farm page is painted, and the phone is not
+**Decided by:** Kafi · 2026-10-31
+
+**Choice:** `assets/images/farm_bg.png` sits behind the whole game page — every panel, the
+forecast board and the field — on viewports **wider than 900px**. Below that the layer is
+`display: none` and the page keeps `--bg`. The path lives in `js/config/assets.js` (`FARM_BG`)
+and is applied by `paintFarmScene()` in `js/main.js`, the same way the login page applies
+`MENU_BG`.
+
+**Why:** the painting is a farm yard with an empty dirt centre, which is exactly the space the
+isometric field needs around it, and a flat `#f4f6f3` behind a painted slab looked unfinished on
+a monitor. `900px` is not a new number: it is the breakpoint the phone layout already uses, so the
+backdrop appears precisely when the desktop grid does and never on the reflowed single column.
+
+**Why `display: none` rather than `background-image: none`:** a box that is never generated never
+fetches its background. The file is 2.2MB, so hiding the layer with a media query is what keeps a
+phone from paying for art it cannot see — and it is why the URL is set on the element by JS rather
+than written into a `@media (min-width: 901px)` rule, which cannot live in `assets.js`.
+
+**Rejected:** painting it behind `#farm-view` only. The image is a wide scene with fence, yard,
+well and house; cropped to the field's 1000:596 frame it loses the edges that make it read as a
+place, and the panels stay flat anyway.
+
+**Also rejected:** any player or debug control over it. The backdrop is scenery and follows the
+same rule as the weather: nothing the player does changes the sky behind the farm.
+
+---
+
+### DEC-063 The environment card is a timber plaque, and its sentences are behind an (i)
+**Decided by:** Kafi · 2026-10-31
+
+**Choice:** the card is a 20px-radius timber frame with a 7px grain rim and a parchment panel
+inside, built from the same CSS recipe as `css/farm-dialog.css` and `css/sign.css`. Each meter
+keeps its label, reading, fill and tone colour; the note — and a one-line explanation of what the
+meter measures — moves into a strip that opens under the row, one at a time, from an (i) on the
+row. The rules live in `css/env-card.css`, out of `css/scene.css`.
+
+**Why:** the card is the only thing on the rail that is *about the farm* rather than about the
+account, and the rail's glass cards made it read as one more piece of chrome. The wood puts it in
+the family the inspector, the seed picker and the board already belong to.
+
+**This supersedes the reasoning in `js/ui/envMetrics.js` that the note is always printed.** That
+argument — "colour alone is not an instruction" — was about a card where the note was the only
+instruction. It is still right about *urgency*, which is why the tone colours stay on the row, but
+three sentences on a rail that also holds the purse is text nobody rereads. The (i) is the same
+trade the seed picker already makes (DEC-059).
+
+**Rejected:** a floating popover anchored to the (i). `.env__pill` is `overflow: hidden` so its
+radius can clip the meter fill, so a popover inside the row would be cut off, and one positioned
+outside it needs viewport maths and a resize story for a sentence. The in-flow strip needs
+neither and works unchanged on the phone.
+
+**Also rejected:** keeping the notes visible on the phone. Two layouts of the same card, one of
+which says more, is the drift this project has spent three weeks removing.
+
+---
+
 ### DEC-061 A recovery link carries a token hash to our own page, and the page verifies it
 **Decided by:** Shabab · 2026-10-27
 

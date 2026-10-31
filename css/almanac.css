@@ -51,6 +51,7 @@
 .almanac__title {
   margin: 0;
   font-family: var(--font-display);
+  font-weight: 400;
   font-size: 2rem;
   letter-spacing: 0.02em;
 }
@@ -104,6 +105,7 @@
 .almanac-card__name {
   margin: 0;
   font-family: var(--font-display);
+  font-weight: 400;
   font-size: 1.5rem;
 }
 
