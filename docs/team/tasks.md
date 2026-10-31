@@ -2,7 +2,7 @@
 
 Status is one of `todo`, `doing`, `blocked`, `done`. Move a task to `doing` when you pick it up and to `done` when it works. Update the date when the status changes. Weekly goals are in `goals.md`; the full commit-level detail is in `git log` and `issues.md`.
 
-Kafi and Jim are the same person. T-56 was never used. The next free ID is **T-93**.
+Kafi and Jim are the same person. T-56 was never used. The next free ID is **T-95**.
 
 ---
 
@@ -132,6 +132,8 @@ Kafi and Jim are the same person. T-56 was never used. The next free ID is **T-9
 | T-84 | Spacing and radii moved into each file | doing |
 | T-85 | `topbar` renamed to `navbar` | done |
 | T-92 | Five pump level drawings (`pump_1.png`–`pump_5.png`), one per level | done |
+| T-93 | `farm_bg.png` behind the game page above 900px; never fetched on a phone (DEC-062) | done |
+| T-94 | Environment card is a timber plaque; its meter descriptions open from an (i) (DEC-063) | done |
 
 ### Afif
 

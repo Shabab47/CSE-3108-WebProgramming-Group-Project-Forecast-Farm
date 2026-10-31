@@ -79,7 +79,7 @@
   .navbar__word {
     font-size: clamp(18px, 6.2vw, 26px);
     color: #20882f;
-    white-space: nowrap;
+    text-align: center;
   }
 
   .navbar__actions {
@@ -112,9 +112,31 @@
 
   .season-card {
     gap: 11px;
-    padding: 10px 12px;
-    background: #d8ffd7;
-    border-radius: 12px;
+    padding: 13px;
+    position: relative;
+    border: 2px solid #573015;
+    border-radius: 20px;
+    background: linear-gradient(180deg, #d0a06b 0%, #ae7746 32%, #996035 72%, #7c4724 100%);
+    box-shadow:
+      0 6px 12px rgba(57, 35, 14, 0.2),
+      inset 0 2px 0 rgba(255, 243, 204, 0.53);
+    backdrop-filter: none;
+    clip-path: none;
+  }
+
+  .season-card::after {
+    content: "";
+    position: absolute;
+    inset: 7px;
+    z-index: 0;
+    border-radius: 14px;
+    background: linear-gradient(180deg, #fffbef 0%, #fff3d4 100%);
+    pointer-events: none;
+  }
+
+  .season-card > * {
+    position: relative;
+    z-index: 1;
   }
 
   .season-card__art {
@@ -144,7 +166,7 @@
     border-radius: 999px;
     background: #fff8e6;
     box-shadow: none;
-    width: 146px;
+    width: 190px;
     min-width: 0;
   }
 

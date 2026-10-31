@@ -1,0 +1,216 @@
+/* The environment card on the right rail: a timber plaque, not a glass card.
+ *
+ * Moved here whole from `css/scene.css`, which now keeps the isometric field only
+ * (DEC-063). The wood is the same recipe as `css/farm-dialog.css`: a 2px dark border,
+ * a 7px rim of grain and a parchment panel inside it. Painted art, so the colours are
+ * literals and a dark theme does not repaint them (DEC-027, DEC-050).
+ *
+ * Each row is a meter: a label and its number on parchment, a fill that is the reading
+ * against its own scale, and an (i) that opens the description. **The description is
+ * in flow, under its own row** — the pill is `overflow: hidden` so its radius can clip
+ * the fill, so anything positioned inside it would be cut off; a strip that pushes the
+ * card taller needs no viewport maths and behaves the same on a phone.
+ */
+
+/* --- the plaque ----------------------------------------------------------- */
+
+.env {
+  position: relative;
+  padding: 15px;
+  border: 2px solid #573015;
+  border-radius: 20px;
+  background: linear-gradient(180deg, #d0a06b 0%, #ae7746 32%, #996035 72%, #7c4724 100%);
+  /* The second shadow is the inner top rim, as on the dialogs. */
+  box-shadow:
+    0 6px 12px rgba(57, 35, 14, 0.2),
+    inset 0 2px 0 rgba(255, 243, 204, 0.53);
+  backdrop-filter: none;
+}
+
+/* The parchment the readings are printed on, 7px in from the border. */
+.env::after {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  z-index: 0;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #fffbef 0%, #fff3d4 100%);
+  pointer-events: none;
+}
+
+/* Everything sits on the parchment, not under it. */
+.env > * {
+  position: relative;
+  z-index: 1;
+}
+
+.env .card__head {
+  margin: 0 0 8px;
+}
+
+.env .card__title {
+  /* The card title wears the display face, like the shop plank and the sign. */
+  font-family: var(--font-display);
+  font-weight: 400;
+  color: #6b431f;
+}
+
+.env__empty {
+  margin: 0;
+  font-size: var(--text-sm, 0.875rem);
+  color: #6b431f;
+}
+
+/* --- meters --------------------------------------------------------------- */
+
+.env__pills {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* One meter and, when open, its description — kept together so the strip can never
+ * drift away from the row it belongs to. */
+.env__meter {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.env__pill {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 2px solid #6b431f;
+  border-radius: 12px;
+  background: #fffdf7;
+  overflow: hidden;
+  max-width: 100%;
+}
+
+/* The meter. Left-anchored; the parent's radius and `overflow: hidden` shape it. */
+.env__pill-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0;
+}
+
+/* One tint per meter — blue for water loss, orange for heat, pale ice for frost. */
+.env__pill[data-id="drying"] .env__pill-fill {
+  background: var(--meter-water);
+}
+
+.env__pill[data-id="uv"] .env__pill-fill {
+  background: var(--meter-heat);
+}
+
+.env__pill[data-id="frost"] .env__pill-fill {
+  background: var(--meter-frost);
+}
+
+/* Everything above the fill. */
+.env__pill-label,
+.env__pill-value,
+.env__pill-info,
+.env__pill-emoji,
+.env__pill-icon {
+  position: relative;
+}
+
+.env__pill-value {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #4a3418;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* The (i). Small, quiet, and its own target — the row itself is not a button. */
+.env__pill-info {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-left: -3px;
+  border-radius: 999px;
+  opacity: 0.72;
+}
+
+.env__pill-info img {
+  width: 16px;
+  height: 16px;
+}
+
+.env__pill-info:hover,
+.env__pill-info[aria-expanded="true"] {
+  opacity: 1;
+}
+
+.env__pill-info:focus-visible {
+  outline: 2px solid #6b431f;
+  outline-offset: 2px;
+}
+
+/* Decorative, and last on the bar. The phone card swaps the emoji for a Lucide glyph;
+ * both are in the markup and only CSS chooses which one is visible. */
+.env__pill-emoji,
+.env__pill-icon {
+  flex-shrink: 0;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.env__pill-icon {
+  display: none;
+}
+
+/* Tone variants: the row's colour is the urgency that survives with everything closed. */
+.env__pill[data-tone="warn"] {
+  border-color: #96690d;
+}
+
+.env__pill[data-tone="warn"] .env__pill-label {
+  color: #96690d;
+}
+
+.env__pill[data-tone="danger"] {
+  border-color: #b3392f;
+}
+
+.env__pill[data-tone="danger"] .env__pill-label {
+  color: #b3392f;
+}
+
+/* --- the description, under the meter it belongs to ----------------------- */
+
+.env__desc {
+  padding: 8px 10px;
+  border: 1px solid #6b431f;
+  border-radius: 10px;
+  background: #fff8e6;
+}
+
+.env__desc-note,
+.env__desc-help {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+/* The live reading first — it answers "why is this row red" — and what the meter
+ * measures under it. */
+.env__desc-note {
+  font-weight: 700;
+  color: #4a3418;
+}
+
+.env__desc-help {
+  margin-top: 2px;
+  color: #6b431f;
+}

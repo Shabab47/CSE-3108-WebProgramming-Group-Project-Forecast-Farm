@@ -6,6 +6,26 @@ touched, what broke, what is next.
 The per-person weekly notes that used to live in the README table are now in `members/`.
 
 ---
+## The farm page is painted, and the environment card wears timber — 2026-10-31
+
+- **Did:** `farm_bg.png` now sits behind the whole game page on viewports wider than 900px
+  (DEC-062): a fixed `.app__scene` layer in `index.html`, painted from `js/main.js` (`FARM_BG`) and
+  hidden with `display: none` below the existing phone breakpoint, so a phone never fetches the
+  2.2MB. The environment card became a timber plaque — 2px border, 7px grain rim, parchment panel —
+  and each meter's sentence moved behind an (i) that opens a strip under its own row, one at a
+  time (DEC-063). Its rules moved out of `css/scene.css` into a new `css/env-card.css`.
+- **Touched:** `index.html`, `js/main.js`, `js/ui/envMetrics.js`, `js/config/assets.js`,
+  `css/layout.css`, `css/scene.css`, `css/phone-panels.css`, new `css/env-card.css`, new
+  `tests/envMetrics.test.js`, `docs/architecture.md`, `docs/asset-checklist.md`,
+  `docs/team/{decisions,tasks,progress-log}.md`.
+- **Verified:** `npm run check` — no new violations. `npm test` — 800 tests, 7 fail, all of them
+  the pre-existing avatar/navbar/profileView cases (the assets failure is gone: registering
+  `farm_bg.png` fixed `tests/assets.test.js`). `tests/envMetrics.test.js` adds 9.
+- **Next:** look at both on a real screen — `background-position` may need a nudge so the slab
+  lands on the painting's dirt centre, and the phone rows lost their note column, so their height
+  may want a second pass.
+
+---
 ## DEC-058 5-state pump mode restore — 2026-10-25
 
 - **Did:** restored 5-state pump mode (`add`, `remove`, `resume`, `swap`, `full`) in `js/ui/plotInspector.js`, including `pumpLine` status element and mode-handler rewrite (L322–346). 6/6 pump tests pass.

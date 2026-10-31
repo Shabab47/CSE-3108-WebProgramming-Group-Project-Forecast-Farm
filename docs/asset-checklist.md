@@ -32,7 +32,7 @@ on disk. The two answer different questions and will not have the same total: th
 sprites nobody has drawn yet, which are by definition not in the registry. Where they overlap they
 agree, and `tests/assets.test.js` fails if the registry drifts from the filesystem.
 
-**Eighty-one files are registered: 55 finished, 26 outstanding.** Of those 26, five are unused
+**Eighty-two files are registered: 56 finished, 26 outstanding.** Of those 26, five are unused
 duplicate copies of the rice sprites, four are `.gitkeep` placeholders, three are the out-of-scope
 sounds and fourteen are the 0-byte icon SVGs — so **17 registered files are still empty or unwritten**,
 none of them a crop sprite. The crop art still owed is *planned* rather than registered: eleven damage
@@ -48,11 +48,12 @@ sprites (five crops × three states, less the four that exist) and ten growth st
 | Pump level art | 5 | 5 | 0 |
 | Environment tiles and pins | 6 | 6 | 0 |
 | Menu background + logo | 2 | 2 | 0 |
+| Farm page backdrop | 1 | 1 | 0 |
 | Display fonts | 6 | 6 | 0 |
 | Shop art, buttons, season art | 14 | 14 | 0 |
 | Book / almanac art | 7 | 7 | 0 |
 | Inventory art | 1 | 1 | 0 |
-| **Total in scope** | **98** | **59** | **39** |
+| **Total in scope** | **99** | **60** | **39** |
 | Sounds — *out of scope* | 3 | 0 | — |
 
 **Rice, potato and tomato each have all five growth stages.** Wheat and corn have none yet. Rice and
@@ -176,11 +177,26 @@ is the wordmark alone until then.
 
 ---
 
+## Game page backdrop
+
+| File | What it is | Status |
+| :--- | :--- | :--- |
+| `assets/images/farm_bg.png` | The painted yard behind the whole farm page, 1920×1080 | ✅ done |
+
+Shown **only above 900px** (DEC-062). The layer is `display: none` below that, so the
+2.2MB file is never fetched on a phone; the field sits on the `base.png` slab, which
+in turn rests on the painted yard, so the slab's empty dirt centre is all that shows
+beside the field. Like `menu_bg.png` it is a PNG with no caching headers, so a
+desktop's first visit pays for it — WebP would cut it roughly tenfold and nobody has done it.
+
+---
+
 ## Environment
 
 | File | What it is | Status |
 | :--- | :--- | :--- |
 | `assets/images/base.png` | The slab under the whole field | ✅ done |
+
 | `assets/images/ground/ground_unwatered.png` | Dry soil tile | ✅ done |
 | `assets/images/ground/ground_watered.png` | Watered soil tile | ✅ done |
 | `assets/images/pump.png` | The original pump — a byte-copy of `pump/pump_1.png`, no longer loaded | ✅ done (duplicate) |
@@ -275,11 +291,12 @@ Listed so the count is honest. **Do not wire these up.** Sounds are not in versi
 ## Also out of scope
 
 Not needed for version 1, listed so nobody mistakes them for oversights: the farmer sprite and
-seeding animation, rain and wind particle effects, and a background for the page behind the field.
+seeding animation, rain and wind particle effects, and animated backgrounds (rain falling, clouds
+drifting, the season changing the art).
 
-> **A background now exists, but not for the field.** `assets/images/menu_bg.png` is the opening
-> menu's, and it does not sit behind the farm — the farm is drawn on the app grid with its own
-> art. The line above still means what it says.
+> **A page background now exists — see "Game page backdrop" above.** `farm_bg.png` sits behind
+> the whole farm page above 900px (DEC-062). It is a still painting, not weather-reactive art,
+> so the line above still means what it says: nothing on the farm *animates* with the sky.
 
 ---
 
