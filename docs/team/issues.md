@@ -2749,3 +2749,13 @@ or `assets.test.js` fails in the other direction.
 - Problem: Commit `5ae96c3` collapsed the 5-state pump mode branch into `remove`/`add` only, dropping the `pumpLine` status element and 3 mode handlers (`resume`, `swap`, `full`). 6 pump test failures resulted.
 - Cause: Inadvertent collapse during refactor, removing 5-state logic that had been implemented under DEC-058.
 - Fix: restored `pumpLine` declaration, template append, mode-write handlers L322–346, and `pumpLine.hidden` toggles L374 & L383 in `js/ui/plotInspector.js`; `npm run check` passes; 6/6 pump tests green.
+
+
+---
+
+### ISS-128 Season name overflows the season card on narrow phones
+- Reported: 2026-11-01 by AI agent · Owner: Kafi · Status: **fixed** · Severity: Low
+- Where: `css/sidebar.css` (`.season-card__text`, `.season-card__name`), `css/phone.css` 
+- Problem: on small phones the season column leaves room for only a few characters. The name is 23px Irish Grover and its longest word keeps a `min-width: auto` larger than the available width, so "Monsoon"/"Late Autumn" spill past the card's parchment border instead of wrapping.
+- Cause: flex children cannot shrink below their min-content by default; the card text was given `min-width: 0` but the nested name/date spans were not.
+- Fix: `css/sidebar.css` and `css/phone.css` — `flex: 1 1 0`, `min-width: 0`, `overflow-wrap: anywhere`, and responsive `clamp()` font sizes on phone. `npm run check` clean, tests unchanged apart from 7 pre-existing avatar failures (ISS-122).
