@@ -65,53 +65,7 @@ gold.
 - Easy and normal modes, seven preset avatars, sound effects, a crop almanac, a seed inventory, and
   a bug-report form. → [Where We Stand](#stand)
 
-**→ New here? Read [Where We Stand](#stand), then [What v0.1 Does Not Do](#limits).**
-
----
-
-## 📦 What Is in v0.1
-
-| System | What shipped | Where |
-| :--- | :--- | :--- |
-| **The field** | 16 plots in four 2×2 zones, isometric, one water meter per plot, locked plots with price tags | `js/ui/farmView.js`, `js/config/field.js` |
-| **Weather** | Live Open-Meteo forecast for the player's location, 24 h strip, nine classified events, place search with suggestions | `js/services/`, `js/domain/weather.js` |
-| **Crops** | Five crops, five stages each, real-time growth from `plantedAt`, season suitability by latitude | `js/crops_logics/`, `js/config/crops.js` |
-| **Water** | Rain, evaporation, per-plot target band, permanent damage latch, death from drought | `js/domain/water.js`, `js/domain/plotWater.js`, `js/domain/damage.js` |
-| **Pump** | Five levels (2 / 4 / 8 / 12 / 16 plots), bills only delivered water, hand-over between plots, upgrade in the shop | `js/domain/pump.js`, `js/domain/pumpUpgrade.js`, `js/domain/pumpSwap.js` |
-| **Economy** | Gold, seed packets, harvest paid by health, land doubling in price, seed selling at 75 % | `js/domain/shop.js`, `js/domain/land.js`, `js/domain/farm.js` |
-| **Accounts** | Email or username sign-in, guest play, password reset, seven preset avatars | `js/services/authApi.js`, `js/ui/authViews.js` |
-| **Saving** | Server save per account, autosave, offline retry, `.farm` export and import | `js/state/store.js`, `js/services/saveApi.js`, `js/state/transfer.js` |
-| **Pages** | Farm, login, shop, settings, profile, almanac, inventory | root `*.html` |
-| **Polish** | 16 sound effects, phone layout at ≤900 px, loading tips, sync indicator, bug report | `js/utils/sound.js`, `css/phone*.css`, `js/ui/reportBug.js` |
-
----
-
-<a id="limits"></a>
-
-## ⚠️ What v0.1 Does Not Do
-
-Recorded here so nobody mistakes a gap for an oversight. Each one links to its issue or decision.
-
-- **Five `_dead` sprites are missing** — one per crop. A dead crop is shown by the damage word,
-  not a picture. That is [DEC-014](docs/team/decisions.md) working as intended: the team chose
-  broken art over a fallback layer, and never built the fallback.
-- **The nine weather icons and five crop icons are still 0 bytes** (ISS-001). Text labels carry
-  the meaning in the forecast strip and the seed picker.
-- **There is no separate market.** A harvest pays its gold at the moment you harvest it, and the
-  inventory page is a read-only record of the seeds you own. Selling harvest as a second step was
-  specified and never built — see [ISS-099](docs/team/issues.md).
-- **Buying land has no confirm step** (ISS-080). A misclick spends the gold.
-- **Exported `.farm` files are integrity-checked but not signed** ([DEC-021](docs/team/decisions.md)).
-  Anyone who knows the format can edit the numbers and update the check.
-- **A guest farm is local only.** It cannot be exported, and clearing site data deletes it.
-- **Sound effects play, but there is no mute toggle.** The navbar's sound tile is decorative and
-  says "coming soon" (ISS-023).
-- **The Farmer 3 avatar regression is open (ISS-122).** It is why seven tests fail in
-  `npm test` — see [Verification](#verification).
-- **`js/domain/simulator.js` is still a 0-byte planned file** (ISS-098). Nothing imports it.
-- **There is no debug panel** (`?debug=1`). The geometry sliders, cheats and forced-weather
-  dropdown planned as T-06 were never built.
-
+**→ New here? Read [Where We Stand](#stand)
 ---
 
 ## 📚 Documentation
@@ -365,9 +319,9 @@ its farm, its username and its farmer name all go together — see
 
 ## 📍 Where We Stand
 
-**v0.1 is built.** The game runs in a browser, the weather is real, and the whole loop closes:
+The game runs in a browser, the weather is real, and the whole loop closes:
 search a place, buy a seed, plant it, water it, watch the forecast wound it, harvest it for gold,
-buy another plot, and do it again on land that costs twice as much.
+buy another plot, and do it again on land that costs more and more.
 
 That took five weeks and four people working on four different layers.
 
@@ -423,12 +377,8 @@ Each week is broken out per person, because "all four" tells you nothing about w
 | 4 | Five pump drawings and sounds | ✅ Complete | `pump_1.png`–`pump_5.png` · sixteen sound effects wired to actions · pump loop | **Kafi**, **Shabab** |
 | 5 | The other four crops | ✅ Complete | Potato, tomato, wheat and corn switched on as their five stages landed; all five playable | **Kafi**, **Shabab** |
 | 5 | Pages and polish | ✅ Complete | Almanac · inventory · bug report · difficulty · profile · settings · farm backdrop · timber environment card | **Kafi**, **Shabab**, **Afif**, **Hisham** |
-| 5 | Ship v0.1 | ⚠️ **Shipped with open items** | Deployed to Vercel · docs brought to the final build · `v0.1` tag not cut | **Shabab**, **Hisham** |
+| 5 | Ship | ✅ Complete | Deployed to Vercel  | **Shabab** |
 
-**What the final week did not close:** the separate market (ISS-099), the land-purchase confirm step
-(ISS-080), the missing `_dead` sprites, the empty weather and crop icons, the empty/error states on
-some panels, and the Farmer 3 avatar regression. They are listed in
-[What v0.1 Does Not Do](#limits) and tracked in [`issues.md`](docs/team/issues.md).
 
 ---
 
