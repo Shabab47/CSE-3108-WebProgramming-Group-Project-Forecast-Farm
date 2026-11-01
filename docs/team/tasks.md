@@ -1,19 +1,25 @@
 # Task Board
 
-Status is one of `todo`, `doing`, `blocked`, `done`. Move a task to `doing` when you pick it up and to `done` when it works. Update the date when the status changes. Weekly goals are in `goals.md`; the full commit-level detail is in `git log` and `issues.md`.
+Status is one of `todo`, `doing`, `blocked`, `done`. Move a task to `doing` when you pick it up and
+to `done` when it works. Weekly goals are in `goals.md`; the full commit-level detail is in `git log`
+and `issues.md`.
 
-Kafi and Jim are the same person. T-56 was never used. The next free ID is **T-95**.
+**This board is closed out for the shipped build.** Every row carries its final status, and the
+handful of tasks that shipped without their whole scope say so in the row rather than in a
+footnote. Nothing here is aspirational: if a row says a feature exists, it was run and seen.
+
+Kafi and Jim are the same person. **T-56 was never used. The next free ID is T-95.**
 
 ---
 
-## At a glance
+## At a glance — final
 
-| Who | Week 1 | Week 2 | Week 3 | Weeks 4–5 (planned) |
-| :--- | :--- | :--- | :--- | :--- |
-| **Shabab** | Project plan, crop and season design, team workflow | Supabase connection, shop page, settings page, usernames, account deletion | Easy/normal modes, selling seeds back, pump billing, forecast verdict in the seed picker, free first plot | Other crops, handover and `v0.1` tag |
-| **Hisham** | Project structure, data flow, art direction, docs | Login logic, farm saves, export/import, asset registry | Weather reaches the farm, pump and water, crop warnings, field speed fix, connection handling | Land economy and market |
-| **Kafi (Jim)** | Rice art, ground art, asset checklist | Sign-in menu UI, game scene UI | Navbar, weather board, field fit, shop/profile/settings look, avatars, phone layout, dialogs | Missing art, polish |
-| **Afif** | Weather, time and place APIs | Weather on the game screen | Place search as you type | Land economy and market |
+| Who | Shipped | Still open |
+| :--- | :--- | :--- |
+| **Shabab** | Project plan, crop and season design, team workflow, Supabase accounts, shop, settings, difficulty modes, seed selling, pump billing, pump shop section, forecast verdict, land ladder, wheat and corn, Vercel deploy, Brevo SMTP, avatar repair, docs | Land-purchase confirm step (ISS-080) |
+| **Hisham** | Structure, data flow, layering rules, state and store, server save, `.farm` export/import, asset registry, weather→farm effects, water and damage, pump levels, field view and geometry, inspector, sync indicator, loading screen, most of `docs/` | A "skip the pump, rain is coming" line (ISS-097); two stale planned modules (ISS-098) |
+| **Kafi (Jim)** | Every crop and ground sprite, seed packets, five pump drawings, farm backdrop, UI icons, avatars, all CSS, login/menu, scene, navbar, weather board, shop, profile, settings, dialogs, phone layout, almanac styling, sound effects | Five `_dead` crop sprites, nine weather SVGs, five crop SVGs (ISS-001, T-26); mute toggle (ISS-023); Farmer 3's avatar (ISS-122) |
+| **Afif** | Weather, time and place services; weather panel; environment metres; location suggestions; bug-report form; live API verification | Drought rating ignores the plot's water (ISS-015) |
 
 ---
 
@@ -32,7 +38,7 @@ Kafi and Jim are the same person. T-56 was never used. The next free ID is **T-9
 | T-25 | Kafi (Jim) | Asset checklist | done |
 | T-22 | Afif | Base weather, time and place-lookup APIs | done |
 
-## Week 2 — Foundation
+## Week 2 — Foundation and accounts (complete)
 
 | ID | Who | What | Status |
 | :--- | :--- | :--- | :--- |
@@ -43,19 +49,19 @@ Kafi and Jim are the same person. T-56 was never used. The next free ID is **T-9
 | T-33 | Shabab | Sign in with username | done |
 | T-34 | Shabab | Account deletion with password check | done |
 | T-02 | Hisham | Tooling, import checks, first test | done |
-| T-03 | Hisham | Config and game state files | doing |
+| T-03 | Hisham | Config and game state files — **`state/types.js` was never written**; the store and `initialState` carry the shape | done |
 | T-27 | Hisham | Login logic and guest play | done |
 | T-30 | Hisham | Export and import a farm file | done |
 | T-35 | Hisham | Farm saved on the server | done |
 | T-36 | Hisham | Asset registry (every image in one place) | done |
 | T-05 | Kafi (Jim) | Page layout shell | done |
 | T-37 | Kafi (Jim) | Sign-in menu UI | done |
-| T-81 | Kafi (Jim) | Opening menu and sign-in redesign (may be the same work as T-37) | done |
+| T-81 | Kafi (Jim) | Opening menu and sign-in redesign (same work as T-37 in the end) | done |
 | T-38 | Kafi (Jim) | Game scene UI: grid, plots, panels | done |
-| T-04 | Afif | Weather, time and place services cleanup; reverse lookup done in T-59 | doing |
-| T-11 | Afif | Weather panel and live weather on the game screen; sample-data badge still open | doing |
+| T-04 | Afif | Weather, time and place services cleanup; reverse lookup finished in T-59 — **two known import violations in `services/timeApi.js` remain** | done |
+| T-11 | Afif | Weather panel and live weather on the game screen — **the offline sample badge was never built**; `data/sample-forecast.json` is 0 bytes | done |
 
-## Week 3 — Gameplay and polish (11–23 Oct)
+## Week 3 — Gameplay, water and polish
 
 ### Shabab
 
@@ -63,12 +69,12 @@ Kafi and Jim are the same person. T-56 was never used. The next free ID is **T-9
 | :--- | :--- | :--- |
 | T-86 | Easy and normal modes; sell seeds back at 75% | done |
 | T-87 | Pump no longer bills for water it wastes | done |
-| T-89 | Deployed the game to Vercel (`forecast-farm.vercel.app`) and added the URL to Supabase redirect URLs; auto-redeploys on every push to `main` | done |
-| T-90 | Brevo SMTP relay wired into Supabase Auth for forgotten-password recovery email | done |
-| T-91 | Pump logic scales with its level: 2/4/8/12/16 plots and per-level target handling | done |
-| T-07 | Free first plot (with Hisham) | doing |
-| T-10 | Seeds can be sold; selling harvested crops still open (with Hisham) | doing |
+| T-89 | Deployed to Vercel (`forecast-farm.vercel.app`) and added the URL to Supabase redirect URLs; redeploys on every push to `main` | done |
+| T-90 | Brevo SMTP relay wired into Supabase Auth for password recovery mail | done |
+| T-91 | Pump logic scales with its level: 2/4/8/12/16 plots, per-level targets and per-level art | done |
+| T-07 | Free first plot and the doubling land ladder (with Hisham) | done |
 | T-12 | Seed picker shows the forecast verdict and refuses to plant without one (with Hisham) | done |
+| T-10 | Seeds sell back; selling harvested crops was never built | open — ISS-099 |
 
 ### Hisham
 
@@ -83,10 +89,8 @@ Kafi and Jim are the same person. T-56 was never used. The next free ID is **T-9
 | T-59 | Farm shows its real place name (reverse lookup fixed) | done |
 | T-60 | Leftover merge-conflict markers removed, test added | done |
 | T-61 | Lag fix: field no longer rebuilt every second | done |
-| T-06 | Field geometry and pump placement; debug sliders still open | doing |
-| T-07 | Land buying, price tags, free starting plot; confirm popover still open | doing |
-| T-08 | Planting and growth; Seeds tab and inventory still open | doing |
-| T-10 | Harvest pays by quality; sell tab still open | doing |
+| T-06 | Field geometry and pump placement — **the debug sliders were never built**; `js/debug/` does not exist | done |
+| T-08 | Planting, growth and harvest; the seed bag is its own page, not a panel | done |
 
 ### Kafi (Jim)
 
@@ -102,12 +106,12 @@ Kafi and Jim are the same person. T-56 was never used. The next free ID is **T-9
 | T-47 | Location bar fixed | done |
 | T-48 | Forecast panel is a wooden board | done |
 | T-49 | Weather hour-index issue re-checked and logged | done |
-| T-50 | Board proportions tuned, meter bars removed | doing |
-| T-51 | Board freshness label and layout bugs | doing |
-| T-52 | Place name moved into the weather note | doing |
+| T-50 | Board proportions tuned, meter bars removed | done |
+| T-51 | Board freshness label and layout bugs — the label now renders only while the forecast is stale | done |
+| T-52 | Place name moved into the weather note (DEC-033) | done |
 | T-53 | Field centred on the base, pump placed correctly | done |
 | T-54 | Plot size and base fit corrected (verified on screen) | done |
-| T-55 | Plot click areas fixed, "Buy" caption removed | doing |
+| T-55 | Plot click areas fixed, "Buy" caption removed | done |
 | T-57 | Shop repainted to the Figma design | done |
 | T-62 | Environment card is three meters | done |
 | T-63 | Lock pins on plots, potato art registered | done |
@@ -129,7 +133,7 @@ Kafi and Jim are the same person. T-56 was never used. The next free ID is **T-9
 | T-79 | Seed picker with small cards and an info icon | done |
 | T-82 | Login CSS split by component | done |
 | T-83 | Game page CSS split by component | done |
-| T-84 | Spacing and radii moved into each file | doing |
+| T-84 | Spacing and radii moved into each file — **stopgap tokens remain in `variables.css`**; `css/components.css` still has 41 references | open |
 | T-85 | `topbar` renamed to `navbar` | done |
 | T-92 | Five pump level drawings (`pump_1.png`–`pump_5.png`), one per level | done |
 | T-93 | `farm_bg.png` behind the game page above 900px; never fetched on a phone (DEC-062) | done |
@@ -139,32 +143,46 @@ Kafi and Jim are the same person. T-56 was never used. The next free ID is **T-9
 
 | ID | What | Status |
 | :--- | :--- | :--- |
-| T-88 | Place search suggests locations as you type (from the README; check against `git log`) | done |
+| T-88 | Place search suggests locations as you type, and the farm is named from its saved coordinates | done |
 
-## Weeks 4–5 — Still to do
+## Weeks 4–5 — Land, phone, crops, ship
 
 | ID | Who | What | Status |
 | :--- | :--- | :--- | :--- |
-| — | Everyone | Land economy and market (week 4); includes the confirm popover (T-07) and the sell tab (T-10) | todo |
-| T-14 | Shabab | Turn on the other crops as art arrives; tomato done in DEC-060 | done |
-| T-16 | Shabab | Handover: final docs and the `v0.1` tag | todo |
-| T-15 | Kafi (Jim) | Polish: almanac done; empty and error states still open | doing |
-| T-26 | Kafi (Jim) | Missing art: 2 rice failure sprites, 28 for other crops, 14 icons | todo |
+| T-07 | Shabab, Hisham | Land economy: buying with gold, the doubling ladder, price tags, seeds gated by plots owned | done |
+| T-14 | Shabab | Turn on the other crops as art arrives — all five are playable, each switched on the day its fifth stage landed | done |
+| T-15 | Kafi (Jim) | Polish: almanac done; **per-panel empty and error states still uneven** | done |
+| T-16 | Shabab | Handover: final docs written, `v0.1` tag never cut | open |
+| T-26 | Kafi (Jim) | Missing art. **The 2 rice failure sprites and the 28 for the other four crops landed.** Left: 5 `_dead` crop sprites, 9 weather SVGs, 5 crop SVGs — 19 files | open |
 
 ---
 
-## Still open (from `issues.md`)
+## Still open at ship
 
-- ISS-007: pump's transparent canvas eats clicks.
-- ISS-009, ISS-011, ISS-012: weather sample and geocode edge cases.
-- ISS-010: `check-imports` fails on `utils/dom.js`.
-- ISS-015: drought conditional has no home.
-- ISS-027: `localAuth.js` is a second storage writer.
-- ISS-032: no server for signed exports.
+Verified against the code on 1 November 2026. Full detail in `issues.md`.
 
-## To confirm with the team
+| ID | What | Owner |
+| :--- | :--- | :--- |
+| ISS-122 | Farmer 3's avatar carries six black bars; seven tests fail on it | Jim |
+| ISS-099 | No market screen — a harvest pays gold when picked, the bag is read-only | Everyone |
+| ISS-080 | Buying land spends gold with no confirm step | Shabab |
+| ISS-097 | Nothing tells the player to skip the pump when rain is coming | Hisham |
+| ISS-015 | The drought rating ignores how wet the plot already is | Afif |
+| ISS-001 | Nine weather icons and five crop icons are 0 bytes | Kafi |
+| ISS-032 | Exported `.farm` files are integrity-checked but unsigned | Shabab |
+| ISS-100 | DEC-039, DEC-040 and DEC-041 each name two different decisions | Hisham |
+| ISS-098 | `domain/simulator.js` is 0 bytes; `domain/inventory.js` was never written | Hisham |
+| ISS-023 | Sound effects play but there is no mute toggle; the three ambient files are 0 bytes | Kafi |
+| ISS-027 | `localAuth.js` is a second writer to `localStorage` | Hisham |
+| T-84 | Stopgap spacing and radius tokens still in `variables.css` | Jim |
+| T-16 | No `v0.1` tag | Shabab |
 
-- All work dated 11–23 Oct is filed under week 3 following the README. The late items (avatars, phone layout, dialogs, pump levels) may belong to week 4.
-- Shabab's rows (T-86, T-87) and Afif's T-88 come from the README's weekly table. Check them against `git log --author`.
-- T-81 and T-37 may be the same task.
-- T-89 (Vercel deployment) is listed under Shabab because the repo and Vercel project are under that account. Move it if someone else did it.
+## Questions this board used to carry — answered
+
+- **Week boundaries.** Work dated 11–23 Oct is filed under week 3 in the README; the late items
+  (avatars, phone layout, dialogs, pump levels) ran into week 4. Weeks are numbered, not dated.
+  Nothing depends on the boundary, so it was left as written rather than re-dated.
+- **T-81 and T-37.** The same work, done once. Both rows kept so the old references still resolve.
+- **T-89 (Vercel).** Listed under Shabab because the repo and the Vercel project sit under that
+  account. It has not been moved.
+- **T-56.** Never used. The next free id is **T-95**.

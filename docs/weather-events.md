@@ -16,14 +16,15 @@ A planting is measured **once**, against the **next six hours** of forecast, at 
 moment the seed goes into the ground. The verdict is stored on the plot as
 `plot.forecast` and the resulting number as `plot.health`.
 
-**Why six hours.** Every crop takes 4–8 hours to grow — `rice` and `tomato` are 6,
-`wheat` 5, `potato` 4, `corn` 8 — so a six-hour window covers the whole life of the
-crop line. `corn` is the only one that outlives it.
+**Why six hours.** Every crop takes 4–6 hours to grow — `rice` and `wheat` are 6,
+`potato`, `tomato` and `corn` are 4 — so a six-hour window covers the whole life of every
+crop in the game, and the longest ones exactly.
 
 **Why once, and not on a timer.** A consequence the player can see *before* committing
 to it is worth more than one that arrives overnight, and it is the only version of this
-system that can be previewed in the seed picker at all. It also means there is nothing
-to tick: **`domain/simulator.js` is empty and is meant to stay empty.** The per-hour
+system that can be previewed in the seed picker at all. It also means the weather module
+has nothing to tick: **`domain/simulator.js` was the plan's per-hour simulator and is
+0 bytes — nothing imports it, and it should be deleted (ISS-098).** The per-hour
 figures below are used as *rates*, multiplied by how many of the window's hours the
 event actually held, and applied in one step.
 
@@ -40,8 +41,8 @@ is the only way "your crop died" has something a player can act on behind it.
 **The season is a separate, softer input.** An off-season planting costs a flat 10
 health (`SEASON_MISS_COST` in `domain/weather.js`), not a second rating, so "planted
 rice in winter" stays one legible number rather than compounding with a forecast
-rating the player cannot compare it against. It is **never a gate** — a January player
-with only rice unlocked must still have something to plant. Seasons come from the
+rating the player cannot compare it against. It is **never a gate** — a player on one plot,
+whose only unlocked crop is rice, must still have something to plant in January. Seasons come from the
 player's **latitude**, via the band calendars in `config/seasons.js`.
 
 **No forecast means no planting.** With nothing to judge by, `verdictFor()` answers
@@ -112,7 +113,8 @@ response fetched at 12:15 has `current.time = "12:15"` and
 `current.time` against the hourly timestamps, then slice 24 entries from there.
 
 Everything downstream assumes this: `state.weather.hourly[0]` is the current hour, which is what
-`simulator.tick` reads and what the forecast strip renders first. See ISS-009.
+the forecast strip renders first and what `worstEventIn()` and `environmentFacts()` read. See
+ISS-009.
 
 ## Effects on crops
 
@@ -146,8 +148,9 @@ At 30 or above, treat it as `ok`. This is the one rule in the game that makes th
 gold, and it is the reason the pump exists at all.
 
 Because a matrix cell can only hold one rating, this conditional cannot live in
-`cropWeatherMatrix.js`. It goes in an exported `ratingFor(plot, eventId)` helper in
-`domain/`, which `simulator.tick` and the tests both call. See ISS-015.
+`cropWeatherMatrix.js`. It was to go in an exported `ratingFor(plot, eventId)` helper in
+`domain/`, called by the tick and the tests. **It was never written** — the crop is still judged by
+the weather alone, so a drought drains a waterlogged plot as if it were dry. See ISS-015.
 
 ### Dry drain and death
 

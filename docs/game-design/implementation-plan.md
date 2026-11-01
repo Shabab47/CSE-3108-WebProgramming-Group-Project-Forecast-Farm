@@ -2,12 +2,25 @@
 
 Isometric field and clean structure.
 
+> **This is the plan as written in week 1, kept unchanged so the build can be compared against it.**
+> What actually shipped differs in three ways worth knowing before reading further:
+>
+> - **The market was never built.** Harvest pays its gold at pick time instead (ISS-099).
+> - **The weather effects landed two weeks early** — week 3 rather than week 5 — because the forecast
+>   was being displayed while doing nothing to the farm, and that was not shippable.
+> - **The debug panel was never built.** There is no `js/debug/`, no `?debug=1`, and no cheat
+>   buttons. The only debug flag is `?fast=N`, which divides grow times.
+>
+> The final state is in [`docs/team/goals.md`](../team/goals.md) and
+> [`docs/team/tasks.md`](../team/tasks.md); the defects found on the way are in
+> [`docs/team/issues.md`](../team/issues.md). The original text below is not updated.
+
 This is the build plan, revised after auditing it against the repository, the
 actual PNG assets, and live Open-Meteo responses. Corrections are folded in and listed under
 [Revisions](#revisions) at the bottom.
 
 Companion docs: `docs/architecture.md` (where things live), `docs/team/goals.md` (the 5-week
-window), `docs/team/issues.md` (25 logged problems), `docs/team/decisions.md` (why).
+window), `docs/team/issues.md` (the full defect log), `docs/team/decisions.md` (why).
 
 ---
 

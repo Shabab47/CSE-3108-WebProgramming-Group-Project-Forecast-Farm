@@ -1,9 +1,9 @@
 # Team Goals — 5 Week Plan
 
-**Weeks 1 and 2 are done, and week 3 closed on 18 October.** We are two weeks from v0.1 with one
-goal complete, five substantially built, and two still open. **What is left is the land economy
-and the market — and that belongs to all four of us**, because every plot, every price and every
-sale touches work three people have already done.
+**The five weeks are over. v0.1 is built and deployed, and this file records what the plan asked
+for against what actually shipped.** Three goals were met in full (the planning week, G-07, and the
+"somebody else can pick it up" half of G-08), the other five are substantially built and carry a
+named open item each. Every one of those items is in `issues.md` with an owner.
 
 The plan below is the plan as written in week 1. **Where the build went differently, the table
 records what shipped rather than what was forecast** — G-07 was scheduled for week 5 and landed in
@@ -24,58 +24,52 @@ slip the goal — do not reorder them.
 
 ## Summary
 
-| ID | Planned | Goal | Status | Where it actually landed |
+| ID | Planned | Goal | Final status | Where it landed |
 | :--- | :---: | :--- | :--- | :--- |
 | — | 1 | Planning, design and documentation | `- [x]` | as planned |
-| G-01 | 2 | Foundation: tooling, config, state, services | `- [~]` built, T-04 open | week 2 |
-| G-02 | 2 | Field on screen: layout shell + isometric field | `- [~]` built, T-06 open | weeks 2–3 |
-| G-03 | 3 | Land economy: buy plots, gold, prices | `- [~]` partly built | week 3 |
-| G-04 | 3 | Plant to harvest: shop, inventory, growth, save | `- [~]` built, T-08 open | weeks 2–3 |
-| G-05 | 4 | Pump, water and market: the full money loop | `- [~]` **water and pump done, market open** | week 3 |
-| G-06 | 4 | Live weather: search, forecast, metrics, fallback | `- [~]` built, T-11 open | weeks 2–3 |
+| G-01 | 2 | Foundation: tooling, config, state, services | `- [~]` built — T-04 open (2 known import violations), no `state/types.js`, no sample forecast | weeks 2–3 |
+| G-02 | 2 | Field on screen: layout shell + isometric field | `- [~]` built — the field and the phone layout are done; the `?debug=1` panel was never written | weeks 2–4 |
+| G-03 | 3 | Land economy: buy plots, gold, prices | `- [~]` built — doubling ladder and price tags ship; no confirm step (ISS-080) | weeks 3–4 |
+| G-04 | 3 | Plant to harvest: shop, inventory, growth, save | `- [~]` built — all five crops plant, grow, harvest and save; the `+6 h` debug button it was accepted against does not exist | weeks 2–3 |
+| G-05 | 4 | Pump, water and market: the full money loop | `- [~]` **water and pump done, market never built** (ISS-099) | week 3 |
+| G-06 | 4 | Live weather: search, forecast, metrics, fallback | `- [~]` built — live path complete; the offline sample fallback is not (`data/sample-forecast.json` is 0 bytes) | weeks 2–3 |
 | G-07 | **5** | Weather effects and crop alerts | `- [x]` | **week 3, two weeks early** |
-| G-08 | 5 | Ship v0.1: more crops, polish, handover | `- [ ]` | — |
+| G-08 | 5 | Ship v0.1: more crops, polish, handover | `- [~]` **shipped with open items** — all five crops playable, docs current; no `v0.1` tag, empty/error states and image weight still open | weeks 4–5 |
 
 `- [~]` is not a GitHub checkbox and does not render as one. It means **substantially built and
-not finished**, and the task id says what is outstanding. Only `- [x]` means done.
-
-**Where the remaining two weeks go.** Finish G-03 and the market half of G-05 — the whole team —
-then G-08. Nothing else is on the critical path.
+not finished**, and the note says what is outstanding. Only `- [x]` means done.
 
 ---
 
-## Where we actually are — 18 October 2026
+## Where we actually are — final, 1 November 2026
 
-**The game runs, and the weather does something to it.** That was not true a fortnight ago: the
-forecast was fetched, classified and displayed while doing nothing whatsoever to the farm, which
-is the premise the whole project is built on. It now reaches crops through five channels — the
-water level, a verdict shown when you sow, health while the crop stands, a permanent damage latch,
-and the payout.
+**The game ships, and the weather reaches it.** The premise — that the farm is driven by the
+player's own forecast rather than a random number generator — is live end to end. It reaches crops
+through five channels: the water level, a verdict shown when you sow, health while the crop stands,
+a permanent damage latch, and the payout.
 
-**Three things a player can do today** that they could not a week ago: click any plot to see its
-own water gauge and water it; read an environment card that says what the weather is doing to the
-farm rather than what it is doing outside; and choose easy or normal.
+**What a player can do that they could not do in week 2:** click any plot to see its own water gauge
+and water it; read an environment card that says what the weather is doing to the farm rather than
+what it is doing outside; choose easy or normal; upgrade the pump through five levels; plant any of
+five crops; browse an almanac and an inventory; and report a bug from the navbar.
 
 **What is not finished, in the order it matters.**
 
-1. **The land economy and the market.** Free first plot, price tags on locked plots and a growth
-   timer landed. Buying with a confirm step, the wallet's refusal when you cannot afford, and the
-   market's own tests have not. **This is everyone's** — it touches plots, gold, seeds, harvest
-   and the shop, which between them are four people's work. ISS-080 (no confirm step on buying
-   land) is the sharpest one.
-2. **Damage sprites.** The latch and the wording ship; the pictures do not exist. Three for rice,
-   fifteen across all crops, and until they land a damaged crop shows a hole with a word beside it.
-   That is [DEC-014](decisions.md)'s rule working as intended, not a bug — but it is the most
-   visible thing missing.
-3. **ISS-015**, the drought rating that ignores how wet the plot already is. Small, and the last
-   thing G-07 left open.
-4. **The three open weather gaps** — ISS-096 and ISS-097 in `issues.md`, both about rain and the
-   bill, plus the frozen `services/` cleanup in T-04 that `npm run check` reports as two known
-   violations.
+1. **The market.** Harvest pays gold at the moment of harvest, so the loop closes — but the
+   separate "sell your harvest" step was specified, scheduled and never built. `issues.md` ISS-099.
+2. **Five `_dead` sprites.** The latch and the wording ship; the picture of a dead crop does not,
+   for any crop. That is [DEC-014](decisions.md)'s rule working as intended, not a bug — but it is
+   the most visible thing missing.
+3. **The icons.** Nine weather SVGs and five crop SVGs are still 0 bytes (ISS-001), so the forecast
+   strip and the picker lean on text.
+4. **Four live defects** — ISS-122 (Farmer 3 avatar, seven failing tests), ISS-080 (no confirm on
+   buying land), ISS-097 (nothing says skip the pump when rain is coming), and ISS-015 (the drought
+   rating ignores how wet the plot already is).
+5. **The release mechanics** — no `v0.1` tag, empty/error states on some panels, and the image
+   weight of a 1000 px sprite per layer never reviewed.
 
-**Nothing on that list is architectural.** The layering holds, the suite is green, and the two
-weeks are enough — which is worth saying plainly, because week 3 was supposed to be the economy
-and the economy is the thing that slipped.
+**Nothing on that list is architectural.** The layering holds, `npm run check` reports no new
+violations, and 793 of 800 tests pass. The seven failures are one drawing, not seven bugs.
 
 ---
 
@@ -92,16 +86,16 @@ documentation were finished so that the build does not have to stop and ask ques
 - [x] Base services connected: weather, time, place lookup
 - [x] Project structure and data flow designed — `docs/architecture.md`
 - [x] 25 problems logged with owners — `docs/team/issues.md`
-- [x] Reverse geocoding for the player's own location — **not done**, carried to week 2
+- [x] Reverse geocoding for the player's own location — landed in week 2 (T-59)
 
 **Done when:** every system is documented well enough to build from, and every known problem has
-an owner.
+an owner. **Met.**
 
 ---
 
 ## Week 2
 
-### G-01 Foundation `- [ ]`
+### G-01 Foundation `- [~]`
 
 Everything that has to exist before any of it can be built on. No gameplay, no visible result.
 
@@ -109,47 +103,46 @@ Everything that has to exist before any of it can be built on. No gameplay, no v
 
 - [x] `docs/` tree complete: architecture, crops, weather-events, notifications,
       crop-choice-guide, game-design plan, team docs
-- [ ] `package.json` with `dev`, `test`, `check` scripts
-- [ ] `scripts/check-imports.mjs` passing, including the `utils/dom.js` whitelist
-- [ ] `utils/log.js` scoped logger, `tests/` with one passing test
-- [ ] All `js/config/*` files complete
-- [ ] `state/types.js`, `initialState.js`, `store.js` — `initialState()` returns 16 plots
-      with correct zones
+- [x] `package.json` with `dev`, `test`, `check` scripts
+- [x] `scripts/check-imports.mjs` passing, including the `utils/dom.js` whitelist (ISS-010)
+- [x] `utils/log.js` scoped logger, `tests/` with one passing test
+- [x] All `js/config/*` files complete
+- [~] `state/types.js`, `initialState.js`, `store.js` — `initialState()` returns 16 plots with
+      correct zones, and the store persists; **`state/types.js` was never written**
 - [x] `weatherApi`, `timeApi` and place lookup return parsed data
-- [ ] Reverse geocoding added, so the player's own location resolves to a place name
-- [ ] Real response saved to `data/sample-forecast.json`
+- [x] Reverse geocoding added, so the player's own location resolves to a place name
+- [ ] Real response saved to `data/sample-forecast.json` — **still 0 bytes**
 - [x] `js/services/map.js` deleted, decision logged
-- [ ] `npm run check` and `npm test` both pass
+- [~] `npm run check` and `npm test` both pass — `check` passes with **2 known violations awaiting
+      T-04**; `npm test` is 793/800 because of ISS-122
 
 **Done when:** a fresh clone passes `npm run check` and `npm test`, and `node -e` can import
-every config file and build a fresh state.
+every config file and build a fresh state. **Not met:** the suite is red on a clone, for a reason
+unrelated to this goal.
 
-### G-02 Field on screen `- [ ]`
+### G-02 Field on screen `- [~]`
 
 The first thing anyone can actually look at.
 
 **Tasks:** T-05, T-06
 
-- [ ] `index.html` with the three grid areas, matching the wireframe at 1280 px
-- [ ] Single column below 900 px, in order: navbar, forecast, farm, right column, sidebar
+- [x] `index.html` with the three grid areas, matching the wireframe at 1280 px
+- [x] Single column below 900 px, in order: navbar, forecast, farm, right column, sidebar
 - [x] `utils/iso.js` with `plotToScreen`, `pumpBox` and `frameY`, plus `iso.test.js` — landed in
       T-53/T-54
-- [x] The diamond clip is real and asserted — though not where this line said it would be. It is the
-      `.plot__hit` rule in `css/scene.css`, not `iso.js`'s `diamondClipPath()`: same number in two
-      homes, so `tests/iso.test.js` asserts they agree. ISS-004.
-- [ ] `css/field.css`, `farmView`, `plotTile`, `pumpView` — `farmView` landed; `plotTile` and `pumpView`
-      are still T-06
-- [x] Slab, 16 unwatered plots, pump, diamond hit areas — landed in T-55. "Against the reference render"
-      below still means a person looking at it
+- [x] The diamond clip is real and asserted — the `.plot__hit` rule in `css/scene.css`, not
+      `iso.js`'s `diamondClipPath()`; `tests/iso.test.js` asserts the two agree (ISS-004)
+- [x] `farmView`, `plotLayers`, `pumpPanel` — `plotTile`/`pumpView` were folded into these
+- [x] Slab, 16 unwatered plots, pump, diamond hit areas — landed in T-55
 - [ ] Debug sliders live-recalculate `tileScale`, `gap`, `crossGap`, `originX`, `originY`,
-      `pumpScale`
-- [ ] Geometry calibrated against `docs/reference/field-reference.jpeg` and the final numbers
-      written into `config/field.js` — the numbers are in as of T-54 and are the measured ones,
-      but "against the reference render" still means a person looking at it
-- [ ] Pump click target tight to its art (ISS-007)
+      `pumpScale` — **not built; `js/debug/` does not exist**
+- [x] Geometry calibrated and the final numbers written into `config/field.js` — `tileScale:
+      0.2320`, measured and retuned on screen (T-54, T-64, DEC-049)
+- [x] Pump click target tight to its art (ISS-007)
 
 **Done when:** the field matches the reference render, hovering one plot highlights only that
 diamond, and there is no flicker when the pointer moves across overlapping plot boxes.
+**Met on the field; the debug half of the task does not exist.**
 
 ---
 
@@ -161,74 +154,83 @@ The economy. Nothing here reads the weather API.
 > water half **and G-07 in full** landed here too, two weeks early. The economy itself is what
 > carried over.
 
-### G-03 Land economy `- [ ]`
+### G-03 Land economy `- [~]`
 
 **Tasks:** T-07
 
-- [ ] `domain/wallet.js` and `domain/plots.js`
+- [~] `domain/wallet.js` and `domain/plots.js` — **neither file exists.** The rules live in
+      `domain/land.js` (buying) and `domain/shop.js` (seeds and gold). The work shipped; the files
+      the plan named did not.
 - [x] Locked plots dimmed with a price tag
-- [ ] Click a locked plot → confirm popover → buy
-- [ ] `hud` shows gold
-- [ ] `plots.test.js`: price by purchase count, cannot buy twice, cannot afford
+- [ ] Click a locked plot → confirm popover → buy — **no confirm step (ISS-080)**
+- [x] `hud` shows gold — the purse rides in the navbar and the sidebar
+- [~] `plots.test.js` — the land rules are covered in `tests/farm.test.js`, not a file of their own
 
 **Done when:** the first plot is free, then 100, 200, 400, 800, buying is refused without gold,
-and a reload keeps every purchase.
+and a reload keeps every purchase. **All met except the confirm step.**
 
-### G-04 Plant to harvest `- [ ]`
+### G-04 Plant to harvest `- [~]`
 
 **Tasks:** T-08
 
-- [ ] `domain/inventory.js`, `domain/farm.js`
-- [ ] Shop panel, Seeds tab
-- [ ] `inventoryPanel`, `cropPicker`
-- [ ] Stage computed from `plantedAt`, never stored
-- [ ] `farm.clearPlot()` for dead crops (ISS-006)
-- [ ] Autosave every 10 s; reload restores gold, plots, seeds and harvest
-- [ ] `farm.test.js`: stage boundaries, harvest only when ready
+- [~] `domain/inventory.js`, `domain/farm.js` — `farm.js` exists and owns plant/grow/harvest;
+      **`domain/inventory.js` was never written** (ISS-098), because seeds and the bag are handled
+      in `domain/shop.js` and `state.inventory`
+- [x] Shop panel, Seeds section
+- [x] `inventoryView`, `cropPicker` — the inventory is a page, not a panel
+- [x] Stage computed from `plantedAt`, never stored
+- [x] `farm.clearPlot()` for dead crops (ISS-006)
+- [x] Autosave every 10 s; reload restores gold, plots, seeds and harvest
+- [x] `farm.test.js`: stage boundaries, harvest only when ready
 
 **Done when:** planting rice shows `rice_1`, the debug `+6 h` button advances it to `rice_5`,
-harvesting yields 10 units, and a page reload loses nothing.
+harvesting yields 10 units, and a page reload loses nothing. **Met except the debug button, which
+was never built** — growth itself is verified by tests and by waiting.
 
-### G-05 Pump, water and market `- [ ]`
+### G-05 Pump, water and market `- [~]`
 
 **Tasks:** T-09, T-10
 
-- [ ] `domain/pump.js`, `domain/wallet.js` upkeep drain
-- [ ] Pump toggles on click, CSS pulse while running
-- [ ] Water rises, ground sprite swaps to `ground_watered.png`
-- [ ] Gold drains at `upkeepPerSecond`; pump auto-offs at 0 gold with a toast
-- [ ] `meters`: water meter is the mean water level of owned plots
-- [ ] Market tab sells harvest at quality-weighted price
-- [ ] **Balance settled:** `pumpPerSecond` reviewed against rain rates (ISS-008)
+- [~] `domain/pump.js`, `domain/wallet.js` upkeep drain — the pump owns its own bill; **no
+      `wallet.js`**
+- [x] Pump toggles on click, CSS pulse while running
+- [x] Water rises, ground sprite swaps to `ground_watered.png`
+- [x] Gold drains per delivered water; the pump auto-offs when the purse cannot pay
+- [x] `meters`: water meter is the mean water level of owned plots
+- [ ] Market tab sells harvest at quality-weighted price — **never built (ISS-099).** Harvest pays
+      its gold immediately instead, and the inventory page is a read-only record
+- [ ] **Balance settled:** `pumpPerSecond` reviewed against rain rates (ISS-008) — **still open; it
+      is a design call, not a code change**
 
 **Done when:** the watered/unwatered swap is visible, gold visibly decreases while the pump
-runs, and harvest → gold → seeds → plant loops end to end.
+runs, and harvest → gold → seeds → plant loops end to end. **Met: the harvest is paid at harvest
+time, so the loop closes without a market screen.**
 
 ---
 
 ## Week 4
 
-Real weather in, consequences out.
+Real weather in, consequences out. In practice this week became land, phone layout, avatars and
+pump artwork, because G-06 was already built and G-07 had shipped in week 3.
 
-> **Effectively done, ahead of schedule.** G-06 is built and G-07 shipped in week 3. What actually
-> occupies this week is the economy and market carried over from week 3 — **G-03 and G-05's second
-> half, both everyone's.**
-
-### G-06 Live weather `- [ ]`
+### G-06 Live weather `- [~]`
 
 **Tasks:** T-11
 
-- [ ] `navbar` search calling `geocodeApi`, first result or a short list
-- [ ] Empty result → "Place not found" toast, never `alert()`
-- [ ] `weatherPanel`: place, local time, temp, condition, rain %, UV
-- [ ] Hourly strip, 6 visible, scrolls to 24 h
-- [ ] `envMetrics`: humidity with Normal/High/Low badge, wind with compass direction
-- [ ] `seasonCard`, heat meter (0–45 °C mapped onto the bar)
-- [ ] Sample fallback with an "offline sample data" badge
-- [ ] `weather.test.js`: classification priority and WMO mapping
+- [x] Place search calling `geocodeApi`, a short list of suggestions as you type — in
+      `locationBar`, not the navbar
+- [x] Empty result → "Place not found" toast, never `alert()`
+- [x] `weatherPanel`: place, local time, temp, condition, rain %, UV
+- [x] Hourly strip, 6 visible, scrolls to 24 h
+- [x] `envMetrics`: humidity with Normal/High/Low badge, wind with compass direction
+- [x] `seasonCard`, heat meter (0–45 °C mapped onto the bar)
+- [ ] Sample fallback with an "offline sample data" badge — **not built.**
+      `data/sample-forecast.json` is 0 bytes and `weatherApi` returns `{ok:false,'network'}` on a
+      dropped connection. The panel reports the failure honestly instead of showing invented data.
+- [x] Weather tests: classification priority and WMO mapping
 
 **Done when:** searching "Rajshahi" updates every panel, and pulling the network falls back to
-sample data without breaking the page.
+sample data without breaking the page. **Half met:** the search works; the fallback does not exist.
 
 ### G-07 Weather effects and alerts `- [x]`
 
@@ -240,15 +242,15 @@ sample data without breaking the page.
 - [x] the tick applies the matrix, dry drain, death, rain water and evaporation
 - [x] `state.notified` added for alert dedupe (ISS-013)
 - [x] `notifications.forProjection()` and `toastStack`
-- [x] Debug dropdown to force the current event
+- [~] Debug dropdown to force the current event — **not built with the rest of the debug panel**
 - [x] Tests: drought on a dry plot loses health, on a wet plot does not
 
 **Done when:** forcing `heavy-rain` waters the plots and rice survives while wheat takes damage,
 and a rain forecast with rice planted raises a warning **about that crop**.
 
-**Both met.** Measured on one rice plot at 85 water left for six hours: clear 32 °C → 20.2 water,
-health 88, dry damage; overcast 22 °C → 50.4; heavy rain → 120, waterlogged; drought 41 °C → 0
-water, health 78.
+**Both met, with the forced-weather step done in tests rather than a dropdown.** Measured on one
+rice plot at 85 water left for six hours: clear 32 °C → 20.2 water, health 88, dry damage;
+overcast 22 °C → 50.4; heavy rain → 120, waterlogged; drought 41 °C → 0 water, health 78.
 
 **This goal's done-when was rewritten on 18 October.** It previously ended:
 
@@ -269,23 +271,30 @@ dropped, which is worth more than a tick that hides it.
 
 ## Week 5
 
-### G-08 Ship v0.1 `- [ ]`
+### G-08 Ship v0.1 `- [~]`
 
 **Tasks:** T-14, T-15, T-16
 
-- [ ] Every crop with five stage images flipped to `available: true`, no code changes
+- [x] Every crop with five stage images flipped to `available: true`, no code changes — **all five
+      are playable**: rice, potato, tomato, wheat, corn
 - [x] `almanac.html` populated, linked from the UI
-- [ ] Empty, loading and error states on every panel — *page-level loading state done
-      (ISS-043); per-panel empty/error states still to do*
-- [ ] Keyboard focus ring on plots; plots are real buttons
-- [ ] Image weight reviewed — if 40 layers of 1000 px PNGs are slow, add 512 px copies and
-      change only `config/assets.js`
-- [ ] `architecture.md` current; open issues either fixed or explicitly deferred
-- [ ] `README.md` run instructions and folder map
-- [ ] `v0.1` tag pushed
+- [~] Empty, loading and error states on every panel — *page-level loading state done (ISS-043),
+      the boot veil is real, and the sync indicator covers the save's states; per-panel empty/error
+      states are still uneven*
+- [~] Keyboard focus ring on plots; plots are real buttons — **they are real `<button>`s, so focus
+      and keyboard activation work; the visible ring was not verified against `css/reset.css`**
+- [ ] Image weight reviewed — if 40 layers of 1000 px PNGs are slow, add 512 px copies and change
+      only `config/assets.js` — **never measured; the registered total is 59 MB**
+- [x] `architecture.md` current; open issues either fixed or explicitly deferred
+- [x] `README.md` run instructions and folder map
+- [ ] `v0.1` tag pushed — **not cut**
 
 **Done when:** someone who did not write the code can clone, `npm run dev`, search a city, buy
 land, plant, watch the forecast change the crop's health, and sell the harvest.
+
+**Met in substance** — harvest pays gold when it is picked, so the loop closes without a market
+screen — **and not in mechanics:** the tag, the image-weight review and the missing dead-crop
+sprites are all still outstanding.
 
 ---
 
