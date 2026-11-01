@@ -6,13 +6,28 @@ touched, what broke, what is next.
 The per-person weekly notes that used to live in the README table are now in `members/`.
 
 ---
-## Season name contained inside the season card on phones — 2026-11-01
+## The docs are brought to the shipped build, and the numbers are re-measured — 2026-11-01
 
-- **Did:** fixed season names overflowing the season card on narrow phones (ISS-128). The text span now
-  takes the leftover space and its children wrap/break instead of holding a `min-content` wider than
-  the column; phone font sizes use `clamp()`.
-- **Touched:** `css/sidebar.css`, `css/phone.css`, `docs/team/issues.md`.
-- **Next:** visually verify at 320/360/375 px; the 7 pre-existing avatar tests remain failing (ISS-122).
+- **Did:** treated the current `main` as the build that ships and reconciled the whole docs tree with
+  it. `README.md` was rewritten around what a player can actually do, with a "What v0.1 Does Not Do"
+  section, a per-person **Who Built What**, a five-week build history, and the deployment and
+  Supabase notes. `goals.md` was rewritten with `- [~]` for the goals that shipped without their
+  whole scope, `tasks.md` closed out row by row, and `issues.md` gained a **Final triage** section
+  listing only the eleven entries re-verified against the code. `members/` became four final
+  contribution records instead of week-1 notes, `ownership.md` dropped its "proposed, not confirmed"
+  banner, and `asset-checklist.md` was recounted from the registry rather than from memory.
+- **Corrected in the process:** the docs claimed a `?debug=1` panel, a `js/debug/` folder, a sample
+  forecast fallback, `state/types.js`, `domain/inventory.js` and a market screen. None of those
+  exist. They are now recorded as gaps with issue numbers instead of as features.
+- **Touched:** `README.md`; `docs/architecture.md`, `docs/asset-checklist.md`, `docs/crops.md`,
+  `docs/setup.md`, `docs/weather-events.md`, `docs/game-design/implementation-plan.md`;
+  `docs/team/{README,goals,tasks,issues,ownership,progress-log}.md` and
+  `docs/team/members/{shabab,hisham,kafi,afif}.md`. No file under `js/` or `css/` was touched.
+- **Verified:** `npm run check` — 2 known violations, both old, none new. `npm test` — 800 tests,
+  793 pass, 7 fail, all ISS-122. Asset registry counted directly: 119 entries, 97 done, 17 empty,
+  4 placeholder, 1 duplicate, 59,317,205 bytes. `https://forecast-farm.vercel.app` answers.
+- **Next:** the shipped build still needs a `v0.1` tag if the release is to be pinned, and ISS-122
+  needs its avatar drawing replaced before `npm test` is green on a fresh clone.
 
 ---
 ## The farm page is painted, and the environment card wears timber — 2026-10-31
@@ -510,7 +525,7 @@ ISS-127: restore 5-state pump mode
   lesson is the third time in this repo that PowerShell text surgery has cost more than the
   edit tool would have.
 - **Tests:** 540 pass (was 537), `npm run check` clean.
-- **Next:** Zim's damage sprites, named in `cropFailureImg()` — the logic is wired and the
+- **Next:** Jim's damage sprites, named in `cropFailureImg()` — the logic is wired and the
   word renders, so the files can land with no code change. Worth **opening ISS-008 and
   measuring** the 2× now that both sides of the comparison run.
 

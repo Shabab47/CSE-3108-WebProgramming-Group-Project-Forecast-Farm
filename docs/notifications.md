@@ -66,8 +66,8 @@ notified: { [cropId + ':' + eventId]: <iso timestamp of window start> }
 ```
 
 A new window with a later start timestamp clears the key and lets the alert fire again. The
-field must be in both `js/state/types.js` and `js/state/initialState.js`, and it is persisted,
-otherwise a page reload would re-fire every alert. Tracked as ISS-013.
+field lives in `js/state/initialState.js` (`notified: {}`), and it is persisted, otherwise a
+page reload would re-fire every alert. Tracked as ISS-013.
 
 ## Example
 

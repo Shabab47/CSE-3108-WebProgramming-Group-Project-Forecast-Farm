@@ -1,79 +1,49 @@
 # Afif — Mutasim Afif (ID 13)
 
-Game developer and game tester.
+Game developer and game tester. **8 non-merge commits**, almost all of them at the network edge of
+the game — which is exactly where the interesting failures were.
 
-**Owns:** `js/services/`, `js/domain/weather.js`, `js/domain/notifications.js`,
-`js/ui/weatherPanel.js`, `js/ui/envMetrics.js`
-**Goals:** G-06 lead, G-07 lead
+**Owns:** the weather, time and geocoding services, the weather domain, the weather UI, and the
+bug-report form.
+**Goals:** G-06 lead, G-07 lead.
 
-**Week 1 contribution:** added the base APIs — weather, time and place lookup. Reverse geocoding
-is the one still outstanding.
+## What he shipped
 
-**Week 2 contribution:** connected the weather API to the game interface — live weather for the
-player's own location, the weather panel, and the location bar.
+**Week 1 — the base services.**
+Added the first `getWeather` and current-time fetches: `js/services/weatherApi.js`,
+`js/services/timeApi.js`, the geocoding call, and the endpoints and refresh timings in
+`js/config/api.js`. `js/services/map.js`, a broken Leaflet leftover from the first sketch, was his and
+was deleted rather than repaired (DEC-012).
 
----
+**Week 2 — live weather on screen (T-11).**
+Connected the forecast to the player's own location instead of a hardcoded city. That is the change
+the whole premise rests on: the farm belongs to the place the player is standing in, and the
+weather panel reads from it.
 
-## Week 1
+**Week 3 — place search (T-88, T-59).**
+Made the location bar suggest places as the player types, and named the farm from its saved
+coordinates instead of leaving the panel blank when the reverse lookup had no answer. Empty results
+are handled as an empty list, not a crash — the `results` key is absent, not empty, when nothing
+matches (ISS-012).
 
-- [x] Base weather API added
-- [x] Base time API added — fallback clock only
-- [x] Base place lookup (geocoding) added
-- [ ] **Reverse geocoding not added** — turning the player's coordinates into a place name is
-      still outstanding, carried to week 2
-- [ ] Rewrite `weatherApi` and `timeApi` to return plain data instead of writing to the DOM
-- [ ] Delete `js/services/map.js` — broken Leaflet code, references an undefined `map` global and
-      calls `alert()`. The decision to remove it is already logged as DEC-012
-- [ ] Save one real response to `data/sample-forecast.json`
+**Week 5 — bug reporting.**
+Added the Web3Forms report form to the navbar: `js/ui/reportBug.js`, `js/services/reportApi.js`,
+`js/config/feedback.js` and `css/report-bug.css`, with the access key kept as the public client key
+Web3Forms expects.
 
-## Verified API behaviour — use this, do not re-derive it
+**Testing.** Wrote the geocoding, location-bar, report-service and boot tests, and helped build the
+fake-DOM helper the UI tests use. The API behaviours worth remembering are written down in
+`docs/weather-events.md` and `docs/team/issues.md`: the Open-Meteo field keys, the
+`hourly[0]`-is-local-midnight rule that forced `classify()` to compute a `startIndex` (ISS-009), and
+the missing `results` key above.
 
-Checked live against `api.open-meteo.com` and `geocoding-api.open-meteo.com`.
+## Open at ship
 
-**Weather** response keys: `latitude`, `longitude`, `generationtime_ms`, `utc_offset_seconds`,
-`timezone`, `timezone_abbreviation`, `elevation`, `current_units`, `current`, `hourly_units`,
-`hourly`. `current` carries `time`, `interval`, `temperature_2m`, `relative_humidity_2m`,
-`weather_code`, `wind_speed_10m`, `wind_direction_10m` — no rain probability and no UV, so both
-come from the matching hourly entry.
+- **ISS-015** — the drought rating ignores how wet the plot already is, so a drought drains a
+  waterlogged plot as if it were dry. The conditional is understood and located; it never landed.
 
-**`hourly.time[0]` is local midnight, not now.** A response fetched at 12:15 had
-`current.time` at 12:15 and `hourly.time[0]` at 00:00, 48 entries for `forecast_days=2`.
-`classify()` must compute a `startIndex` and slice 24 from there. This is ISS-009 and it is the
-easiest mistake in the whole project to make.
+## Where to look
 
-**Geocoding** result keys: `id`, `name`, `latitude`, `longitude`, `elevation`, `feature_code`,
-`country_code`, `timezone`, `population`, `country`, `admin1`…`admin4`. Use `admin1` to
-disambiguate the result list — "Rajshahi, Rajshahi Division, Bangladesh" beats two identical
-rows.
-
-**An empty geocoding result omits the `results` key entirely** — the response is just
-`{"generationtime_ms":0.44}`. So `data.results` is `undefined`, not `[]`, and
-`if (!data.results.length)` throws. Guard with `Array.isArray`. This is ISS-012.
-
-`utctime.app/api/now/{tz}` is still live and returns `datetime`, `timezone` and `abbreviation`.
-The fallback is real.
-
-**Geocoding is search-only.** It turns a place name into coordinates, not the other way round.
-Resolving the player's own coordinates to a place name needs a separate reverse-geocoding
-service. That is the outstanding item above.
-
-## Week 2
-
-- [ ] Rewrite the services to return plain data; add reverse geocoding
-- [ ] `domain/weather.js` `classify()` with the `startIndex` rule and its WMO tests
-- [ ] `ratingFor(plot, eventId)` with the drought `waterLevel < 30` conditional (ISS-015)
-
-## Week 4
-
-- [ ] Weather panel wired into the running game — `navbar` search, `weatherPanel`, `envMetrics`
-- [ ] Sample fallback badge, and a saved response in `data/sample-forecast.json`
-- [ ] Simulator effects: matrix, dry drain, death, rain water and evaporation
-- [ ] `domain/notifications.js` `forProjection()` plus `state.notified` dedupe (ISS-013)
-- [ ] Test both live and offline paths — pull the network cable, not just trust the branch
-
-## Notes
-
-- Testing is your side of the split this sprint. The five test files in the plan are the real
-  deliverable for G-07, not a nice-to-have.
-- If a real response ever disagrees with `docs/weather-events.md`, log it in `issues.md` and
-  update the doc. Do not patch around it in the parser.
+`js/services/{weatherApi,geocodeApi,timeApi,reportApi}.js`, `js/config/{api,feedback,weatherEvents,cropWeatherMatrix}.js`,
+`js/domain/weather.js`, `js/ui/{locationBar,weatherGlyph}.js`, `css/weather.css`,
+`tests/{geocodeApi,locationBar,reportApi}*.test.js`.

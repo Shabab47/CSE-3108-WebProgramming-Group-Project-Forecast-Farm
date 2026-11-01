@@ -1,74 +1,52 @@
 # Kafi (Jim) — Abdullah Hil Kafi (ID 19)
 
-**Also goes by Jim** — the Git handle is `aa-jim` / `abdullahaljim2@gmail.com` and the branch is
-`origin/jim`. **One person, not two.** The docs use **Kafi** throughout; the README team table
-carries the alias once so nobody reads it as a fifth member.
+**Also goes by Jim** — the Git handles are `aa-jim` and `Jim`, the branch is `origin/jim`, and the
+email is the same one on both. **One person, not two.** The docs use **Kafi** throughout; the README
+team table carries the alias once so nobody reads it as a fifth member. **36 non-merge commits**,
+and by files touched the widest footprint in the repository: 79 edits under `assets/images`, 72 in
+`js/ui`, and every stylesheet.
 
 UI/UX and frontend developer.
 
-**Owns:** `css/`, `js/ui/navbar.js`, `sidebar.js`, `seasonCard.js`, `shopPanel.js`,
-`inventoryPanel.js`, `hud.js`, `buttonBar.js`, `meters.js`, `assets/`
-**Goals:** G-02 lead, G-06 support, G-08 support
+**Owns:** `css/`, `assets/`, and the chrome a player looks at — navbar, menu, avatars, profile,
+dialogs and phone layout.
+**Goals:** G-02 lead, G-06 support, G-08 support.
 
-**Week 1 contribution:** produced all the crop artwork for rice and the farm ground.
-**Week 2 contribution:** the sign-in menu UI and the gameplay scene UI.
+## What he shipped
 
-**Track your remaining work in [`docs/asset-checklist.md`](../../asset-checklist.md).**
+**Week 1 — the first art.**
+Drew rice's five growth stages and both ground tiles (watered and unwatered) from the measured
+bounding boxes in `docs/architecture.md`, and set up the folder-per-crop structure so a new crop is a
+folder rather than a change to the renderer (DEC-016).
 
----
+**Weeks 2–3 — the screens.**
+Built the opening menu and the sign-in board (`menuPanel`, `signBoard`, `authViews`), the game scene
+(`css/scene.css`, 22 edits, and the plot layers under it), the navbar, the profile page, the shop
+repaint to the Figma reference, and the settings styling. Fixed the location bar, the save card, the
+guest seeing "null", and the board's duplicated freshness label.
 
-## Week 1
+**Weeks 3–4 — avatars, dialogs, phones.**
+Drew the preset avatars and built the avatar step at sign-up. Built the timber dialogs — the plot
+inspector and the seed picker — and the small-card picker with its info icon. Wrote the four phone
+stylesheets that reflow the farm onto the 430 × 1232 frame, and matched phone typography to the
+desktop stacks.
 
-- [x] Rice artwork, all five growth stages — `assets/images/crops/rice/rice_1..5.png`
-- [x] Farm ground artwork, watered and unwatered — `assets/images/ground/`
-- [x] One folder per crop so future art drops straight in without touching code (DEC-016)
-- [ ] **Rice is not finished** — it still needs its two failure states:
-      `rice_rain_damaged.png` and `rice_drought_killed.png`
-- [ ] 9 weather icons in `assets/icons/weather/` — **all currently 0 bytes** (ISS-001)
-- [ ] 5 crop icons in `assets/icons/crops/` — **all currently 0 bytes** (ISS-001)
-- [ ] 4 more crops × 7 sprites each = 28 sprites
-- [ ] 2 pump animation frames
-- [ ] `LICENSE` is 0 bytes too (ISS-002, Shabab owns the decision)
-- [ ] 3 sounds in `assets/sounds/` are 0 bytes — out of scope, leave them alone (ISS-023)
+**Week 5 — the rest of the art, and the sound.**
+Drew potato, tomato, wheat and corn: five stages and two damage states each, plus a seed packet per
+crop. Drew `pump_1.png`–`pump_5.png`, one per level, and `farm_bg.png` behind the page. Added the
+sixteen sound-effect files, the book and inventory art, and the UI icons. Styled the almanac and the
+timber environment card.
 
-Team decision on icons: paths are coded as specified and broken images are accepted for now
-(DEC-014). Text labels carry the meaning. Do not build a fallback layer.
+## Open at ship
 
-## Week 2
+- **T-26** — 19 files still missing: five `_dead` crop sprites, nine weather SVGs, five crop SVGs.
+- **ISS-001** — the weather and crop icons are the empty ones above; text carries the meaning.
+- **ISS-122** — Farmer 3's avatar has six black bars, and seven tests fail on that drawing.
+- **ISS-023** — sound effects play, but there is no mute toggle; the three ambient files are 0 bytes.
+- **T-84** — stopgap spacing and radius tokens still live in `css/variables.css`.
 
-- [x] Sign-in menu UI — the login screen, with sign-in, registration, guest play and the
-      password-reset flow
-- [x] Gameplay scene UI — the farm screen: the grid, the plots, and the panels around it
-- [ ] `index.html` with the three grid areas per `docs/reference/layout-wireframe.jpeg`
-- [ ] `css/reset.css`, `variables.css`, `layout.css`, `themes.css`, `components.css`
-- [ ] Panel placeholders in every grid area, then `js/main.js` boot
-- [ ] Single column below 900 px, order: navbar, forecast, farm, right column, sidebar as a
-      bottom bar
-- [ ] Style tokens from `docs/reference/style-mockup.jpeg`: white glass cards, radius 16–20 px,
-      soft shadow, thin border, one accent, system font stack. All of it in `variables.css`.
+## Where to look
 
-> **Not pushed yet.** As of this entry `origin/jim` is **0 commits ahead of `origin/main`** and
-> still holds only the two week-1 commits, so the two week-2 boxes above are recorded from the
-> team's own report rather than from the branch. Push before the next review or the README's
-> credit will not survive someone checking the history.
-
-## Week 3
-
-- [ ] Locked plot price tags and the buy confirm popover styling
-- [ ] Shop panel: Seeds / Land / Market tabs
-- [ ] `inventoryPanel`, `hud` gold readout, `buttonBar`, `meters` water bar
-
-## Week 5
-
-- [x] `almanac.html` content and a `js/almanac-main.js` entry — it currently has none (ISS-019)
-- [ ] Empty, loading and error states on every panel
-- [ ] Visible keyboard focus ring on plots — they are real buttons, so this is styling only
-- [ ] Image weight: 40 layers of 1000 px PNGs may be slow. If so, add 512 px copies and change
-      only `js/config/assets.js`.
-
-## Notes
-
-- Moving a panel is one line in `css/layout.css`. If a layout change needs more than that, the
-  grid is wrong — say so rather than working around it.
-- Panel structure and panel content should be two commits. Structure so others can start, then
-  content once the state exists.
+`css/` (every file), `assets/`, `js/ui/{navbar,menuPanel,signBoard,authViews,avatarArt,avatarSetup,profileView,seasonCard,icon,icons,backdropDismiss}.js`,
+`js/utils/sound.js`, `js/config/avatars.js`. The asset inventory is
+[`docs/asset-checklist.md`](../../asset-checklist.md).

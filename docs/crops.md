@@ -15,8 +15,8 @@ Land is described the same way: one file per segment in `js/land_squares/`, asse
 | `rice` | Rice | 6 | 100 | 20 | 10 | Very high (0.9) | **yes** |
 | `potato` | Potato | 4 | 200 | 40 | 10 | Medium (0.5) | **yes** |
 | `tomato` | Tomato | 4 | 300 | 60 | 10 | Medium (0.5) | **yes** |
-| `wheat` | Wheat | 6 | 400 | 80 | 10 | Medium (0.5) | no |
-| `corn` | Corn | 4 | 500 | 100 | 10 | High (0.7) | no |
+| `wheat` | Wheat | 6 | 400 | 80 | 10 | Medium (0.5) | **yes** |
+| `corn` | Corn | 4 | 500 | 100 | 10 | High (0.7) | **yes** |
 
 **Grow time follows the game clock: one real hour = half a month of crop growth**
 (`MONTHS_PER_HOUR` in `crops_logics/stageMath.js`). Each crop's `growHours` is its *minimum*
@@ -45,9 +45,10 @@ worth saying why it starts where it does:
 
 - A new farm has `START_GOLD` (200). That buys two rice packets, or one potato
   packet, and nothing else — the first purchase is a choice, not a formality.
-- Rice at 100 is deliberately the cheapest, because rice is the only crop with art
-  and therefore the only one a new player can actually plant. The cheapest thing
-  in the shop has to be the thing that works.
+- Rice at 100 is deliberately the cheapest, because a new farm owns one plot and rice is
+  the one seed unlocked at one plot. The cheapest thing in the shop has to be the thing a
+  new player can actually buy and plant. The other four unlock at 4, 8, 12 and 16 plots
+  owned, so the shop opens up as the farm grows.
 - Ten rice seeds is a full farm's worth of planting (16 plots), so `×10` is a real
   target rather than a rounding error, and corn at 500 is a mid-game goal.
 
@@ -68,18 +69,18 @@ it. A farm that ignores the forecast stops growing; one that reads it compounds.
 Tune `seedPrice` and `sellPrice` together — a crop that sells for less than its
 seed makes the sixteen-plot goal unreachable.
 
-Rice, potato and tomato are playable because their five stage images exist:
-`assets/images/crops/<id>/<id>_1.png` through `<id>_5.png`. Each crop gets its own folder,
-so the folder name and the file prefix always agree and a missing crop is an empty folder
-rather than a scattering of loose files. Flip `available: true` and it appears in the
-picker and the shop. No code changes should be needed. If one is, that is an architecture
-bug — log it in `docs/team/issues.md`.
+**All five crops are playable.** Each has its five stage images,
+`assets/images/crops/<id>/<id>_1.png` through `<id>_5.png`, a seed packet and both damage
+sprites. Each crop gets its own folder, so the folder name and the file prefix always agree and a
+missing crop is an empty folder rather than a scattering of loose files. `available: true` in
+`js/crops_logics/<id>.js` is what puts it in the picker and the shop; the land gate in
+`CROP_UNLOCK_PLOTS` is what decides when. No code changes are needed to add one. If one is, that is
+an architecture bug — log it in `docs/team/issues.md`.
 
-Tomato is the one crop whose sprite does not follow `stageAt()`'s even spread: it takes six
-hours and has five sprites, so one stage must cover two hours. Tomato repeats **stage 4**
-(hours 3–5) and saves the ripe fifth sprite for the last hour, so the field never shows a
-finished-looking crop two hours before it can be picked. That schedule is `stageHours` in
-`js/crops_logics/tomato.js`; see DEC-060.
+All five use the shared `stageAt()`: the four growing sprites split the grow time evenly and the ripe
+fifth sprite appears only when the crop can be harvested. `stageFromHours()` in `stageMath.js` exists
+for a crop whose cadence is uneven — tomato used it for a while (DEC-060) before the grow-time scale
+was unified (c128550) — but no crop sets `stageHours` today.
 
 ## Likes and hates
 
@@ -166,14 +167,14 @@ crossed, and never decreases:
 
 | Damage | Latches when | Costs | Sprite |
 | :--- | :--- | :--- | :--- |
-| `dry` | **below the crop's floor** for 1 h | 12 health | `<crop>_dry.png` |
-| `waterlogged` | **above the target** for 2 h | 12 health | `<crop>_waterlogged.png` |
-| `dead` | health reaches 0 | — | `<crop>_dead.png` |
+| `dry` | **below the crop's floor** for 1 h | 12 health | `<crop>_drought_killed.png` |
+| `waterlogged` | **above the target** for 2 h | 12 health | `<crop>_rain_damaged.png` |
+| `dead` | health reaches 0 | — | `<crop>_dead.png` — **missing for all five** |
 
-**Rice and potato shipped under different names** for the first two states —
-`rice_drought_killed.png`, `rice_rain_damaged.png`, `potato_drought_killed.png`,
-`potato_rain_damaged.png`. `CUSTOM_FAILURE_NAMES` in `js/config/assets.js` is the one place that
-knows, and the generic names above are what every other crop will be asked for (ISS-106).
+**Every crop shipped under different names** for the first two states —
+`<crop>_drought_killed.png` and `<crop>_rain_damaged.png`, for all five crops.
+`CUSTOM_FAILURE_NAMES` in `js/config/assets.js` is the one place that knows, and the generic
+`_dry`/`_waterlogged` names the plan used are what a sixth crop would be asked for (ISS-106).
 
 Two thresholds on purpose. The floor asks *how the crop is faring*; zero asks *whether it
 is dying*, and only the second drains health per hour. A plot can be badly faring and
@@ -200,10 +201,10 @@ permanently worth less. Blocking the harvest would rebuild the ISS-006 trap: a p
 nothing to do until it is cleared by hand, and no second failure state available at that
 point.
 
-**The sprites are Zim's**, named in `cropFailureImg()`. Rice and potato's drought and rain sprites
-have landed (under the custom names above); **no crop has a `dead` sprite yet** — the file does not
-exist, and the state shows as a hole plus the word beside it. `plotLayers.js` draws that word for
-every crop still waiting on art: a missing picture rather than a missing fact.
+**The sprites are Jim's**, named in `cropFailureImg()`. All five crops have their drought and rain
+sprites; **no crop has a `dead` sprite yet** — the file does not exist, and the state shows as a hole
+plus the word beside it. `plotLayers.js` draws that word for every crop still waiting on art: a
+missing picture rather than a missing fact.
 
 > **This is implemented (T-09).** Until then `plot.waterLevel` was `0` on every plot from
 > creation and nothing ever wrote it again, so the formula above described a system that was
@@ -244,7 +245,8 @@ stage        = hoursElapsed >= growHours ? 5
                : min(floor(hoursElapsed / (growHours / 4)) + 1, 4)
 ```
 
-`now = Date.now() + state.clock.timeOffsetMs`, so the debug time-skip buttons move growth too.
+`now = Date.now() + state.clock.timeOffsetMs`, so an imported or test clock moves growth with the
+rest of the game. No shipped button changes that offset; the debug time-skip was never built.
 
 **The sprite is stable between swaps.** The field re-renders every `TICK_MS`, but the four
 growing sprites split the grow time evenly (a 6 h crop swaps every 1.5 h, a 4 h crop every hour)
@@ -280,10 +282,10 @@ A dead crop never becomes ready, which is why `farm.clearPlot()` exists — see
 
 ### Seeing it grow without waiting six hours
 
-`?fast=N` in the URL divides every grow time by N, so `?fast=60` turns 30 real minutes into 30
-hours of crop growth and a full rice cycle takes six minutes. It reads the URL and nothing
-else: off unless asked for, never part of the save file, and it changes no prices — a sped-up
-farm earns exactly what a real one would. See `growthSpeed()` in `js/config/game.js`.
+`?fast=N` in the URL divides every grow time by N, so `?fast=60` turns a six-hour rice cycle into six
+minutes and a four-hour crop into four. It reads the URL and nothing else: off unless asked for,
+never part of the save file, and it changes no prices — a sped-up farm earns exactly what a real one
+would. See `growthSpeed()` in `js/config/game.js`.
 
 ### The empty state
 
@@ -402,14 +404,15 @@ of forecast and writes the result to `plot.health` and `plot.forecast` — so a 
 whatever quality the weather is about to inflict, and every harvest after that pays on it. See
 `docs/weather-events.md` for the whole model.
 
-**`js/domain/simulator.js` is empty and is meant to stay empty.** The judgement happens once rather
-than on a timer, which is possible because every crop takes 4–8 hours to grow.
+**`js/domain/simulator.js` is empty and nothing imports it.** It was the plan's weather simulator;
+the judgement happens at sowing and in the water tick instead, which is possible because every crop
+takes 4–6 hours to grow. The 0-byte file is a leftover to delete — see ISS-098.
 
 ## Seasons
 
 Each crop carries a `seasons` list naming the seasons that suit it. **Off-season is a soft penalty,
-never a gate** — a flat 10 health, because a January player with only rice unlocked must still have
-something to plant.
+never a gate** — a flat 10 health, because a player on one plot, whose only unlocked crop is rice,
+must still have something to plant in January.
 
 | Crop | Seasons it suits | Was, as a tooltip string |
 | :--- | :--- | :--- |
@@ -451,8 +454,9 @@ running page; `tests/farmView.test.js` pins them and the damage layer's copy of 
 
 ### Growth stages and damage states
 
-**Eight sprites per crop**: five growth stages, then three damage states. It was seven, and two
-failure states, until ISS-092 split water damage away from drought death.
+**Seven sprites are on disk per crop; eight are planned**: five growth stages and two damage states,
+plus the `dead` sprite nobody has drawn. It was seven in total until ISS-092 split water damage away
+from drought death.
 
 ```
 assets/images/crops/<cropId>/<cropId>_<stage>.png   stages 1 to 5
@@ -469,10 +473,10 @@ layered over it. The damage art is a whole patch with its own soil diamond (DEC-
 both leaves the healthy plant visible through the dead one. The damage word and the meters stay:
 the crop is still alive and harvestable, just permanently damaged.
 
-`rice_1.png` through `rice_5.png` exist, and so do rice's dry and waterlogged sprites
-(`rice_drought_killed.png`, `rice_rain_damaged.png` — custom names, see `CUSTOM_FAILURE_NAMES` in
-`js/config/assets.js`). **No crop has its `_dead` sprite yet.** Track the holes in
-[`asset-checklist.md`](asset-checklist.md).
+All five crops' five stages and both damage sprites exist — rice's under
+`rice_drought_killed.png` / `rice_rain_damaged.png`, and the same pattern for the other four (custom
+names, see `CUSTOM_FAILURE_NAMES` in `js/config/assets.js`). **No crop has its `_dead` sprite yet.**
+Track the holes in [`asset-checklist.md`](asset-checklist.md).
 
 **Until a damage sprite exists the state is carried by a word, not an image.** `plotLayers.js`
 draws `damageWord()` beside the sprite and the sprite is a hole until the art lands. That is

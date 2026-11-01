@@ -19,7 +19,7 @@ no runtime dependencies. `package.json` exists only for scripts.
 | `js/domain/` | `config`, `utils`, `land_squares`, `state/types` | DOM, fetch, `store.js` internals |
 | `js/services/` | `config`, `utils` | DOM |
 | `js/ui/` | `config`, `utils`, `domain`, `state`, `land_squares` | `fetch`, game rules, service calls |
-| `js/debug/` | anything | — |
+| `js/debug/` | anything | — *(planned; the folder was never created)* |
 | `js/*.js` top level | anything | — |
 
 `crops_logics/` and `land_squares/` sit **below** `config` (DEC-039): one file per crop, one per
@@ -28,9 +28,11 @@ restates no number.
 
 Three rules the layering depends on:
 
-1. **Only `js/services/` calls `fetch`.** Includes reading `data/sample-forecast.json`.
-2. **Only `js/ui/`, `js/debug/` and `js/*.js` top level touch the DOM.** `utils/dom.js` is the one
-   exception, and `scripts/check-imports.mjs` whitelists it explicitly.
+1. **Only `js/services/` calls `fetch`.** Even reading `data/sample-forecast.json` would count,
+   though that file is 0 bytes and nothing reads it.
+2. **Only `js/ui/` and `js/*.js` top level touch the DOM.** (`js/debug/` would be allowed, but it
+   was never built.) `utils/dom.js` is the one exception, and `scripts/check-imports.mjs`
+   whitelists it explicitly.
 3. **Entry scripts are the only modules that import `js/services/`.** UI modules never import
    a service. Callbacks come in through `mountX(root, actions)`.
 
@@ -64,9 +66,10 @@ services (fetch)  →  main.js  →  store.apply  →  domain (pure rules)  → 
 1. `store.init(session)` — loads `forecastFarm.save.v1:<userId>`, or builds
    `initialState(session)`. Either way the live session goes into state.
 2. Preload images (rice stages + both ground tiles + base + pump).
-3. Mount UI: navbar, sidebar, seasonCard, weatherPanel, farmView, hud, buttonBar,
-   meters, envMetrics, toastStack, syncIndicator.
-4. Fetch weather for `state.location`, or the sample fallback. Repeat every `REFRESH_MS`.
+3. Mount the shell: navbar, location bar, season card, weather board, field, environment
+   card, the three launchers, the toast stack and the sync indicator.
+4. Fetch weather for `state.location`. There is **no sample fallback** — a failed fetch
+   returns `{ok:false}` and the board says so. Repeat every `REFRESH_MS`.
 5. Start the simulator interval (`TICK_MS`) and the autosave interval (`AUTOSAVE_MS`).
 
    The `TICK_MS` tick calls `repaintFarm()`, never `renderPanels()` — a repaint is not a
@@ -79,7 +82,8 @@ services (fetch)  →  main.js  →  store.apply  →  domain (pure rules)  → 
    `<img>` elements and a fresh `<img>` re-decodes a 313–712 KB PNG even when the bitmap
    is already in memory (ISS-088). Tiles that *did* move are swapped individually with
    `replaceWith`, which preserves append order, because append order is the field's z-order.
-6. If `?debug=1`, mount the debug panel.
+6. **There is no step 6.** The plan's `if (?debug=1) mount the debug panel` was never built —
+   the folder, the panel and the query flag do not exist.
 
 Step 0 is new, added with login. It is why `login.html` is a separate page rather
 than an overlay: the shell must not render before auth. `js/auth-main.js` is the
@@ -451,8 +455,12 @@ login.
 | Key | Written by | Holds |
 | :--- | :--- | :--- |
 | `forecastFarm.save.v1:<userId>` | `state/store.js` | that user's game save, session included |
-| `forecastFarm.debug` | read only | `1` turns on verbose logging |
 | *(provider-owned)* | `services/authApi.js` | Supabase session and refresh token |
+
+There is no debug key. The only debug facility that shipped is the **`?fast=N`** query string:
+`growthSpeed()` in `js/config/game.js` divides every grow time by N (1–1000). It is read from the
+URL, never stored, and never touches gold, so `?fast=60` makes a six-hour rice cycle take six
+minutes without making the farm richer.
 
 `js/services/localAuth.js` was a **stopgap** while `authApi.js` did not exist. It
 still ships, but no longer for signed-in play — it is the **guest** provider, the
@@ -776,7 +784,7 @@ farm and still reported that nothing had changed.
 | colours | `css/variables.css` — except the login page, which writes its own (DEC-029) |
 | spacing and radii | hardcoded per file, in px. The ten in `variables.css` are a stopgap for `components.css` alone; delete them when that file's 41 references are gone |
 | card and button styling | `css/components.css` |
-| top bar buttons | `js/config/ui.js` |
+| top bar buttons | `js/ui/navbar.js`, with the drawings from `js/ui/icons.js` |
 | API calls | `js/services/*` |
 | save / load | `js/state/store.js`, `js/state/saveFile.js` |
 | the export file format, checksum, rebase | `js/state/transfer.js` |
@@ -784,8 +792,8 @@ farm and still reported that nothing had changed.
 | why a rule naming a font has no effect | same cause, and quieter: `login.html` links `fonts.css`, `index.html` inherits it through `navbar.css`'s `@import`, `settings.html` links it directly, and **`shop.html` loads neither**. A `font-family: var(--font-ui)` on the shop page is not an error — the family has no `@font-face` there and it quietly falls through to `--font-sans`. Both faces ship at `font-weight: 400` only, and a weight above 500 with no near match resolves to the nearest face rather than a synthesised one, so `font-weight: 700` renders at 400 without error |
 | the export / import buttons | `js/ui/savePanel.js`, mounted as a card by `js/ui/settingsView.js` |
 | which provider runs | `USE_LOCAL_PROVIDER` in `js/auth-main.js` (used by both entry points) |
-| the state shape | `js/state/types.js`, `js/state/initialState.js` |
-| debug sliders and cheat buttons | `js/debug/debug.js` |
+| the state shape | `js/state/initialState.js` — there is no `state/types.js` |
+| the one debug flag | `?fast=N`, read by `growthSpeed()` in `js/config/game.js` |
 
 
 ---
@@ -817,6 +825,7 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   ├── components.css          cards, buttons, inputs, meters, toasts
 │   ├── fonts.css               the two display faces, self-hosted @font-face
 │   ├── navbar.css              the game page's top bar
+│   ├── sidebar.css             the farm's button rail and its launchers
 │   ├── weather.css             the wooden forecast board and its sticky notes — plain literals plus one short-window block
 │   ├── phone.css               the ≤900px shell, header, season/purse row and full-width field
 │   ├── phone-panels.css        the phone environment card and bottom launcher menu
@@ -826,10 +835,12 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   ├── env-card.css            the timber environment plaque and its (i) description strips
 │   ├── farm-dialog.css         the timber/parchment dialog shared by the inspector and picker
 │   ├── crop-picker.css         the picker's viewport host and the seed detail cards
-│   ├── shop.css                the shop sign and the seed list
+│   ├── shop.css                the shop page, its two sections and its sign
+│   ├── shop-card.css           the seed-packet card and the pump card
 │   ├── almanac.css             the almanac page and its crop cards
 │   ├── inventory.css           the inventory page and its seed cards
 │   ├── settings.css            the settings gear and the settings page
+│   ├── profile.css             the profile page and its avatar picker
 │   ├── page-frame.css          the painted frame shared by profile.html and settings.html
 │   ├── page-header.css         the hanging sign, the back pill and the scrolling board
 │   ├── page-card.css           cream cards and controls inside that frame
@@ -837,10 +848,11 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   ├── auth.css                the login backdrop and the stage it sits on
 │   ├── menu.css                the opening menu and its buttons
 │   ├── sign.css                the wooden sign, its forms and its buttons
-│   └── avatar-setup.css        the post-sign-up preset picker on that sign
+│   ├── avatar-setup.css        the post-sign-up preset picker on that sign
+│   └── report-bug.css          the navbar's bug-report dialog
 │
 ├── data/
-│   └── sample-forecast.json    empty — one real Open-Meteo response, for offline dev
+│   └── sample-forecast.json    0 bytes — the offline sample was planned, never captured
 │
 ├── js/
 │   ├── main.js                 boot order, boot 0 is the session gate
@@ -849,16 +861,19 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   ├── settings-main.js        the settings page entry, same gate as main.js
 │   ├── almanac-main.js         the almanac page entry — static, no session
 │   ├── inventory-main.js       the inventory page entry, same gate as the shop
+│   ├── profile-main.js         the profile page entry, same gate as the shop
 │   ├── farmActions.js          what a click on a plot does — store + rules + picker
 │   ├── remoteSave.js           joins the store to the server-save service
+│   ├── connection.js           the sync indicator and the offline retry loop
 │   ├── config/                 pure data, imports nothing
 │   │   ├── auth.js             storage keys, password policy, PBKDF2 cost
 │   │   ├── supabase.js         project URL + anon key (set, T-29)
 │   │   ├── api.js              URLs, default location, refresh interval
-│   │   ├── assets.js           every image path, in one place
+│   │   ├── assets.js           every image and sound path, plus sfx() and pumpFrame()
 │   │   ├── avatars.js          the preset avatar ids the store validates (DEC-051)
+│   │   ├── feedback.js         the Web3Forms endpoint and its public client key
 │   │   ├── field.js            FIELD geometry, ZONES, STARTER_PLOT_ID, UNLOCK_ORDER, PLOT_PRICES
-│   │   ├── game.js             START_GOLD, PUMP, WATER, HEALTH, timings, growthSpeed()
+│   │   ├── game.js             START_GOLD, PUMP levels, WATER, HEALTH, DAMAGE, timings, DIFFICULTY
 │   │   ├── crops.js            the crop table — an aggregator over crops_logics/
 │   │   ├── tips.js             loading-screen facts and their timings
 │   │   ├── cropWeatherMatrix.js likes/hates as numbers, per crop per event
@@ -883,6 +898,8 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── land.js             buyPlot, canBuyPlot
 │   │   ├── notifications.js    forProjection, alertsToRaise, currentTrouble, wateringAdvice
 │   │   ├── pump.js             the machine: pumpRun, costOf, setPump, aimPump
+│   │   ├── pumpSwap.js         handing the machine's aim from one plot to the next
+│   │   ├── pumpUpgrade.js      the five levels, their land gates and their prices
 │   │   ├── damage.js           the latch: what damage is permanent
 │   │   ├── plotWater.js        the vocabulary: targetFor, bandFor, waterState, ratesFor
 │   │   ├── seasons.js          seasonFor — derived from latitude, not the month
@@ -897,9 +914,10 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── gotrue.js           the GoTrue transport and error mapping
 │   │   ├── tokenStore.js       the only place a token is written to storage
 │   │   ├── saveApi.js          the farm_saves table — read, write, delete
+│   │   ├── reportApi.js        the Web3Forms bug report — one POST, no reply read
 │   │   ├── localAuth.js        the GUEST provider, same contract
-│   │   ├── timeApi.js          rewrites — writes straight into the DOM
-│   │   └── weatherApi.js       rewrites — OpenWeatherMap placeholder key
+│   │   ├── timeApi.js          the fallback clock — still writes the DOM (T-04)
+│   │   └── weatherApi.js       Open-Meteo → plain data: current, 24 h, place
 │   ├── ui/                     render only, reads the store
 │   │   ├── accountCard.js      the account facts card, with the preset avatar picker
 │   │   ├── avatarArt.js        the inline-SVG farmer busts (DEC-051)
@@ -907,12 +925,19 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── almanac.js          the almanac page — header, back link, crop grid
 │   │   ├── almanacCard.js      one crop's entry: portrait, facts, reactions
 │   │   ├── almanacWeather.js   a crop's reaction to each weather event
+│   │   ├── almanacLauncher.js  the book button in the farm sidebar
 │   │   ├── authErrors.js       provider code → sentence, enumeration guard
 │   │   ├── authViews.js        the login page's view graph — menu, forms, avatar, reset
+│   │   ├── backdropDismiss.js  click the dimmed area to close a timber dialog
+│   │   ├── blockedScreen.js    the full-page refusal when the boot fails
 │   │   ├── cropPicker.js       the timber seed picker — one detail card per seed, the card plants
 │   │   ├── dangerAction.js     the arm-and-confirm control, with its password gate
+│   │   ├── dangerMessages.js   what each destructive failure says
 │   │   ├── difficultyCard.js   the Normal / Easy setting, with what each mode does
 │   │   ├── farmView.js         the isometric field — geometry, plus the repaint guard
+│   │   ├── growthMeter.js      the small "3h 20m left" bar under a growing crop
+│   │   ├── icon.js             the inline `<svg>` sprite helper
+│   │   ├── icons.js            the four UI icon drawings (close, info, leaf, peg)
 │   │   ├── inventoryLauncher.js the crate button in the farm sidebar
 │   │   ├── inventoryView.js    the seed bag page — what the player owns
 │   │   ├── pageFrame.js        the painted frame profile.html and settings.html share
@@ -930,15 +955,23 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── loginPanel.js       the sign-in / create-account form and its states
 │   │   ├── menuPanel.js        the opening menu: logo and three ways in
 │   │   ├── passwordReset.js    forgot-password: the flow, three steps
+│   │   ├── passwordGate.js     the password box the destructive actions require
+│   │   ├── reportBug.js        the navbar's bug-report dialog
+│   │   ├── runDestructive.js   runs a destructive action, maps its failure to a message
 │   │   ├── resetRequest.js     reset step 1 — ask for the address
 │   │   ├── resetSet.js         reset step 3 — choose the new password
 │   │   ├── signBoard.js        the wooden sign the auth forms sit on
 │   │   ├── savePanel.js        export / import a farm file
 │   │   ├── settingsLauncher.js the settings gear in the farm sidebar
 │   │   ├── settingsView.js     the settings page: two destructive actions
+│   │   ├── statusLine.js       the one-line status under the field
 │   │   ├── syncIndicator.js    the fixed corner chip: dots, label, popover
+│   │   ├── shopArt.js          the shared shop/inventory arrows and coin
+│   │   ├── shopCropCard.js     one seed packet card
 │   │   ├── shopLauncher.js     the shop sign in the farm sidebar
-│   │   ├── shopView.js         the seed list on shop.html
+│   │   ├── shopPumpCard.js     the pump's own card, outside the seed grid
+│   │   ├── shopView.js         the two sections on shop.html — Seeds and Pump
+│   │   ├── seasonCard.js       the sidebar's season, month and headline
 │   │   ├── toastStack.js       transient messages
 │   │   ├── navbar.js          logo; sound, settings and avatar tiles
 │   │   ├── weatherGlyph.js     the drawn condition, not an icon file
@@ -948,45 +981,50 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │   │   ├── log.js              scoped logger, `[scope] message`
 │   │   ├── normalize.js        email, username and display-name normalisation
 │   │   ├── iso.js              plot and pump placement + `frameY()` — the only reader of FIELD geometry
-│   │   ├── date.js             empty
-│   │   └── season.js           empty
+│   │   ├── checksum.js         the signature-free integrity check on a .farm file
+│   │   ├── formatGold.js       one place that decides how a number reads
+│   │   ├── seedUnlocks.js      whether a crop is unlocked at the plots owned
+│   │   ├── sound.js            plays an sfx, loops the pump, silent when audio is missing
+│   │   └── date.js             empty — the plan's date helpers were never needed
 │   ├── state/
 │   │   ├── initialState.js     fresh farm + the no-bump repairs: starter plot, difficulty, avatar, damage
 │   │   ├── saveFile.js         the per-user localStorage save
-│   │   ├── store.js            getState, apply, subscribe, bus, save/load
-│   │   └── types.js            planned — JSDoc @typedef for State
-│   └── debug/                  planned — the ?debug=1 panel
+│   │   ├── transfer.js         the .farm export/import format
+│   │   └── store.js            getState, apply, subscribe, bus, save/load
+│   └── (no js/debug/ — the ?debug=1 panel was planned and never built)
 │
 ├── assets/
 │   ├── icons/
 │   │   ├── favicon.svg
-│   │   ├── crops/              5 SVGs — all 0 bytes, art pending
-│   │   └── weather/            9 SVGs — all 0 bytes, art pending
-│   ├── fonts/
-│   │   ├── LuckiestGuy-Regular.ttf   the logo and button face
-│   │   └── IrishGrover-Regular.ttf   labels, body text, the small links
+│   │   ├── ui/                 4 SVGs — close, info, leaf ornament, timber peg
+│   │   ├── crops/              5 SVGs — all 0 bytes, art pending (ISS-001)
+│   │   └── weather/            9 SVGs — all 0 bytes, art pending (ISS-001)
+│   ├── fonts/                  6 faces: Luckiest Guy, Irish Grover, four Nunito weights
 │   ├── images/
-│   │   ├── base.png            the slab under the field
+│   │   ├── base.png            the slab under the field; base_phone.png for the phone frame
 │   │   ├── farm_bg.png         the painted yard behind the game page (wide screens only)
 │   │   ├── menu_bg.png         the opening menu's painted background
 │   │   ├── title.png           the game logo on the opening menu
-│   │   ├── pump.png            moves to pump/pump.png
+│   │   ├── pump.png            the original pump — a duplicate of pump_1.png, never loaded
 │   │   ├── Shop/
 │   │   │   └── shop.png        the shop sign, used as the shop button
 │   │   ├── settings/
 │   │   │   └── settings.png    the settings gear, used as the settings button
-│   │   ├── book/              book.png + the six almanac crop entries
-│   │   └── inventory/         inventory.png — the seed-bag button
-│   │   ├── crops/
-│   │   │   ├── rice/           rice_1.png … rice_5.png + damage + "rice seed.png"
-│   │   │   ├── wheat/          "wheat seed.png" — stages awaiting art
-│   │   │   ├── potato/         potato_1.png … potato_5.png + damage + "potato seed.png"
-│   │   │   ├── corn/           "corn seed.png" — stages awaiting art
-│   │   │   └── tomato/         tomato_1.png … tomato_5.png + damage + "tomato seed.png"
+│   │   ├── book/               book.png + the six almanac crop entries + the harvest bundle
+│   │   ├── inventory/          inventory.png — the seed-bag button
+│   │   ├── pins/               lock_pin_green.png, lock_pin_red.png
+│   │   ├── seasons/            six paintings, one per season the card can show
+│   │   ├── pump/               pump_1.png … pump_5.png — one drawing per level (DEC-058)
+│   │   ├── crops/              rice, potato, tomato, wheat, corn — each with five stages,
+│   │   │                       a seed packet and two damage sprites (no `_dead` yet)
 │   │   └── ground/
 │   │       ├── ground_watered.png
 │   │       └── ground_unwatered.png
-│   └── sounds/                 3 MP3s, all 0 bytes — out of scope
+│   └── sounds/
+│       ├── sfx/                16 effects — wired through js/utils/sound.js
+│       └── rain.mp3            0 bytes, out of scope
+│           storm.mp3           0 bytes, out of scope
+│           notification.mp3    0 bytes, out of scope
 │
 ├── scripts/
 │   ├── dev-server.mjs          static server for npm run dev
@@ -998,29 +1036,26 @@ This is the repo **as it stands**, not the finished shape. It moves, so treat it
 │       ├── 002_usernames.sql            username ↔ email, for username sign-in
 │       ├── 003_account_deletion.sql     superseded by 005; do not run
 │       ├── 004_clear_all_accounts.sql   a tool, not a setup step
-│       └── 005_immediate_account_deletion.sql  delete, behind a password check
+│       ├── 005_immediate_account_deletion.sql  delete, behind a password check
+│       └── 006_password_gated_erase.sql  erase progress, behind the same check
 │
-├── tests/                      node:test, pure code only
-│   ├── authApi.test.js         Supabase provider, fetch stubbed
-│   ├── authViews.test.js       sign-up → avatar, sign-in direct, confirmation notice
-│   ├── avatar.test.js          preset ids, old-save repair, avatar rule
-│   ├── avatarSetup.test.js     the sign-up avatar step: presets, selection, Start
-│   ├── mainBoot.test.js        boot step 0, the provider switch
-│   ├── loadingTips.test.js     the boot veil: no flash, rotation, teardown
-│   ├── authErrors.test.js      error mapping, account enumeration
-│   ├── authRules.test.js       validation rules
-│   ├── initialState.test.js    fresh farm, zones, session coercion
-│   ├── shop.test.js            the purchase rule and the crop economy
-│   ├── almanac.test.js        the almanac page: crops, facts, reactions
-│   ├── inventory.test.js      the seed bag page: counts, empty state
-│   ├── localAuth.test.js       the guest provider's contract
-│   ├── saveApi.test.js         the server-save request shape
-│   ├── store.test.js           persistence, save migration, corruption
-│   └── transfer.test.js        save file format, checksum, import
+├── tests/                      47 files — node:test, pure code only
+│   ├── assets.test.js          every registered file exists, at the registered size
+│   ├── farm, farmLoop, pump, pumpSwap, iso, farmView, cropPicker,
+│   │   plotInspectorClose, plotInspectorCrop, plotInspectorPump.test.js
+│   ├── store, transfer, initialState, saveApi, connectionStatus.test.js
+│   ├── shop, shopPumpCard, inventory, almanac, difficulty, formatGold.test.js
+│   ├── authApi, localAuth, accountApi, authRules, authViews, authErrors, authArrival,
+│   │   passwordReset, avatar, avatarSetup, mainBoot, mainPageBoot.test.js
+│   ├── weatherPanel, geocodeApi, locationBar, reportApi, envMetrics.test.js
+│   ├── navbar, profileView, settingsDom, backdropDismiss, dangerAction, loadingTips,
+│   │   sound, noConflictMarkers.test.js
+│   └── helpers/                fakeDom.js, so a UI test can run without a browser
 │
 └── docs/
     ├── setup.md                run it: migrations in order, and how to check each
     ├── architecture.md         layers, data flow, boot order, accounts
+    ├── asset-checklist.md      every asset the game needs, and what is still missing
     ├── crops.md                crop numbers, stages, harvest maths
     ├── weather-events.md       the 9 events, classification, effects
     ├── notifications.md        crop alerts and dedupe

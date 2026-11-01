@@ -5,12 +5,12 @@ the next person to rediscover it.
 
 Status: `open` → `fixing` → `fixed`, or `wontfix` with a reason.
 
-All entries below were found during the pre-build audit, by reading the plan
-against the actual assets and the live Open-Meteo responses. Nobody had written any code yet,
-so these are all cheap to fix now and expensive to find later.
+**The first 25 entries were found during the pre-build audit**, by reading the plan against the
+actual assets and the live Open-Meteo responses. Nobody had written any code yet, so those were
+cheap to fix then and expensive to find later.
 
-**ISS-078 onward** were found later, while building the plant/harvest/buy loop (T-07). Several of
-them share an uncomfortable property: the test suite **asserted the bug as the expected
+**ISS-078 onward** were found while building — starting with the plant/harvest/buy loop (T-07).
+Several of them share an uncomfortable property: the test suite **asserted the bug as the expected
 behaviour** and passed. Read those for what they say about writing a test that describes what
 should be true rather than what is.
 
@@ -18,6 +18,36 @@ should be true rather than what is.
 numbers it was written with — "56 tests" was accurate then and is not a claim about today.
 Check the entry's own date, and `git log` for that file, before acting on one. For the
 current state of the code use `npm test` and [`docs/setup.md`](../setup.md).
+
+---
+
+## Final triage — 1 November 2026
+
+Written for the shipped build. **Only the entries verified against the code at ship time are listed
+here.** The long table further down this file is the mid-October snapshot and has drifted in both
+directions — it still calls ISS-006, ISS-007 and ISS-010 open, and all three are fixed.
+
+| ID | What is still true at ship | Owner | Severity |
+| :--- | :--- | :--- | :--- |
+| ISS-122 | Farmer 3's avatar carries six black bars; **seven tests fail because of this drawing** | Jim (art) | High |
+| ISS-099 | No market screen. A harvest pays its gold when picked; the bag is read-only | Everyone | High |
+| ISS-080 | Buying land spends gold with no confirm step | Shabab | Medium |
+| ISS-097 | Nothing tells the player to skip the pump when rain is coming | Hisham | Medium |
+| ISS-015 | The drought rating ignores how wet the plot already is | Afif | Medium |
+| ISS-001 | Nine weather icons and five crop icons are 0 bytes | Kafi | Medium |
+| ISS-032 | Exported `.farm` files are integrity-checked but unsigned | Shabab | Medium |
+| ISS-100 | DEC-039, DEC-040 and DEC-041 each name two different decisions | Hisham | Medium |
+| ISS-098 | `domain/simulator.js` is 0 bytes; `domain/inventory.js` was never written | Hisham | Low |
+| ISS-023 | Sound effects play, but there is no mute toggle; the three ambient files are 0 bytes | Kafi | Low |
+| ISS-027 | `localAuth.js` is a second writer to `localStorage` | Hisham | Low |
+
+**Closed, and where the fix lives:** ISS-006 (dead crops bricked a plot) by `farm.clearPlot()`;
+ISS-007 (the pump's transparent canvas ate clicks) by clipping the button to its art; ISS-010 (the
+import check could not pass) by whitelisting `utils/dom.js`. ISS-008 (pump balance) and ISS-009
+(`hourly[0]`) were closed by changing the code they described, not by rewording the report.
+
+**ISS-124, ISS-125 and ISS-126** (phone shop clipping, and the purse on a phone) are marked
+`fixing` in their own entries and were not re-verified for this snapshot.
 
 ---
 
@@ -365,8 +395,8 @@ latched record is exactly reproducible on reload and in an exported save.
 `OPTIMAL` in `config/game.js` gives each crop a target and a band (`base + perNeed ×
 waterNeed`), so `waterNeed` finally decides what the player is aiming for rather than
 only how fast the crop dries. `DAMAGE` latches `dry` and `waterlogged` onto the plot.
-`cropFailureImg()` is wired for real, against Zim's sprites — names are
-`<crop>_dry.png`, `<crop>_waterlogged.png`, `<crop>_dead.png`; if Zim is drawing
+`cropFailureImg()` is wired for real, against Jim's sprites — names are
+`<crop>_dry.png`, `<crop>_waterlogged.png`, `<crop>_dead.png`; if Jim is drawing
 different filenames these must be changed to match his, not the other way round.
 
 **Damage cuts the payout and never blocks the harvest.** A damaged crop still picks, and

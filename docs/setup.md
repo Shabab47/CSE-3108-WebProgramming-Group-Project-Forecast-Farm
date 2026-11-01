@@ -13,7 +13,7 @@ build step and no runtime dependency — `npm install` installs nothing, on purp
 
 ```bash
 npm run dev      # serve on http://127.0.0.1:5173
-npm test         # 264 tests
+npm test         # 800 tests — 793 pass, 7 fail on ISS-122
 npm run check    # layering rules; fails the build on a forbidden import
 ```
 
@@ -21,19 +21,20 @@ npm run check    # layering rules; fails the build on a forbidden import
 | :--- | :--- | :--- |
 | `login.html` | `js/auth-main.js` | Sign in or create an account. |
 | `index.html` | `js/main.js` | The farm. |
-| `shop.html` | `js/shop-main.js` | Seed shop. |
-| `settings.html` | `js/settings-main.js` | Account details, erase progress, delete account. |
+| `shop.html` | `js/shop-main.js` | Seed and pump shop. |
+| `settings.html` | `js/settings-main.js` | Difficulty, save import/export, erase progress, delete account. |
+| `profile.html` | `js/profile-main.js` | Who is signed in, the avatar picker, and the way out. |
 | `almanac.html` | `js/almanac-main.js` | The crop almanac — a static reference of the five crops. No session, no save. |
 | `inventory.html` | `js/inventory-main.js` | The seed bag — the seeds you own. Reads the save. |
 
-`index.html`, `shop.html` and `settings.html` all redirect to `login.html` when there is
-no session, so start at the login page.
+`index.html`, `shop.html`, `settings.html`, `profile.html` and `inventory.html` all redirect to
+`login.html` when there is no session, so start at the login page.
 
 ---
 
 ## The database
 
-Five migrations, run **by hand** in the Supabase dashboard: **SQL Editor → New query →
+Six migrations, run **by hand** in the Supabase dashboard: **SQL Editor → New query →
 paste → Run**. They cannot be run from the browser — creating a table or a function
 needs either that editor or a `service_role` key, and a `service_role` key must never
 live in this repository because it bypasses Row Level Security entirely (DEC-018).
@@ -175,7 +176,8 @@ detail.
 | Issue | State |
 | :--- | :--- |
 | 002 owner SELECT policy | Applied in code, **needs re-running** for the rename path |
-| Farm screen, weather, economy | Built. The almanac is a static reference page (`almanac.html`); it resolves no session. |
+| Farm screen, weather, economy | Built and deployed. The almanac is a static reference page (`almanac.html`); it resolves no session. |
+| `npm test` | 793 of 800 pass. The seven failures are ISS-122, one avatar drawing. |
 | Exported save files | Integrity-checked but **unsigned** (DEC-021). |
 | Guest farms | Browser-only, cannot be exported, lost if site data is cleared. |
 

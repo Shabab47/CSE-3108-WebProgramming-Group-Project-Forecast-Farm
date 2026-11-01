@@ -705,6 +705,11 @@ the words — one direction, no cycles.
   Same five unlocks one step earlier, but thresholds that are not multiples of
   four do not say "every 4 segments" on the card — and the user said four.
 
+**Later, at ship (1 Nov 2026):** the art gate is gone, because the art arrived. All five crops are
+`available: true`, the tinted rice fallback in `plotLayers.js` is no longer reachable, and land is
+the only thing standing between a player and any seed. The paragraph above describing "only rice has
+field sprites" is the state on the day it was written, not the shipped state.
+
 ---
 
 ### DEC-040 The player starts owning one plot, and it is never for sale
@@ -783,7 +788,7 @@ and never decreases.
   minute window, not by feel, and only holds because `minutesToOptimal()` counts evaporation.
 - **A pumped plot never takes dryness damage**, and that falls out of the rate model rather
   than being special-cased: 100.8/h beats the worst-case 24/h, so the net is always positive.
-- **The sprites are Zim's**, named in `cropFailureImg()`: `<crop>_dry.png`,
+- **The sprites are Jim's**, named in `cropFailureImg()`: `<crop>_dry.png`,
   `<crop>_waterlogged.png`, `<crop>_dead.png`. All three are 0 bytes, so `plotLayers.js`
   draws the word beside them — a missing picture rather than a missing fact, per AGENTS.md
   fact 4.
@@ -1438,6 +1443,8 @@ work in progress, for no gain on the menu itself.
   because no shade of red clears 4.5:1 against the board's brown.
 - **The sound toggle is not built.** Sounds are out of scope (ISS-023) and no audio code exists, so
   a mute button that mutes nothing is a lie in a control. It arrives with the sounds commit.
+  *The sounds commit landed (sixteen effects, `js/utils/sound.js`); the mute button did not. The
+  navbar's sound tile is still inert — ISS-023.*
 
 ---
 
@@ -1880,6 +1887,11 @@ forecast.
 **Consequence:** the force-weather dropdown stays behind `?debug=1` as a test tool, never a
 feature. It also means the `hourly[0]` staleness in ISS-024 cannot be corrected by the player,
 so it is documented as a deliberate MVP simplification.
+
+**Later, at ship (1 Nov 2026):** there is no `?debug=1` panel and no force-weather dropdown — T-06
+was never built (`js/debug/` does not exist). The principle is intact: nothing in the shipped game
+lets a player set the weather. The only debug flag is `?fast=N`, which divides grow times and
+touches no weather.
 
 ---
 

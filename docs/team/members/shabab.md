@@ -1,39 +1,47 @@
 # Shabab — Tawfik Rahman Shabab (ID 25)
 
-Team leader and project manager.
+Team leader and project manager. **71 non-merge commits**, and the first and last of them are the
+project itself: the skeleton in September, the final docs pass in November.
 
-**Owns:** `docs/team/`, `js/config/crops.js`, `js/config/seasons.js`
-**Goals:** G-01 support, G-04 support, G-08 lead
+**Owns:** `docs/team/`, crop and land data, the economy, accounts, and the shop, settings, almanac
+and inventory pages.
+**Goals:** G-01 support, G-04 support, G-08 lead.
 
-**Week 1 contribution:** started the initial project, wrote the implementation plan, designed the
-crops and the seasons, and set up the team workflow.
+## What he shipped
 
-**Week 2 contribution:** connected Supabase and built the account side of it — the credentials
-and the provider switch, the seed shop, the settings page, username sign-in, and the erase-progress
-and delete-account actions that sit behind a password check verified in the database.
+**Week 1 — the plan and the data.**
+Started the repository and wrote `docs/game-design/implementation-plan.md`; designed the five crops
+and the season calendar; set up the workflow in `docs/team/` — goals, ownership, tasks, the issue log
+and the decision log — and decided the licence (MIT, ISS-002).
 
----
+**Week 2 — accounts.**
+Created the Supabase project and the provider switch in `js/config/{supabase,auth}.js`, wrote the
+sign-in, registration and session-gated boot, then username sign-in (`002_usernames.sql`), account
+deletion behind a database password check (`005`), and erase-progress behind the same check (`006`).
+Password recovery was rebuilt around a `token_hash` link after the `ConfirmationURL` redirect chain
+lost the token (ISS-031).
 
-## Week 1
+**Weeks 3–4 — the economy.**
+Built the shop page and its crop cards, then the pump section when the pump gained levels. Added
+easy/normal modes, selling seeds back at 75 %, and the fix that stopped the pump billing for water it
+threw away. Wrote the land ladder in `js/land_squares/` — a free starter plot, then 100, 200, 400 …
+1,638,400 — and the seed unlocks every four plots owned. Gave the seed picker the forecast verdict
+that refuses to plant without one.
 
-- [x] Started the project and wrote the implementation plan — `docs/game-design/implementation-plan.md`
-- [x] Designed the crops — `docs/crops.md`
-- [x] Designed the seasons — `docs/crop-choice-guide.md`, `docs/weather-events.md`
-- [x] Set up the team workflow — goals, ownership, tasks, issue log, decision log
-- [x] Decide the `LICENSE` question (ISS-002) — MIT, © 2026 Tawfik Rahman Shabab
-- [x] `git pull` — was behind `origin/main` (ISS-021)
-- [ ] Confirm the ownership split in `docs/team/ownership.md` (ISS-025)
-- [ ] Fill `js/config/crops.js` — numbers are placeholders, but they must be internally
-      consistent and match `docs/crops.md`
-- [ ] Fill `js/config/seasons.js` and `js/utils/season.js` with the tropical and four-season
-      rules from `docs/crop-choice-guide.md`
-- [ ] Chase T-14 art tracking for the remaining four crops
+**Week 5 — crops and ship.**
+Split `config/crops.js` into one file per crop, gave tomato its own stage schedule, and switched
+wheat and corn on the day their fifth stage landed. Mapped each pump level to its own drawing.
+Deployed to Vercel and wired the Brevo SMTP relay. Wrote the README and closed out the team docs.
 
-## Notes
+## Open at ship
 
-- Project concept, task distribution and the README are settled. Week 1 went on planning rather
-  than code, which is why the build now runs four weeks from week 2.
-- Decision needed on pump balance (ISS-008) before Hisham starts T-09 in week 4. It changes how
-  the game feels, so it is a design call, not just a numbers call.
-- Land prices are settled: every plot costs twice the last, and unlocking all sixteen is the end
-  goal. See `docs/crops.md`.
+- **ISS-080** — buying land spends gold with no confirm step.
+- **ISS-099** — no market; harvest pays at pick time. Shared with everyone.
+- **ISS-032** — exported `.farm` files are unsigned.
+- **T-16** — no `v0.1` tag was cut.
+
+## Where to look
+
+`js/land_squares/`, `js/crops_logics/`, `js/domain/{shop,land,pumpUpgrade,pumpSwap}.js`,
+`js/{shop,settings,almanac,inventory}-main.js`, `js/main.js`, `js/farmActions.js`,
+`supabase/migrations/`, `docs/team/`.
