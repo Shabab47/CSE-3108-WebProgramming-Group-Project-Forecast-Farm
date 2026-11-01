@@ -6,6 +6,15 @@ touched, what broke, what is next.
 The per-person weekly notes that used to live in the README table are now in `members/`.
 
 ---
+## Season name contained inside the season card on phones — 2026-11-01
+
+- **Did:** fixed season names overflowing the season card on narrow phones (ISS-128). The text span now
+  takes the leftover space and its children wrap/break instead of holding a `min-content` wider than
+  the column; phone font sizes use `clamp()`.
+- **Touched:** `css/sidebar.css`, `css/phone.css`, `docs/team/issues.md`.
+- **Next:** visually verify at 320/360/375 px; the 7 pre-existing avatar tests remain failing (ISS-122).
+
+---
 ## The farm page is painted, and the environment card wears timber — 2026-10-31
 
 - **Did:** `farm_bg.png` now sits behind the whole game page on viewports wider than 900px
