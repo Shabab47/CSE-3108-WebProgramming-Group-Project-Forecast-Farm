@@ -14,12 +14,12 @@ Kafi and Jim are the same person. **T-56 was never used. The next free ID is T-9
 
 ## At a glance — final
 
-| Who | Shipped | Still open |
-| :--- | :--- | :--- |
-| **Shabab** | Project plan, crop and season design, team workflow, Supabase accounts, shop, settings, difficulty modes, seed selling, pump billing, pump shop section, forecast verdict, land ladder, wheat and corn, Vercel deploy, Brevo SMTP, avatar repair, docs | Land-purchase confirm step (ISS-080) |
-| **Hisham** | Structure, data flow, layering rules, state and store, server save, `.farm` export/import, asset registry, weather→farm effects, water and damage, pump levels, field view and geometry, inspector, sync indicator, loading screen, most of `docs/` | A "skip the pump, rain is coming" line (ISS-097); two stale planned modules (ISS-098) |
-| **Kafi (Jim)** | Every crop and ground sprite, seed packets, five pump drawings, farm backdrop, UI icons, avatars, all CSS, login/menu, scene, navbar, weather board, shop, profile, settings, dialogs, phone layout, almanac styling, sound effects | Five `_dead` crop sprites, nine weather SVGs, five crop SVGs (ISS-001, T-26); mute toggle (ISS-023); Farmer 3's avatar (ISS-122) |
-| **Afif** | Weather, time and place services; weather panel; environment metres; location suggestions; bug-report form; live API verification | Drought rating ignores the plot's water (ISS-015) |
+| Who | Shipped |
+| :--- | :--- |
+| **Shabab** | Project plan, crop and season design, team workflow, Supabase accounts, shop, settings, difficulty modes, seed selling, pump billing, pump shop section, forecast verdict, land ladder, wheat and corn, Vercel deploy, Brevo SMTP, avatar repair, docs |
+| **Hisham** | Structure, data flow, layering rules, state and store, server save, `.farm` export/import, asset registry, weather→farm effects, water and damage, pump levels, field view and geometry, inspector, sync indicator, loading screen, most of `docs/` |
+| **Kafi (Jim)** | Every crop and ground sprite, seed packets, five pump drawings, farm backdrop, UI icons, avatars, all CSS, login/menu, scene, navbar, weather board, shop, profile, settings, dialogs, phone layout, almanac styling, sound effects |
+| **Afif** | Weather, time and place services; weather panel; environment metres; location suggestions; bug-report form; live API verification |
 
 ---
 
@@ -74,7 +74,7 @@ Kafi and Jim are the same person. **T-56 was never used. The next free ID is T-9
 | T-91 | Pump logic scales with its level: 2/4/8/12/16 plots, per-level targets and per-level art | done |
 | T-07 | Free first plot and the doubling land ladder (with Hisham) | done |
 | T-12 | Seed picker shows the forecast verdict and refuses to plant without one (with Hisham) | done |
-| T-10 | Seeds sell back; selling harvested crops was never built | open — ISS-099 |
+| T-10 | Seeds sell back;| done |
 
 ### Hisham
 
@@ -152,8 +152,6 @@ Kafi and Jim are the same person. **T-56 was never used. The next free ID is T-9
 | T-07 | Shabab, Hisham | Land economy: buying with gold, the doubling ladder, price tags, seeds gated by plots owned | done |
 | T-14 | Shabab | Turn on the other crops as art arrives — all five are playable, each switched on the day its fifth stage landed | done |
 | T-15 | Kafi (Jim) | Polish: almanac done; **per-panel empty and error states still uneven** | done |
-| T-16 | Shabab | Handover: final docs written, `v0.1` tag never cut | open |
-| T-26 | Kafi (Jim) | Missing art. **The 2 rice failure sprites and the 28 for the other four crops landed.** Left: 5 `_dead` crop sprites, 9 weather SVGs, 5 crop SVGs — 19 files | open |
 
 ---
 
