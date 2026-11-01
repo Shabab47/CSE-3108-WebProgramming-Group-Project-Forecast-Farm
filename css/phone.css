@@ -38,6 +38,7 @@
     grid-area: season;
     align-self: center;
     min-width: 0;
+    max-width: 100%;
     margin-left: 16px;
   }
   .farm-gold {
@@ -113,6 +114,8 @@
   .season-card {
     gap: 11px;
     padding: 13px;
+    min-width: 0;
+    box-sizing: border-box;
     position: relative;
     border: 2px solid #573015;
     border-radius: 20px;
@@ -142,18 +145,33 @@
   .season-card__art {
     width: 42px;
     height: 54px;
+    flex: 0 0 auto;
+  }
+
+  .season-card__text {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 
   .season-card__name {
-    font-size: 23px;
+    font-size: clamp(13px, 4vw, 18px);
     line-height: 1.05;
     color: #493219;
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: break-word;
   }
 
   .season-card__date {
-    font-size: 15px;
+    font-size: clamp(11px, 3vw, 13px);
     font-weight: 800;
     color: #493219;
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: break-word;
   }
 
   .farm-gold {
