@@ -300,7 +300,5 @@ Each week is broken out per person, because "all four" tells you nothing about w
 
 ## 📄 License
 
-**All Rights Reserved** — © 2026 Tawfik Rahman Shabab. See [LICENSE](LICENSE).
-
-No permission is granted to use, copy, modify, or distribute this code, artwork, or
-documentation without prior written permission from the copyright holder.
+© 2026 Tawfik Rahman Shabab. All Rights Reserved.
+This repository is public for portfolio and evaluation purposes only. Reuse, redistribution, modification, or submission as academic work is prohibited without prior written permission.
