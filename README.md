@@ -65,7 +65,8 @@ gold.
 - Easy and normal modes, seven preset avatars, sound effects, a crop almanac, a seed inventory, and
   a bug-report form. → [Where We Stand](#stand)
 
-**→ New here? Read [Where We Stand](#stand)
+**→ New here? Read [Where We Stand](#stand), then [Build History](#progress).**
+
 ---
 
 ## 📚 Documentation
@@ -232,91 +233,6 @@ the deployed one.
 
 ---
 
-## 🔐 Accounts, Saving, and the Database
-
-**→ [docs/setup.md](docs/setup.md) has the database migrations, in order, and how to check each one
-worked.** They cannot be committed and cannot be run from the browser, so a clone needs them.
-
-| Migration | Gives you | Without it |
-| :--- | :--- | :--- |
-| `001_farm_saves.sql` | The server-side save | Saves stay in this browser only |
-| `002_usernames.sql` | Username sign-in | **Username login fails silently** |
-| `003_account_deletion.sql` | A 7-day countdown | Superseded by `005` — **do not run it** |
-| `004_clear_all_accounts.sql` | A maintenance tool | Not a setup step |
-| `005_immediate_account_deletion.sql` | Account deletion, behind a password check | **Deletion fails** |
-| `006_password_gated_erase.sql` | Erase progress, behind a password check | **Erasing progress fails** |
-
-Run them in the Supabase dashboard's SQL Editor, in numeric order; all are safe to re-run.
-
-> **Also needed on the dashboard.** Authentication → URL Configuration: add
-> `http://localhost:5173` and the deployed origin to **Redirect URLs**, and set the same origin as
-> **Site URL**. Both are set on the live project. Without them, "forgot password" silently never
-> delivers an email ([ISS-031](docs/team/issues.md)).
->
-> **Custom SMTP is required for real players.** Supabase's built-in mailer only delivers to
-> addresses on the project's team, and answers every other address with *"Email address not
-> authorized"* — which the app now reports instead of pretending an email was sent. The live
-> project uses Brevo's SMTP relay. Its free plan is 300 messages/day and rewrites the sender to a
-> shared `brevosend.com` domain, so reset mail lands in **spam** until a custom sending domain is
-> verified in Brevo.
->
-> **The recovery template must point at our page.** Authentication → Emails → **Recovery**:
->
-> ```html
-> <h2>Reset your password</h2>
-> <p>Follow this link to choose a new password:</p>
-> <p><a href="http://127.0.0.1:5173/login.html?token_hash={{ .TokenHash }}&type=recovery">Reset password</a></p>
-> ```
->
-> `{{ .ConfirmationURL }}` must not appear anywhere in it. That variable produces the old
-> `/auth/v1/verify` redirect chain, which loses the token on the way back — see
-> [ISS-031](docs/team/issues.md). Swap the hardcoded origin for the deployed one before a demo.
->
-> **Confirm email** is currently **off**, so a new account signs in immediately. Turn it on before a
-> demo to exercise the confirmation step — but the free tier's SMTP allowance is a few emails an
-> hour shared by everyone, so a reviewer who signs up after the first may receive nothing.
->
-> **Play as guest** stays local by design and writes nothing to the server; a guest farm cannot be
-> exported. Clearing site data deletes a guest farm for good. Exported farm files are
-> integrity-checked but **not signed** — see [ISS-032](docs/team/issues.md).
-
-### Accounts and saving — what works today
-
-| Works now | Detail |
-| :--- | :--- |
-| Sign in, register, guest play | **Email or username** and password, or play without an account |
-| The farm is kept per account | Two people on one machine do not share a farm |
-| Save and restore | Progress survives a reload and a closed tab; the save retries when the network drops |
-| **Export your farm** | Settings page. Writes a `.farm` file you can keep or move to another computer |
-| **Import a farm** | Settings page. Reads one back, with a confirmation before it replaces anything |
-| Password reset | Live — needs the redirect URL set in the Supabase dashboard, see above |
-| Buy seeds and pump upgrades | The shop, in its own page. Gold is deducted and the save is written immediately |
-| **Erase all progress** | Settings page. Two clicks **and** the password. Starts a brand new farm under the same account |
-| **Delete account** | Settings page. Two clicks **and** the password, checked in the database |
-
-**Username and farmer name are different things.** The farmer name is what the game greets
-you by and may contain spaces. The username is the login handle: letters, numbers and
-underscores only, 3–20 characters, unique, and never shown to anyone but you.
-
-**Deleting an account is immediate and irreversible.** The password is verified by the
-database before anything is removed, so a stolen session token cannot do it. The account,
-its farm, its username and its farmer name all go together — see
-[DEC-024](docs/team/decisions.md).
-
-**Two limits worth knowing:**
-
-- **A guest farm is local only.** "Play as guest" writes nothing to the server, so clearing site data
-  deletes that farm permanently, and it cannot be exported. A real account's farm can be moved with a
-  `.farm` file. See [ISS-027](docs/team/issues.md).
-- **An exported file cannot be trusted against a determined editor.** It is checked for corruption, and a
-  hand-edited file is refused — but anyone who knows how can change the numbers and update the check.
-  Making that impossible needs a server-held key. See
-  [DEC-021](docs/team/decisions.md).
-
----
-
-<a id="stand"></a>
-
 ## 📍 Where We Stand
 
 The game runs in a browser, the weather is real, and the whole loop closes:
@@ -384,4 +300,7 @@ Each week is broken out per person, because "all four" tells you nothing about w
 
 ## 📄 License
 
-[MIT](LICENSE) — © 2026 Tawfik Rahman Shabab.
+**All Rights Reserved** — © 2026 Tawfik Rahman Shabab. See [LICENSE](LICENSE).
+
+No permission is granted to use, copy, modify, or distribute this code, artwork, or
+documentation without prior written permission from the copyright holder.
