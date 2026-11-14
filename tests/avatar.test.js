@@ -20,12 +20,12 @@ const SESSION = { status: 'authed', userId: 'acc_test', email: 'a@b.bd', farmerN
 test('the preset list has distinct ids, and an id is checked exactly', () => {
   assert.deepEqual(
     AVATARS.map((avatar) => avatar.id),
-    ['farmer1', 'farmer2', 'farmer3', 'farmer4', 'farmer5', 'farmer6', 'farmer7'],
+    ['farmer1', 'farmer2'],
   );
   assert.equal(new Set(AVATARS.map((avatar) => avatar.id)).size, AVATARS.length, 'no duplicate id');
 
   for (const { id } of AVATARS) assert.equal(isAvatarId(id), true, `${id} is a preset`);
-  assert.equal(isAvatarId('farmer8'), false);
+  assert.equal(isAvatarId('farmer3'), false, 'removed presets are not valid ids');
   assert.equal(isAvatarId(''), false);
   assert.equal(isAvatarId(null), false, 'null is the default, not a preset');
 });
@@ -53,11 +53,10 @@ test('every listed preset has inline art with no duplicated element ids', () => 
   }
 });
 
-test('the third preset no longer carries its stray black bars or clip wrapper', () => {
-  const art = avatarArt('farmer3');
-
-  assert.doesNotMatch(art, /<rect\b[^>]*fill="black"/i, 'the six bars are gone');
-  assert.equal(art.includes('clip0_3_11'), false, 'the redundant clipPath is gone');
+test('removed preset ids have no art', () => {
+  for (const id of ['farmer3', 'farmer4', 'farmer5', 'farmer6', 'farmer7']) {
+    assert.equal(avatarArt(id), null, `${id} was removed`);
+  }
 });
 
 test('repeating a preset gives each copy unique SVG ids', () => {

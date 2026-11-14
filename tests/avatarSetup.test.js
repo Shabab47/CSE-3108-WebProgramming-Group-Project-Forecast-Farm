@@ -59,15 +59,15 @@ test('the avatar step is a sign with every preset, Farmer 1 preselected', () => 
 test('choosing another preset repaints the preview and reports that id', async () => {
   mount();
 
-  await options()[2].click();
+  await options()[1].click();
 
-  assert.equal(options()[2].getAttribute('aria-pressed'), 'true');
+  assert.equal(options()[1].getAttribute('aria-pressed'), 'true');
   assert.equal(options()[0].getAttribute('aria-pressed'), 'false');
-  assert.equal(caption(), AVATARS[2].label);
-  assert.equal(options()[2].focusCount, 1, 'and the chosen option keeps focus');
+  assert.equal(caption(), AVATARS[1].label);
+  assert.equal(options()[1].focusCount, 1, 'and the chosen option keeps focus');
 
   await start().click();
-  assert.deepEqual(choices, ['farmer3']);
+  assert.deepEqual(choices, ['farmer2']);
 });
 
 test('pressing Start without touching the picker reports the preselected preset', async () => {

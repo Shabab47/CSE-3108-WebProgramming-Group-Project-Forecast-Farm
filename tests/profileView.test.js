@@ -151,18 +151,8 @@ test('the avatar picker offers the default and all presets, and reports a choice
     'the main circle still shows preset art after the choice',
   );
 
-  fresh[3].click();
-  assert.deepEqual(chosen, ['farmer2', 'farmer3'], 'the third preset was reported');
-  const afterThird = card.querySelectorAll('.profile-avatar-option');
-  assert.equal(afterThird[3].getAttribute('aria-pressed'), 'true');
-
-  afterThird[4].click();
-  assert.deepEqual(chosen, ['farmer2', 'farmer3', 'farmer4'], 'the fourth preset was reported');
-  const afterFourth = card.querySelectorAll('.profile-avatar-option');
-  assert.equal(afterFourth[4].getAttribute('aria-pressed'), 'true');
-
-  afterFourth[0].click();
-  assert.deepEqual(chosen, ['farmer2', 'farmer3', 'farmer4', null], 'the default is reported as null');
+  fresh[0].click();
+  assert.deepEqual(chosen, ['farmer2', null], 'the default is reported as null');
   assert.ok(
     card.querySelector('.profile-avatar--default'),
     'choosing the default repaints the gray person',

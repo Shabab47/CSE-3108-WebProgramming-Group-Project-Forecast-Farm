@@ -50,7 +50,7 @@ test('with no chosen avatar the tile shows the same gray person as the profile p
 });
 
 test('a chosen preset replaces the gray person with its artwork', () => {
-  const link = mount({ avatar: 'farmer4' });
+  const link = mount({ avatar: 'farmer2' });
 
   assert.ok(link.querySelector('.navbar__avatar-art'), 'the preset artwork is missing');
   assert.equal(link.querySelector('.navbar__avatar-default'), null, 'the gray person should be gone');
@@ -58,11 +58,12 @@ test('a chosen preset replaces the gray person with its artwork', () => {
   assert.equal(link.getAttribute('href'), 'profile.html');
 });
 
-test('an unknown avatar id falls back to the gray person', () => {
-  const link = mount({ avatar: 'farmer9' });
-
-  assert.ok(link.querySelector('.navbar__avatar-default'));
-  assert.equal(link.querySelector('.navbar__avatar-art'), null);
+test('an unknown or removed avatar id falls back to the gray person', () => {
+  for (const id of ['farmer9', 'farmer3']) {
+    const link = mount({ avatar: id });
+    assert.ok(link.querySelector('.navbar__avatar-default'), `${id} should use default`);
+    assert.equal(link.querySelector('.navbar__avatar-art'), null, `${id} has no art`);
+  }
 });
 
 test('a guest still reaches the guest profile page', () => {

@@ -434,20 +434,26 @@ a page that needs none.
 ### DEC-051 Profile avatars are presets stored as an id, not uploaded files
 **Decided by:** Jim · 2026-10-20
 
-**Choice:** the profile page offers the default gray person plus seven inline-SVG presets:
-`farmer1` (Farmer 1), `farmer2` (Farmer 2), `farmer3` (Painter), `farmer4` (Party Guy),
-`farmer5` (Neta Yahoo), `farmer6` (Boltu) and `farmer7` (Apa). `state.profile.avatar` holds
-one of those ids, or `null` for the default.
+**Choice:** the profile page offers the default gray person plus inline-SVG presets.
+`state.profile.avatar` holds one of those ids, or `null` for the default.
 `js/config/avatars.js` owns the list the store validates, `js/ui/avatarArt.js` owns the drawings,
 and `accountCard.js` renders the picker. The choice is saved through `setAvatar()` like any other
 state change, so it syncs on an authed farm and stays local for a guest. Erasing progress keeps the
 avatar — it is a profile choice, not farm progress. Deleting the account removes it with the save.
+
+The current presets are `farmer1` (Farmer 1) and `farmer2` (Farmer 2).
 
 **Revised 2026-10-28 (more presets, same rules).** The first version offered four presets. Three
 more were added with their own artwork and names; the storage rule is unchanged, and an id this
 build does not know still reads as the default. `avatarArt()` returns `null` for that default and
 suffixes its internal SVG ids per render, because the profile page shows the selected preset twice
 (main circle and picker option).
+
+**Amended 2026-11-14 (preset list trimmed).** `farmer3` (Painter), `farmer4` (Party Guy),
+`farmer5` (Neta Yahoo), `farmer6` (Boltu) and `farmer7` (Apa) were removed from the list and
+their drawings removed. The storage rule is unchanged: a save that still carries one of those ids
+is treated as the default by `ensureProfile()` / `avatarArt()` because the id is no longer a known
+preset, so it falls back to the gray person without a `STATE_VERSION` bump.
 
 **Why presets.** An upload needs a file picker, image decoding, canvas resizing, compression, a size
 and MIME check, data-URL or object-storage handling, and browser-only tests to get one picture onto

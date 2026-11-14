@@ -14,11 +14,6 @@
 export const AVATARS = [
   { id: 'farmer1', label: 'Farmer 1' },
   { id: 'farmer2', label: 'Farmer 2' },
-  { id: 'farmer3', label: 'Painter' },
-  { id: 'farmer4', label: 'Party Guy' },
-  { id: 'farmer5', label: 'Neta Yahoo' },
-  { id: 'farmer6', label: 'Boltu' },
-  { id: 'farmer7', label: 'Apa' },
 ];
 
 /** Whether a value is one of the preset ids. `null` means the default avatar. */

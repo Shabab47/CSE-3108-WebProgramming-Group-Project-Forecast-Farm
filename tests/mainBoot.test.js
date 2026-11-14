@@ -202,10 +202,10 @@ test('a signed-in player arriving with ?guest=1 keeps their session', async () =
 });
 
 test('the sign-up avatar handoff accepts a preset and nothing else', () => {
-  assert.equal(avatarFromSearch('?avatar=farmer4'), 'farmer4');
+  assert.equal(avatarFromSearch('?avatar=farmer2'), 'farmer2');
   assert.equal(avatarFromSearch('avatar=farmer1&guest=1'), 'farmer1');
 
-  for (const junk of ['', '?avatar=farmer9', '?avatar=', '?avatar=farmer1x', '?guest=1']) {
+  for (const junk of ['', '?avatar=farmer3', '?avatar=farmer4', '?avatar=', '?avatar=farmer1x', '?guest=1']) {
     assert.equal(avatarFromSearch(junk), null, `${junk || 'an empty query'} must not choose an avatar`);
   }
 });
